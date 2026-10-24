@@ -20,6 +20,7 @@ from .logging_config import configure_logging
 from .routers import components as components_router
 from .routers import custom_fields as custom_fields_router
 from .routers import dependencies as dependencies_router
+from .routers import diagnostics as diagnostics_router
 from .routers import relationships as relationships_router
 from .serialization import serialize_document
 
@@ -60,9 +61,9 @@ def create_app() -> FastAPI:
         title=settings.app_name,
         version=__version__,
         description=(
-            "SVRMON24: FastAPI + MongoDB CMDB inventory, relationships, and "
-            "dependency/impact analysis with HTTP Basic auth. "
-            "Diagnostics remain simulated; no remote execution."
+            "SVRMON24: FastAPI + MongoDB CMDB, relationships, dependency/impact "
+            "analysis, and SIMULATED diagnostics with HTTP Basic auth. "
+            "Diagnostics are demo-only; no remote execution."
         ),
         lifespan=lifespan,
     )
@@ -72,6 +73,7 @@ def create_app() -> FastAPI:
     app.include_router(custom_fields_router.router)
     app.include_router(relationships_router.router)
     app.include_router(dependencies_router.router)
+    app.include_router(diagnostics_router.router)
     app.mount("/static", StaticFiles(directory=str(STATIC_DIR)), name="static")
 
     @app.get("/", include_in_schema=False)

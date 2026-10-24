@@ -10,6 +10,8 @@ AI-powered infrastructure monitoring, CMDB, dependency mapping, and diagnostics.
 
 **Phase 5** adds dependency traversal and impact analysis (upstream / downstream / potentially affected applications) with cycle detection, depth limits, and a Dependencies UI tab.
 
+**Phase 6** adds a DEMO/SIMULATED diagnostic engine with an approved `basic-health` profile, MongoDB history, and a Diagnostics UI tab. No remote execution.
+
 Diagnostics remain simulated — no real remote execution.
 
 ## Requirements
@@ -76,6 +78,14 @@ pytest
 | GET/POST | `/api/relationships` | Basic | List / create relationships |
 | GET/PUT/DELETE | `/api/relationships/{id}` | Basic | Get / update / delete |
 | GET | `/api/relationships/types` | Basic | Type meaning + direction docs |
+| GET | `/api/dependencies/{id}` | Basic | Upstream + downstream + impact bundle |
+| GET | `/api/dependencies/{id}/upstream` | Basic | Upstream traversal |
+| GET | `/api/dependencies/{id}/downstream` | Basic | Downstream traversal |
+| GET | `/api/dependencies/{id}/impact` | Basic | Potentially affected applications |
+| GET | `/api/diagnostics/profiles` | Basic | Approved simulated profiles |
+| POST | `/api/diagnostics` | Basic | Start SIMULATED diagnostic |
+| GET | `/api/diagnostics` | Basic | Diagnostic history |
+| GET | `/api/diagnostics/{id}` | Basic | Diagnostic detail |
 
 ### Inventory columns (never combined)
 
@@ -86,3 +96,4 @@ N/A values render as an em dash.
 ### Relationship columns (never combined)
 
 Relationship ID | Source | Target | Type | Protocol | Source Port | Target Port | Environment | Discovery | Verification | Actions
+
