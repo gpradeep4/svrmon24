@@ -1,0 +1,522 @@
+(() => {
+  const STORAGE_KEY = "svrmon24.basicAuth";
+  const state = {
+    page: 1,
+    pageSize: 25,
+    totalPages: 1,
+    editingId: null,
+    customFields: [],
+    deleteTarget: null,
+  };
+
+  const $ = (sel, root = document) => root.querySelector(sel);
+  const $$ = (sel, root = document) => [...root.querySelectorAll(sel)];
+
+  function toast(message, isError = false) {
+    const el = $("#toast");
+    el.textContent = message;
+    el.classList.toggle("error", isError);
+    el.classList.add("show");
+    clearTimeout(toast._t);
+    toast._t = setTimeout(() => el.classList.remove("show"), 3200);
+  }
+
+  function authHeader() {
+    const raw = sessionStorage.getItem(STORAGE_KEY);
+    if (!raw) return null;
+    try {
+      const { username, password } = JSON.parse(raw);
+      if (!username || !password) return null;
+      return "Basic " + btoa(`${username}:${password}`);
+    } catch {
+      return null;
+    }
+  }
+
+  async function api(path, options = {}) {
+    const headers = Object.assign({ Accept: "application/json" }, options.headers || {});
+    const auth = authHeader();
+    if (auth) headers.Authorization = auth;
+    if (options.body && !headers["Content-Type"]) {
+      headers["Content-Type"] = "application/json";
+    }
+    const res = await fetch(path, { ...options, headers });
+    let data = null;
+    const text = await res.text();
+    if (text) {
+      try { data = JSON.parse(text); } catch { data = { detail: text }; }
+    }
+    if (!res.ok) {
+      const detail = data?.error?.message || data?.detail || res.statusText;
+      const msg = typeof detail === "string" ? detail : JSON.stringify(detail);
+      const err = new Error(msg);
+      err.status = res.status;
+      err.data = data;
+      throw err;
+    }
+    return data;
+  }
+
+  function dash(value) {
+    if (value === null || value === undefined || value === "") return "—";
+    return String(value);
+  }
+
+  function statusClass(status) {
+    if (status === "inactive") return "inactive";
+    if (status === "decommissioned") return "decommissioned";
+    return "";
+  }
+
+  function saveAuthFromForm() {
+    const username = $("#authUser").value.trim();
+    const password = $("#authPass").value;
+    if (!username || !password) {
+      toast("Enter username and password", true);
+      return false;
+    }
+    sessionStorage.setItem(STORAGE_KEY, JSON.stringify({ username, password }));
+    return true;
+  }
+
+  function loadAuthIntoForm() {
+    const raw = sessionStorage.getItem(STORAGE_KEY);
+    if (!raw) return;
+    try {
+      const { username, password } = JSON.parse(raw);
+      $("#authUser").value = username || "";
+      $("#authPass").value = password || "";
+    } catch { /* ignore */ }
+  }
+
+  async function connect() {
+    if (!saveAuthFromForm()) return;
+    try {
+      await api("/api/me");
+      toast("Connected");
+      await Promise.all([loadTypes(), loadCustomFields(), loadInventory()]);
+    } catch (err) {
+      toast(err.message || "Auth failed", true);
+    }
+  }
+
+  async function loadTypes() {
+    const data = await api("/api/components/types");
+    const selects = ["#filterType", "#fieldType", "#cfApplies"];
+    for (const sel of selects) {
+      const el = $(sel);
+      if (!el) continue;
+      const keepFirst = el.getAttribute("data-keep-first") === "1";
+      const first = keepFirst ? el.options[0] : null;
+      el.innerHTML = "";
+      if (first) el.appendChild(first);
+      for (const t of data.types) {
+        const opt = document.createElement("option");
+        opt.value = t;
+        opt.textContent = t;
+        el.appendChild(opt);
+      }
+      if (sel === "#cfApplies") {
+        const all = document.createElement("option");
+        all.value = "*";
+        all.textContent = "All types";
+        el.insertBefore(all, el.firstChild);
+        el.value = "*";
+      }
+    }
+  }
+
+  function queryParams() {
+    const params = new URLSearchParams();
+    const q = $("#searchQ").value.trim();
+    const component_type = $("#filterType").value;
+    const environment = $("#filterEnv").value.trim();
+    const status = $("#filterStatus").value;
+    if (q) params.set("q", q);
+    if (component_type) params.set("component_type", component_type);
+    if (environment) params.set("environment", environment);
+    if (status) params.set("status", status);
+    params.set("page", String(state.page));
+    params.set("page_size", String(state.pageSize));
+    params.set("sort_by", "updated_at");
+    params.set("sort_dir", "desc");
+    return params;
+  }
+
+  async function loadInventory() {
+    const data = await api(`/api/components?${queryParams().toString()}`);
+    state.totalPages = data.total_pages || 1;
+    $("#pageInfo").textContent = `Page ${data.page} / ${state.totalPages || 1} · ${data.total} components`;
+    $("#btnPrev").disabled = data.page <= 1;
+    $("#btnNext").disabled = data.page >= (data.total_pages || 1);
+
+    const tbody = $("#inventoryBody");
+    tbody.innerHTML = "";
+    for (const row of data.inventory || []) {
+      const tr = document.createElement("tr");
+      tr.innerHTML = `
+        <td class="mono">${escapeHtml(row.component_id)}</td>
+        <td>${escapeHtml(row.hostname_or_name)}</td>
+        <td>${escapeHtml(row.component_type)}</td>
+        <td class="${row.os_family === "—" ? "dash" : ""}">${escapeHtml(row.os_family)}</td>
+        <td class="${row.os_version === "—" ? "dash" : ""}">${escapeHtml(row.os_version)}</td>
+        <td class="${row.product_type === "—" ? "dash" : ""}">${escapeHtml(row.product_type)}</td>
+        <td class="${row.product_version === "—" ? "dash" : ""}">${escapeHtml(row.product_version)}</td>
+        <td>${escapeHtml(row.environment)}</td>
+        <td><span class="status-pill ${statusClass(row.status)}">${escapeHtml(row.status)}</span></td>
+        <td class="actions">
+          <button type="button" class="ghost" data-view="${escapeAttr(row.component_id)}">View</button>
+          <button type="button" class="secondary" data-edit="${escapeAttr(row.component_id)}">Edit</button>
+          <button type="button" class="danger" data-del="${escapeAttr(row.component_id)}">Delete</button>
+        </td>`;
+      tbody.appendChild(tr);
+    }
+  }
+
+  function escapeHtml(value) {
+    return String(value ?? "")
+      .replaceAll("&", "&amp;")
+      .replaceAll("<", "&lt;")
+      .replaceAll(">", "&gt;")
+      .replaceAll('"', "&quot;");
+  }
+
+  function escapeAttr(value) {
+    return escapeHtml(value).replaceAll("'", "&#39;");
+  }
+
+  const TYPE_FIELDS = {
+    Server: ["hostname", "ip_address", "os_family", "os_version"],
+    Middleware: [
+      "product_type", "product_version", "instance_name", "domain_name",
+      "host_server_id", "listen_address", "listen_port", "installation_path",
+      "domain_home", "log_folder_path",
+    ],
+    Database: [
+      "product_type", "product_version", "instance_name", "endpoint",
+      "listen_port", "cluster_or_replication_details", "log_folder_path",
+    ],
+    Network: ["device_name", "device_type", "management_ip", "virtual_ip", "listener_port"],
+    Application: [
+      "application_name", "application_type", "service_url",
+      "business_criticality", "owner",
+    ],
+  };
+
+  function renderTypeFields(componentType, values = {}) {
+    const wrap = $("#typeFields");
+    wrap.innerHTML = "";
+    const fields = TYPE_FIELDS[componentType] || [];
+    for (const key of fields) {
+      const label = document.createElement("label");
+      label.innerHTML = `${key.replaceAll("_", " ")}<input data-field="${key}" value="${escapeAttr(values[key] ?? "")}" />`;
+      wrap.appendChild(label);
+    }
+  }
+
+  function openModal(title) {
+    $("#modalTitle").textContent = title;
+    $("#componentModal").classList.add("open");
+  }
+
+  function closeModal() {
+    $("#componentModal").classList.remove("open");
+    state.editingId = null;
+  }
+
+  function openCreate() {
+    state.editingId = null;
+    $("#componentForm").reset();
+    $("#fieldComponentId").disabled = false;
+    $("#fieldType").disabled = false;
+    $("#fieldType").value = "Server";
+    renderTypeFields("Server");
+    renderCustomInputs("Server", {});
+    openModal("Add component");
+  }
+
+  async function openEdit(id, readOnly = false) {
+    const doc = await api(`/api/components/${encodeURIComponent(id)}`);
+    state.editingId = id;
+    $("#fieldComponentId").value = doc.component_id;
+    $("#fieldComponentId").disabled = true;
+    $("#fieldType").value = doc.component_type;
+    $("#fieldType").disabled = true;
+    $("#fieldName").value = doc.name || "";
+    $("#fieldEnv").value = doc.environment || "";
+    $("#fieldStatus").value = doc.status || "active";
+    renderTypeFields(doc.component_type, doc);
+    renderCustomInputs(doc.component_type, doc.custom_fields || {});
+    $$("#componentForm input, #componentForm select, #componentForm textarea").forEach((el) => {
+      if (el.id === "fieldComponentId" || el.id === "fieldType") return;
+      el.disabled = readOnly;
+    });
+    $("#btnSaveComponent").style.display = readOnly ? "none" : "inline-block";
+    openModal(readOnly ? `View ${id}` : `Edit ${id}`);
+  }
+
+  function collectPayload() {
+    const component_type = $("#fieldType").value;
+    const payload = {
+      name: $("#fieldName").value.trim(),
+      environment: $("#fieldEnv").value.trim(),
+      status: $("#fieldStatus").value,
+      custom_fields: collectCustomValues(),
+    };
+    if (!state.editingId) {
+      payload.component_type = component_type;
+      const cid = $("#fieldComponentId").value.trim();
+      if (cid) payload.component_id = cid;
+    }
+    for (const input of $$("#typeFields [data-field]")) {
+      const key = input.getAttribute("data-field");
+      let value = input.value.trim();
+      if (value === "") {
+        payload[key] = null;
+        continue;
+      }
+      if (key.endsWith("_port") || key === "listen_port" || key === "listener_port") {
+        payload[key] = Number(value);
+      } else {
+        payload[key] = value;
+      }
+    }
+    return payload;
+  }
+
+  async function saveComponent(event) {
+    event.preventDefault();
+    const payload = collectPayload();
+    try {
+      if (state.editingId) {
+        await api(`/api/components/${encodeURIComponent(state.editingId)}`, {
+          method: "PUT",
+          body: JSON.stringify(payload),
+        });
+        toast("Component updated");
+      } else {
+        await api("/api/components", {
+          method: "POST",
+          body: JSON.stringify(payload),
+        });
+        toast("Component created");
+      }
+      closeModal();
+      await loadInventory();
+    } catch (err) {
+      toast(err.message || "Save failed", true);
+    }
+  }
+
+  async function beginDelete(id) {
+    try {
+      const preview = await api(`/api/components/${encodeURIComponent(id)}/delete-preview`);
+      state.deleteTarget = id;
+      $("#deleteMessage").textContent =
+        `Delete component ${id} (${preview.component?.name || ""})? This cannot be undone.`;
+      const warning = preview.relationship_warning || {};
+      const box = $("#deleteWarn");
+      box.style.display = "block";
+      if (warning.has_relationships) {
+        box.textContent = warning.message;
+      } else {
+        box.textContent =
+          warning.message +
+          " (Relationship engine not implemented yet — warning hook is ready.)";
+      }
+      $("#deleteModal").classList.add("open");
+    } catch (err) {
+      toast(err.message || "Delete preview failed", true);
+    }
+  }
+
+  async function confirmDelete() {
+    if (!state.deleteTarget) return;
+    try {
+      await api(
+        `/api/components/${encodeURIComponent(state.deleteTarget)}?confirmed=true`,
+        { method: "DELETE" }
+      );
+      toast(`Deleted ${state.deleteTarget}`);
+      state.deleteTarget = null;
+      $("#deleteModal").classList.remove("open");
+      await loadInventory();
+    } catch (err) {
+      toast(err.message || "Delete failed", true);
+    }
+  }
+
+  async function loadCustomFields() {
+    const data = await api("/api/custom-fields");
+    state.customFields = data.items || [];
+    const tbody = $("#customFieldBody");
+    tbody.innerHTML = "";
+    for (const item of state.customFields) {
+      const tr = document.createElement("tr");
+      tr.innerHTML = `
+        <td class="mono">${escapeHtml(item.field_key)}</td>
+        <td>${escapeHtml(item.label)}</td>
+        <td>${escapeHtml(item.field_type)}</td>
+        <td>${escapeHtml((item.applies_to || []).join(", "))}</td>
+        <td>${item.required ? "yes" : "no"}</td>
+        <td class="actions">
+          <button type="button" class="danger" data-cf-del="${escapeAttr(item.field_key)}">Delete</button>
+        </td>`;
+      tbody.appendChild(tr);
+    }
+  }
+
+  function renderCustomInputs(componentType, values) {
+    const wrap = $("#customInputs");
+    wrap.innerHTML = "";
+    const applicable = state.customFields.filter(
+      (f) => (f.applies_to || []).includes("*") || (f.applies_to || []).includes(componentType)
+    );
+    if (!applicable.length) {
+      wrap.innerHTML = `<p class="hint">No custom fields configured for ${escapeHtml(componentType)}.</p>`;
+      return;
+    }
+    for (const field of applicable) {
+      const label = document.createElement("label");
+      const val = values[field.field_key];
+      if (field.field_type === "boolean") {
+        label.innerHTML = `${escapeHtml(field.label)}
+          <select data-cf="${escapeAttr(field.field_key)}">
+            <option value="">—</option>
+            <option value="true" ${val === true ? "selected" : ""}>true</option>
+            <option value="false" ${val === false ? "selected" : ""}>false</option>
+          </select>`;
+      } else if (field.field_type === "enum") {
+        const opts = (field.enum_values || [])
+          .map((v) => `<option value="${escapeAttr(v)}" ${val === v ? "selected" : ""}>${escapeHtml(v)}</option>`)
+          .join("");
+        label.innerHTML = `${escapeHtml(field.label)}
+          <select data-cf="${escapeAttr(field.field_key)}">
+            <option value="">—</option>${opts}
+          </select>`;
+      } else {
+        label.innerHTML = `${escapeHtml(field.label)}
+          <input data-cf="${escapeAttr(field.field_key)}" value="${escapeAttr(val ?? "")}" />`;
+      }
+      wrap.appendChild(label);
+    }
+  }
+
+  function collectCustomValues() {
+    const out = {};
+    for (const el of $$("[data-cf]")) {
+      const key = el.getAttribute("data-cf");
+      let value = el.value;
+      if (value === "") continue;
+      const def = state.customFields.find((f) => f.field_key === key);
+      if (def?.field_type === "number") value = Number(value);
+      if (def?.field_type === "boolean") value = value === "true";
+      out[key] = value;
+    }
+    return out;
+  }
+
+  async function saveCustomField(event) {
+    event.preventDefault();
+    const applies = $("#cfApplies").value;
+    const payload = {
+      field_key: $("#cfKey").value.trim(),
+      label: $("#cfLabel").value.trim(),
+      field_type: $("#cfType").value,
+      applies_to: [applies || "*"],
+      required: $("#cfRequired").checked,
+      enum_values: $("#cfEnum").value
+        .split(",")
+        .map((s) => s.trim())
+        .filter(Boolean),
+    };
+    try {
+      await api("/api/custom-fields", { method: "POST", body: JSON.stringify(payload) });
+      toast("Custom field created");
+      $("#customFieldForm").reset();
+      $("#cfApplies").value = "*";
+      await loadCustomFields();
+    } catch (err) {
+      toast(err.message || "Custom field save failed", true);
+    }
+  }
+
+  function showTab(name) {
+    $$(".tab-panel").forEach((p) => p.classList.add("hidden"));
+    $$(".tabs button").forEach((b) => b.classList.remove("active"));
+    $(`#tab-${name}`).classList.remove("hidden");
+    $(`.tabs button[data-tab="${name}"]`).classList.add("active");
+  }
+
+  function wireEvents() {
+    $("#btnConnect").addEventListener("click", connect);
+    $("#btnSearch").addEventListener("click", async () => {
+      state.page = 1;
+      try { await loadInventory(); } catch (err) { toast(err.message, true); }
+    });
+    $("#btnAdd").addEventListener("click", () => {
+      try { openCreate(); } catch (err) { toast(err.message, true); }
+    });
+    $("#btnPrev").addEventListener("click", async () => {
+      state.page = Math.max(1, state.page - 1);
+      await loadInventory();
+    });
+    $("#btnNext").addEventListener("click", async () => {
+      state.page = Math.min(state.totalPages || 1, state.page + 1);
+      await loadInventory();
+    });
+    $("#fieldType").addEventListener("change", (e) => {
+      renderTypeFields(e.target.value);
+      renderCustomInputs(e.target.value, {});
+    });
+    $("#componentForm").addEventListener("submit", saveComponent);
+    $("#btnCloseModal").addEventListener("click", closeModal);
+    $("#btnCancelDelete").addEventListener("click", () => {
+      $("#deleteModal").classList.remove("open");
+      state.deleteTarget = null;
+    });
+    $("#btnConfirmDelete").addEventListener("click", confirmDelete);
+    $("#customFieldForm").addEventListener("submit", saveCustomField);
+    $("#inventoryBody").addEventListener("click", async (e) => {
+      const view = e.target.getAttribute("data-view");
+      const edit = e.target.getAttribute("data-edit");
+      const del = e.target.getAttribute("data-del");
+      try {
+        if (view) await openEdit(view, true);
+        if (edit) await openEdit(edit, false);
+        if (del) await beginDelete(del);
+      } catch (err) {
+        toast(err.message, true);
+      }
+    });
+    $("#customFieldBody").addEventListener("click", async (e) => {
+      const key = e.target.getAttribute("data-cf-del");
+      if (!key) return;
+      if (!confirm(`Delete custom field definition '${key}'?`)) return;
+      try {
+        await api(`/api/custom-fields/${encodeURIComponent(key)}`, { method: "DELETE" });
+        toast("Custom field deleted");
+        await loadCustomFields();
+      } catch (err) {
+        toast(err.message, true);
+      }
+    });
+    $$(".tabs button").forEach((btn) => {
+      btn.addEventListener("click", () => showTab(btn.getAttribute("data-tab")));
+    });
+  }
+
+  // minimal hidden helper class
+  const style = document.createElement("style");
+  style.textContent = `.hidden{display:none!important}`;
+  document.head.appendChild(style);
+
+  document.addEventListener("DOMContentLoaded", () => {
+    loadAuthIntoForm();
+    wireEvents();
+    showTab("inventory");
+    if (authHeader()) {
+      connect().catch(() => {});
+    }
+  });
+})();

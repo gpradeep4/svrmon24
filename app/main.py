@@ -1,12 +1,15 @@
-"""SVRMON24 FastAPI application entrypoint (Phase 2 foundation)."""
+"""SVRMON24 FastAPI application entrypoint."""
 
 from __future__ import annotations
 
 import logging
 from contextlib import asynccontextmanager
+from pathlib import Path
 from typing import Any
 
 from fastapi import Depends, FastAPI
+from fastapi.responses import FileResponse
+from fastapi.staticfiles import StaticFiles
 
 from . import __version__
 from .auth import verify_basic_credentials
@@ -14,9 +17,12 @@ from .config import Settings, get_settings
 from .db import close_client, ping_database
 from .exceptions import register_exception_handlers
 from .logging_config import configure_logging
+from .routers import components as components_router
+from .routers import custom_fields as custom_fields_router
 from .serialization import serialize_document
 
 logger = logging.getLogger(__name__)
+STATIC_DIR = Path(__file__).resolve().parent / "static"
 
 
 @asynccontextmanager
@@ -29,7 +35,6 @@ async def lifespan(_app: FastAPI):
         __version__,
         settings.app_env,
     )
-    # Soft check only — app still starts if MongoDB is down
     db_status = ping_database(settings)
     if db_status.get("ok"):
         logger.info("mongodb_ready database=%s", settings.mongodb_db)
@@ -53,12 +58,21 @@ def create_app() -> FastAPI:
         title=settings.app_name,
         version=__version__,
         description=(
-            "SVRMON24 Phase 2 foundation: FastAPI + Uvicorn + MongoDB (PyMongo) "
-            "with HTTP Basic auth. Diagnostics remain simulated; no remote execution."
+            "SVRMON24: FastAPI + MongoDB CMDB inventory with HTTP Basic auth. "
+            "Diagnostics remain simulated; no remote execution."
         ),
         lifespan=lifespan,
     )
     register_exception_handlers(app)
+
+    app.include_router(components_router.router)
+    app.include_router(custom_fields_router.router)
+    app.mount("/static", StaticFiles(directory=str(STATIC_DIR)), name="static")
+
+    @app.get("/", include_in_schema=False)
+    def ui_index() -> FileResponse:
+        """CMDB inventory UI (browser)."""
+        return FileResponse(STATIC_DIR / "index.html")
 
     @app.get("/health", tags=["health"])
     def health() -> dict[str, Any]:

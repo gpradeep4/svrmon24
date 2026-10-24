@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>SVRMON24 CMDB Inventory</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,600&family=IBM+Plex+Mono:wght@400;600&family=Source+Sans+3:wght@400;600;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="/static/css/cmdb.css" />
+</head>
+<body>
+  <div class="shell">
+    <div class="brand-bar">
+      <div>
+        <h1>SVRMON24</h1>
+        <p>CMDB component inventory — Server, Network, Middleware, Database, Application. OS and Product fields stay separate.</p>
+      </div>
+    </div>
+
+    <section class="panel">
+      <h2>Session (HTTP Basic)</h2>
+      <div class="auth-row">
+        <label>Username<input id="authUser" autocomplete="username" /></label>
+        <label>Password<input id="authPass" type="password" autocomplete="current-password" /></label>
+        <button type="button" id="btnConnect">Connect</button>
+        <p class="hint">Uses credentials from your `.env` (`BASIC_AUTH_USERNAME` / `BASIC_AUTH_PASSWORD`).</p>
+      </div>
+    </section>
+
+    <div class="tabs">
+      <button type="button" data-tab="inventory" class="active">Inventory</button>
+      <button type="button" data-tab="custom">Custom fields</button>
+    </div>
+
+    <section id="tab-inventory" class="tab-panel">
+      <section class="panel">
+        <div class="toolbar">
+          <label>Search<input id="searchQ" placeholder="id, name, hostname, product…" /></label>
+          <label>Type
+            <select id="filterType" data-keep-first="1">
+              <option value="">All</option>
+            </select>
+          </label>
+          <label>Environment<input id="filterEnv" placeholder="prod / nonprod" /></label>
+          <label>Status
+            <select id="filterStatus">
+              <option value="">All</option>
+              <option value="active">active</option>
+              <option value="inactive">inactive</option>
+              <option value="decommissioned">decommissioned</option>
+              <option value="unknown">unknown</option>
+            </select>
+          </label>
+          <span></span>
+          <button type="button" id="btnSearch" class="secondary">Apply filters</button>
+          <button type="button" id="btnAdd">Add component</button>
+        </div>
+      </section>
+
+      <section class="panel">
+        <h2>Inventory</h2>
+        <div class="table-wrap">
+          <table class="inventory">
+            <thead>
+              <tr>
+                <th>Component ID</th>
+                <th>Hostname/Component Name</th>
+                <th>Component Type</th>
+                <th>OS Family</th>
+                <th>OS Version</th>
+                <th>Product Type</th>
+                <th>Product Version</th>
+                <th>Environment</th>
+                <th>Status</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody id="inventoryBody"></tbody>
+          </table>
+        </div>
+        <div class="pager">
+          <div id="pageInfo">Page 1 / 1 · 0 components</div>
+          <div class="controls">
+            <button type="button" id="btnPrev" class="secondary">Previous</button>
+            <button type="button" id="btnNext" class="secondary">Next</button>
+          </div>
+        </div>
+      </section>
+    </section>
+
+    <section id="tab-custom" class="tab-panel hidden">
+      <section class="panel">
+        <h2>Custom field definitions</h2>
+        <form id="customFieldForm" class="form-grid">
+          <label>Field key<input id="cfKey" required pattern="^[a-z][a-z0-9_]*$" placeholder="cost_center" /></label>
+          <label>Label<input id="cfLabel" required placeholder="Cost Center" /></label>
+          <label>Type
+            <select id="cfType">
+              <option value="string">string</option>
+              <option value="number">number</option>
+              <option value="boolean">boolean</option>
+              <option value="enum">enum</option>
+            </select>
+          </label>
+          <label>Applies to
+            <select id="cfApplies"></select>
+          </label>
+          <label class="full">Enum values (comma-separated, for enum type)
+            <input id="cfEnum" placeholder="gold, silver, bronze" />
+          </label>
+          <label><span>Required</span><input id="cfRequired" type="checkbox" /></label>
+          <button type="submit">Add definition</button>
+        </form>
+      </section>
+      <section class="panel">
+        <div class="table-wrap">
+          <table class="inventory">
+            <thead>
+              <tr>
+                <th>Key</th>
+                <th>Label</th>
+                <th>Type</th>
+                <th>Applies to</th>
+                <th>Required</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody id="customFieldBody"></tbody>
+          </table>
+        </div>
+      </section>
+    </section>
+  </div>
+
+  <div id="componentModal" class="modal-backdrop" role="dialog" aria-modal="true">
+    <div class="modal">
+      <header>
+        <h3 id="modalTitle">Component</h3>
+        <button type="button" id="btnCloseModal" class="ghost">Close</button>
+      </header>
+      <form id="componentForm">
+        <div class="form-grid">
+          <label>Component ID<input id="fieldComponentId" placeholder="auto if blank" /></label>
+          <label>Component type
+            <select id="fieldType" required></select>
+          </label>
+          <label>Name<input id="fieldName" required /></label>
+          <label>Environment<input id="fieldEnv" required /></label>
+          <label>Status
+            <select id="fieldStatus">
+              <option value="active">active</option>
+              <option value="inactive">inactive</option>
+              <option value="decommissioned">decommissioned</option>
+              <option value="unknown">unknown</option>
+            </select>
+          </label>
+        </div>
+        <h2 style="margin-top:16px;font-size:1rem">Type-specific fields</h2>
+        <div id="typeFields" class="form-grid"></div>
+        <h2 style="margin-top:16px;font-size:1rem">Custom fields</h2>
+        <div id="customInputs" class="form-grid"></div>
+        <div style="margin-top:14px;display:flex;gap:8px;justify-content:flex-end">
+          <button type="submit" id="btnSaveComponent">Save</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <div id="deleteModal" class="modal-backdrop" role="dialog" aria-modal="true">
+    <div class="modal">
+      <header>
+        <h3>Confirm deletion</h3>
+      </header>
+      <p id="deleteMessage"></p>
+      <div id="deleteWarn" class="warn-box"></div>
+      <div style="display:flex;gap:8px;justify-content:flex-end">
+        <button type="button" id="btnCancelDelete" class="secondary">Cancel</button>
+        <button type="button" id="btnConfirmDelete" class="danger">Delete</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="toast" class="toast"></div>
+  <script src="/static/js/cmdb.js"></script>
+</body>
+</html>
