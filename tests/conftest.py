@@ -14,8 +14,8 @@ os.environ.setdefault("BASIC_AUTH_USERNAME", "testuser")
 os.environ.setdefault("BASIC_AUTH_PASSWORD", "testpass")
 os.environ.setdefault("MONGODB_URI", "mongodb://localhost:27017")
 os.environ.setdefault("MONGODB_DB", "svrmon24_test")
-os.environ.setdefault("MONGODB_CONNECT_TIMEOUT_MS", "500")
-os.environ.setdefault("MONGODB_SERVER_SELECTION_TIMEOUT_MS", "500")
+os.environ.setdefault("MONGODB_CONNECT_TIMEOUT_MS", "2000")
+os.environ.setdefault("MONGODB_SERVER_SELECTION_TIMEOUT_MS", "2000")
 os.environ.setdefault("LOG_LEVEL", "WARNING")
 
 
@@ -38,5 +38,25 @@ def client() -> Generator[TestClient, None, None]:
     app = create_app()
     with TestClient(app) as test_client:
         yield test_client
+    reset_client_for_tests()
+    get_settings.cache_clear()
+
+
+@pytest.fixture()
+def clean_db(client: TestClient) -> Generator[None, None, None]:
+    """Drop CMDB collections used by Phase 3 tests (preserves other DBs)."""
+    from app.db import get_database, ping_database, reset_client_for_tests
+    from app.config import get_settings
+
+    status = ping_database()
+    if not status.get("ok"):
+        pytest.skip(f"MongoDB unavailable for CMDB tests: {status.get('detail')}")
+
+    db = get_database()
+    db["components"].delete_many({})
+    db["custom_field_definitions"].delete_many({})
+    yield
+    db["components"].delete_many({})
+    db["custom_field_definitions"].delete_many({})
     reset_client_for_tests()
     get_settings.cache_clear()
