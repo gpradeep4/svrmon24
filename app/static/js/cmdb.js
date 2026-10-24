@@ -24,7 +24,126 @@
     el.classList.toggle("error", isError);
     el.classList.add("show");
     clearTimeout(toast._t);
-    toast._t = setTimeout(() => el.classList.remove("show"), 3200);
+    toast._t = setTimeout(() => el.classList.remove("show"), 4200);
+  }
+
+  function setSessionChip(connected, username = "") {
+    const chip = $("#sessionChip");
+    if (!chip) return;
+    chip.classList.toggle("on", !!connected);
+    chip.textContent = connected
+      ? `Session: connected as ${username || "user"}`
+      : "Session: disconnected";
+  }
+
+  function setGlobalLoading(show, text = "Working…") {
+    const el = $("#globalLoading");
+    if (!el) return;
+    $("#globalLoadingText").textContent = text;
+    el.classList.toggle("show", !!show);
+  }
+
+  function setOverlayLoading(sel, show) {
+    const el = $(sel);
+    if (!el) return;
+    el.classList.toggle("show", !!show);
+  }
+
+  function emptyStateHtml(title, detail) {
+    return `<tr><td colspan="99"><div class="empty-state"><strong>${escapeHtml(title)}</strong>${escapeHtml(detail)}</div></td></tr>`;
+  }
+
+  function renderCountList(sel, mapping) {
+    const el = $(sel);
+    el.innerHTML = "";
+    const entries = Object.entries(mapping || {});
+    if (!entries.length) {
+      el.innerHTML = `<li><span>None yet</span><span class="count">0</span></li>`;
+      return;
+    }
+    for (const [label, count] of entries) {
+      const li = document.createElement("li");
+      li.innerHTML = `<span>${escapeHtml(label)}</span><span class="count">${escapeHtml(count)}</span>`;
+      el.appendChild(li);
+    }
+  }
+
+  function renderDashTable(containerSel, rows, columns, emptyTitle) {
+    const wrap = $(containerSel);
+    if (!rows || !rows.length) {
+      wrap.innerHTML = `<div class="empty-state"><strong>${escapeHtml(emptyTitle)}</strong>No records from the live API.</div>`;
+      return;
+    }
+    const head = columns.map((c) => `<th>${escapeHtml(c.label)}</th>`).join("");
+    const body = rows.map((row) => {
+      const cells = columns.map((c) => {
+        const val = typeof c.value === "function" ? c.value(row) : row[c.key];
+        return `<td class="${c.mono ? "mono" : ""}">${escapeHtml(dash(val))}</td>`;
+      }).join("");
+      return `<tr>${cells}</tr>`;
+    }).join("");
+    wrap.innerHTML = `<div class="table-wrap" style="min-height:auto"><table class="dash-table-compact"><thead><tr>${head}</tr></thead><tbody>${body}</tbody></table></div>`;
+  }
+
+  async function loadDashboard() {
+    const data = await api("/api/dashboard/summary?recent_limit=8");
+    $("#dashLoading").classList.add("hidden");
+    $("#dashContent").classList.remove("hidden");
+    $("#dashTotalComponents").textContent = String(data.total_components ?? 0);
+    $("#dashTotalRels").textContent = String(data.total_relationships ?? 0);
+    renderCountList("#dashByType", data.components_by_type);
+    renderCountList("#dashByEnv", data.components_by_environment);
+    $("#dashDemoBanner").textContent =
+      data.labels?.findings_banner ||
+      "Diagnostic widgets reflect SIMULATED / SYNTHETIC_DEMO evidence only.";
+    $("#dashHint").textContent = `Live aggregates · diagnostics mode ${data.labels?.diagnostics_mode || "SIMULATED"}`;
+
+    renderDashTable(
+      "#dashRecentDiags",
+      data.recent_diagnostics || [],
+      [
+        { label: "ID", key: "diagnostic_id", mono: true },
+        { label: "Component", value: (r) => r.component?.component_id },
+        { label: "Profile", key: "profile_name" },
+        { label: "Mode", key: "execution_mode" },
+        { label: "Overall", value: (r) => r.summary?.overall_status },
+        { label: "When", key: "timestamp" },
+      ],
+      "No recent diagnostics"
+    );
+
+    renderDashTable(
+      "#dashRecentFindings",
+      data.recent_findings || [],
+      [
+        { label: "Diagnostic", key: "diagnostic_id", mono: true },
+        { label: "Component", key: "component_id", mono: true },
+        { label: "Overall", key: "overall_status" },
+        {
+          label: "Non-ok checks",
+          value: (r) => (r.non_ok_checks || []).map((c) => c.check_id).join(", ") || "—",
+        },
+        { label: "Mode", key: "execution_mode" },
+      ],
+      "No recent findings"
+    );
+
+    renderDashTable(
+      "#dashCritical",
+      data.critical_components_requiring_review || [],
+      [
+        { label: "Component", key: "component_id", mono: true },
+        { label: "Name", key: "name" },
+        { label: "Type", key: "component_type" },
+        { label: "Env", key: "environment" },
+        { label: "Status", key: "status" },
+        {
+          label: "Reasons",
+          value: (r) => (r.reasons || []).join("; "),
+        },
+      ],
+      "No components flagged for review"
+    );
   }
 
   function authHeader() {
@@ -71,6 +190,7 @@
   function statusClass(status) {
     if (status === "inactive") return "inactive";
     if (status === "decommissioned") return "decommissioned";
+    if (status === "unknown") return "unknown";
     return "";
   }
 
@@ -97,10 +217,13 @@
 
   async function connect() {
     if (!saveAuthFromForm()) return;
+    setGlobalLoading(true, "Connecting…");
     try {
-      await api("/api/me");
+      const me = await api("/api/me");
+      setSessionChip(true, me.username);
       toast("Connected");
       await Promise.all([
+        loadDashboard(),
         loadTypes(),
         loadCustomFields(),
         loadInventory(),
@@ -117,8 +240,12 @@
       if ($("#diagComponentId") && !$("#diagComponentId").value && state.componentIds[0]) {
         $("#diagComponentId").value = state.componentIds[0];
       }
+      showTab("dashboard");
     } catch (err) {
+      setSessionChip(false);
       toast(err.message || "Auth failed", true);
+    } finally {
+      setGlobalLoading(false);
     }
   }
 
@@ -166,32 +293,45 @@
   }
 
   async function loadInventory() {
-    const data = await api(`/api/components?${queryParams().toString()}`);
-    state.totalPages = data.total_pages || 1;
-    $("#pageInfo").textContent = `Page ${data.page} / ${state.totalPages || 1} · ${data.total} components`;
-    $("#btnPrev").disabled = data.page <= 1;
-    $("#btnNext").disabled = data.page >= (data.total_pages || 1);
+    setOverlayLoading("#inventoryLoading", true);
+    try {
+      const data = await api(`/api/components?${queryParams().toString()}`);
+      state.totalPages = data.total_pages || 1;
+      $("#pageInfo").textContent = `Page ${data.page} / ${state.totalPages || 1} · ${data.total} components`;
+      $("#btnPrev").disabled = data.page <= 1;
+      $("#btnNext").disabled = data.page >= (data.total_pages || 1);
 
-    const tbody = $("#inventoryBody");
-    tbody.innerHTML = "";
-    for (const row of data.inventory || []) {
-      const tr = document.createElement("tr");
-      tr.innerHTML = `
-        <td class="mono">${escapeHtml(row.component_id)}</td>
-        <td>${escapeHtml(row.hostname_or_name)}</td>
-        <td>${escapeHtml(row.component_type)}</td>
-        <td class="${row.os_family === "—" ? "dash" : ""}">${escapeHtml(row.os_family)}</td>
-        <td class="${row.os_version === "—" ? "dash" : ""}">${escapeHtml(row.os_version)}</td>
-        <td class="${row.product_type === "—" ? "dash" : ""}">${escapeHtml(row.product_type)}</td>
-        <td class="${row.product_version === "—" ? "dash" : ""}">${escapeHtml(row.product_version)}</td>
-        <td>${escapeHtml(row.environment)}</td>
-        <td><span class="status-pill ${statusClass(row.status)}">${escapeHtml(row.status)}</span></td>
-        <td class="actions">
-          <button type="button" class="ghost" data-view="${escapeAttr(row.component_id)}">View</button>
-          <button type="button" class="secondary" data-edit="${escapeAttr(row.component_id)}">Edit</button>
-          <button type="button" class="danger" data-del="${escapeAttr(row.component_id)}">Delete</button>
-        </td>`;
-      tbody.appendChild(tr);
+      const tbody = $("#inventoryBody");
+      tbody.innerHTML = "";
+      const rows = data.inventory || [];
+      if (!rows.length) {
+        tbody.innerHTML = emptyStateHtml(
+          "No components found",
+          "Adjust filters or add a component to the CMDB inventory."
+        );
+        return;
+      }
+      for (const row of rows) {
+        const tr = document.createElement("tr");
+        tr.innerHTML = `
+          <td class="mono">${escapeHtml(row.component_id)}</td>
+          <td>${escapeHtml(row.hostname_or_name)}</td>
+          <td>${escapeHtml(row.component_type)}</td>
+          <td class="${row.os_family === "—" ? "dash" : ""}">${escapeHtml(row.os_family)}</td>
+          <td class="${row.os_version === "—" ? "dash" : ""}">${escapeHtml(row.os_version)}</td>
+          <td class="${row.product_type === "—" ? "dash" : ""}">${escapeHtml(row.product_type)}</td>
+          <td class="${row.product_version === "—" ? "dash" : ""}">${escapeHtml(row.product_version)}</td>
+          <td>${escapeHtml(row.environment)}</td>
+          <td><span class="status-pill ${statusClass(row.status)}">${escapeHtml(row.status)}</span></td>
+          <td class="actions">
+            <button type="button" class="ghost" data-view="${escapeAttr(row.component_id)}">View</button>
+            <button type="button" class="secondary" data-edit="${escapeAttr(row.component_id)}">Edit</button>
+            <button type="button" class="danger" data-del="${escapeAttr(row.component_id)}">Delete</button>
+          </td>`;
+        tbody.appendChild(tr);
+      }
+    } finally {
+      setOverlayLoading("#inventoryLoading", false);
     }
   }
 
@@ -308,8 +448,31 @@
 
   async function saveComponent(event) {
     event.preventDefault();
-    const payload = collectPayload();
+    const form = $("#componentForm");
+    if (!form.checkValidity()) {
+      form.reportValidity();
+      toast("Fix highlighted form fields before saving", true);
+      return;
+    }
     try {
+      const payload = collectPayload();
+      if (!payload.name || !payload.environment || !payload.component_type) {
+        toast("Name, environment, and component type are required", true);
+        return;
+      }
+      // Validate numeric ports in type-specific fields
+      for (const [key, value] of Object.entries(payload)) {
+        if (
+          (key.endsWith("_port") || key === "listen_port" || key === "listener_port") &&
+          value !== null &&
+          value !== undefined
+        ) {
+          if (!Number.isInteger(value) || value < 1 || value > 65535) {
+            toast(`${key} must be an integer from 1 to 65535`, true);
+            return;
+          }
+        }
+      }
       if (state.editingId) {
         await api(`/api/components/${encodeURIComponent(state.editingId)}`, {
           method: "PUT",
@@ -327,6 +490,9 @@
       await loadInventory();
       await refreshComponentIdList();
       await loadRelationships();
+      if (authHeader()) {
+        loadDashboard().catch(() => {});
+      }
     } catch (err) {
       toast(err.message || "Save failed", true);
     }
@@ -369,6 +535,9 @@
       await loadInventory();
       await refreshComponentIdList();
       await loadRelationships();
+      if (authHeader()) {
+        loadDashboard().catch(() => {});
+      }
     } catch (err) {
       toast(err.message || "Delete failed", true);
     }
@@ -379,6 +548,13 @@
     state.customFields = data.items || [];
     const tbody = $("#customFieldBody");
     tbody.innerHTML = "";
+    if (!state.customFields.length) {
+      tbody.innerHTML = emptyStateHtml(
+        "No custom field definitions",
+        "Add a definition above to extend inventory forms."
+      );
+      return;
+    }
     for (const item of state.customFields) {
       const tr = document.createElement("tr");
       tr.innerHTML = `
@@ -472,8 +648,17 @@
   function showTab(name) {
     $$(".tab-panel").forEach((p) => p.classList.add("hidden"));
     $$(".tabs button").forEach((b) => b.classList.remove("active"));
-    $(`#tab-${name}`).classList.remove("hidden");
-    $(`.tabs button[data-tab="${name}"]`).classList.add("active");
+    const panel = $(`#tab-${name}`);
+    const btn = $(`.tabs button[data-tab="${name}"]`);
+    if (!panel || !btn) return;
+    panel.classList.remove("hidden");
+    btn.classList.add("active");
+    if (name === "dashboard" && authHeader()) {
+      loadDashboard().catch((err) => toast(err.message || "Dashboard failed", true));
+    }
+    if (name === "inventory" && authHeader()) {
+      loadInventory().catch((err) => toast(err.message, true));
+    }
     if (name === "relationships") {
       loadRelationships().catch((err) => toast(err.message, true));
     }
@@ -544,15 +729,15 @@
 
   function renderDiagnosticResult(doc) {
     if (!doc) {
-      $("#diagLatest").textContent = "No diagnostic run yet.";
-      $("#diagChecksBody").innerHTML = "";
+      $("#diagLatest").innerHTML = `<div class="empty-state"><strong>No diagnostic selected</strong>Run or open a SIMULATED diagnostic.</div>`;
+      $("#diagChecksBody").innerHTML = emptyStateHtml("No checks", "Checks appear after a diagnostic run.");
       renderAnalysis(null);
       return;
     }
     state.currentDiagnosticId = doc.diagnostic_id;
     const c = doc.component || {};
     $("#diagLatest").innerHTML = `
-      <div class="warn-box">${escapeHtml(doc.labels?.banner || "SIMULATED")}</div>
+      <div class="demo-banner">${escapeHtml(doc.labels?.banner || "SIMULATED / SYNTHETIC_DEMO — not live telemetry")}</div>
       <div style="margin-top:8px">
         <strong class="mono">${escapeHtml(doc.diagnostic_id)}</strong>
         · mode <strong>${escapeHtml(doc.execution_mode)}</strong>
@@ -566,17 +751,22 @@
 
     const tbody = $("#diagChecksBody");
     tbody.innerHTML = "";
-    for (const check of doc.checks || []) {
-      const tr = document.createElement("tr");
-      tr.innerHTML = `
-        <td>${escapeHtml(check.label)}</td>
-        <td>${escapeHtml(check.metric_kind)}</td>
-        <td class="mono">${escapeHtml(check.value)}</td>
-        <td>${escapeHtml(check.unit)}</td>
-        <td>${escapeHtml(check.status)}</td>
-        <td><strong>${escapeHtml(check.data_source)}</strong></td>
-        <td class="hint">${escapeHtml(check.note)}</td>`;
-      tbody.appendChild(tr);
+    const checks = doc.checks || [];
+    if (!checks.length) {
+      tbody.innerHTML = emptyStateHtml("No checks", "This diagnostic record has no check rows.");
+    } else {
+      for (const check of checks) {
+        const tr = document.createElement("tr");
+        tr.innerHTML = `
+          <td>${escapeHtml(check.label)}</td>
+          <td>${escapeHtml(check.metric_kind)}</td>
+          <td class="mono">${escapeHtml(check.value)}</td>
+          <td>${escapeHtml(check.unit)}</td>
+          <td>${escapeHtml(check.status)}</td>
+          <td><strong>${escapeHtml(check.data_source)}</strong></td>
+          <td class="hint">${escapeHtml(check.note)}</td>`;
+        tbody.appendChild(tr);
+      }
     }
     renderAnalysis(doc.ai_analysis || null);
   }
@@ -621,7 +811,15 @@
     const data = await api("/api/diagnostics?page=1&page_size=25");
     const tbody = $("#diagHistoryBody");
     tbody.innerHTML = "";
-    for (const item of data.items || []) {
+    const items = data.items || [];
+    if (!items.length) {
+      tbody.innerHTML = emptyStateHtml(
+        "No diagnostic history",
+        "Run a SIMULATED diagnostic to populate history."
+      );
+      return;
+    }
+    for (const item of items) {
       const tr = document.createElement("tr");
       tr.innerHTML = `
         <td class="mono">${escapeHtml(item.diagnostic_id)}</td>
@@ -662,7 +860,7 @@
     const tbody = $(tbodySel);
     tbody.innerHTML = "";
     if (!rows || !rows.length) {
-      tbody.innerHTML = `<tr><td colspan="10" class="dash">None</td></tr>`;
+      tbody.innerHTML = emptyStateHtml("No rows", "No dependencies in this direction for the selected component.");
       return;
     }
     for (const row of rows) {
@@ -801,7 +999,7 @@
       label.setAttribute("x", pos.x);
       label.setAttribute("y", pos.y + 32);
       label.setAttribute("text-anchor", "middle");
-      label.setAttribute("fill", "#14201d");
+      label.setAttribute("fill", "#e7f1ec");
       label.textContent = n.component_id;
       g.appendChild(circle);
       g.appendChild(label);
@@ -920,7 +1118,15 @@
     $("#btnRelNext").disabled = data.page >= (data.total_pages || 1);
     const tbody = $("#relationshipBody");
     tbody.innerHTML = "";
-    for (const row of data.rows || []) {
+    const rows = data.rows || [];
+    if (!rows.length) {
+      tbody.innerHTML = emptyStateHtml(
+        "No relationships found",
+        "Add a relationship or clear filters. Protocol / Source Port / Target Port stay separate columns."
+      );
+      return;
+    }
+    for (const row of rows) {
       const tr = document.createElement("tr");
       tr.innerHTML = `
         <td class="mono">${escapeHtml(row.relationship_id)}</td>
@@ -944,7 +1150,14 @@
   function parseOptionalPort(raw) {
     const value = String(raw ?? "").trim();
     if (!value) return null;
-    return Number(value);
+    if (!/^\d+$/.test(value)) {
+      throw new Error("Ports must be integers from 1 to 65535 (or blank)");
+    }
+    const num = Number(value);
+    if (!Number.isInteger(num) || num < 1 || num > 65535) {
+      throw new Error("Ports must be integers from 1 to 65535 (or blank)");
+    }
+    return num;
   }
 
   function openRelCreate() {
@@ -1021,8 +1234,22 @@
 
   async function saveRelationship(event) {
     event.preventDefault();
-    const payload = collectRelPayload();
+    const form = $("#relationshipForm");
+    if (!form.checkValidity()) {
+      form.reportValidity();
+      toast("Fix highlighted relationship fields before saving", true);
+      return;
+    }
     try {
+      const payload = collectRelPayload();
+      if (!payload.source_component_id || !payload.target_component_id) {
+        toast("Source and target component IDs are required", true);
+        return;
+      }
+      if (payload.source_component_id === payload.target_component_id) {
+        toast("Source and target cannot be the same component", true);
+        return;
+      }
       let result;
       if (state.editingRelId) {
         result = await api(`/api/relationships/${encodeURIComponent(state.editingRelId)}`, {
@@ -1043,6 +1270,9 @@
         state.editingRelId = null;
       }
       await loadRelationships();
+      if (authHeader()) {
+        loadDashboard().catch(() => {});
+      }
     } catch (err) {
       toast(err.message || "Relationship save failed", true);
     }
@@ -1050,6 +1280,21 @@
 
   function wireEvents() {
     $("#btnConnect").addEventListener("click", connect);
+    $("#btnRefreshDash")?.addEventListener("click", async () => {
+      if (!authHeader()) {
+        toast("Connect first", true);
+        return;
+      }
+      setGlobalLoading(true, "Refreshing dashboard…");
+      try {
+        await loadDashboard();
+        toast("Dashboard refreshed");
+      } catch (err) {
+        toast(err.message || "Dashboard refresh failed", true);
+      } finally {
+        setGlobalLoading(false);
+      }
+    });
     $("#btnSearch").addEventListener("click", async () => {
       state.page = 1;
       try { await loadInventory(); } catch (err) { toast(err.message, true); }
@@ -1180,7 +1425,8 @@
   document.addEventListener("DOMContentLoaded", () => {
     loadAuthIntoForm();
     wireEvents();
-    showTab("inventory");
+    showTab("dashboard");
+    setSessionChip(false);
     if (authHeader()) {
       connect().catch(() => {});
     }

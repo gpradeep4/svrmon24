@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>SVRMON24 CMDB Inventory</title>
+  <title>SVRMON24 Dashboard</title>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,600&family=IBM+Plex+Mono:wght@400;600&family=Source+Sans+3:wght@400;600;700&display=swap" rel="stylesheet" />
@@ -14,27 +14,77 @@
     <div class="brand-bar">
       <div>
         <h1>SVRMON24</h1>
-        <p>CMDB, relationships, dependency/impact, and <strong>SIMULATED</strong> diagnostics. No remote execution or scanning.</p>
+        <p>CMDB inventory, relationships, dependency/impact, and <strong>SIMULATED</strong> diagnostics with AI analysis. No remote execution or scanning.</p>
       </div>
+      <div id="sessionChip" class="session-chip">Session: disconnected</div>
     </div>
 
     <section class="panel">
       <h2>Session (HTTP Basic)</h2>
       <div class="auth-row">
-        <label>Username<input id="authUser" autocomplete="username" /></label>
-        <label>Password<input id="authPass" type="password" autocomplete="current-password" /></label>
+        <label>Username<input id="authUser" autocomplete="username" required /></label>
+        <label>Password<input id="authPass" type="password" autocomplete="current-password" required /></label>
         <button type="button" id="btnConnect">Connect</button>
         <p class="hint">Uses credentials from your `.env` (`BASIC_AUTH_USERNAME` / `BASIC_AUTH_PASSWORD`).</p>
       </div>
     </section>
 
     <div class="tabs">
-      <button type="button" data-tab="inventory" class="active">Inventory</button>
+      <button type="button" data-tab="dashboard" class="active">Dashboard</button>
+      <button type="button" data-tab="inventory">Inventory</button>
       <button type="button" data-tab="relationships">Relationships</button>
       <button type="button" data-tab="dependencies">Dependencies</button>
       <button type="button" data-tab="diagnostics">Diagnostics</button>
       <button type="button" data-tab="custom">Custom fields</button>
     </div>
+
+    <section id="tab-dashboard" class="tab-panel">
+      <section class="panel">
+        <div class="toolbar" style="grid-template-columns: 1fr auto;">
+          <div>
+            <h2 style="margin:0">Operations dashboard</h2>
+            <p class="hint" id="dashHint">Connect to load live CMDB and diagnostic widgets.</p>
+          </div>
+          <button type="button" id="btnRefreshDash" class="secondary">Refresh</button>
+        </div>
+        <div class="demo-banner" id="dashDemoBanner">
+          Diagnostic widgets reflect <strong>SIMULATED / SYNTHETIC_DEMO</strong> evidence only — not live telemetry.
+        </div>
+        <div id="dashLoading" class="empty-state">Connect to view live dashboard metrics.</div>
+        <div id="dashContent" class="hidden">
+          <div class="dash-grid">
+            <div class="dash-card">
+              <h3>Total CMDB components</h3>
+              <div class="dash-metric" id="dashTotalComponents">—</div>
+            </div>
+            <div class="dash-card">
+              <h3>Configured relationships</h3>
+              <div class="dash-metric" id="dashTotalRels">—</div>
+            </div>
+            <div class="dash-card">
+              <h3>Components by type</h3>
+              <ul class="dash-list" id="dashByType"></ul>
+            </div>
+            <div class="dash-card">
+              <h3>Components by environment</h3>
+              <ul class="dash-list" id="dashByEnv"></ul>
+            </div>
+            <div class="dash-card wide">
+              <h3>Recent diagnostics</h3>
+              <div id="dashRecentDiags" class="hint">No diagnostics yet.</div>
+            </div>
+            <div class="dash-card wide">
+              <h3>Recent findings</h3>
+              <div id="dashRecentFindings" class="hint">No findings yet.</div>
+            </div>
+            <div class="dash-card wide" style="grid-column: 1 / -1;">
+              <h3>Critical components requiring review</h3>
+              <div id="dashCritical" class="hint">None flagged.</div>
+            </div>
+          </div>
+        </div>
+      </section>
+    </section>
 
     <section id="tab-inventory" class="tab-panel">
       <section class="panel">
@@ -64,6 +114,7 @@
       <section class="panel">
         <h2>Inventory</h2>
         <div class="table-wrap">
+          <div id="inventoryLoading" class="loading-overlay"><span class="spinner"></span> Loading inventory…</div>
           <table class="inventory">
             <thead>
               <tr>
@@ -408,8 +459,8 @@
           <label>Source component ID<input id="relSource" required list="componentIdList" /></label>
           <label>Target component ID<input id="relTarget" required list="componentIdList" /></label>
           <label>Protocol<input id="relProtocol" placeholder="TCP / HTTPS / …" /></label>
-          <label>Source Port<input id="relSourcePort" inputmode="numeric" placeholder="blank = unknown" /></label>
-          <label>Target Port<input id="relTargetPort" inputmode="numeric" placeholder="blank = unknown" /></label>
+          <label>Source Port<input id="relSourcePort" inputmode="numeric" pattern="^([1-9][0-9]{0,3}|[1-5][0-9]{4}|6[0-4][0-9]{3}|65[0-4][0-9]{2}|655[0-2][0-9]|6553[0-5])$" placeholder="blank = unknown" title="1–65535 or blank" /></label>
+          <label>Target Port<input id="relTargetPort" inputmode="numeric" pattern="^([1-9][0-9]{0,3}|[1-5][0-9]{4}|6[0-4][0-9]{3}|65[0-4][0-9]{2}|655[0-2][0-9]|6553[0-5])$" placeholder="blank = unknown" title="1–65535 or blank" /></label>
           <label>URL / path<input id="relUrl" /></label>
           <label>Environment<input id="relEnv" /></label>
           <label>Discovery method
@@ -442,6 +493,9 @@
     </div>
   </div>
 
+  <div id="globalLoading" class="global-loading" aria-live="polite">
+    <span class="spinner"></span><span id="globalLoadingText">Working…</span>
+  </div>
   <div id="toast" class="toast"></div>
   <script src="/static/js/cmdb.js"></script>
 </body>
