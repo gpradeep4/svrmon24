@@ -6,6 +6,8 @@ AI-powered infrastructure monitoring, CMDB, dependency mapping, and diagnostics.
 
 **Phase 3** adds the CMDB component inventory (Server / Network / Middleware / Database / Application) with CRUD API, search/filter/pagination, custom-field definitions, delete confirmation with relationship warning hook, and a browser UI at `/`.
 
+**Phase 4** adds manual relationship management (`cmdb_relationships`): HOSTED_ON / DEPENDS_ON / CONNECTS_TO / ROUTES_TO with separate Protocol, Source Port, and Target Port columns. No network scanning.
+
 Diagnostics remain simulated — no real remote execution.
 
 ## Requirements
