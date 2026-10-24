@@ -4,9 +4,6 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>SVRMON24</title>
-  <link rel="preconnect" href="https://fonts.googleapis.com" />
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600&family=IBM+Plex+Sans:wght@400;600;700&family=Sora:wght@600;700&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="/static/css/cmdb.css" />
 </head>
 <body>
@@ -108,7 +105,10 @@
                 <div class="sub">No live remote execution</div>
               </div>
             </div>
-            <div id="dashLoading" class="empty-state">Connect to view live dashboard metrics.</div>
+            <div id="dashLoading" class="empty-state">
+              <strong>API disconnected</strong>
+              Sign in with HTTP Basic credentials above to load live CMDB KPIs, relationships, and SIMULATED diagnostic widgets.
+            </div>
             <div id="dashContent" class="hidden">
               <div class="dash-grid">
                 <div class="dash-card">
