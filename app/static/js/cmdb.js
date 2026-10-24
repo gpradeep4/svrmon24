@@ -106,10 +106,15 @@
         loadRelationshipTypes(),
         loadRelationships(),
         refreshComponentIdList(),
+        loadDiagnosticProfiles(),
+        loadDiagnosticHistory(),
       ]);
       // Prefill dependency analyzer if a component id was typed earlier
       if ($("#depComponentId") && !$("#depComponentId").value && state.componentIds[0]) {
         $("#depComponentId").value = state.componentIds[0];
+      }
+      if ($("#diagComponentId") && !$("#diagComponentId").value && state.componentIds[0]) {
+        $("#diagComponentId").value = state.componentIds[0];
       }
     } catch (err) {
       toast(err.message || "Auth failed", true);
@@ -474,6 +479,103 @@
     if (name === "dependencies") {
       refreshComponentIdList().catch(() => {});
     }
+    if (name === "diagnostics") {
+      Promise.all([
+        refreshComponentIdList(),
+        loadDiagnosticProfiles(),
+        loadDiagnosticHistory(),
+      ]).catch((err) => toast(err.message, true));
+    }
+  }
+
+  async function loadDiagnosticProfiles() {
+    const data = await api("/api/diagnostics/profiles");
+    $("#diagProfileNotice").textContent = data.notice || "";
+    const sel = $("#diagProfile");
+    sel.innerHTML = "";
+    for (const profile of data.profiles || []) {
+      const opt = document.createElement("option");
+      opt.value = profile.profile_name;
+      opt.textContent = `${profile.display_name || profile.profile_name} [${profile.execution_mode}]`;
+      sel.appendChild(opt);
+    }
+  }
+
+  function renderDiagnosticResult(doc) {
+    if (!doc) {
+      $("#diagLatest").textContent = "No diagnostic run yet.";
+      $("#diagChecksBody").innerHTML = "";
+      return;
+    }
+    const c = doc.component || {};
+    $("#diagLatest").innerHTML = `
+      <div class="warn-box">${escapeHtml(doc.labels?.banner || "SIMULATED")}</div>
+      <div style="margin-top:8px">
+        <strong class="mono">${escapeHtml(doc.diagnostic_id)}</strong>
+        · mode <strong>${escapeHtml(doc.execution_mode)}</strong>
+        · profile ${escapeHtml(doc.profile_name)}
+        · component <span class="mono">${escapeHtml(doc.component_id)}</span>
+        (${escapeHtml(c.component_type || "")} / ${escapeHtml(c.name || "")})
+        · ${escapeHtml(doc.timestamp || "")}
+      </div>
+      <div class="hint">Upstream deps: ${escapeHtml((doc.dependency_context?.upstream_direct || []).length)}
+        · Downstream deps: ${escapeHtml((doc.dependency_context?.downstream_direct || []).length)}</div>`;
+
+    const tbody = $("#diagChecksBody");
+    tbody.innerHTML = "";
+    for (const check of doc.checks || []) {
+      const tr = document.createElement("tr");
+      tr.innerHTML = `
+        <td>${escapeHtml(check.label)}</td>
+        <td>${escapeHtml(check.metric_kind)}</td>
+        <td class="mono">${escapeHtml(check.value)}</td>
+        <td>${escapeHtml(check.unit)}</td>
+        <td>${escapeHtml(check.status)}</td>
+        <td><strong>${escapeHtml(check.data_source)}</strong></td>
+        <td class="hint">${escapeHtml(check.note)}</td>`;
+      tbody.appendChild(tr);
+    }
+  }
+
+  async function loadDiagnosticHistory() {
+    const data = await api("/api/diagnostics?page=1&page_size=25");
+    const tbody = $("#diagHistoryBody");
+    tbody.innerHTML = "";
+    for (const item of data.items || []) {
+      const tr = document.createElement("tr");
+      tr.innerHTML = `
+        <td class="mono">${escapeHtml(item.diagnostic_id)}</td>
+        <td>${escapeHtml(item.timestamp)}</td>
+        <td class="mono">${escapeHtml(item.component_id)}</td>
+        <td>${escapeHtml(item.profile_name)}</td>
+        <td><strong>${escapeHtml(item.execution_mode)}</strong></td>
+        <td>${escapeHtml(item.summary?.overall_status || "—")}</td>
+        <td class="actions">
+          <button type="button" class="ghost" data-diag-view="${escapeAttr(item.diagnostic_id)}">View</button>
+        </td>`;
+      tbody.appendChild(tr);
+    }
+  }
+
+  async function runDiagnostic() {
+    const component_id = $("#diagComponentId").value.trim();
+    const profile_name = $("#diagProfile").value;
+    if (!component_id || !profile_name) {
+      toast("Component ID and profile are required", true);
+      return;
+    }
+    const payload = {
+      component_id,
+      profile_name,
+      notes: $("#diagNotes").value.trim() || null,
+    };
+    const result = await api("/api/diagnostics", {
+      method: "POST",
+      body: JSON.stringify(payload),
+    });
+    toast(`Simulated diagnostic ${result.diagnostic_id} saved`);
+    renderDiagnosticResult(result);
+    await loadDiagnosticHistory();
   }
 
   function renderDepRows(tbodySel, rows) {
@@ -897,6 +999,22 @@
     $("#customFieldForm").addEventListener("submit", saveCustomField);
     $("#btnAnalyzeDeps").addEventListener("click", async () => {
       try { await analyzeDependencies(); } catch (err) { toast(err.message, true); }
+    });
+    $("#btnRunDiag").addEventListener("click", async () => {
+      try { await runDiagnostic(); } catch (err) { toast(err.message, true); }
+    });
+    $("#btnRefreshDiagHistory").addEventListener("click", async () => {
+      try { await loadDiagnosticHistory(); } catch (err) { toast(err.message, true); }
+    });
+    $("#diagHistoryBody").addEventListener("click", async (e) => {
+      const id = e.target.getAttribute("data-diag-view");
+      if (!id) return;
+      try {
+        const doc = await api(`/api/diagnostics/${encodeURIComponent(id)}`);
+        renderDiagnosticResult(doc);
+      } catch (err) {
+        toast(err.message, true);
+      }
     });
     $("#btnRelSearch").addEventListener("click", async () => {
       state.relPage = 1;
