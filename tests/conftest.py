@@ -55,8 +55,10 @@ def clean_db(client: TestClient) -> Generator[None, None, None]:
     db = get_database()
     db["components"].delete_many({})
     db["custom_field_definitions"].delete_many({})
+    db["cmdb_relationships"].delete_many({})
     yield
     db["components"].delete_many({})
     db["custom_field_definitions"].delete_many({})
+    db["cmdb_relationships"].delete_many({})
     reset_client_for_tests()
     get_settings.cache_clear()

@@ -7,6 +7,11 @@
     editingId: null,
     customFields: [],
     deleteTarget: null,
+    relPage: 1,
+    relTotalPages: 1,
+    editingRelId: null,
+    relTypes: [],
+    componentIds: [],
   };
 
   const $ = (sel, root = document) => root.querySelector(sel);
@@ -94,7 +99,14 @@
     try {
       await api("/api/me");
       toast("Connected");
-      await Promise.all([loadTypes(), loadCustomFields(), loadInventory()]);
+      await Promise.all([
+        loadTypes(),
+        loadCustomFields(),
+        loadInventory(),
+        loadRelationshipTypes(),
+        loadRelationships(),
+        refreshComponentIdList(),
+      ]);
     } catch (err) {
       toast(err.message || "Auth failed", true);
     }
@@ -303,6 +315,8 @@
       }
       closeModal();
       await loadInventory();
+      await refreshComponentIdList();
+      await loadRelationships();
     } catch (err) {
       toast(err.message || "Save failed", true);
     }
@@ -318,11 +332,13 @@
       const box = $("#deleteWarn");
       box.style.display = "block";
       if (warning.has_relationships) {
-        box.textContent = warning.message;
+        const ids = (warning.relationships || [])
+          .map((r) => r.relationship_id)
+          .filter(Boolean)
+          .join(", ");
+        box.textContent = warning.message + (ids ? ` Linked: ${ids}` : "");
       } else {
-        box.textContent =
-          warning.message +
-          " (Relationship engine not implemented yet — warning hook is ready.)";
+        box.textContent = warning.message;
       }
       $("#deleteModal").classList.add("open");
     } catch (err) {
@@ -341,6 +357,8 @@
       state.deleteTarget = null;
       $("#deleteModal").classList.remove("open");
       await loadInventory();
+      await refreshComponentIdList();
+      await loadRelationships();
     } catch (err) {
       toast(err.message || "Delete failed", true);
     }
@@ -446,6 +464,204 @@
     $$(".tabs button").forEach((b) => b.classList.remove("active"));
     $(`#tab-${name}`).classList.remove("hidden");
     $(`.tabs button[data-tab="${name}"]`).classList.add("active");
+    if (name === "relationships") {
+      loadRelationships().catch((err) => toast(err.message, true));
+    }
+  }
+
+  async function refreshComponentIdList() {
+    const data = await api("/api/components?page=1&page_size=200");
+    state.componentIds = (data.items || []).map((c) => c.component_id);
+    const list = $("#componentIdList");
+    if (!list) return;
+    list.innerHTML = state.componentIds
+      .map((id) => `<option value="${escapeAttr(id)}"></option>`)
+      .join("");
+  }
+
+  async function loadRelationshipTypes() {
+    const data = await api("/api/relationships/types");
+    state.relTypes = data.types || [];
+    const docs = $("#relTypeDocs");
+    docs.innerHTML = state.relTypes
+      .map(
+        (t) =>
+          `<div><strong>${escapeHtml(t.relationship_type)}</strong> — ${escapeHtml(t.direction)}: ${escapeHtml(t.meaning)} <em>(${escapeHtml(t.example)})</em></div>`
+      )
+      .join("");
+    for (const sel of ["#relFilterType", "#relType"]) {
+      const el = $(sel);
+      if (!el) continue;
+      const keepFirst = el.getAttribute("data-keep-first") === "1";
+      const first = keepFirst ? el.options[0] : null;
+      el.innerHTML = "";
+      if (first) el.appendChild(first);
+      for (const t of state.relTypes) {
+        const opt = document.createElement("option");
+        opt.value = t.relationship_type;
+        opt.textContent = t.relationship_type;
+        el.appendChild(opt);
+      }
+    }
+    updateRelTypeHint();
+  }
+
+  function updateRelTypeHint() {
+    const type = $("#relType")?.value;
+    const meta = state.relTypes.find((t) => t.relationship_type === type);
+    $("#relTypeHint").textContent = meta
+      ? `${meta.relationship_type}: ${meta.direction} — ${meta.meaning}`
+      : "";
+  }
+
+  function relQueryParams() {
+    const params = new URLSearchParams();
+    const q = $("#relSearchQ").value.trim();
+    const relationship_type = $("#relFilterType").value;
+    const component_id = $("#relFilterComponent").value.trim();
+    if (q) params.set("q", q);
+    if (relationship_type) params.set("relationship_type", relationship_type);
+    if (component_id) params.set("component_id", component_id);
+    params.set("page", String(state.relPage));
+    params.set("page_size", String(state.pageSize));
+    return params;
+  }
+
+  async function loadRelationships() {
+    const data = await api(`/api/relationships?${relQueryParams().toString()}`);
+    state.relTotalPages = data.total_pages || 1;
+    $("#relPageInfo").textContent =
+      `Page ${data.page} / ${state.relTotalPages || 1} · ${data.total} relationships`;
+    $("#btnRelPrev").disabled = data.page <= 1;
+    $("#btnRelNext").disabled = data.page >= (data.total_pages || 1);
+    const tbody = $("#relationshipBody");
+    tbody.innerHTML = "";
+    for (const row of data.rows || []) {
+      const tr = document.createElement("tr");
+      tr.innerHTML = `
+        <td class="mono">${escapeHtml(row.relationship_id)}</td>
+        <td class="mono">${escapeHtml(row.source_component_id)}</td>
+        <td class="mono">${escapeHtml(row.target_component_id)}</td>
+        <td>${escapeHtml(row.relationship_type)}</td>
+        <td class="${row.protocol === "—" ? "dash" : ""}">${escapeHtml(row.protocol)}</td>
+        <td class="mono ${row.source_port === "—" ? "dash" : ""}">${escapeHtml(row.source_port)}</td>
+        <td class="mono ${row.target_port === "—" ? "dash" : ""}">${escapeHtml(row.target_port)}</td>
+        <td>${escapeHtml(row.environment)}</td>
+        <td>${escapeHtml(row.discovery_method)}</td>
+        <td>${escapeHtml(row.verification_status)}</td>
+        <td class="actions">
+          <button type="button" class="secondary" data-rel-edit="${escapeAttr(row.relationship_id)}">Edit</button>
+          <button type="button" class="danger" data-rel-del="${escapeAttr(row.relationship_id)}">Delete</button>
+        </td>`;
+      tbody.appendChild(tr);
+    }
+  }
+
+  function parseOptionalPort(raw) {
+    const value = String(raw ?? "").trim();
+    if (!value) return null;
+    return Number(value);
+  }
+
+  function openRelCreate() {
+    state.editingRelId = null;
+    $("#relationshipForm").reset();
+    $("#relId").disabled = false;
+    $("#relConfidence").value = "medium";
+    $("#relDiscovery").value = "manually_configured";
+    $("#relVerification").value = "unverified";
+    $("#relEnvWarn").style.display = "none";
+    if ($("#relType").options.length) $("#relType").selectedIndex = 0;
+    updateRelTypeHint();
+    $("#relModalTitle").textContent = "Add relationship";
+    $("#relationshipModal").classList.add("open");
+  }
+
+  async function openRelEdit(id) {
+    const doc = await api(`/api/relationships/${encodeURIComponent(id)}`);
+    state.editingRelId = id;
+    $("#relId").value = doc.relationship_id;
+    $("#relId").disabled = true;
+    $("#relType").value = doc.relationship_type;
+    $("#relSource").value = doc.source_component_id;
+    $("#relTarget").value = doc.target_component_id;
+    $("#relProtocol").value = doc.protocol || "";
+    $("#relSourcePort").value = doc.source_port ?? "";
+    $("#relTargetPort").value = doc.target_port ?? "";
+    $("#relUrl").value = doc.url_or_path || "";
+    $("#relEnv").value = doc.environment || "";
+    $("#relDiscovery").value = doc.discovery_method || "manually_configured";
+    $("#relVerification").value = doc.verification_status || "unverified";
+    $("#relConfidence").value = doc.confidence || "medium";
+    $("#relNotes").value = doc.evidence_or_notes || "";
+    $("#relEnvWarn").style.display = "none";
+    updateRelTypeHint();
+    $("#relModalTitle").textContent = `Edit ${id}`;
+    $("#relationshipModal").classList.add("open");
+  }
+
+  function collectRelPayload() {
+    const payload = {
+      source_component_id: $("#relSource").value.trim(),
+      target_component_id: $("#relTarget").value.trim(),
+      relationship_type: $("#relType").value,
+      protocol: $("#relProtocol").value.trim() || null,
+      source_port: parseOptionalPort($("#relSourcePort").value),
+      target_port: parseOptionalPort($("#relTargetPort").value),
+      url_or_path: $("#relUrl").value.trim() || null,
+      environment: $("#relEnv").value.trim() || null,
+      discovery_method: $("#relDiscovery").value,
+      verification_status: $("#relVerification").value,
+      confidence: $("#relConfidence").value,
+      evidence_or_notes: $("#relNotes").value.trim() || null,
+    };
+    if (!state.editingRelId) {
+      const rid = $("#relId").value.trim();
+      if (rid) payload.relationship_id = rid;
+    }
+    return payload;
+  }
+
+  function showRelWarnings(result) {
+    const box = $("#relEnvWarn");
+    const warnings = result?.warnings || [];
+    if (!warnings.length) {
+      box.style.display = "none";
+      return;
+    }
+    box.style.display = "block";
+    box.textContent = warnings
+      .flatMap((w) => w.messages || [w.message || JSON.stringify(w)])
+      .join(" ");
+  }
+
+  async function saveRelationship(event) {
+    event.preventDefault();
+    const payload = collectRelPayload();
+    try {
+      let result;
+      if (state.editingRelId) {
+        result = await api(`/api/relationships/${encodeURIComponent(state.editingRelId)}`, {
+          method: "PUT",
+          body: JSON.stringify(payload),
+        });
+        toast("Relationship updated");
+      } else {
+        result = await api("/api/relationships", {
+          method: "POST",
+          body: JSON.stringify(payload),
+        });
+        toast("Relationship created");
+      }
+      showRelWarnings(result);
+      if (!(result.warnings || []).length) {
+        $("#relationshipModal").classList.remove("open");
+        state.editingRelId = null;
+      }
+      await loadRelationships();
+    } catch (err) {
+      toast(err.message || "Relationship save failed", true);
+    }
   }
 
   function wireEvents() {
@@ -477,6 +693,47 @@
     });
     $("#btnConfirmDelete").addEventListener("click", confirmDelete);
     $("#customFieldForm").addEventListener("submit", saveCustomField);
+    $("#btnRelSearch").addEventListener("click", async () => {
+      state.relPage = 1;
+      try { await loadRelationships(); } catch (err) { toast(err.message, true); }
+    });
+    $("#btnAddRel").addEventListener("click", async () => {
+      try {
+        await refreshComponentIdList();
+        openRelCreate();
+      } catch (err) {
+        toast(err.message, true);
+      }
+    });
+    $("#btnRelPrev").addEventListener("click", async () => {
+      state.relPage = Math.max(1, state.relPage - 1);
+      await loadRelationships();
+    });
+    $("#btnRelNext").addEventListener("click", async () => {
+      state.relPage = Math.min(state.relTotalPages || 1, state.relPage + 1);
+      await loadRelationships();
+    });
+    $("#relType").addEventListener("change", updateRelTypeHint);
+    $("#relationshipForm").addEventListener("submit", saveRelationship);
+    $("#btnCloseRelModal").addEventListener("click", () => {
+      $("#relationshipModal").classList.remove("open");
+      state.editingRelId = null;
+    });
+    $("#relationshipBody").addEventListener("click", async (e) => {
+      const edit = e.target.getAttribute("data-rel-edit");
+      const del = e.target.getAttribute("data-rel-del");
+      try {
+        if (edit) await openRelEdit(edit);
+        if (del) {
+          if (!confirm(`Delete relationship ${del}?`)) return;
+          await api(`/api/relationships/${encodeURIComponent(del)}`, { method: "DELETE" });
+          toast(`Deleted ${del}`);
+          await loadRelationships();
+        }
+      } catch (err) {
+        toast(err.message, true);
+      }
+    });
     $("#inventoryBody").addEventListener("click", async (e) => {
       const view = e.target.getAttribute("data-view");
       const edit = e.target.getAttribute("data-edit");
