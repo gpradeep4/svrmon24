@@ -121,11 +121,17 @@ def test_ui_contains_dashboard_and_required_columns() -> None:
     assert "loadDashboard" in js
     assert "/api/dashboard/summary" in js
     assert ".dash-grid" in css or "dash-grid" in css
+    assert "sidebar" in html or "nav-item" in html
+    assert "tenantSwitcher" in html
+    assert "Not functional" in html or "placeholder" in html.lower()
+    assert "--accent" in css and "#6366f1" in css
     for screen in (
         "tab-inventory",
         "tab-relationships",
         "tab-dependencies",
         "tab-diagnostics",
+        "tab-users",
+        "tab-settings",
         "componentModal",
         "relationshipModal",
     ):
