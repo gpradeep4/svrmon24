@@ -201,6 +201,32 @@ def get_diagnostic(diagnostic_id: str) -> dict[str, Any] | None:
     return serialize_document(doc)  # type: ignore[return-value]
 
 
+def attach_ai_analysis(diagnostic_id: str, analysis: dict[str, Any]) -> dict[str, Any]:
+    """Store latest analysis and append to history on the diagnostic record."""
+    coll = _db_collection()
+    existing = coll.find_one({"diagnostic_id": diagnostic_id})
+    if existing is None:
+        raise DiagnosticError(
+            f"Diagnostic '{diagnostic_id}' not found",
+            status_code=404,
+        )
+    history = list(existing.get("ai_analysis_history") or [])
+    history.append(analysis)
+    coll.update_one(
+        {"diagnostic_id": diagnostic_id},
+        {
+            "$set": {
+                "ai_analysis": analysis,
+                "ai_analysis_history": history,
+                "updated_at": _now(),
+            }
+        },
+    )
+    doc = get_diagnostic(diagnostic_id)
+    assert doc is not None
+    return doc
+
+
 def list_diagnostics(
     *,
     component_id: str | None = None,
