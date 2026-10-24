@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from functools import lru_cache
+from typing import Any
 
 from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -32,6 +33,20 @@ class Settings(BaseSettings):
     mongodb_server_selection_timeout_ms: int = Field(
         default=3000, alias="MONGODB_SERVER_SELECTION_TIMEOUT_MS"
     )
+
+    # Local Ollama (Phase 7 AI analysis). Prefer OLLAMA_URL; OLLAMA_HOST is accepted as alias.
+    ollama_url: str = Field(default="http://localhost:11434", alias="OLLAMA_URL")
+    ollama_model: str = Field(default="llama3.2:3b", alias="OLLAMA_MODEL")
+    ollama_timeout_seconds: float = Field(default=60.0, alias="OLLAMA_TIMEOUT_SECONDS")
+
+    def model_post_init(self, __context: Any) -> None:  # noqa: ANN401
+        # Allow OLLAMA_HOST when OLLAMA_URL was left at default / unset in env loading
+        import os
+
+        host = os.getenv("OLLAMA_HOST", "").strip()
+        url_env = os.getenv("OLLAMA_URL", "").strip()
+        if host and not url_env:
+            object.__setattr__(self, "ollama_url", host.rstrip("/"))
 
 
 @lru_cache
