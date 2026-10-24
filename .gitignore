@@ -16,10 +16,14 @@ htmlcov/
 venv/
 env/
 
-# Environment / secrets — never commit real .env
+# Environment / secrets — never commit real credentials
 .env
 .env.local
 .env.*.local
+*.pem
+*.key
+credentials.json
+secrets.json
 
 # IDE / OS
 .idea/
@@ -28,10 +32,17 @@ env/
 .DS_Store
 Thumbs.db
 
-# Runtime
+# Runtime / local data
 *.log
 logs/
 .data/
+*.db
+*.sqlite
+*.sqlite3
 
+# Release / packaging artifacts (generated locally)
+release/
+*.zip
+
+# Local git workarounds
 .gitconfig-system-fixed
-
