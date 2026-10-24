@@ -114,3 +114,5 @@ def test_main_user_journey(
     assert b"OS Family" in ui.content
     assert b"Source Port" in ui.content
     assert b"SIMULATED" in ui.content
+    assert b"tenantSwitcher" in ui.content
+    assert b'class="sidebar"' in ui.content or b"nav-item" in ui.content

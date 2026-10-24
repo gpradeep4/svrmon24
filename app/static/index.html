@@ -3,395 +3,473 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>SVRMON24 Dashboard</title>
+  <title>SVRMON24</title>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,600&family=IBM+Plex+Mono:wght@400;600&family=Source+Sans+3:wght@400;600;700&display=swap" rel="stylesheet" />
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600&family=IBM+Plex+Sans:wght@400;600;700&family=Sora:wght@600;700&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="/static/css/cmdb.css" />
 </head>
 <body>
-  <div class="shell">
-    <div class="brand-bar">
-      <div>
+  <div class="app-shell">
+    <aside class="sidebar" id="sidebar">
+      <div class="brand">
         <h1>SVRMON24</h1>
-        <p>CMDB inventory, relationships, dependency/impact, and <strong>SIMULATED</strong> diagnostics with AI analysis. No remote execution or scanning.</p>
+        <p class="tagline">CMDB · dependencies · SIMULATED diagnostics</p>
       </div>
-      <div id="sessionChip" class="session-chip">Session: disconnected</div>
-    </div>
-
-    <section class="panel">
-      <h2>Session (HTTP Basic)</h2>
-      <div class="auth-row">
-        <label>Username<input id="authUser" autocomplete="username" required /></label>
-        <label>Password<input id="authPass" type="password" autocomplete="current-password" required /></label>
-        <button type="button" id="btnConnect">Connect</button>
-        <p class="hint">Uses credentials from your `.env` (`BASIC_AUTH_USERNAME` / `BASIC_AUTH_PASSWORD`).</p>
+      <nav class="nav" aria-label="Primary">
+        <div class="nav-section">Operations</div>
+        <button type="button" class="nav-item active" data-tab="dashboard"><span class="nav-ico">◈</span> Dashboard</button>
+        <button type="button" class="nav-item" data-tab="inventory"><span class="nav-ico">☰</span> Inventory</button>
+        <button type="button" class="nav-item" data-tab="relationships"><span class="nav-ico">⇄</span> Relationships</button>
+        <button type="button" class="nav-item" data-tab="dependencies"><span class="nav-ico">↯</span> Dependencies</button>
+        <button type="button" class="nav-item" data-tab="diagnostics"><span class="nav-ico">◎</span> Diagnostics</button>
+        <button type="button" class="nav-item" data-tab="custom"><span class="nav-ico">▣</span> Custom Fields</button>
+        <div class="nav-section">Administration</div>
+        <button type="button" class="nav-item" data-tab="users"><span class="nav-ico">👤</span> Users <span class="coming">Soon</span></button>
+        <button type="button" class="nav-item" data-tab="settings"><span class="nav-ico">⚙</span> Settings <span class="coming">Soon</span></button>
+      </nav>
+      <div class="sidebar-foot">
+        <span class="sim-pill" title="Diagnostics remain synthetic until live probes are approved">DEMO / SIMULATED</span>
       </div>
-    </section>
+    </aside>
 
-    <div class="tabs">
-      <button type="button" data-tab="dashboard" class="active">Dashboard</button>
-      <button type="button" data-tab="inventory">Inventory</button>
-      <button type="button" data-tab="relationships">Relationships</button>
-      <button type="button" data-tab="dependencies">Dependencies</button>
-      <button type="button" data-tab="diagnostics">Diagnostics</button>
-      <button type="button" data-tab="custom">Custom fields</button>
+    <div class="main">
+      <header class="topbar">
+        <div class="topbar-left">
+          <button type="button" class="mobile-nav-toggle" id="btnMobileNav" aria-label="Open navigation">Menu</button>
+          <h2 id="pageTitle">Dashboard</h2>
+          <p class="hint" id="pageSubtitle">Live CMDB and diagnostic overview</p>
+        </div>
+        <div class="topbar-right">
+          <div class="tenant-switcher" title="Organization switching is not implemented yet">
+            <label for="tenantSwitcher">Organization</label>
+            <select id="tenantSwitcher" disabled aria-disabled="true">
+              <option selected>SVRMON24 Legacy (placeholder)</option>
+            </select>
+            <span class="placeholder-note">Not functional yet — no tenant isolation</span>
+          </div>
+          <div class="user-menu" id="userMenu">
+            <div class="avatar" id="userAvatar">?</div>
+            <div class="meta">
+              <strong id="userDisplayName">Not signed in</strong>
+              <span id="sessionChip">Session: disconnected</span>
+            </div>
+            <button type="button" id="btnLogout" class="ghost" title="Clears Basic credentials from this browser">Log out</button>
+          </div>
+        </div>
+      </header>
+
+      <div class="content">
+        <section class="panel auth-panel" id="authPanel">
+          <h2>Sign in (HTTP Basic)</h2>
+          <p class="hint">Phase 1 UI only — authentication is still shared Basic credentials from `.env`. OIDC arrives in a later phase.</p>
+          <div class="auth-row">
+            <label>Username<input id="authUser" autocomplete="username" required /></label>
+            <label>Password<input id="authPass" type="password" autocomplete="current-password" required /></label>
+            <button type="button" id="btnConnect">Connect</button>
+            <p class="hint">Uses `BASIC_AUTH_USERNAME` / `BASIC_AUTH_PASSWORD`.</p>
+          </div>
+        </section>
+
+        <!-- keep legacy class for any old selectors; hidden via CSS -->
+        <div class="tabs" aria-hidden="true"></div>
+
+        <section id="tab-dashboard" class="tab-panel">
+          <section class="panel">
+            <div class="toolbar" style="grid-template-columns: 1fr auto;">
+              <div>
+                <h2 style="margin:0">Operations dashboard</h2>
+                <p class="hint" id="dashHint">Connect to load live CMDB and diagnostic widgets.</p>
+              </div>
+              <button type="button" id="btnRefreshDash" class="secondary">Refresh</button>
+            </div>
+            <div class="demo-banner" id="dashDemoBanner">
+              Diagnostic widgets reflect <strong>SIMULATED / SYNTHETIC_DEMO</strong> evidence only — not live telemetry.
+            </div>
+            <div class="kpi-row" id="kpiRow">
+              <div class="kpi-card">
+                <div class="label">Platform status</div>
+                <div class="value"><span class="status-pill disconnected" id="kpiConnPill">disconnected</span></div>
+                <div class="sub" id="kpiConnSub">Connect with Basic auth to load APIs</div>
+              </div>
+              <div class="kpi-card">
+                <div class="label">Components</div>
+                <div class="value" id="kpiComponents">—</div>
+                <div class="sub">CMDB inventory total</div>
+              </div>
+              <div class="kpi-card">
+                <div class="label">Relationships</div>
+                <div class="value" id="kpiRels">—</div>
+                <div class="sub">Configured dependency edges</div>
+              </div>
+              <div class="kpi-card">
+                <div class="label">Diagnostics mode</div>
+                <div class="value" style="font-size:1.1rem;margin-top:10px"><span class="status-pill warning">SIMULATED</span></div>
+                <div class="sub">No live remote execution</div>
+              </div>
+            </div>
+            <div id="dashLoading" class="empty-state">Connect to view live dashboard metrics.</div>
+            <div id="dashContent" class="hidden">
+              <div class="dash-grid">
+                <div class="dash-card">
+                  <h3>Total CMDB components</h3>
+                  <div class="dash-metric" id="dashTotalComponents">—</div>
+                </div>
+                <div class="dash-card">
+                  <h3>Configured relationships</h3>
+                  <div class="dash-metric" id="dashTotalRels">—</div>
+                </div>
+                <div class="dash-card">
+                  <h3>Components by type</h3>
+                  <ul class="dash-list" id="dashByType"></ul>
+                </div>
+                <div class="dash-card">
+                  <h3>Components by environment</h3>
+                  <ul class="dash-list" id="dashByEnv"></ul>
+                </div>
+                <div class="dash-card wide">
+                  <h3>Recent diagnostics</h3>
+                  <div id="dashRecentDiags" class="hint">No diagnostics yet.</div>
+                </div>
+                <div class="dash-card wide">
+                  <h3>Recent findings</h3>
+                  <div id="dashRecentFindings" class="hint">No findings yet.</div>
+                </div>
+                <div class="dash-card wide" style="grid-column: 1 / -1;">
+                  <h3>Critical components requiring review</h3>
+                  <div id="dashCritical" class="hint">None flagged.</div>
+                </div>
+              </div>
+            </div>
+          </section>
+        </section>
+
+        <section id="tab-inventory" class="tab-panel hidden">
+          <section class="panel">
+            <div class="toolbar">
+              <label>Search<input id="searchQ" placeholder="id, name, hostname, product…" /></label>
+              <label>Type
+                <select id="filterType" data-keep-first="1">
+                  <option value="">All</option>
+                </select>
+              </label>
+              <label>Environment<input id="filterEnv" placeholder="prod / nonprod" /></label>
+              <label>Status
+                <select id="filterStatus">
+                  <option value="">All</option>
+                  <option value="active">active</option>
+                  <option value="inactive">inactive</option>
+                  <option value="decommissioned">decommissioned</option>
+                  <option value="unknown">unknown</option>
+                </select>
+              </label>
+              <span></span>
+              <button type="button" id="btnSearch" class="secondary">Apply filters</button>
+              <button type="button" id="btnAdd">Add component</button>
+            </div>
+          </section>
+
+          <section class="panel">
+            <h2>Inventory</h2>
+            <div class="table-wrap">
+              <div id="inventoryLoading" class="loading-overlay"><span class="spinner"></span> Loading inventory…</div>
+              <table class="inventory">
+                <thead>
+                  <tr>
+                    <th>Component ID</th>
+                    <th>Hostname/Component Name</th>
+                    <th>Component Type</th>
+                    <th>OS Family</th>
+                    <th>OS Version</th>
+                    <th>Product Type</th>
+                    <th>Product Version</th>
+                    <th>Environment</th>
+                    <th>Status</th>
+                    <th>Actions</th>
+                  </tr>
+                </thead>
+                <tbody id="inventoryBody"></tbody>
+              </table>
+            </div>
+            <div class="pager">
+              <div id="pageInfo">Page 1 / 1 · 0 components</div>
+              <div class="controls">
+                <button type="button" id="btnPrev" class="secondary">Previous</button>
+                <button type="button" id="btnNext" class="secondary">Next</button>
+              </div>
+            </div>
+          </section>
+        </section>
+
+        <section id="tab-relationships" class="tab-panel hidden">
+          <section class="panel">
+            <h2>Relationship types (direction: source → target)</h2>
+            <div id="relTypeDocs" class="hint">Load after Connect.</div>
+          </section>
+          <section class="panel">
+            <div class="toolbar" style="grid-template-columns: 1.2fr 1fr 1fr auto auto;">
+              <label>Search<input id="relSearchQ" placeholder="id, component, protocol…" /></label>
+              <label>Type
+                <select id="relFilterType" data-keep-first="1">
+                  <option value="">All</option>
+                </select>
+              </label>
+              <label>Component ID<input id="relFilterComponent" placeholder="as source or target" /></label>
+              <button type="button" id="btnRelSearch" class="secondary">Apply filters</button>
+              <button type="button" id="btnAddRel">Add relationship</button>
+            </div>
+          </section>
+          <section class="panel">
+            <h2>Relationships</h2>
+            <div class="table-wrap">
+              <table class="inventory">
+                <thead>
+                  <tr>
+                    <th>Relationship ID</th>
+                    <th>Source</th>
+                    <th>Target</th>
+                    <th>Type</th>
+                    <th>Protocol</th>
+                    <th>Source Port</th>
+                    <th>Target Port</th>
+                    <th>Environment</th>
+                    <th>Discovery</th>
+                    <th>Verification</th>
+                    <th>Actions</th>
+                  </tr>
+                </thead>
+                <tbody id="relationshipBody"></tbody>
+              </table>
+            </div>
+            <div class="pager">
+              <div id="relPageInfo">Page 1 / 1 · 0 relationships</div>
+              <div class="controls">
+                <button type="button" id="btnRelPrev" class="secondary">Previous</button>
+                <button type="button" id="btnRelNext" class="secondary">Next</button>
+              </div>
+            </div>
+          </section>
+        </section>
+
+        <section id="tab-dependencies" class="tab-panel hidden">
+          <section class="panel">
+            <h2>Dependency traversal &amp; impact</h2>
+            <p class="hint" id="impactDisclaimer">
+              Impact results list <strong>potentially affected</strong> applications only.
+              Presence in the graph does not mean a component is actually down.
+            </p>
+            <div class="toolbar" style="grid-template-columns: 1.2fr 0.7fr 1fr 1fr auto;">
+              <label>Component ID<input id="depComponentId" list="componentIdList" placeholder="e.g. db-1" /></label>
+              <label>Depth<input id="depDepth" type="number" min="0" max="50" value="5" /></label>
+              <label>Environment filter<input id="depEnv" placeholder="optional" /></label>
+              <label>Status filter
+                <select id="depStatus">
+                  <option value="">All</option>
+                  <option value="active">active</option>
+                  <option value="inactive">inactive</option>
+                  <option value="decommissioned">decommissioned</option>
+                  <option value="unknown">unknown</option>
+                </select>
+              </label>
+              <button type="button" id="btnAnalyzeDeps">Analyze</button>
+            </div>
+          </section>
+
+          <section class="panel">
+            <h2>Selected component</h2>
+            <div id="depSelected" class="hint">Select a component and click Analyze.</div>
+          </section>
+
+          <section class="panel">
+            <h2>Graph</h2>
+            <p class="hint">Supports multiple parents/children, shared dependencies, and cycles. Upstream = left/sky, Downstream = right/amber, Selected = indigo.</p>
+            <div id="depGraphWrap" class="graph-wrap">
+              <svg id="depGraph" xmlns="http://www.w3.org/2000/svg"></svg>
+            </div>
+            <div id="depCycles" class="warn-box" style="display:none"></div>
+          </section>
+
+          <section class="panel">
+            <h2>Upstream dependencies</h2>
+            <div class="table-wrap">
+              <table class="inventory">
+                <thead>
+                  <tr>
+                    <th>Component ID</th>
+                    <th>Name</th>
+                    <th>Type</th>
+                    <th>Direct/Indirect</th>
+                    <th>Relationship Type</th>
+                    <th>Protocol</th>
+                    <th>Source Port</th>
+                    <th>Target Port</th>
+                    <th>Verification</th>
+                    <th>Evidence</th>
+                  </tr>
+                </thead>
+                <tbody id="depUpstreamBody"></tbody>
+              </table>
+            </div>
+          </section>
+
+          <section class="panel">
+            <h2>Downstream dependants</h2>
+            <div class="table-wrap">
+              <table class="inventory">
+                <thead>
+                  <tr>
+                    <th>Component ID</th>
+                    <th>Name</th>
+                    <th>Type</th>
+                    <th>Direct/Indirect</th>
+                    <th>Relationship Type</th>
+                    <th>Protocol</th>
+                    <th>Source Port</th>
+                    <th>Target Port</th>
+                    <th>Verification</th>
+                    <th>Evidence</th>
+                  </tr>
+                </thead>
+                <tbody id="depDownstreamBody"></tbody>
+              </table>
+            </div>
+          </section>
+
+          <section class="panel">
+            <h2>Potentially affected applications</h2>
+            <div id="depImpactList" class="hint">No analysis yet.</div>
+          </section>
+        </section>
+
+        <section id="tab-diagnostics" class="tab-panel hidden">
+          <section class="panel">
+            <h2>Diagnostics (DEMO / SIMULATED)</h2>
+            <div class="demo-banner" id="diagBanner">
+              All diagnostic output is <strong>SIMULATED / SYNTHETIC_DEMO</strong>.
+              execution_mode is always SIMULATED. No servers are contacted; shell/SQL/network scans are blocked.
+            </div>
+            <div class="toolbar" style="grid-template-columns: 1.2fr 1.2fr 1fr auto auto;">
+              <label>Component ID<input id="diagComponentId" list="componentIdList" /></label>
+              <label>Profile
+                <select id="diagProfile"></select>
+              </label>
+              <label>Notes<input id="diagNotes" placeholder="optional" /></label>
+              <button type="button" id="btnRunDiag">Run simulated diagnostic</button>
+              <button type="button" id="btnRefreshDiagHistory" class="secondary">Refresh history</button>
+            </div>
+            <p class="hint" id="diagProfileNotice"></p>
+            <p class="hint" id="ollamaStatusHint">Ollama status: not checked.</p>
+          </section>
+
+          <section class="panel">
+            <h2>Latest result</h2>
+            <div id="diagLatest" class="hint">No diagnostic run yet.</div>
+            <div style="margin-top:10px;display:flex;gap:8px;flex-wrap:wrap">
+              <button type="button" id="btnAnalyzeDiag" class="secondary">Analyze with Ollama (fallback if unavailable)</button>
+              <button type="button" id="btnAnalyzeFallback" class="ghost">Force rule-based fallback</button>
+            </div>
+            <div id="diagAnalysis" class="hint" style="margin-top:12px">No AI analysis yet.</div>
+            <div class="table-wrap" style="margin-top:12px">
+              <table class="inventory">
+                <thead>
+                  <tr>
+                    <th>Check</th>
+                    <th>Kind</th>
+                    <th>Value</th>
+                    <th>Unit</th>
+                    <th>Status</th>
+                    <th>Data source</th>
+                    <th>Note</th>
+                  </tr>
+                </thead>
+                <tbody id="diagChecksBody"></tbody>
+              </table>
+            </div>
+          </section>
+
+          <section class="panel">
+            <h2>Diagnostic history</h2>
+            <div class="table-wrap">
+              <table class="inventory">
+                <thead>
+                  <tr>
+                    <th>Diagnostic ID</th>
+                    <th>Timestamp</th>
+                    <th>Component</th>
+                    <th>Profile</th>
+                    <th>Mode</th>
+                    <th>Overall</th>
+                    <th>Actions</th>
+                  </tr>
+                </thead>
+                <tbody id="diagHistoryBody"></tbody>
+              </table>
+            </div>
+          </section>
+        </section>
+
+        <section id="tab-custom" class="tab-panel hidden">
+          <section class="panel">
+            <h2>Custom field definitions</h2>
+            <form id="customFieldForm" class="form-grid">
+              <label>Field key<input id="cfKey" required pattern="^[a-z][a-z0-9_]*$" placeholder="cost_center" /></label>
+              <label>Label<input id="cfLabel" required placeholder="Cost Center" /></label>
+              <label>Type
+                <select id="cfType">
+                  <option value="string">string</option>
+                  <option value="number">number</option>
+                  <option value="boolean">boolean</option>
+                  <option value="enum">enum</option>
+                </select>
+              </label>
+              <label>Applies to
+                <select id="cfApplies"></select>
+              </label>
+              <label class="full">Enum values (comma-separated, for enum type)
+                <input id="cfEnum" placeholder="gold, silver, bronze" />
+              </label>
+              <label><span>Required</span><input id="cfRequired" type="checkbox" /></label>
+              <button type="submit">Add definition</button>
+            </form>
+          </section>
+          <section class="panel">
+            <div class="table-wrap">
+              <table class="inventory">
+                <thead>
+                  <tr>
+                    <th>Key</th>
+                    <th>Label</th>
+                    <th>Type</th>
+                    <th>Applies to</th>
+                    <th>Required</th>
+                    <th>Actions</th>
+                  </tr>
+                </thead>
+                <tbody id="customFieldBody"></tbody>
+              </table>
+            </div>
+          </section>
+        </section>
+
+        <section id="tab-users" class="tab-panel hidden">
+          <section class="panel">
+            <div class="placeholder-panel">
+              <h3>Users</h3>
+              <p>User management is a visual placeholder. OIDC identity and membership arrive in later SaaS phases. This screen does <strong>not</strong> create users or enforce roles.</p>
+            </div>
+          </section>
+        </section>
+
+        <section id="tab-settings" class="tab-panel hidden">
+          <section class="panel">
+            <div class="placeholder-panel">
+              <h3>Settings</h3>
+              <p>Tenant settings, plans/entitlements, and platform admin controls are not implemented in Phase 1. Organization switching above is decorative only.</p>
+            </div>
+          </section>
+        </section>
+      </div>
     </div>
-
-    <section id="tab-dashboard" class="tab-panel">
-      <section class="panel">
-        <div class="toolbar" style="grid-template-columns: 1fr auto;">
-          <div>
-            <h2 style="margin:0">Operations dashboard</h2>
-            <p class="hint" id="dashHint">Connect to load live CMDB and diagnostic widgets.</p>
-          </div>
-          <button type="button" id="btnRefreshDash" class="secondary">Refresh</button>
-        </div>
-        <div class="demo-banner" id="dashDemoBanner">
-          Diagnostic widgets reflect <strong>SIMULATED / SYNTHETIC_DEMO</strong> evidence only — not live telemetry.
-        </div>
-        <div id="dashLoading" class="empty-state">Connect to view live dashboard metrics.</div>
-        <div id="dashContent" class="hidden">
-          <div class="dash-grid">
-            <div class="dash-card">
-              <h3>Total CMDB components</h3>
-              <div class="dash-metric" id="dashTotalComponents">—</div>
-            </div>
-            <div class="dash-card">
-              <h3>Configured relationships</h3>
-              <div class="dash-metric" id="dashTotalRels">—</div>
-            </div>
-            <div class="dash-card">
-              <h3>Components by type</h3>
-              <ul class="dash-list" id="dashByType"></ul>
-            </div>
-            <div class="dash-card">
-              <h3>Components by environment</h3>
-              <ul class="dash-list" id="dashByEnv"></ul>
-            </div>
-            <div class="dash-card wide">
-              <h3>Recent diagnostics</h3>
-              <div id="dashRecentDiags" class="hint">No diagnostics yet.</div>
-            </div>
-            <div class="dash-card wide">
-              <h3>Recent findings</h3>
-              <div id="dashRecentFindings" class="hint">No findings yet.</div>
-            </div>
-            <div class="dash-card wide" style="grid-column: 1 / -1;">
-              <h3>Critical components requiring review</h3>
-              <div id="dashCritical" class="hint">None flagged.</div>
-            </div>
-          </div>
-        </div>
-      </section>
-    </section>
-
-    <section id="tab-inventory" class="tab-panel">
-      <section class="panel">
-        <div class="toolbar">
-          <label>Search<input id="searchQ" placeholder="id, name, hostname, product…" /></label>
-          <label>Type
-            <select id="filterType" data-keep-first="1">
-              <option value="">All</option>
-            </select>
-          </label>
-          <label>Environment<input id="filterEnv" placeholder="prod / nonprod" /></label>
-          <label>Status
-            <select id="filterStatus">
-              <option value="">All</option>
-              <option value="active">active</option>
-              <option value="inactive">inactive</option>
-              <option value="decommissioned">decommissioned</option>
-              <option value="unknown">unknown</option>
-            </select>
-          </label>
-          <span></span>
-          <button type="button" id="btnSearch" class="secondary">Apply filters</button>
-          <button type="button" id="btnAdd">Add component</button>
-        </div>
-      </section>
-
-      <section class="panel">
-        <h2>Inventory</h2>
-        <div class="table-wrap">
-          <div id="inventoryLoading" class="loading-overlay"><span class="spinner"></span> Loading inventory…</div>
-          <table class="inventory">
-            <thead>
-              <tr>
-                <th>Component ID</th>
-                <th>Hostname/Component Name</th>
-                <th>Component Type</th>
-                <th>OS Family</th>
-                <th>OS Version</th>
-                <th>Product Type</th>
-                <th>Product Version</th>
-                <th>Environment</th>
-                <th>Status</th>
-                <th>Actions</th>
-              </tr>
-            </thead>
-            <tbody id="inventoryBody"></tbody>
-          </table>
-        </div>
-        <div class="pager">
-          <div id="pageInfo">Page 1 / 1 · 0 components</div>
-          <div class="controls">
-            <button type="button" id="btnPrev" class="secondary">Previous</button>
-            <button type="button" id="btnNext" class="secondary">Next</button>
-          </div>
-        </div>
-      </section>
-    </section>
-
-    <section id="tab-relationships" class="tab-panel hidden">
-      <section class="panel">
-        <h2>Relationship types (direction: source → target)</h2>
-        <div id="relTypeDocs" class="hint">Load after Connect.</div>
-      </section>
-      <section class="panel">
-        <div class="toolbar" style="grid-template-columns: 1.2fr 1fr 1fr auto auto;">
-          <label>Search<input id="relSearchQ" placeholder="id, component, protocol…" /></label>
-          <label>Type
-            <select id="relFilterType" data-keep-first="1">
-              <option value="">All</option>
-            </select>
-          </label>
-          <label>Component ID<input id="relFilterComponent" placeholder="as source or target" /></label>
-          <button type="button" id="btnRelSearch" class="secondary">Apply filters</button>
-          <button type="button" id="btnAddRel">Add relationship</button>
-        </div>
-      </section>
-      <section class="panel">
-        <h2>Relationships</h2>
-        <div class="table-wrap">
-          <table class="inventory">
-            <thead>
-              <tr>
-                <th>Relationship ID</th>
-                <th>Source</th>
-                <th>Target</th>
-                <th>Type</th>
-                <th>Protocol</th>
-                <th>Source Port</th>
-                <th>Target Port</th>
-                <th>Environment</th>
-                <th>Discovery</th>
-                <th>Verification</th>
-                <th>Actions</th>
-              </tr>
-            </thead>
-            <tbody id="relationshipBody"></tbody>
-          </table>
-        </div>
-        <div class="pager">
-          <div id="relPageInfo">Page 1 / 1 · 0 relationships</div>
-          <div class="controls">
-            <button type="button" id="btnRelPrev" class="secondary">Previous</button>
-            <button type="button" id="btnRelNext" class="secondary">Next</button>
-          </div>
-        </div>
-      </section>
-    </section>
-
-    <section id="tab-dependencies" class="tab-panel hidden">
-      <section class="panel">
-        <h2>Dependency traversal &amp; impact</h2>
-        <p class="hint" id="impactDisclaimer">
-          Impact results list <strong>potentially affected</strong> applications only.
-          Presence in the graph does not mean a component is actually down.
-        </p>
-        <div class="toolbar" style="grid-template-columns: 1.2fr 0.7fr 1fr 1fr auto;">
-          <label>Component ID<input id="depComponentId" list="componentIdList" placeholder="e.g. db-1" /></label>
-          <label>Depth<input id="depDepth" type="number" min="0" max="50" value="5" /></label>
-          <label>Environment filter<input id="depEnv" placeholder="optional" /></label>
-          <label>Status filter
-            <select id="depStatus">
-              <option value="">All</option>
-              <option value="active">active</option>
-              <option value="inactive">inactive</option>
-              <option value="decommissioned">decommissioned</option>
-              <option value="unknown">unknown</option>
-            </select>
-          </label>
-          <button type="button" id="btnAnalyzeDeps">Analyze</button>
-        </div>
-      </section>
-
-      <section class="panel">
-        <h2>Selected component</h2>
-        <div id="depSelected" class="hint">Select a component and click Analyze.</div>
-      </section>
-
-      <section class="panel">
-        <h2>Graph</h2>
-        <p class="hint">Supports multiple parents/children, shared dependencies, and cycles. Upstream = left/teal, Downstream = right/amber, Selected = center.</p>
-        <div id="depGraphWrap" class="graph-wrap">
-          <svg id="depGraph" xmlns="http://www.w3.org/2000/svg"></svg>
-        </div>
-        <div id="depCycles" class="warn-box" style="display:none"></div>
-      </section>
-
-      <section class="panel">
-        <h2>Upstream dependencies</h2>
-        <div class="table-wrap">
-          <table class="inventory">
-            <thead>
-              <tr>
-                <th>Component ID</th>
-                <th>Name</th>
-                <th>Type</th>
-                <th>Direct/Indirect</th>
-                <th>Relationship Type</th>
-                <th>Protocol</th>
-                <th>Source Port</th>
-                <th>Target Port</th>
-                <th>Verification</th>
-                <th>Evidence</th>
-              </tr>
-            </thead>
-            <tbody id="depUpstreamBody"></tbody>
-          </table>
-        </div>
-      </section>
-
-      <section class="panel">
-        <h2>Downstream dependants</h2>
-        <div class="table-wrap">
-          <table class="inventory">
-            <thead>
-              <tr>
-                <th>Component ID</th>
-                <th>Name</th>
-                <th>Type</th>
-                <th>Direct/Indirect</th>
-                <th>Relationship Type</th>
-                <th>Protocol</th>
-                <th>Source Port</th>
-                <th>Target Port</th>
-                <th>Verification</th>
-                <th>Evidence</th>
-              </tr>
-            </thead>
-            <tbody id="depDownstreamBody"></tbody>
-          </table>
-        </div>
-      </section>
-
-      <section class="panel">
-        <h2>Potentially affected applications</h2>
-        <div id="depImpactList" class="hint">No analysis yet.</div>
-      </section>
-    </section>
-
-    <section id="tab-diagnostics" class="tab-panel hidden">
-      <section class="panel">
-        <h2>Diagnostics (DEMO / SIMULATED)</h2>
-        <div class="warn-box" id="diagBanner">
-          All diagnostic output is synthetic demo data. Values are labeled SYNTHETIC_DEMO and
-          execution_mode is always SIMULATED. No servers are contacted; shell/SQL/network scans are blocked.
-        </div>
-        <div class="toolbar" style="grid-template-columns: 1.2fr 1.2fr 1fr auto auto;">
-          <label>Component ID<input id="diagComponentId" list="componentIdList" /></label>
-          <label>Profile
-            <select id="diagProfile"></select>
-          </label>
-          <label>Notes<input id="diagNotes" placeholder="optional" /></label>
-          <button type="button" id="btnRunDiag">Run simulated diagnostic</button>
-          <button type="button" id="btnRefreshDiagHistory" class="secondary">Refresh history</button>
-        </div>
-        <p class="hint" id="diagProfileNotice"></p>
-        <p class="hint" id="ollamaStatusHint">Ollama status: not checked.</p>
-      </section>
-
-      <section class="panel">
-        <h2>Latest result</h2>
-        <div id="diagLatest" class="hint">No diagnostic run yet.</div>
-        <div style="margin-top:10px;display:flex;gap:8px;flex-wrap:wrap">
-          <button type="button" id="btnAnalyzeDiag" class="secondary">Analyze with Ollama (fallback if unavailable)</button>
-          <button type="button" id="btnAnalyzeFallback" class="ghost">Force rule-based fallback</button>
-        </div>
-        <div id="diagAnalysis" class="hint" style="margin-top:12px">No AI analysis yet.</div>
-        <div class="table-wrap" style="margin-top:12px">
-          <table class="inventory">
-            <thead>
-              <tr>
-                <th>Check</th>
-                <th>Kind</th>
-                <th>Value</th>
-                <th>Unit</th>
-                <th>Status</th>
-                <th>Data source</th>
-                <th>Note</th>
-              </tr>
-            </thead>
-            <tbody id="diagChecksBody"></tbody>
-          </table>
-        </div>
-      </section>
-
-      <section class="panel">
-        <h2>Diagnostic history</h2>
-        <div class="table-wrap">
-          <table class="inventory">
-            <thead>
-              <tr>
-                <th>Diagnostic ID</th>
-                <th>Timestamp</th>
-                <th>Component</th>
-                <th>Profile</th>
-                <th>Mode</th>
-                <th>Overall</th>
-                <th>Actions</th>
-              </tr>
-            </thead>
-            <tbody id="diagHistoryBody"></tbody>
-          </table>
-        </div>
-      </section>
-    </section>
-
-    <section id="tab-custom" class="tab-panel hidden">
-      <section class="panel">
-        <h2>Custom field definitions</h2>
-        <form id="customFieldForm" class="form-grid">
-          <label>Field key<input id="cfKey" required pattern="^[a-z][a-z0-9_]*$" placeholder="cost_center" /></label>
-          <label>Label<input id="cfLabel" required placeholder="Cost Center" /></label>
-          <label>Type
-            <select id="cfType">
-              <option value="string">string</option>
-              <option value="number">number</option>
-              <option value="boolean">boolean</option>
-              <option value="enum">enum</option>
-            </select>
-          </label>
-          <label>Applies to
-            <select id="cfApplies"></select>
-          </label>
-          <label class="full">Enum values (comma-separated, for enum type)
-            <input id="cfEnum" placeholder="gold, silver, bronze" />
-          </label>
-          <label><span>Required</span><input id="cfRequired" type="checkbox" /></label>
-          <button type="submit">Add definition</button>
-        </form>
-      </section>
-      <section class="panel">
-        <div class="table-wrap">
-          <table class="inventory">
-            <thead>
-              <tr>
-                <th>Key</th>
-                <th>Label</th>
-                <th>Type</th>
-                <th>Applies to</th>
-                <th>Required</th>
-                <th>Actions</th>
-              </tr>
-            </thead>
-            <tbody id="customFieldBody"></tbody>
-          </table>
-        </div>
-      </section>
-    </section>
   </div>
 
   <div id="componentModal" class="modal-backdrop" role="dialog" aria-modal="true">
