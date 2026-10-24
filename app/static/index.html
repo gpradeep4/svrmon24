@@ -14,7 +14,7 @@
     <div class="brand-bar">
       <div>
         <h1>SVRMON24</h1>
-        <p>CMDB inventory and manual relationships. OS / Product fields and Protocol / Source Port / Target Port stay separate. No network scanning.</p>
+        <p>CMDB inventory, relationships, and dependency/impact analysis. Ports stay separate. Manual relationships only — no scanning.</p>
       </div>
     </div>
 
@@ -31,6 +31,7 @@
     <div class="tabs">
       <button type="button" data-tab="inventory" class="active">Inventory</button>
       <button type="button" data-tab="relationships">Relationships</button>
+      <button type="button" data-tab="dependencies">Dependencies</button>
       <button type="button" data-tab="custom">Custom fields</button>
     </div>
 
@@ -137,6 +138,96 @@
             <button type="button" id="btnRelNext" class="secondary">Next</button>
           </div>
         </div>
+      </section>
+    </section>
+
+    <section id="tab-dependencies" class="tab-panel hidden">
+      <section class="panel">
+        <h2>Dependency traversal &amp; impact</h2>
+        <p class="hint" id="impactDisclaimer">
+          Impact results list <strong>potentially affected</strong> applications only.
+          Presence in the graph does not mean a component is actually down.
+        </p>
+        <div class="toolbar" style="grid-template-columns: 1.2fr 0.7fr 1fr 1fr auto;">
+          <label>Component ID<input id="depComponentId" list="componentIdList" placeholder="e.g. db-1" /></label>
+          <label>Depth<input id="depDepth" type="number" min="0" max="50" value="5" /></label>
+          <label>Environment filter<input id="depEnv" placeholder="optional" /></label>
+          <label>Status filter
+            <select id="depStatus">
+              <option value="">All</option>
+              <option value="active">active</option>
+              <option value="inactive">inactive</option>
+              <option value="decommissioned">decommissioned</option>
+              <option value="unknown">unknown</option>
+            </select>
+          </label>
+          <button type="button" id="btnAnalyzeDeps">Analyze</button>
+        </div>
+      </section>
+
+      <section class="panel">
+        <h2>Selected component</h2>
+        <div id="depSelected" class="hint">Select a component and click Analyze.</div>
+      </section>
+
+      <section class="panel">
+        <h2>Graph</h2>
+        <p class="hint">Supports multiple parents/children, shared dependencies, and cycles. Upstream = left/teal, Downstream = right/amber, Selected = center.</p>
+        <div id="depGraphWrap" class="graph-wrap">
+          <svg id="depGraph" xmlns="http://www.w3.org/2000/svg"></svg>
+        </div>
+        <div id="depCycles" class="warn-box" style="display:none"></div>
+      </section>
+
+      <section class="panel">
+        <h2>Upstream dependencies</h2>
+        <div class="table-wrap">
+          <table class="inventory">
+            <thead>
+              <tr>
+                <th>Component ID</th>
+                <th>Name</th>
+                <th>Type</th>
+                <th>Direct/Indirect</th>
+                <th>Relationship Type</th>
+                <th>Protocol</th>
+                <th>Source Port</th>
+                <th>Target Port</th>
+                <th>Verification</th>
+                <th>Evidence</th>
+              </tr>
+            </thead>
+            <tbody id="depUpstreamBody"></tbody>
+          </table>
+        </div>
+      </section>
+
+      <section class="panel">
+        <h2>Downstream dependants</h2>
+        <div class="table-wrap">
+          <table class="inventory">
+            <thead>
+              <tr>
+                <th>Component ID</th>
+                <th>Name</th>
+                <th>Type</th>
+                <th>Direct/Indirect</th>
+                <th>Relationship Type</th>
+                <th>Protocol</th>
+                <th>Source Port</th>
+                <th>Target Port</th>
+                <th>Verification</th>
+                <th>Evidence</th>
+              </tr>
+            </thead>
+            <tbody id="depDownstreamBody"></tbody>
+          </table>
+        </div>
+      </section>
+
+      <section class="panel">
+        <h2>Potentially affected applications</h2>
+        <div id="depImpactList" class="hint">No analysis yet.</div>
       </section>
     </section>
 

@@ -8,6 +8,8 @@ AI-powered infrastructure monitoring, CMDB, dependency mapping, and diagnostics.
 
 **Phase 4** adds manual relationship management (`cmdb_relationships`): HOSTED_ON / DEPENDS_ON / CONNECTS_TO / ROUTES_TO with separate Protocol, Source Port, and Target Port columns. No network scanning.
 
+**Phase 5** adds dependency traversal and impact analysis (upstream / downstream / potentially affected applications) with cycle detection, depth limits, and a Dependencies UI tab.
+
 Diagnostics remain simulated — no real remote execution.
 
 ## Requirements
@@ -71,9 +73,16 @@ pytest
 | GET/PUT/DELETE | `/api/components/{id}` | Basic | Get / update / delete |
 | GET | `/api/components/{id}/delete-preview` | Basic | Delete confirmation + relationship warning |
 | GET/POST | `/api/custom-fields` | Basic | Custom field definitions |
+| GET/POST | `/api/relationships` | Basic | List / create relationships |
+| GET/PUT/DELETE | `/api/relationships/{id}` | Basic | Get / update / delete |
+| GET | `/api/relationships/types` | Basic | Type meaning + direction docs |
 
 ### Inventory columns (never combined)
 
 Component ID | Hostname/Component Name | Component Type | OS Family | OS Version | Product Type | Product Version | Environment | Status | Actions
 
 N/A values render as an em dash.
+
+### Relationship columns (never combined)
+
+Relationship ID | Source | Target | Type | Protocol | Source Port | Target Port | Environment | Discovery | Verification | Actions

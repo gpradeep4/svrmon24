@@ -107,6 +107,10 @@
         loadRelationships(),
         refreshComponentIdList(),
       ]);
+      // Prefill dependency analyzer if a component id was typed earlier
+      if ($("#depComponentId") && !$("#depComponentId").value && state.componentIds[0]) {
+        $("#depComponentId").value = state.componentIds[0];
+      }
     } catch (err) {
       toast(err.message || "Auth failed", true);
     }
@@ -467,6 +471,204 @@
     if (name === "relationships") {
       loadRelationships().catch((err) => toast(err.message, true));
     }
+    if (name === "dependencies") {
+      refreshComponentIdList().catch(() => {});
+    }
+  }
+
+  function renderDepRows(tbodySel, rows) {
+    const tbody = $(tbodySel);
+    tbody.innerHTML = "";
+    if (!rows || !rows.length) {
+      tbody.innerHTML = `<tr><td colspan="10" class="dash">None</td></tr>`;
+      return;
+    }
+    for (const row of rows) {
+      const tr = document.createElement("tr");
+      tr.innerHTML = `
+        <td class="mono">${escapeHtml(row.component_id)}</td>
+        <td>${escapeHtml(row.name)}</td>
+        <td>${escapeHtml(row.component_type)}</td>
+        <td>${escapeHtml(row.direct_or_indirect)}</td>
+        <td>${escapeHtml(row.relationship_type)}</td>
+        <td class="${row.protocol === "—" ? "dash" : ""}">${escapeHtml(row.protocol)}</td>
+        <td class="mono ${row.source_port === "—" ? "dash" : ""}">${escapeHtml(row.source_port)}</td>
+        <td class="mono ${row.target_port === "—" ? "dash" : ""}">${escapeHtml(row.target_port)}</td>
+        <td>${escapeHtml(row.verification_status)}</td>
+        <td>${escapeHtml(row.evidence_or_notes)}</td>`;
+      tbody.appendChild(tr);
+    }
+  }
+
+  function renderImpact(apps, disclaimer) {
+    if (disclaimer) $("#impactDisclaimer").textContent = disclaimer;
+    const wrap = $("#depImpactList");
+    if (!apps || !apps.length) {
+      wrap.innerHTML = `<p class="hint">No potentially affected applications in scope.</p>`;
+      return;
+    }
+    wrap.innerHTML = apps
+      .map((app) => {
+        const c = app.component || {};
+        const paths = (app.connecting_paths || [])
+          .map((p) => `<li>${escapeHtml((p.component_ids || []).join(" → "))}</li>`)
+          .join("");
+        return `<div class="impact-card">
+          <div><strong>${escapeHtml(c.component_id)}</strong> — ${escapeHtml(c.name || "")}
+            (${escapeHtml(app.direct_or_indirect)}, depth ${escapeHtml(app.depth)})</div>
+          <div class="hint">${escapeHtml(app.note || "")}</div>
+          <ul class="paths">${paths || "<li>No path details</li>"}</ul>
+        </div>`;
+      })
+      .join("");
+  }
+
+  function renderGraph(graph, cycles) {
+    const svg = $("#depGraph");
+    const nodes = graph?.nodes || [];
+    const edges = graph?.edges || [];
+    svg.innerHTML = "";
+    if (!nodes.length) {
+      svg.setAttribute("viewBox", "0 0 640 200");
+      const t = document.createElementNS("http://www.w3.org/2000/svg", "text");
+      t.setAttribute("x", "24");
+      t.setAttribute("y", "40");
+      t.setAttribute("fill", "#5a6e68");
+      t.textContent = "No graph data";
+      svg.appendChild(t);
+      return;
+    }
+
+    const selected = nodes.find((n) => n.is_selected || (n.roles || []).includes("selected"));
+    const upstream = nodes.filter((n) => (n.roles || []).includes("upstream") && !n.is_selected);
+    const downstream = nodes.filter((n) => (n.roles || []).includes("downstream") && !n.is_selected);
+    const both = nodes.filter(
+      (n) =>
+        (n.roles || []).includes("upstream") &&
+        (n.roles || []).includes("downstream") &&
+        !n.is_selected
+    );
+
+    const positions = {};
+    const colW = 210;
+    const rowH = 56;
+    const leftX = 80;
+    const midX = 320;
+    const rightX = 560;
+    const height = Math.max(220, (Math.max(upstream.length, downstream.length, 1) + 1) * rowH + 40);
+    svg.setAttribute("viewBox", `0 0 640 ${height}`);
+
+    function placeColumn(list, x, startY) {
+      list.forEach((n, i) => {
+        positions[n.component_id] = { x, y: startY + i * rowH };
+      });
+    }
+    placeColumn(upstream, leftX, 50);
+    placeColumn(both.length ? both : [], midX, height / 2);
+    if (selected) positions[selected.component_id] = { x: midX, y: 40 };
+    placeColumn(
+      downstream.filter((n) => !(n.roles || []).includes("upstream")),
+      rightX,
+      50
+    );
+
+    // Ensure every node has a position
+    let orphanY = height - 40;
+    for (const n of nodes) {
+      if (!positions[n.component_id]) {
+        positions[n.component_id] = { x: midX, y: orphanY };
+        orphanY -= rowH;
+      }
+    }
+
+    const cycleEdgeIds = new Set();
+    for (const cycle of cycles || []) {
+      for (const rid of cycle.relationship_ids || []) cycleEdgeIds.add(rid);
+    }
+
+    for (const edge of edges) {
+      const a = positions[edge.source_component_id];
+      const b = positions[edge.target_component_id];
+      if (!a || !b) continue;
+      const line = document.createElementNS("http://www.w3.org/2000/svg", "line");
+      line.setAttribute("x1", a.x);
+      line.setAttribute("y1", a.y);
+      line.setAttribute("x2", b.x);
+      line.setAttribute("y2", b.y);
+      line.setAttribute(
+        "class",
+        cycleEdgeIds.has(edge.relationship_id) ? "edge edge-cycle" : "edge"
+      );
+      svg.appendChild(line);
+    }
+
+    for (const n of nodes) {
+      const pos = positions[n.component_id];
+      const g = document.createElementNS("http://www.w3.org/2000/svg", "g");
+      const circle = document.createElementNS("http://www.w3.org/2000/svg", "circle");
+      circle.setAttribute("cx", pos.x);
+      circle.setAttribute("cy", pos.y);
+      circle.setAttribute("r", 18);
+      let cls = "node-upstream";
+      if (n.is_selected || (n.roles || []).includes("selected")) cls = "node-selected";
+      else if ((n.roles || []).includes("upstream") && (n.roles || []).includes("downstream"))
+        cls = "node-both";
+      else if ((n.roles || []).includes("downstream")) cls = "node-downstream";
+      circle.setAttribute("class", cls);
+      const label = document.createElementNS("http://www.w3.org/2000/svg", "text");
+      label.setAttribute("x", pos.x);
+      label.setAttribute("y", pos.y + 32);
+      label.setAttribute("text-anchor", "middle");
+      label.setAttribute("fill", "#14201d");
+      label.textContent = n.component_id;
+      g.appendChild(circle);
+      g.appendChild(label);
+      svg.appendChild(g);
+    }
+
+    const box = $("#depCycles");
+    if (cycles && cycles.length) {
+      box.style.display = "block";
+      box.textContent =
+        "Cycles detected: " +
+        cycles.map((c) => (c.component_ids || []).join(" → ")).join(" | ");
+    } else {
+      box.style.display = "none";
+    }
+  }
+
+  async function analyzeDependencies() {
+    const componentId = $("#depComponentId").value.trim();
+    if (!componentId) {
+      toast("Enter a component ID", true);
+      return;
+    }
+    const depth = Number($("#depDepth").value || 5);
+    const params = new URLSearchParams({ depth: String(depth) });
+    const env = $("#depEnv").value.trim();
+    const status = $("#depStatus").value;
+    if (env) params.set("environment", env);
+    if (status) params.set("status", status);
+    const data = await api(
+      `/api/dependencies/${encodeURIComponent(componentId)}?${params.toString()}`
+    );
+    const selected = data.selected || {};
+    $("#depSelected").innerHTML = `
+      <div><strong class="mono">${escapeHtml(selected.component_id || "")}</strong>
+      — ${escapeHtml(selected.name || "")}
+      (${escapeHtml(selected.component_type || "")},
+      env ${escapeHtml(selected.environment || "—")},
+      status ${escapeHtml(selected.status || "—")})</div>`;
+    renderDepRows("#depUpstreamBody", data.upstream?.rows || []);
+    renderDepRows("#depDownstreamBody", data.downstream?.rows || []);
+    renderImpact(
+      data.impact?.potentially_affected_applications || [],
+      data.disclaimer || data.impact?.disclaimer
+    );
+    renderGraph(data.graph || {}, data.cycles_detected || []);
+    if ((data.missing_components || []).length) {
+      toast(`Missing related components: ${data.missing_components.join(", ")}`, true);
+    }
   }
 
   async function refreshComponentIdList() {
@@ -693,6 +895,9 @@
     });
     $("#btnConfirmDelete").addEventListener("click", confirmDelete);
     $("#customFieldForm").addEventListener("submit", saveCustomField);
+    $("#btnAnalyzeDeps").addEventListener("click", async () => {
+      try { await analyzeDependencies(); } catch (err) { toast(err.message, true); }
+    });
     $("#btnRelSearch").addEventListener("click", async () => {
       state.relPage = 1;
       try { await loadRelationships(); } catch (err) { toast(err.message, true); }
