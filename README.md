@@ -85,10 +85,20 @@ When Ollama is unavailable, diagnostic analysis uses a deterministic rule-based 
 
 - Public: `/`, `/health`, `/static/*`, `/api/auth/config`, `/auth/login`, `/auth/callback`, `/auth/logout`
 - Protected: `/api/*` (OIDC session cookie and/or HTTP Basic when `BASIC_AUTH_ENABLED=true`)
-- Browser login uses **Authorization Code + PKCE**; the server stores a signed session cookie
+- Browser login uses **Authorization Code + PKCE**; state/PKCE live in the signed session cookie **and** a short-lived pending cookie
+- Unauthenticated users see a **dedicated full-page login** (no Operations sidebar/header chrome). After SSO/Basic, the app shell loads on Dashboard
+- Organization switcher + Accent picker live under **Settings** (switcher still a non-functional placeholder)
 - **Basic auth is disabled by default** for production-oriented deployments. Enable only for migration/testing. It must **not** bypass future tenant authorization once multi-tenant isolation lands.
 - Platform admin bootstrap is a later phase — **never** auto-admin the first public OIDC registrant
-- Organization / tenant switcher remains a non-functional placeholder in this phase
+
+### Important: one browser host only
+
+Session cookies are **host-scoped**. `http://localhost:8200` and `http://127.0.0.1:8200` are **different** sites to the browser.
+
+- Set `OIDC_REDIRECT_URI` to one host (example: `http://localhost:8200/auth/callback`)
+- Always open the UI on **that same host**
+- Mixing hosts causes `Invalid or expired OIDC state` because `/auth/login` sets cookies on one host and the IdP callback hits the other
+- If you open the “wrong” host, `/auth/login` now redirects to the `OIDC_REDIRECT_URI` host automatically, and the login page shows a host-mismatch warning
 
 ### Keycloak local smoke test
 
@@ -119,9 +129,11 @@ BASIC_AUTH_ENABLED=false
 SESSION_SECRET=<long-random-string>
 ```
 
-4. Start the app, open `http://localhost:8200/`, click **Sign in with SSO (OIDC)**, complete Keycloak login, confirm `/api/me` shows `"auth_method": "oidc"`.
+4. Start the app, open **`http://localhost:8200/`** (not `127.0.0.1` unless your redirect URI also uses it). You should see the dedicated login page (no sidebar). Click **Sign in with SSO (OIDC)**, complete Keycloak login, land on Dashboard, and confirm `/api/me` shows `"auth_method": "oidc"`.
 
 5. Optional coexistence check: set `BASIC_AUTH_ENABLED=true` with known credentials; the Basic form appears alongside SSO. With the flag off, Basic headers must not authenticate.
+
+6. If you previously mixed hosts and hit a state error, clear site cookies for both `localhost` and `127.0.0.1`, then retry on the redirect-URI host only.
 
 Entra ID works the same way with issuer `https://login.microsoftonline.com/<tenant-id>/v2.0` and an app registration redirect URI matching `OIDC_REDIRECT_URI`.
 

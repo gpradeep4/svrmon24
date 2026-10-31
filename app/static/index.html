@@ -6,8 +6,40 @@
   <title>SVRMON24</title>
   <link rel="stylesheet" href="/static/css/cmdb.css" />
 </head>
-<body>
-  <div class="app-shell">
+<body class="is-login">
+  <!-- Full-page login (no Operations chrome while signed out) -->
+  <div id="loginGate" class="login-gate" role="main">
+    <div class="login-atmosphere" aria-hidden="true"></div>
+    <div class="login-card panel">
+      <div class="login-brand">
+        <span class="logo" aria-hidden="true">
+          <svg viewBox="0 0 24 24"><path d="M4 7h16M4 12h10M4 17h14"/><circle cx="18" cy="12" r="2.2"/></svg>
+        </span>
+        <div>
+          <h1>SVRMON24</h1>
+          <p class="tagline">Enterprise CMDB · dependencies · SIMULATED diagnostics</p>
+        </div>
+      </div>
+      <h2>Sign in</h2>
+      <p class="hint" id="authHint">Loading authentication options…</p>
+      <div id="authErrorBanner" class="auth-error-banner hidden" role="alert"></div>
+      <div id="hostMismatchBanner" class="auth-warn-banner hidden" role="status"></div>
+      <div class="auth-row auth-oidc-row hidden" id="oidcAuthRow">
+        <button type="button" id="btnOidcLogin" class="primary">Sign in with SSO (OIDC)</button>
+        <p class="hint">Authorization Code + PKCE (Keycloak / Entra ID). Use the same browser host as <code>OIDC_REDIRECT_URI</code> (<code>localhost</code> or <code>127.0.0.1</code>, not both).</p>
+      </div>
+      <div class="auth-row auth-basic-row hidden" id="basicAuthRow">
+        <label>Username<input id="authUser" autocomplete="username" /></label>
+        <label>Password<input id="authPass" type="password" autocomplete="current-password" /></label>
+        <button type="button" id="btnConnect">Connect with Basic</button>
+        <p class="hint">Migration/testing only — requires <code>BASIC_AUTH_ENABLED=true</code>. Disabled by default for production.</p>
+      </div>
+      <p class="hint hidden" id="authMisconfigured">No authentication method is enabled. Set <code>OIDC_ENABLED=true</code> or temporarily enable <code>BASIC_AUTH_ENABLED</code>.</p>
+      <p class="login-foot hint">Diagnostics remain <strong>SIMULATED</strong>. Organization switching and tenant isolation are not active in this phase.</p>
+    </div>
+  </div>
+
+  <div class="app-shell hidden" id="appShell">
     <aside class="sidebar" id="sidebar">
       <div class="brand">
         <div class="brand-mark">
@@ -108,35 +140,6 @@
           </div>
         </div>
         <div class="topbar-right">
-          <div class="tenant-switcher" title="Organization switching is not implemented yet">
-            <label for="tenantSwitcher">Organization</label>
-            <select id="tenantSwitcher" disabled aria-disabled="true">
-              <option selected>SVRMON24 Legacy (placeholder)</option>
-            </select>
-            <span class="placeholder-note">Not functional yet — no tenant isolation</span>
-          </div>
-          <div class="accent-picker" id="accentPicker" title="Choose UI accent colour">
-            <label for="accentSelect">Accent</label>
-            <div class="accent-picker-swatches" role="group" aria-label="Accent colour">
-              <button type="button" class="accent-swatch" data-accent="#4F46E5" style="--swatch:#4F46E5" title="Indigo" aria-label="Indigo accent"></button>
-              <button type="button" class="accent-swatch" data-accent="#2563EB" style="--swatch:#2563EB" title="Blue" aria-label="Blue accent"></button>
-              <button type="button" class="accent-swatch" data-accent="#0D9488" style="--swatch:#0D9488" title="Teal" aria-label="Teal accent"></button>
-              <button type="button" class="accent-swatch" data-accent="#475569" style="--swatch:#475569" title="Slate" aria-label="Slate accent"></button>
-              <button type="button" class="accent-swatch" data-accent="#7C3AED" style="--swatch:#7C3AED" title="Violet" aria-label="Violet accent"></button>
-            </div>
-            <select id="accentSelect" class="accent-picker-select" aria-label="Accent colour">
-              <option value="#4F46E5">Indigo</option>
-              <option value="#2563EB">Blue</option>
-              <option value="#0D9488">Teal</option>
-              <option value="#475569">Slate</option>
-              <option value="#7C3AED">Violet</option>
-            </select>
-          </div>
-          <div class="header-chip placeholder" title="Notifications are a visual placeholder" aria-label="Notifications placeholder">
-            <span class="chip-ico" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M6 16V10a6 6 0 1 1 12 0v6"/><path d="M4 16h16"/><path d="M10 19a2 2 0 0 0 4 0"/></svg></span>
-            Notifications
-            <span class="chip-label">Placeholder</span>
-          </div>
           <div class="auth-status" id="authStatusChip" title="Authentication status">
             <span class="dot" aria-hidden="true"></span>
             <span id="authStatusText">Disconnected</span>
@@ -153,22 +156,6 @@
       </header>
 
       <div class="content">
-        <section class="panel auth-panel" id="authPanel">
-          <h2>Sign in</h2>
-          <p class="hint" id="authHint">Loading authentication options…</p>
-          <div class="auth-row auth-oidc-row hidden" id="oidcAuthRow">
-            <button type="button" id="btnOidcLogin" class="primary">Sign in with SSO (OIDC)</button>
-            <p class="hint">Uses Authorization Code + PKCE against the configured IdP (Keycloak / Entra ID).</p>
-          </div>
-          <div class="auth-row auth-basic-row hidden" id="basicAuthRow">
-            <label>Username<input id="authUser" autocomplete="username" /></label>
-            <label>Password<input id="authPass" type="password" autocomplete="current-password" /></label>
-            <button type="button" id="btnConnect">Connect with Basic</button>
-            <p class="hint">Migration/testing only — requires <code>BASIC_AUTH_ENABLED=true</code>. Disabled by default for production.</p>
-          </div>
-          <p class="hint hidden" id="authMisconfigured">No authentication method is enabled. Set <code>OIDC_ENABLED=true</code> or temporarily enable <code>BASIC_AUTH_ENABLED</code>.</p>
-        </section>
-
         <!-- keep legacy class for any old selectors; hidden via CSS -->
         <div class="tabs" aria-hidden="true"></div>
 
@@ -591,7 +578,7 @@
             <div class="placeholder-panel">
               <div class="ph-ico" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M3 20h18"/><path d="M5 20V9l7-5 7 5v11"/></svg></div>
               <h3>Organizations</h3>
-              <p>Coming soon. Multi-organization management and tenant isolation are not implemented. The organization selector in the header is decorative only.</p>
+              <p>Coming soon. Multi-organization management and tenant isolation are not implemented. The organization selector in Settings is decorative only.</p>
               <span class="badge-soon">Coming soon</span>
             </div>
           </section>
@@ -609,12 +596,52 @@
         </section>
 
         <section id="tab-settings" class="tab-panel hidden">
-          <section class="panel">
-            <div class="placeholder-panel">
-              <div class="ph-ico" aria-hidden="true"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M12 3v2.2M12 18.8V21M4.9 6.5l1.6 1.6M17.5 17.9l1.6 1.6"/></svg></div>
-              <h3>Settings</h3>
-              <p>Tenant settings and platform admin controls are not implemented in Master Phase 2. Organization switching above is decorative only.</p>
-              <span class="badge-soon">Coming soon</span>
+          <section class="panel settings-panel">
+            <div class="toolbar" style="grid-template-columns: 1fr;">
+              <div>
+                <h2 style="margin:0">Settings</h2>
+                <p class="hint">Appearance and organization preferences for this browser. Tenant isolation is not active yet.</p>
+              </div>
+            </div>
+
+            <div class="settings-block" id="settingsOrgBlock">
+              <h3>Organization</h3>
+              <p class="hint">Placeholder only — no tenant isolation or org switching in this phase.</p>
+              <div class="tenant-switcher settings-tenant" title="Organization switching is not implemented yet">
+                <label for="tenantSwitcher">Organization</label>
+                <select id="tenantSwitcher" disabled aria-disabled="true">
+                  <option selected>SVRMON24 Legacy (placeholder)</option>
+                </select>
+                <span class="placeholder-note">Not functional yet — no tenant isolation</span>
+              </div>
+            </div>
+
+            <div class="settings-block" id="settingsAccentBlock">
+              <h3>Accent colour</h3>
+              <p class="hint">Applies to buttons, active nav, and accents. Default is indigo. Teal accents chrome only — never the page wash.</p>
+              <div class="accent-picker" id="accentPicker" title="Choose UI accent colour">
+                <label for="accentSelect">Accent</label>
+                <div class="accent-picker-swatches" role="group" aria-label="Accent colour">
+                  <button type="button" class="accent-swatch" data-accent="#4F46E5" style="--swatch:#4F46E5" title="Indigo" aria-label="Indigo accent"></button>
+                  <button type="button" class="accent-swatch" data-accent="#2563EB" style="--swatch:#2563EB" title="Blue" aria-label="Blue accent"></button>
+                  <button type="button" class="accent-swatch" data-accent="#0D9488" style="--swatch:#0D9488" title="Teal" aria-label="Teal accent"></button>
+                  <button type="button" class="accent-swatch" data-accent="#475569" style="--swatch:#475569" title="Slate" aria-label="Slate accent"></button>
+                  <button type="button" class="accent-swatch" data-accent="#7C3AED" style="--swatch:#7C3AED" title="Violet" aria-label="Violet accent"></button>
+                </div>
+                <select id="accentSelect" class="accent-picker-select" aria-label="Accent colour">
+                  <option value="#4F46E5">Indigo</option>
+                  <option value="#2563EB">Blue</option>
+                  <option value="#0D9488">Teal</option>
+                  <option value="#475569">Slate</option>
+                  <option value="#7C3AED">Violet</option>
+                </select>
+              </div>
+            </div>
+
+            <div class="settings-block">
+              <h3>Platform</h3>
+              <p class="hint">Tenant settings and platform admin CLI bootstrap arrive in later phases. First public OIDC registrant is never auto-promoted to platform admin.</p>
+              <span class="badge-soon">More settings soon</span>
             </div>
           </section>
         </section>

@@ -124,7 +124,7 @@ def test_oidc_happy_path_callback_sets_session_and_protects_api(
         follow_redirects=False,
     )
     assert callback.status_code == 302
-    assert callback.headers["location"] == "/"
+    assert callback.headers["location"] in {"/", "http://testserver/"}
 
     me = oidc_client.get("/api/me")
     assert me.status_code == 200
@@ -152,7 +152,47 @@ def test_oidc_callback_rejects_bad_state(oidc_client: TestClient, monkeypatch) -
     login = oidc_client.get("/auth/login", follow_redirects=False)
     assert login.status_code == 302
     bad = oidc_client.get("/auth/callback?code=x&state=wrong", follow_redirects=False)
-    assert bad.status_code == 400
+    assert bad.status_code == 302
+    assert "auth_error=oidc_state" in bad.headers["location"]
+
+
+def test_oidc_login_redirects_when_host_mismatches_redirect_uri(monkeypatch) -> None:
+    """127.0.0.1 vs localhost (or any host ≠ redirect URI) must bounce before IdP."""
+    _oidc_env(monkeypatch)
+    monkeypatch.setenv("OIDC_REDIRECT_URI", "http://localhost:8200/auth/callback")
+
+    from app.config import get_settings
+    from app.db import reset_client_for_tests
+    from app.main import create_app
+    from app.oidc import clear_discovery_cache
+
+    get_settings.cache_clear()
+    clear_discovery_cache()
+    reset_client_for_tests()
+    app = create_app()
+    with TestClient(app) as client:
+        cfg = client.get("/api/auth/config").json()
+        assert cfg["host_matches_redirect"] is False
+        assert "localhost" in cfg["expected_origin"]
+        assert "127.0.0.1" in (cfg.get("host_hint") or "") or "localhost" in cfg["host_hint"]
+
+        response = client.get("/auth/login", follow_redirects=False)
+        assert response.status_code == 302
+        assert response.headers["location"] == "http://localhost:8200/auth/login"
+    get_settings.cache_clear()
+    clear_discovery_cache()
+
+
+def test_oidc_callback_missing_state_redirects_with_guidance(
+    oidc_client: TestClient,
+) -> None:
+    """No prior /auth/login session → friendly auth_error redirect (not raw JSON)."""
+    response = oidc_client.get(
+        "/auth/callback?code=orphan&state=missing",
+        follow_redirects=False,
+    )
+    assert response.status_code == 302
+    assert "auth_error=oidc_state" in response.headers["location"]
 
 
 def test_oidc_and_basic_coexistence(monkeypatch) -> None:
@@ -193,7 +233,11 @@ def test_ui_exposes_oidc_login_controls() -> None:
     assert 'id="btnOidcLogin"' in html
     assert 'id="oidcAuthRow"' in html
     assert 'id="basicAuthRow"' in html
+    assert 'id="loginGate"' in html
+    assert "is-login" in html
     assert "/api/auth/config" in js
     assert "/auth/login" in js
     assert "credentials: \"include\"" in js or "credentials: 'include'" in js
-    assert "tenantSwitcher" in html  # still present but not activated
+    assert "tenantSwitcher" in html  # in Settings; still not activated
+    assert "auth_error" in js
+    assert "host_matches_redirect" in js or "hostMismatchBanner" in html

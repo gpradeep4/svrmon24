@@ -2,6 +2,11 @@
 
 Compatible with Keycloak, Entra ID, and other standards-compliant IdPs.
 Discovery uses ``{issuer}/.well-known/openid-configuration``.
+
+Login state/PKCE are stored in the Starlette session **and** a short-lived
+signed cookie so the Auth Code round-trip survives more reliably. Cookies are
+host-scoped: ``localhost`` and ``127.0.0.1`` are different jars — callers must
+use the same host as ``OIDC_REDIRECT_URI``.
 """
 
 from __future__ import annotations
@@ -13,10 +18,11 @@ import secrets
 import time
 from functools import lru_cache
 from typing import Any
-from urllib.parse import urlencode
+from urllib.parse import urlencode, urlparse
 
 import httpx
 import jwt
+from itsdangerous import BadSignature, SignatureExpired, URLSafeTimedSerializer
 from jwt import PyJWKClient
 
 from .config import Settings
@@ -29,9 +35,73 @@ SESSION_OIDC_NONCE = "oidc_nonce"
 SESSION_AUTH = "auth"
 SESSION_ID_TOKEN = "oidc_id_token"
 
+OIDC_PENDING_COOKIE = "svrmon24_oidc_pending"
+OIDC_PENDING_MAX_AGE = 600  # seconds
+OIDC_PENDING_SALT = "svrmon24-oidc-pending-v1"
+
+HOST_MISMATCH_HINT = (
+    "Open the app using the same host as OIDC_REDIRECT_URI. "
+    "`localhost` and `127.0.0.1` are different cookie jars — mixing them "
+    "drops the OIDC state between /auth/login and /auth/callback."
+)
+
 
 class OidcError(Exception):
     """Raised when OIDC discovery, token exchange, or validation fails."""
+
+
+def redirect_origin(settings: Settings) -> str:
+    """Return ``scheme://host[:port]`` from ``OIDC_REDIRECT_URI``."""
+    parsed = urlparse(settings.oidc_redirect_uri or "")
+    if parsed.scheme and parsed.netloc:
+        return f"{parsed.scheme}://{parsed.netloc}"
+    return f"http://localhost:{settings.app_port}"
+
+
+def redirect_hostname(settings: Settings) -> str:
+    return (urlparse(settings.oidc_redirect_uri or "").hostname or "").lower()
+
+
+def request_hostname(request_url_hostname: str | None) -> str:
+    return (request_url_hostname or "").lower()
+
+
+def hosts_match(settings: Settings, request_url_hostname: str | None) -> bool:
+    expected = redirect_hostname(settings)
+    actual = request_hostname(request_url_hostname)
+    if not expected or not actual:
+        return True
+    return expected == actual
+
+
+def host_mismatch_message(settings: Settings, request_url_hostname: str | None) -> str:
+    expected = redirect_hostname(settings) or "(unset)"
+    actual = request_hostname(request_url_hostname) or "(unknown)"
+    return (
+        f"Browser host `{actual}` does not match OIDC_REDIRECT_URI host `{expected}`. "
+        f"{HOST_MISMATCH_HINT} Use {redirect_origin(settings)}/ consistently."
+    )
+
+
+def _pending_serializer(settings: Settings) -> URLSafeTimedSerializer:
+    return URLSafeTimedSerializer(settings.session_secret, salt=OIDC_PENDING_SALT)
+
+
+def dump_oidc_pending(settings: Settings, payload: dict[str, str]) -> str:
+    """Sign state/nonce/verifier for a short-lived pending cookie."""
+    return _pending_serializer(settings).dumps(payload)
+
+
+def load_oidc_pending(settings: Settings, token: str | None) -> dict[str, str] | None:
+    if not token:
+        return None
+    try:
+        data = _pending_serializer(settings).loads(token, max_age=OIDC_PENDING_MAX_AGE)
+    except (BadSignature, SignatureExpired, TypeError, ValueError):
+        return None
+    if not isinstance(data, dict):
+        return None
+    return {str(k): str(v) for k, v in data.items()}
 
 
 def make_pkce_pair() -> tuple[str, str]:

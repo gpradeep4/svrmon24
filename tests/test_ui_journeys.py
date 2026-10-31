@@ -120,3 +120,5 @@ def test_main_user_journey(
     assert b"Coming soon" in ui.content
     assert b"accentSelect" in ui.content or b"accentPicker" in ui.content
     assert b"#4F46E5" in ui.content
+    assert b'id="loginGate"' in ui.content
+    assert b'id="appShell"' in ui.content

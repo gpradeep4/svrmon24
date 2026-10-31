@@ -15,6 +15,9 @@ def test_auth_config_public(client: TestClient) -> None:
     assert body["oidc_enabled"] is False
     assert body["login_path"] == "/auth/login"
     assert body["logout_path"] == "/auth/logout"
+    assert "expected_origin" in body
+    assert "host_matches_redirect" in body
+    assert "host_hint" in body
 
 
 def test_protected_route_requires_auth(client: TestClient) -> None:
