@@ -1,6 +1,26 @@
 (() => {
   const STORAGE_KEY = "svrmon24.basicAuth";
   const ACCENT_KEY = "svrmon24.accent";
+  const authConfig = {
+    loaded: false,
+    basic_auth_enabled: false,
+    oidc_enabled: false,
+    login_path: "/auth/login",
+    logout_path: "/auth/logout",
+    expected_origin: "",
+    host_matches_redirect: true,
+    host_hint: "",
+    redirect_uri: "",
+  };
+
+  const AUTH_ERROR_MESSAGES = {
+    oidc_state:
+      "OIDC login state was missing or expired. Most often this means the browser host does not match OIDC_REDIRECT_URI (localhost vs 127.0.0.1 are different cookie jars). Open the expected origin, sign in again, and avoid mixing hosts.",
+    oidc_provider:
+      "The identity provider rejected or failed the login. Check Keycloak/Entra client settings and try again.",
+    oidc_config:
+      "OIDC is not configured correctly. Check OIDC_ENABLED, OIDC_ISSUER, and OIDC_CLIENT_ID.",
+  };
   const ACCENT_PRESETS = {
     /* sidebar* stays navy/indigo family — Teal accents buttons/nav only, never page/sidebar shell */
     "#4F46E5": {
@@ -66,6 +86,8 @@
     currentDiagnosticId: null,
     inventoryType: null,
     activeNav: "dashboard",
+    authenticated: false,
+    authMethod: "",
   };
 
   const INVENTORY_TABS = {
@@ -147,20 +169,24 @@
     diagnostics: { title: "Diagnostics", subtitle: "DEMO / SIMULATED evidence only — no live probes" },
     custom: { title: "Custom Fields", subtitle: "Extend inventory forms with typed definitions" },
     columns: { title: "Column Settings", subtitle: "Coming soon — grid column configs not implemented" },
-    users: { title: "Users", subtitle: "Placeholder — OIDC and memberships come later" },
+    users: { title: "Users", subtitle: "Placeholder — memberships / RBAC come later" },
     roles: { title: "Roles and Permissions", subtitle: "Coming soon — RBAC not implemented" },
     organizations: { title: "Organizations", subtitle: "Coming soon — no tenant isolation yet" },
     plans: { title: "Subscription Plans", subtitle: "Coming soon — entitlements not implemented" },
-    settings: { title: "Settings", subtitle: "Placeholder — tenant settings not implemented" },
+    settings: { title: "Settings", subtitle: "Organization placeholder and accent colour" },
     audit: { title: "Audit Logs", subtitle: "Coming soon — audit collection not implemented" },
   };
 
-  function setSessionChip(connected, username = "") {
+  function setSessionChip(connected, username = "", authMethod = "") {
+    state.authenticated = !!connected;
+    state.authMethod = connected ? (authMethod || state.authMethod || "") : "";
+    const methodLabel =
+      state.authMethod === "oidc" ? "OIDC" : state.authMethod === "basic" ? "Basic" : "Auth";
     const chip = $("#sessionChip");
     if (chip) {
       chip.classList.toggle("on", !!connected);
       chip.textContent = connected
-        ? `Basic session · ${username || "user"}`
+        ? `${methodLabel} session · ${username || "user"}`
         : "Session: disconnected";
     }
     const authChip = $("#authStatusChip");
@@ -181,8 +207,8 @@
     }
     if (sub) {
       sub.textContent = connected
-        ? "Authenticated to live APIs (shared Basic — not multi-tenant)"
-        : "Connect with Basic auth to load APIs";
+        ? `Authenticated via ${methodLabel} (single logical tenant — no org isolation yet)`
+        : "Sign in with OIDC (or Basic if enabled) to load APIs";
     }
   }
 
@@ -212,20 +238,37 @@
     }
   }
 
+  function showLoginShell() {
+    document.body.classList.add("is-login");
+    document.body.classList.remove("is-app");
+    $("#loginGate")?.classList.remove("hidden");
+    $("#appShell")?.classList.add("hidden");
+  }
+
+  function showAppShell() {
+    document.body.classList.remove("is-login");
+    document.body.classList.add("is-app");
+    $("#loginGate")?.classList.add("hidden");
+    $("#appShell")?.classList.remove("hidden");
+  }
+
   function logout() {
     sessionStorage.removeItem(STORAGE_KEY);
     setSessionChip(false);
+    state.authenticated = false;
     $("#dashContent")?.classList.add("hidden");
     const loading = $("#dashLoading");
     if (loading) {
       loading.classList.remove("hidden");
       loading.innerHTML =
-        "<strong>API disconnected</strong> Sign in with HTTP Basic credentials above to load live CMDB KPIs, relationships, and SIMULATED diagnostic widgets.";
+        "<strong>API disconnected</strong> Sign in to load live CMDB KPIs, relationships, and SIMULATED diagnostic widgets.";
     }
     if ($("#kpiComponents")) $("#kpiComponents").textContent = "—";
     if ($("#kpiRels")) $("#kpiRels").textContent = "—";
-    toast("Signed out of this browser session");
-    showTab("dashboard");
+    showLoginShell();
+    const logoutPath = authConfig.logout_path || "/auth/logout";
+    // Clear server OIDC session cookie (and optional IdP end-session redirect).
+    window.location.href = logoutPath;
   }
 
   function setGlobalLoading(show, text = "Working…") {
@@ -359,7 +402,7 @@
     if (options.body && !headers["Content-Type"]) {
       headers["Content-Type"] = "application/json";
     }
-    const res = await fetch(path, { ...options, headers });
+    const res = await fetch(path, { ...options, headers, credentials: "include" });
     let data = null;
     const text = await res.text();
     if (text) {
@@ -410,37 +453,138 @@
     } catch { /* ignore */ }
   }
 
+  async function afterAuthenticated(me, { toastMessage = "Connected" } = {}) {
+    setSessionChip(true, me.username, me.auth_method || "");
+    showAppShell();
+    if (toastMessage) toast(toastMessage);
+    await Promise.all([
+      loadDashboard(),
+      loadTypes(),
+      loadCustomFields(),
+      loadInventory(),
+      loadRelationshipTypes(),
+      loadRelationships(),
+      refreshComponentIdList(),
+      loadDiagnosticProfiles(),
+      loadDiagnosticHistory(),
+    ]);
+    if ($("#depComponentId") && !$("#depComponentId").value && state.componentIds[0]) {
+      $("#depComponentId").value = state.componentIds[0];
+    }
+    if ($("#diagComponentId") && !$("#diagComponentId").value && state.componentIds[0]) {
+      $("#diagComponentId").value = state.componentIds[0];
+    }
+    showTab("dashboard");
+  }
+
   async function connect() {
+    if (!authConfig.basic_auth_enabled) {
+      toast("HTTP Basic is disabled (BASIC_AUTH_ENABLED=false)", true);
+      return;
+    }
     if (!saveAuthFromForm()) return;
     setGlobalLoading(true, "Connecting…");
     try {
       const me = await api("/api/me");
-      setSessionChip(true, me.username);
-      toast("Connected");
-      await Promise.all([
-        loadDashboard(),
-        loadTypes(),
-        loadCustomFields(),
-        loadInventory(),
-        loadRelationshipTypes(),
-        loadRelationships(),
-        refreshComponentIdList(),
-        loadDiagnosticProfiles(),
-        loadDiagnosticHistory(),
-      ]);
-      // Prefill dependency analyzer if a component id was typed earlier
-      if ($("#depComponentId") && !$("#depComponentId").value && state.componentIds[0]) {
-        $("#depComponentId").value = state.componentIds[0];
-      }
-      if ($("#diagComponentId") && !$("#diagComponentId").value && state.componentIds[0]) {
-        $("#diagComponentId").value = state.componentIds[0];
-      }
-      showTab("dashboard");
+      await afterAuthenticated(me);
     } catch (err) {
       setSessionChip(false);
       toast(err.message || "Auth failed", true);
     } finally {
       setGlobalLoading(false);
+    }
+  }
+
+  async function tryResumeSession() {
+    setGlobalLoading(true, "Checking session…");
+    try {
+      const me = await api("/api/me");
+      await afterAuthenticated(me, { toastMessage: "Session restored" });
+      return true;
+    } catch (_) {
+      setSessionChip(false);
+      return false;
+    } finally {
+      setGlobalLoading(false);
+    }
+  }
+
+  function applyAuthConfig(cfg) {
+    authConfig.loaded = true;
+    authConfig.basic_auth_enabled = !!cfg.basic_auth_enabled;
+    authConfig.oidc_enabled = !!cfg.oidc_enabled;
+    authConfig.login_path = cfg.login_path || "/auth/login";
+    authConfig.logout_path = cfg.logout_path || "/auth/logout";
+    authConfig.expected_origin = cfg.expected_origin || "";
+    authConfig.host_matches_redirect = cfg.host_matches_redirect !== false;
+    authConfig.host_hint = cfg.host_hint || "";
+    authConfig.redirect_uri = cfg.redirect_uri || "";
+
+    const hint = $("#authHint");
+    const oidcRow = $("#oidcAuthRow");
+    const basicRow = $("#basicAuthRow");
+    const misconfigured = $("#authMisconfigured");
+    const hostBanner = $("#hostMismatchBanner");
+
+    if (hint) {
+      if (cfg.oidc_enabled && cfg.basic_auth_enabled) {
+        hint.textContent =
+          "Sign in with SSO (OIDC) or use feature-flagged HTTP Basic for migration/testing.";
+      } else if (cfg.oidc_enabled) {
+        hint.textContent =
+          "Sign in with your identity provider (OIDC). HTTP Basic is disabled.";
+      } else if (cfg.basic_auth_enabled) {
+        hint.textContent =
+          "OIDC is disabled. Using feature-flagged HTTP Basic (migration/testing). Production-oriented default is BASIC_AUTH_ENABLED=false.";
+      } else {
+        hint.textContent = "No authentication method is currently enabled.";
+      }
+    }
+    oidcRow?.classList.toggle("hidden", !cfg.oidc_enabled);
+    basicRow?.classList.toggle("hidden", !cfg.basic_auth_enabled);
+    misconfigured?.classList.toggle("hidden", !!(cfg.oidc_enabled || cfg.basic_auth_enabled));
+
+    if (hostBanner) {
+      if (cfg.oidc_enabled && cfg.host_matches_redirect === false && cfg.expected_origin) {
+        hostBanner.classList.remove("hidden");
+        hostBanner.innerHTML =
+          `This page is opened as <code>${escapeHtml(window.location.host)}</code>, but ` +
+          `<code>OIDC_REDIRECT_URI</code> expects <code>${escapeHtml(cfg.expected_origin)}</code>. ` +
+          `${escapeHtml(cfg.host_hint || "")} ` +
+          `<a href="${escapeHtml(cfg.expected_origin)}/">Continue on ${escapeHtml(cfg.expected_origin)}</a>`;
+      } else {
+        hostBanner.classList.add("hidden");
+        hostBanner.innerHTML = "";
+      }
+    }
+  }
+
+  function showAuthErrorFromQuery() {
+    const params = new URLSearchParams(window.location.search);
+    const code = params.get("auth_error");
+    const banner = $("#authErrorBanner");
+    if (!banner) return;
+    if (!code) {
+      banner.classList.add("hidden");
+      banner.textContent = "";
+      return;
+    }
+    banner.classList.remove("hidden");
+    banner.textContent = AUTH_ERROR_MESSAGES[code] || `Sign-in failed (${code}).`;
+    // Clean the query so refresh does not keep flashing the error.
+    params.delete("auth_error");
+    const next = `${window.location.pathname}${params.toString() ? `?${params}` : ""}${window.location.hash || ""}`;
+    window.history.replaceState({}, "", next);
+  }
+
+  async function loadAuthConfig() {
+    try {
+      const cfg = await fetch("/api/auth/config", { credentials: "include", headers: { Accept: "application/json" } })
+        .then((r) => r.json());
+      applyAuthConfig(cfg);
+    } catch (_) {
+      applyAuthConfig({ basic_auth_enabled: false, oidc_enabled: false });
+      toast("Could not load auth configuration", true);
     }
   }
 
@@ -686,7 +830,7 @@
       await loadInventory();
       await refreshComponentIdList();
       await loadRelationships();
-      if (authHeader()) {
+      if (state.authenticated) {
         loadDashboard().catch(() => {});
       }
     } catch (err) {
@@ -731,7 +875,7 @@
       await loadInventory();
       await refreshComponentIdList();
       await loadRelationships();
-      if (authHeader()) {
+      if (state.authenticated) {
         loadDashboard().catch(() => {});
       }
     } catch (err) {
@@ -857,10 +1001,10 @@
     if ($("#pageTitle")) $("#pageTitle").textContent = meta.title;
     if ($("#pageSubtitle")) $("#pageSubtitle").textContent = meta.subtitle;
     $("#sidebar")?.classList.remove("open");
-    if (name === "dashboard" && authHeader()) {
+    if (name === "dashboard" && state.authenticated) {
       loadDashboard().catch((err) => toast(err.message || "Dashboard failed", true));
     }
-    if ((inventoryType || name === "inventory") && authHeader()) {
+    if ((inventoryType || name === "inventory") && state.authenticated) {
       state.page = 1;
       loadInventory().catch((err) => toast(err.message, true));
     }
@@ -1475,7 +1619,7 @@
         state.editingRelId = null;
       }
       await loadRelationships();
-      if (authHeader()) {
+      if (state.authenticated) {
         loadDashboard().catch(() => {});
       }
     } catch (err) {
@@ -1484,7 +1628,20 @@
   }
 
   function wireEvents() {
-    $("#btnConnect").addEventListener("click", connect);
+    $("#btnConnect")?.addEventListener("click", connect);
+    $("#btnOidcLogin")?.addEventListener("click", () => {
+      if (!authConfig.oidc_enabled) {
+        toast("OIDC is disabled", true);
+        return;
+      }
+      // Prefer expected_origin so login/state cookies land on the redirect host.
+      const path = authConfig.login_path || "/auth/login";
+      if (authConfig.expected_origin && authConfig.host_matches_redirect === false) {
+        window.location.href = `${authConfig.expected_origin}${path}`;
+        return;
+      }
+      window.location.href = path;
+    });
     $("#btnLogout")?.addEventListener("click", logout);
     $("#btnMobileNav")?.addEventListener("click", () => {
       $("#sidebar")?.classList.toggle("open");
@@ -1493,7 +1650,7 @@
       toast("Organization switching is a visual placeholder — not functional yet", true);
     });
     $("#btnRefreshDash")?.addEventListener("click", async () => {
-      if (!authHeader()) {
+      if (!state.authenticated) {
         toast("Connect first", true);
         return;
       }
@@ -1637,14 +1794,20 @@
     });
   }
 
-  document.addEventListener("DOMContentLoaded", () => {
+  document.addEventListener("DOMContentLoaded", async () => {
     restoreAccent();
     loadAuthIntoForm();
     wireEvents();
-    showTab("dashboard");
-    setSessionChip(!!authHeader());
-    if (authHeader()) {
+    showLoginShell();
+    setSessionChip(false);
+    showAuthErrorFromQuery();
+    await loadAuthConfig();
+    // Resume OIDC cookie session or previously stored Basic credentials.
+    const resumed = await tryResumeSession();
+    if (!resumed && authHeader() && authConfig.basic_auth_enabled) {
       connect().catch(() => {});
+    } else if (!resumed) {
+      showLoginShell();
     }
   });
 })();

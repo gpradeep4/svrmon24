@@ -6,14 +6,14 @@ from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 
-from ..auth import verify_basic_credentials
+from ..auth import require_user
 from ..services import dependencies as dependencies_service
 from ..services.dependencies import DependencyError
 
 router = APIRouter(
     prefix="/api/dependencies",
     tags=["cmdb-dependencies"],
-    dependencies=[Depends(verify_basic_credentials)],
+    dependencies=[Depends(require_user)],
 )
 
 

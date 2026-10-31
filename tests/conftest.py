@@ -8,10 +8,14 @@ from collections.abc import Generator
 import pytest
 from fastapi.testclient import TestClient
 
-# Configure test env before importing the app settings cache
+# Configure test env before importing the app settings cache.
+# Existing API tests use feature-flagged HTTP Basic (enabled here for the suite).
 os.environ.setdefault("APP_ENV", "test")
+os.environ.setdefault("BASIC_AUTH_ENABLED", "true")
 os.environ.setdefault("BASIC_AUTH_USERNAME", "testuser")
 os.environ.setdefault("BASIC_AUTH_PASSWORD", "testpass")
+os.environ.setdefault("OIDC_ENABLED", "false")
+os.environ.setdefault("SESSION_SECRET", "test-session-secret")
 os.environ.setdefault("MONGODB_URI", "mongodb://localhost:27017")
 os.environ.setdefault("MONGODB_DB", "svrmon24_test")
 os.environ.setdefault("MONGODB_CONNECT_TIMEOUT_MS", "2000")
@@ -32,21 +36,24 @@ def client() -> Generator[TestClient, None, None]:
     from app.config import get_settings
     from app.db import reset_client_for_tests
     from app.main import create_app
+    from app.oidc import clear_discovery_cache
 
     get_settings.cache_clear()
+    clear_discovery_cache()
     reset_client_for_tests()
     app = create_app()
     with TestClient(app) as test_client:
         yield test_client
     reset_client_for_tests()
     get_settings.cache_clear()
+    clear_discovery_cache()
 
 
 @pytest.fixture()
 def clean_db(client: TestClient) -> Generator[None, None, None]:
-    """Drop CMDB collections used by Phase 3 tests (preserves other DBs)."""
-    from app.db import get_database, ping_database, reset_client_for_tests
+    """Drop CMDB collections used by API tests (preserves other DBs)."""
     from app.config import get_settings
+    from app.db import get_database, ping_database, reset_client_for_tests
 
     status = ping_database()
     if not status.get("ok"):

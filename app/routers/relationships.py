@@ -6,7 +6,7 @@ from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 
-from ..auth import verify_basic_credentials
+from ..auth import require_user
 from ..models.relationships import RelationshipCreate, RelationshipUpdate
 from ..services import relationships as relationships_service
 from ..services.relationships import RelationshipError
@@ -14,7 +14,7 @@ from ..services.relationships import RelationshipError
 router = APIRouter(
     prefix="/api/relationships",
     tags=["cmdb-relationships"],
-    dependencies=[Depends(verify_basic_credentials)],
+    dependencies=[Depends(require_user)],
 )
 
 

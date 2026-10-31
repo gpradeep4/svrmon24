@@ -148,7 +148,16 @@ def test_ui_contains_dashboard_and_required_columns() -> None:
     assert "Column Settings" in html
     assert "Roles and Permissions" in html
     assert "Audit Logs" in html
-    assert "Notifications" in html and "Placeholder" in html
+    assert 'id="loginGate"' in html
+    assert 'id="appShell"' in html
+    assert 'id="settingsOrgBlock"' in html or 'id="settingsAccentBlock"' in html
+    assert "showLoginShell" in js and "showAppShell" in js
+    # Org + accent live in Settings, not the lean top header.
+    topbar = html.split('<header class="topbar">', 1)[1].split("</header>", 1)[0]
+    assert "tenantSwitcher" not in topbar
+    assert "accentPicker" not in topbar
+    assert 'id="tenantSwitcher"' in html
+    assert 'id="accentPicker"' in html
     for screen in (
         "tab-inventory",
         "tab-relationships",

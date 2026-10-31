@@ -6,7 +6,7 @@ from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 
-from ..auth import verify_basic_credentials
+from ..auth import require_user
 from ..models.components import COMPONENT_TYPES, ComponentCreate, ComponentUpdate
 from ..services import components as components_service
 from ..services.components import ComponentError
@@ -14,7 +14,7 @@ from ..services.components import ComponentError
 router = APIRouter(
     prefix="/api/components",
     tags=["cmdb-components"],
-    dependencies=[Depends(verify_basic_credentials)],
+    dependencies=[Depends(require_user)],
 )
 
 
