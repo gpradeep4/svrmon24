@@ -60,14 +60,26 @@ def clean_db(client: TestClient) -> Generator[None, None, None]:
         pytest.skip(f"MongoDB unavailable for CMDB tests: {status.get('detail')}")
 
     db = get_database()
-    db["components"].delete_many({})
-    db["custom_field_definitions"].delete_many({})
-    db["cmdb_relationships"].delete_many({})
-    db["diagnostic_history"].delete_many({})
+    for name in (
+        "components",
+        "custom_field_definitions",
+        "cmdb_relationships",
+        "diagnostic_history",
+        "tenants",
+        "users",
+        "memberships",
+    ):
+        db[name].delete_many({})
     yield
-    db["components"].delete_many({})
-    db["custom_field_definitions"].delete_many({})
-    db["cmdb_relationships"].delete_many({})
-    db["diagnostic_history"].delete_many({})
+    for name in (
+        "components",
+        "custom_field_definitions",
+        "cmdb_relationships",
+        "diagnostic_history",
+        "tenants",
+        "users",
+        "memberships",
+    ):
+        db[name].delete_many({})
     reset_client_for_tests()
     get_settings.cache_clear()

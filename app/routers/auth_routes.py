@@ -11,6 +11,7 @@ from fastapi.responses import RedirectResponse
 
 from ..auth import AuthUser, require_user
 from ..config import Settings, get_settings
+from ..db import DatabaseUnavailableError, ping_database
 from ..oidc import (
     HOST_MISMATCH_HINT,
     OIDC_PENDING_COOKIE,
@@ -42,6 +43,61 @@ router = APIRouter(tags=["auth"])
 AUTH_ERROR_STATE = "oidc_state"
 AUTH_ERROR_PROVIDER = "oidc_provider"
 AUTH_ERROR_CONFIG = "oidc_config"
+
+
+def _link_oidc_user(settings: Settings, auth_payload: dict[str, Any]) -> dict[str, Any] | None:
+    """Create/link local user + migration-tenant member membership on OIDC login.
+
+    Never grants platform admin. MongoDB outages are logged and skipped so login
+    still succeeds (identity link retries on a later request /me enrichment).
+    """
+    from ..services import memberships as memberships_service
+    from ..services import tenants as tenants_service
+    from ..services import users as users_service
+    from ..tenancy import MEMBERSHIP_ROLE_MEMBER, MIGRATION_TENANT_ID
+
+    subject = auth_payload.get("subject")
+    username = auth_payload.get("username")
+    if not subject or not username or not settings.oidc_issuer:
+        return None
+    db_status = ping_database(settings)
+    if not db_status.get("ok"):
+        logger.warning("oidc_user_link_skipped mongodb unavailable")
+        return None
+    try:
+        tenants_service.ensure_migration_tenant()
+        user = users_service.ensure_user_from_oidc(
+            issuer=settings.oidc_issuer,
+            subject=str(subject),
+            username=str(username),
+            email=auth_payload.get("email"),
+            display_name=auth_payload.get("name"),
+        )
+        # First (and subsequent) public logins get member only — never admin/platform-admin.
+        memberships_service.ensure_membership(
+            user_id=user["user_id"],
+            tenant_id=MIGRATION_TENANT_ID,
+            role=MEMBERSHIP_ROLE_MEMBER,
+            upgrade_role=False,
+        )
+        if user.get("is_platform_admin"):
+            logger.info(
+                "oidc_login_platform_admin_preserved user_id=%s (CLI bootstrap only)",
+                user.get("user_id"),
+            )
+        else:
+            logger.info(
+                "oidc_user_linked user_id=%s platform_admin=%s",
+                user.get("user_id"),
+                False,
+            )
+        return user
+    except DatabaseUnavailableError as exc:
+        logger.warning("oidc_user_link_skipped detail=%s", exc)
+        return None
+    except Exception:  # noqa: BLE001
+        logger.exception("oidc_user_link_failed")
+        return None
 
 
 def _home_url(settings: Settings, *, auth_error: str | None = None) -> str:
@@ -234,13 +290,20 @@ def oidc_callback(
     except OidcError as exc:
         return fail(AUTH_ERROR_PROVIDER, str(exc))
 
+    linked = _link_oidc_user(settings, auth_payload)
+    if linked is not None:
+        auth_payload["user_id"] = linked.get("user_id")
+        auth_payload["is_platform_admin"] = bool(linked.get("is_platform_admin"))
+
     request.session.pop("oidc_login_started", None)
     request.session[SESSION_AUTH] = auth_payload
     request.session[SESSION_ID_TOKEN] = id_token
     logger.info(
-        "oidc_login_success username=%s subject=%s",
+        "oidc_login_success username=%s subject=%s user_id=%s platform_admin=%s",
         auth_payload.get("username"),
         auth_payload.get("subject"),
+        auth_payload.get("user_id"),
+        auth_payload.get("is_platform_admin", False),
     )
     # signed_in=1 tells the SPA to resume /api/me before painting the app shell.
     home = _home_url(settings)
@@ -279,6 +342,82 @@ def oidc_logout(
 
 
 @router.get("/api/me")
-def whoami(user: AuthUser = Depends(require_user)) -> dict[str, Any]:
-    """Return the authenticated principal (OIDC session or Basic)."""
-    return user.as_dict()
+def whoami(
+    request: Request,
+    user: AuthUser = Depends(require_user),
+    settings: Settings = Depends(get_settings),
+) -> dict[str, Any]:
+    """Return the authenticated principal (OIDC session or Basic).
+
+    When MongoDB is available and the principal is OIDC-linked, includes local
+    ``user_id``, ``is_platform_admin`` (CLI-only), and migration tenant summary.
+    """
+    from ..services import memberships as memberships_service
+    from ..services import tenants as tenants_service
+    from ..services import users as users_service
+    from ..tenancy import MIGRATION_TENANT_DISPLAY_NAME, MIGRATION_TENANT_ID
+
+    payload = user.as_dict()
+    payload["isolation_enforced"] = False
+    payload["org_switcher_enabled"] = False
+    payload["current_tenant_id"] = MIGRATION_TENANT_ID
+    payload["current_tenant_display_name"] = MIGRATION_TENANT_DISPLAY_NAME
+    payload["is_platform_admin"] = False
+    payload["user_id"] = None
+    payload["memberships"] = []
+
+    # Prefer values already stored on the session after OIDC callback.
+    session_auth = request.session.get(SESSION_AUTH)
+    if isinstance(session_auth, dict):
+        if session_auth.get("user_id"):
+            payload["user_id"] = session_auth.get("user_id")
+        if session_auth.get("is_platform_admin"):
+            payload["is_platform_admin"] = bool(session_auth.get("is_platform_admin"))
+
+    if user.auth_method != "oidc":
+        payload["notes"] = (
+            "HTTP Basic migration session — no local user/membership link. "
+            "Basic must not bypass future tenant authorization."
+        )
+        return payload
+
+    db_status = ping_database(settings)
+    if not db_status.get("ok"):
+        return payload
+
+    try:
+        local = None
+        if user.subject and settings.oidc_issuer:
+            local = users_service.get_user_by_oidc(settings.oidc_issuer, user.subject)
+        if local is None and user.subject and settings.oidc_issuer:
+            # Lazy link if callback could not reach Mongo at login time.
+            local = _link_oidc_user(
+                settings,
+                {
+                    "subject": user.subject,
+                    "username": user.username,
+                    "email": user.email,
+                    "name": user.name,
+                },
+            )
+        if local is None:
+            return payload
+        payload["user_id"] = local.get("user_id")
+        payload["is_platform_admin"] = bool(local.get("is_platform_admin"))
+        memberships = memberships_service.list_memberships_for_user(local["user_id"])
+        payload["memberships"] = memberships
+        tenant = tenants_service.get_current_tenant()
+        payload["current_tenant_id"] = tenant.get("tenant_id", MIGRATION_TENANT_ID)
+        payload["current_tenant_display_name"] = tenant.get(
+            "display_name", MIGRATION_TENANT_DISPLAY_NAME
+        )
+        # Refresh session cache for subsequent requests.
+        if isinstance(session_auth, dict):
+            session_auth["user_id"] = local.get("user_id")
+            session_auth["is_platform_admin"] = bool(local.get("is_platform_admin"))
+            request.session[SESSION_AUTH] = session_auth
+    except DatabaseUnavailableError:
+        pass
+    except Exception:  # noqa: BLE001
+        logger.exception("api_me_tenancy_enrichment_failed")
+    return payload

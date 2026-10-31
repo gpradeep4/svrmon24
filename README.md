@@ -4,11 +4,12 @@ AI-assisted infrastructure CMDB, dependency mapping, **SIMULATED** diagnostics, 
 
 Stack: **FastAPI + Uvicorn + MongoDB (PyMongo) + provider-neutral OIDC** (HTTP Basic optional via feature flag). Diagnostics never contact remote hosts and never execute shell/SQL/network scans.
 
-## Features (through Master Phase 3)
+## Features (through Master Phase 4)
 
 | Area | Capability |
 | --- | --- |
 | Auth / ops | OIDC (Auth Code + PKCE), feature-flagged HTTP Basic, `/health`, `/api/status`, structured logging |
+| Tenancy | `tenants` / `users` / `memberships`; migration tenant **SVRMON24 Legacy** (`tenant-svrmon24-legacy`); dual-write `tenant_id` on new CMDB docs — **no hard isolation yet** |
 | CMDB | Server / Network / Middleware / Database / Application inventory |
 | Custom fields | Per-type (or global) field definitions |
 | Relationships | HOSTED_ON / DEPENDS_ON / CONNECTS_TO / ROUTES_TO |
@@ -87,9 +88,18 @@ When Ollama is unavailable, diagnostic analysis uses a deterministic rule-based 
 - Protected: `/api/*` (OIDC session cookie and/or HTTP Basic when `BASIC_AUTH_ENABLED=true`)
 - Browser login uses **Authorization Code + PKCE**; state/PKCE live in the signed session cookie **and** a short-lived pending cookie
 - Unauthenticated users see a **dedicated full-page login** (no Operations sidebar/header chrome). After SSO/Basic, the app shell loads on Dashboard
-- Organization switcher + Accent picker live under **Settings** (switcher still a non-functional placeholder)
+- Organization switcher + Accent picker live under **Settings** (switcher shows **SVRMON24 Legacy**, disabled / non-switchable)
 - **Basic auth is disabled by default** for production-oriented deployments. Enable only for migration/testing. It must **not** bypass future tenant authorization once multi-tenant isolation lands.
-- Platform admin bootstrap is a later phase — **never** auto-admin the first public OIDC registrant
+- OIDC login links a local user + **member** membership on the migration tenant — **never** auto-admin the first public registrant
+- Platform admin is **CLI/operator bootstrap only**: `python scripts/bootstrap_platform_admin.py --username operator --email ops@example.com`
+
+### Tenancy (Phase 4)
+
+- Startup (and `python scripts/ensure_migration_tenant.py`) idempotently seeds `tenant-svrmon24-legacy` / **SVRMON24 Legacy**
+- New writes to `components`, `custom_field_definitions`, `cmdb_relationships`, and `diagnostic_history` dual-write `tenant_id` (migration tenant). Existing rows may still have null `tenant_id` until Phase 5 backfill
+- `component_id` remains **globally** unique
+- APIs: `GET /api/tenants`, `GET /api/tenants/current`, `GET /api/tenants/{id}`, `GET /api/memberships` — org switcher is **not** activated; `isolation_enforced=false`
+- Hard cross-tenant denial is **Master Phase 5** (not this release)
 
 ### Important: one browser host only
 
@@ -160,7 +170,10 @@ pytest -v
 | GET | `/auth/callback` | Public | OIDC callback → session cookie |
 | GET/POST | `/auth/logout` | Public | Clear session (+ optional IdP logout) |
 | GET | `/api/status` | OIDC / Basic* | App + MongoDB status |
-| GET | `/api/me` | OIDC / Basic* | Auth smoke check |
+| GET | `/api/me` | OIDC / Basic* | Principal (+ tenant/membership when OIDC-linked) |
+| GET | `/api/tenants` | OIDC / Basic* | List tenants (migration tenant only) |
+| GET | `/api/tenants/current` | OIDC / Basic* | Current / migration tenant |
+| GET | `/api/memberships` | OIDC / Basic* | Memberships for current OIDC user |
 | GET | `/api/dashboard/summary` | OIDC / Basic* | Live dashboard widgets |
 | GET/POST | `/api/components` | OIDC / Basic* | List / create components |
 | GET/PUT/DELETE | `/api/components/{id}` | OIDC / Basic* | Get / update / delete |
@@ -194,7 +207,7 @@ Relationship ID | Source | Target | Type | **Protocol** | **Source Port** | **Ta
 - AI analysis never auto-executes remediation and must not invent telemetry.
 - Impact results list **potentially affected** applications only — not confirmed outages.
 - Default Basic auth is **disabled**; placeholders (`change-me`) must be replaced if the flag is enabled for shared use.
-- Single logical tenant only in this phase — no tenant isolation or org switcher activation.
+- Single logical tenant (**SVRMON24 Legacy**) — tenant models exist; **no** hard isolation or org switcher activation yet (Phase 5).
 
 ## Project layout
 
@@ -202,12 +215,14 @@ Relationship ID | Source | Target | Type | **Protocol** | **Source Port** | **Ta
 svrmon24/
   app/                 # FastAPI application
     diagnostics/       # Simulated profiles + generator
-    models/            # Pydantic models
-    routers/           # HTTP routers (incl. OIDC auth routes)
-    services/          # Business logic (CMDB, deps, AI, dashboard)
+    models/            # Pydantic models (incl. tenants)
+    routers/           # HTTP routers (OIDC + tenants/memberships)
+    services/          # Business logic (CMDB, deps, AI, tenancy)
     static/            # Dashboard UI (HTML/CSS/JS)
     auth.py            # Unified OIDC session + Basic flag
     oidc.py            # Discovery / PKCE / token validation
+    tenancy.py         # Migration tenant constants + dual-write helper
+  scripts/             # Demo seed, migration tenant ensure, platform-admin CLI
   tests/               # Pytest suite
   requirements.txt
   .env.example         # Placeholders only

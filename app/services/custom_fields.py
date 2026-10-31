@@ -18,6 +18,7 @@ from ..models.custom_fields import (
 )
 from ..models.components import ComponentType
 from ..serialization import serialize_document
+from ..tenancy import stamp_tenant_id
 
 COLLECTION = "custom_field_definitions"
 
@@ -32,6 +33,8 @@ class CustomFieldError(Exception):
 def _collection() -> Collection:
     coll = require_database()[COLLECTION]
     coll.create_index([("field_key", ASCENDING)], unique=True)
+    # Phase 4 prep: non-unique tenant_id (hard scoping in Phase 5).
+    coll.create_index([("tenant_id", ASCENDING)], name="tenant_id_idx")
     return coll
 
 
@@ -66,6 +69,7 @@ def create_definition(payload: CustomFieldCreate) -> dict[str, Any]:
         "created_at": now,
         "updated_at": now,
     }
+    stamp_tenant_id(doc)
     try:
         _collection().insert_one(doc)
     except DuplicateKeyError as exc:

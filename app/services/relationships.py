@@ -23,6 +23,7 @@ from ..models.relationships import (
     to_relationship_row,
 )
 from ..serialization import serialize_document
+from ..tenancy import stamp_tenant_id
 
 COLLECTION = "cmdb_relationships"
 
@@ -41,6 +42,8 @@ def _collection() -> Collection:
     coll.create_index([("source_component_id", ASCENDING)])
     coll.create_index([("target_component_id", ASCENDING)])
     coll.create_index([("relationship_type", ASCENDING)])
+    # Phase 4 prep: non-unique tenant_id (hard scoping in Phase 5).
+    coll.create_index([("tenant_id", ASCENDING)], name="tenant_id_idx")
     return coll
 
 
@@ -173,6 +176,7 @@ def create_relationship(payload: RelationshipCreate) -> dict[str, Any]:
         "created_at": now,
         "updated_at": now,
     }
+    stamp_tenant_id(doc)
     try:
         _collection().insert_one(doc)
     except DuplicateKeyError as exc:

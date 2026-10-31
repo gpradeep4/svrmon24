@@ -14,6 +14,7 @@ from ..diagnostics.profiles import EXECUTION_MODE, list_profiles, require_profil
 from ..diagnostics.simulator import run_simulated_profile
 from ..models.diagnostics import DiagnosticStartRequest
 from ..serialization import serialize_document
+from ..tenancy import stamp_tenant_id
 from . import components as components_service
 from . import dependencies as dependencies_service
 
@@ -33,6 +34,8 @@ def _db_collection() -> Collection:
     coll.create_index([("component_id", ASCENDING)])
     coll.create_index([("profile_name", ASCENDING)])
     coll.create_index([("timestamp", DESCENDING)])
+    # Phase 4 prep: non-unique tenant_id (hard scoping in Phase 5).
+    coll.create_index([("tenant_id", ASCENDING)], name="tenant_id_idx")
     return coll
 
 
@@ -191,6 +194,7 @@ def start_diagnostic(payload: DiagnosticStartRequest) -> dict[str, Any]:
             "network_scan": False,
         },
     }
+    stamp_tenant_id(record)
 
     _db_collection().insert_one(record)
     return serialize_document(record)  # type: ignore[return-value]
