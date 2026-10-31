@@ -2,11 +2,52 @@
   const STORAGE_KEY = "svrmon24.basicAuth";
   const ACCENT_KEY = "svrmon24.accent";
   const ACCENT_PRESETS = {
-    "#4F46E5": { hover: "#4338CA", soft: "rgba(79, 70, 229, 0.12)", ring: "rgba(79, 70, 229, 0.28)", accent2: "#6366F1" },
-    "#2563EB": { hover: "#1D4ED8", soft: "rgba(37, 99, 235, 0.12)", ring: "rgba(37, 99, 235, 0.28)", accent2: "#3B82F6" },
-    "#0D9488": { hover: "#0F766E", soft: "rgba(13, 148, 136, 0.12)", ring: "rgba(13, 148, 136, 0.28)", accent2: "#0891B2" },
-    "#475569": { hover: "#334155", soft: "rgba(71, 85, 105, 0.12)", ring: "rgba(71, 85, 105, 0.28)", accent2: "#64748B" },
-    "#7C3AED": { hover: "#6D28D9", soft: "rgba(124, 58, 237, 0.12)", ring: "rgba(124, 58, 237, 0.28)", accent2: "#8B5CF6" },
+    /* sidebar* = darkened accent-tinted navy shells (not the old hard-coded teal) */
+    "#4F46E5": {
+      hover: "#4338CA",
+      soft: "rgba(79, 70, 229, 0.12)",
+      ring: "rgba(79, 70, 229, 0.28)",
+      accent2: "#6366F1",
+      sidebarBg: "#0F172A",
+      sidebarBg2: "#1E1B4B",
+      sidebarBorder: "rgba(148, 163, 184, 0.16)",
+    },
+    "#2563EB": {
+      hover: "#1D4ED8",
+      soft: "rgba(37, 99, 235, 0.12)",
+      ring: "rgba(37, 99, 235, 0.28)",
+      accent2: "#3B82F6",
+      sidebarBg: "#0B1224",
+      sidebarBg2: "#172554",
+      sidebarBorder: "rgba(147, 197, 253, 0.14)",
+    },
+    "#0D9488": {
+      hover: "#0F766E",
+      soft: "rgba(13, 148, 136, 0.12)",
+      ring: "rgba(13, 148, 136, 0.28)",
+      accent2: "#0891B2",
+      sidebarBg: "#0B1C1F",
+      sidebarBg2: "#134E4A",
+      sidebarBorder: "rgba(153, 246, 228, 0.12)",
+    },
+    "#475569": {
+      hover: "#334155",
+      soft: "rgba(71, 85, 105, 0.12)",
+      ring: "rgba(71, 85, 105, 0.28)",
+      accent2: "#64748B",
+      sidebarBg: "#0F172A",
+      sidebarBg2: "#1E293B",
+      sidebarBorder: "rgba(148, 163, 184, 0.16)",
+    },
+    "#7C3AED": {
+      hover: "#6D28D9",
+      soft: "rgba(124, 58, 237, 0.12)",
+      ring: "rgba(124, 58, 237, 0.28)",
+      accent2: "#8B5CF6",
+      sidebarBg: "#0F0A1F",
+      sidebarBg2: "#2E1065",
+      sidebarBorder: "rgba(196, 181, 253, 0.14)",
+    },
   };
   const DEFAULT_ACCENT = "#4F46E5";
   const state = {
@@ -62,6 +103,9 @@
     root.style.setProperty("--accent-2", preset.accent2);
     root.style.setProperty("--accent-soft", preset.soft);
     root.style.setProperty("--accent-ring", preset.ring);
+    root.style.setProperty("--sidebar-bg", preset.sidebarBg);
+    root.style.setProperty("--sidebar-bg-2", preset.sidebarBg2);
+    root.style.setProperty("--sidebar-border", preset.sidebarBorder);
 
     const select = $("#accentSelect");
     if (select) select.value = accent;
