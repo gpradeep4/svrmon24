@@ -2,7 +2,7 @@
   const STORAGE_KEY = "svrmon24.basicAuth";
   const ACCENT_KEY = "svrmon24.accent";
   const ACCENT_PRESETS = {
-    /* sidebar* = darkened accent-tinted navy shells (not the old hard-coded teal) */
+    /* sidebar* stays navy/indigo family — Teal accents buttons/nav only, never page/sidebar shell */
     "#4F46E5": {
       hover: "#4338CA",
       soft: "rgba(79, 70, 229, 0.12)",
@@ -25,10 +25,11 @@
       hover: "#0F766E",
       soft: "rgba(13, 148, 136, 0.12)",
       ring: "rgba(13, 148, 136, 0.28)",
-      accent2: "#0891B2",
-      sidebarBg: "#0B1C1F",
-      sidebarBg2: "#134E4A",
-      sidebarBorder: "rgba(153, 246, 228, 0.12)",
+      accent2: "#14B8A6",
+      /* Keep navy/indigo shell — do not paint sidebar teal/green */
+      sidebarBg: "#0F172A",
+      sidebarBg2: "#1E1B4B",
+      sidebarBorder: "rgba(148, 163, 184, 0.16)",
     },
     "#475569": {
       hover: "#334155",
