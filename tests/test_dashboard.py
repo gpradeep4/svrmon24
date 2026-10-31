@@ -150,8 +150,11 @@ def test_ui_contains_dashboard_and_required_columns() -> None:
     assert "Audit Logs" in html
     assert 'id="loginGate"' in html
     assert 'id="appShell"' in html
+    assert 'id="authPanel"' not in html
+    assert "login-gate-v2" in html
     assert 'id="settingsOrgBlock"' in html or 'id="settingsAccentBlock"' in html
     assert "showLoginShell" in js and "showAppShell" in js
+    assert "signed_in" in js
     # Org + accent live in Settings, not the lean top header.
     topbar = html.split('<header class="topbar">', 1)[1].split("</header>", 1)[0]
     assert "tenantSwitcher" not in topbar

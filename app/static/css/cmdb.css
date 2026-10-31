@@ -368,9 +368,13 @@ body { padding: 0; }
   font-weight: 650;
 }
 
-body.is-login .app-shell { display: none !important; }
+/* Auth gate — mutually exclusive shells (also inlined in index.html head). */
+body.is-login .app-shell,
+body:not(.is-app) .app-shell { display: none !important; }
 body.is-app .login-gate { display: none !important; }
 body.is-app .app-shell { display: grid; }
+#authPanel,
+.auth-panel-legacy { display: none !important; }
 
 .topbar {
   position: sticky;
