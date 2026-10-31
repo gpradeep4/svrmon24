@@ -177,7 +177,25 @@
     audit: { title: "Audit Logs", subtitle: "Coming soon — audit collection not implemented" },
   };
 
-  function setSessionChip(connected, username = "", authMethod = "") {
+  function setTenantBanner(connected, tenantName = "", tenantId = "") {
+    const banner = $("#tenantBanner");
+    const nameEl = $("#tenantDisplayName");
+    const idEl = $("#tenantIdSub");
+    const displayName = tenantName || "SVRMON24 Legacy";
+    const stableId = tenantId || "tenant-svrmon24-legacy";
+    if (nameEl) nameEl.textContent = connected ? displayName : "—";
+    if (idEl) idEl.textContent = connected ? stableId : "—";
+    if (banner) {
+      banner.hidden = !connected;
+      banner.title = connected ? stableId : "";
+      banner.setAttribute(
+        "aria-label",
+        connected ? `Current organization: ${displayName}` : "Current organization"
+      );
+    }
+  }
+
+  function setSessionChip(connected, username = "", authMethod = "", tenant = null) {
     state.authenticated = !!connected;
     state.authMethod = connected ? (authMethod || state.authMethod || "") : "";
     const methodLabel =
@@ -205,21 +223,31 @@
       pill.className = `status-pill ${connected ? "healthy" : "disconnected"}`;
       pill.textContent = connected ? "healthy" : "disconnected";
     }
+    const tenantName =
+      (tenant && tenant.display_name) ||
+      (tenant && tenant.current_tenant_display_name) ||
+      "SVRMON24 Legacy";
+    const tenantId =
+      (tenant && tenant.tenant_id) ||
+      (tenant && tenant.current_tenant_id) ||
+      "tenant-svrmon24-legacy";
     if (sub) {
       sub.textContent = connected
-        ? `Authenticated via ${methodLabel} · SVRMON24 Legacy (no isolation yet)`
+        ? `Authenticated via ${methodLabel} · ${tenantName} (no isolation yet)`
         : "Sign in with OIDC (or Basic if enabled) to load APIs";
     }
+    setTenantBanner(connected, connected ? tenantName : "", connected ? tenantId : "");
   }
 
   async function loadTenancyContext(me) {
     const switcher = $("#tenantSwitcher");
     const memEl = $("#membershipSummary");
     const orgEl = $("#orgTenantSummary");
-    const tenantName =
+    let tenantName =
       (me && me.current_tenant_display_name) || "SVRMON24 Legacy";
-    const tenantId =
+    let tenantId =
       (me && me.current_tenant_id) || "tenant-svrmon24-legacy";
+    setTenantBanner(true, tenantName, tenantId);
     if (switcher) {
       switcher.innerHTML = "";
       const opt = document.createElement("option");
@@ -233,9 +261,22 @@
     try {
       const current = await api("/api/tenants/current");
       const t = current.tenant || {};
+      tenantName = t.display_name || tenantName;
+      tenantId = t.tenant_id || tenantId;
+      setTenantBanner(true, tenantName, tenantId);
+      if (switcher) {
+        switcher.innerHTML = "";
+        const opt = document.createElement("option");
+        opt.value = tenantId;
+        opt.textContent = tenantName;
+        opt.selected = true;
+        switcher.appendChild(opt);
+        switcher.disabled = true;
+        switcher.setAttribute("aria-disabled", "true");
+      }
       if (orgEl) {
         orgEl.textContent =
-          `${t.display_name || tenantName} (${t.tenant_id || tenantId}) — ` +
+          `${tenantName} (${tenantId}) — ` +
           "not switchable; isolation_enforced=false";
       }
     } catch (err) {
@@ -538,7 +579,7 @@
   }
 
   async function afterAuthenticated(me, { toastMessage = "Connected" } = {}) {
-    setSessionChip(true, me.username, me.auth_method || "");
+    setSessionChip(true, me.username, me.auth_method || "", me);
     showAppShell();
     if (toastMessage) toast(toastMessage);
     await Promise.all([

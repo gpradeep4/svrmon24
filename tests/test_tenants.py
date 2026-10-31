@@ -209,6 +209,7 @@ def test_oidc_login_links_user_never_auto_platform_admin(
     assert body["user_id"]
     assert body["is_platform_admin"] is False
     assert body["current_tenant_id"] == MIGRATION_TENANT_ID
+    assert body["current_tenant_display_name"] == MIGRATION_TENANT_DISPLAY_NAME
     assert body["org_switcher_enabled"] is False
     assert body["isolation_enforced"] is False
     assert any(m["role"] == "member" for m in body.get("memberships") or [])
@@ -281,6 +282,13 @@ def test_basic_auth_memberships_empty(client, auth_headers, clean_db) -> None:
     current = client.get("/api/tenants/current", headers=auth_headers)
     assert current.status_code == 200
     assert current.json()["tenant"]["tenant_id"] == MIGRATION_TENANT_ID
+    assert current.json()["tenant"]["display_name"] == MIGRATION_TENANT_DISPLAY_NAME
+
+    me = client.get("/api/me", headers=auth_headers)
+    assert me.status_code == 200
+    me_body = me.json()
+    assert me_body["current_tenant_id"] == MIGRATION_TENANT_ID
+    assert me_body["current_tenant_display_name"] == MIGRATION_TENANT_DISPLAY_NAME
 
     mem = client.get("/api/memberships", headers=auth_headers)
     assert mem.status_code == 200
@@ -295,12 +303,23 @@ def test_ui_shows_migration_tenant_non_switchable() -> None:
 
     root = Path(__file__).resolve().parents[1]
     html = (root / "app" / "static" / "index.html").read_text(encoding="utf-8")
+    css = (root / "app" / "static" / "css" / "cmdb.css").read_text(encoding="utf-8")
     js = (root / "app" / "static" / "js" / "cmdb.js").read_text(encoding="utf-8")
     assert "tenant-svrmon24-legacy" in html
     assert "SVRMON24 Legacy" in html
     assert 'id="tenantSwitcher"' in html
     assert "disabled" in html
+    assert 'id="tenantBanner"' in html
+    assert 'id="tenantDisplayName"' in html
+    assert 'id="tenantIdSub"' in html
+    topbar = html.split('<header class="topbar">', 1)[1].split("</header>", 1)[0]
+    assert 'id="tenantBanner"' in topbar
+    assert "tenantSwitcher" not in topbar
+    assert "accentPicker" not in topbar
     assert "loadTenancyContext" in js
+    assert "setTenantBanner" in js
+    assert "current_tenant_display_name" in js
     assert "/api/tenants/current" in js
     assert "/api/memberships" in js
-    assert "0.13.0" in html
+    assert ".tenant-banner" in css
+    assert "0.13.1" in html
