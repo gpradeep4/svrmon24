@@ -2,7 +2,11 @@
 
 AI-powered infrastructure monitoring, CMDB, dependency mapping, and diagnostics.
 
-**Phase 2** delivers the application foundation: FastAPI + Uvicorn, MongoDB via PyMongo, HTTP Basic auth from environment variables, structured logging, centralized exception handling, and automated tests. Diagnostics remain simulated â€” no real remote execution.
+**Phase 2** foundation: FastAPI + Uvicorn, MongoDB via PyMongo, HTTP Basic auth, structured logging, and tests.
+
+**Phase 3** adds the CMDB component inventory (Server / Network / Middleware / Database / Application) with CRUD API, search/filter/pagination, custom-field definitions, delete confirmation with relationship warning hook, and a browser UI at `/`.
+
+Diagnostics remain simulated — no real remote execution.
 
 ## Requirements
 
@@ -18,7 +22,7 @@ python -m venv .venv
 python -m pip install --upgrade pip
 pip install -r requirements.txt
 Copy-Item .env.example .env
-# Edit .env â€” set BASIC_AUTH_USERNAME / BASIC_AUTH_PASSWORD and MONGODB_URI
+# Edit .env: set BASIC_AUTH_USERNAME / BASIC_AUTH_PASSWORD and MONGODB_URI
 python -m app.main
 ```
 
@@ -27,6 +31,8 @@ Or with Uvicorn directly:
 ```powershell
 uvicorn app.main:app --host 0.0.0.0 --port 8200
 ```
+
+Open the UI at `http://localhost:8200/` and connect with Basic auth credentials.
 
 ## Quick start (RHEL / Linux bash)
 
@@ -42,8 +48,8 @@ python -m app.main
 
 ## Auth
 
-Phase 2 uses **HTTP Basic** credentials from `BASIC_AUTH_USERNAME` and `BASIC_AUTH_PASSWORD`.
-`/health` is public; other API routes require authentication. Longer-term auth will move to OIDC.
+Phase 2+ uses **HTTP Basic** credentials from `BASIC_AUTH_USERNAME` and `BASIC_AUTH_PASSWORD`.
+`/health` and the UI shell are public; API routes require authentication. Longer-term auth will move to OIDC.
 
 ## Tests
 
@@ -51,11 +57,21 @@ Phase 2 uses **HTTP Basic** credentials from `BASIC_AUTH_USERNAME` and `BASIC_AU
 pytest
 ```
 
-## Endpoints (Phase 2)
+## Endpoints
 
 | Method | Path | Auth | Purpose |
 | --- | --- | --- | --- |
+| GET | `/` | Public UI | CMDB inventory UI |
 | GET | `/health` | Public | Liveness |
 | GET | `/api/status` | Basic | App + MongoDB status |
 | GET | `/api/me` | Basic | Auth smoke check |
+| GET/POST | `/api/components` | Basic | List / create components |
+| GET/PUT/DELETE | `/api/components/{id}` | Basic | Get / update / delete |
+| GET | `/api/components/{id}/delete-preview` | Basic | Delete confirmation + relationship warning |
+| GET/POST | `/api/custom-fields` | Basic | Custom field definitions |
 
+### Inventory columns (never combined)
+
+Component ID | Hostname/Component Name | Component Type | OS Family | OS Version | Product Type | Product Version | Environment | Status | Actions
+
+N/A values render as an em dash.
