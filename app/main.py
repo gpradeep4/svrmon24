@@ -25,7 +25,9 @@ from .routers import dashboard as dashboard_router
 from .routers import dependencies as dependencies_router
 from .routers import diagnostics as diagnostics_router
 from .routers import relationships as relationships_router
+from .routers import tenants as tenants_router
 from .serialization import serialize_document
+from .services.bootstrap import ensure_tenancy_ready
 
 logger = logging.getLogger(__name__)
 STATIC_DIR = Path(__file__).resolve().parent / "static"
@@ -46,6 +48,18 @@ async def lifespan(_app: FastAPI):
     db_status = ping_database(settings)
     if db_status.get("ok"):
         logger.info("mongodb_ready database=%s", settings.mongodb_db)
+        tenancy = ensure_tenancy_ready()
+        if tenancy.get("ok"):
+            logger.info(
+                "tenancy_ready migration_tenant=%s isolation=%s",
+                tenancy.get("migration_tenant_id"),
+                tenancy.get("isolation_enforced"),
+            )
+        else:
+            logger.warning(
+                "tenancy_bootstrap_incomplete detail=%s",
+                tenancy.get("detail"),
+            )
     else:
         logger.warning(
             "mongodb_not_ready database=%s detail=%s",
@@ -69,6 +83,7 @@ def create_app() -> FastAPI:
             "SVRMON24: FastAPI + MongoDB CMDB, relationships, dependency/impact "
             "analysis, SIMULATED diagnostics, AI analysis, and dashboard with "
             "provider-neutral OIDC auth (HTTP Basic optional via feature flag). "
+            "Tenant/membership models (single logical org); hard isolation is later. "
             "Diagnostics are demo-only; no remote execution."
         ),
         lifespan=lifespan,
@@ -89,6 +104,7 @@ def create_app() -> FastAPI:
     )
 
     app.include_router(auth_routes.router)
+    app.include_router(tenants_router.router)
     app.include_router(components_router.router)
     app.include_router(custom_fields_router.router)
     app.include_router(relationships_router.router)

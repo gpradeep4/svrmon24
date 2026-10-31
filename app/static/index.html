@@ -12,7 +12,7 @@
     body.is-app .login-gate { display: none !important; }
     #authPanel, .auth-panel-legacy { display: none !important; }
   </style>
-  <link rel="stylesheet" href="/static/css/cmdb.css?v=0.12.2" />
+  <link rel="stylesheet" href="/static/css/cmdb.css?v=0.13.0" />
 </head>
 <body class="is-login">
   <!-- Full-page login (no Operations chrome while signed out) -->
@@ -43,7 +43,7 @@
         <p class="hint">Migration/testing only — requires <code>BASIC_AUTH_ENABLED=true</code>. Disabled by default for production.</p>
       </div>
       <p class="hint hidden" id="authMisconfigured">No authentication method is enabled. Set <code>OIDC_ENABLED=true</code> or temporarily enable <code>BASIC_AUTH_ENABLED</code>.</p>
-      <p class="login-foot hint">Diagnostics remain <strong>SIMULATED</strong>. Organization switching and tenant isolation are not active in this phase.</p>
+      <p class="login-foot hint">Diagnostics remain <strong>SIMULATED</strong>. Single organization: <strong>SVRMON24 Legacy</strong> — switching and hard tenant isolation are not active yet.</p>
     </div>
   </div>
 
@@ -563,9 +563,10 @@
           <section class="panel">
             <div class="placeholder-panel">
               <div class="ph-ico" aria-hidden="true"><svg viewBox="0 0 24 24"><circle cx="9" cy="8" r="3.2"/><path d="M3.5 19c.8-3 2.9-4.5 5.5-4.5S13.7 16 14.5 19"/></svg></div>
-              <h3>Users</h3>
-              <p>User management is a visual placeholder. OIDC login is available in this phase; memberships and RBAC arrive later. This screen does <strong>not</strong> create users or enforce roles. First public registrant is never auto-promoted to platform admin.</p>
-              <span class="badge-soon">Coming soon</span>
+              <h3>Users &amp; memberships</h3>
+              <p>OIDC login links a local user and a <strong>member</strong> membership on <strong>SVRMON24 Legacy</strong>. First public registrant is <strong>never</strong> auto-promoted to platform admin (CLI bootstrap only). Role enforcement / invites arrive later.</p>
+              <div id="membershipSummary" class="membership-summary hint">Sign in to load memberships.</div>
+              <span class="badge-soon">Phase 4 models</span>
             </div>
           </section>
         </section>
@@ -586,8 +587,9 @@
             <div class="placeholder-panel">
               <div class="ph-ico" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M3 20h18"/><path d="M5 20V9l7-5 7 5v11"/></svg></div>
               <h3>Organizations</h3>
-              <p>Coming soon. Multi-organization management and tenant isolation are not implemented. The organization selector in Settings is decorative only.</p>
-              <span class="badge-soon">Coming soon</span>
+              <p>Migration tenant <strong>SVRMON24 Legacy</strong> (<code>tenant-svrmon24-legacy</code>) is seeded. Multi-org switching and hard isolation are <strong>not</strong> active (Phase 5+). The Settings selector stays disabled.</p>
+              <div id="orgTenantSummary" class="membership-summary hint">Sign in to load the current tenant.</div>
+              <span class="badge-soon">Single logical org</span>
             </div>
           </section>
         </section>
@@ -614,13 +616,13 @@
 
             <div class="settings-block" id="settingsOrgBlock">
               <h3>Organization</h3>
-              <p class="hint">Placeholder only — no tenant isolation or org switching in this phase.</p>
-              <div class="tenant-switcher settings-tenant" title="Organization switching is not implemented yet">
+              <p class="hint">Single logical organization for this phase. Switcher stays disabled until hard tenant isolation lands.</p>
+              <div class="tenant-switcher settings-tenant" title="Organization switching is not enabled — single logical tenant">
                 <label for="tenantSwitcher">Organization</label>
                 <select id="tenantSwitcher" disabled aria-disabled="true">
-                  <option selected>SVRMON24 Legacy (placeholder)</option>
+                  <option selected value="tenant-svrmon24-legacy">SVRMON24 Legacy</option>
                 </select>
-                <span class="placeholder-note">Not functional yet — no tenant isolation</span>
+                <span class="placeholder-note">Not switchable — no tenant isolation yet</span>
               </div>
             </div>
 
@@ -771,6 +773,6 @@
     <span class="spinner"></span><span id="globalLoadingText">Working…</span>
   </div>
   <div id="toast" class="toast"></div>
-  <script src="/static/js/cmdb.js?v=0.12.2"></script>
+  <script src="/static/js/cmdb.js?v=0.13.0"></script>
 </body>
 </html>

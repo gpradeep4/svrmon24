@@ -169,11 +169,11 @@
     diagnostics: { title: "Diagnostics", subtitle: "DEMO / SIMULATED evidence only — no live probes" },
     custom: { title: "Custom Fields", subtitle: "Extend inventory forms with typed definitions" },
     columns: { title: "Column Settings", subtitle: "Coming soon — grid column configs not implemented" },
-    users: { title: "Users", subtitle: "Placeholder — memberships / RBAC come later" },
+    users: { title: "Users", subtitle: "OIDC-linked memberships (no auto platform-admin)" },
     roles: { title: "Roles and Permissions", subtitle: "Coming soon — RBAC not implemented" },
-    organizations: { title: "Organizations", subtitle: "Coming soon — no tenant isolation yet" },
+    organizations: { title: "Organizations", subtitle: "SVRMON24 Legacy — single logical org" },
     plans: { title: "Subscription Plans", subtitle: "Coming soon — entitlements not implemented" },
-    settings: { title: "Settings", subtitle: "Organization placeholder and accent colour" },
+    settings: { title: "Settings", subtitle: "Organization (non-switchable) and accent colour" },
     audit: { title: "Audit Logs", subtitle: "Coming soon — audit collection not implemented" },
   };
 
@@ -207,8 +207,58 @@
     }
     if (sub) {
       sub.textContent = connected
-        ? `Authenticated via ${methodLabel} (single logical tenant — no org isolation yet)`
+        ? `Authenticated via ${methodLabel} · SVRMON24 Legacy (no isolation yet)`
         : "Sign in with OIDC (or Basic if enabled) to load APIs";
+    }
+  }
+
+  async function loadTenancyContext(me) {
+    const switcher = $("#tenantSwitcher");
+    const memEl = $("#membershipSummary");
+    const orgEl = $("#orgTenantSummary");
+    const tenantName =
+      (me && me.current_tenant_display_name) || "SVRMON24 Legacy";
+    const tenantId =
+      (me && me.current_tenant_id) || "tenant-svrmon24-legacy";
+    if (switcher) {
+      switcher.innerHTML = "";
+      const opt = document.createElement("option");
+      opt.value = tenantId;
+      opt.textContent = tenantName;
+      opt.selected = true;
+      switcher.appendChild(opt);
+      switcher.disabled = true;
+      switcher.setAttribute("aria-disabled", "true");
+    }
+    try {
+      const current = await api("/api/tenants/current");
+      const t = current.tenant || {};
+      if (orgEl) {
+        orgEl.textContent =
+          `${t.display_name || tenantName} (${t.tenant_id || tenantId}) — ` +
+          "not switchable; isolation_enforced=false";
+      }
+    } catch (err) {
+      if (orgEl) orgEl.textContent = err.message || "Could not load tenant";
+    }
+    try {
+      const mem = await api("/api/memberships");
+      if (memEl) {
+        if (!mem.user_id) {
+          memEl.textContent =
+            mem.notes ||
+            "No local user identity (Basic sessions do not create memberships).";
+        } else {
+          const roles = (mem.items || [])
+            .map((m) => `${m.tenant_display_name || m.tenant_id}: ${m.role}`)
+            .join("; ") || "none";
+          memEl.textContent =
+            `user_id=${mem.user_id}; platform_admin=${!!mem.is_platform_admin}; ` +
+            `memberships=[${roles}]`;
+        }
+      }
+    } catch (err) {
+      if (memEl) memEl.textContent = err.message || "Could not load memberships";
     }
   }
 
@@ -501,6 +551,7 @@
       refreshComponentIdList(),
       loadDiagnosticProfiles(),
       loadDiagnosticHistory(),
+      loadTenancyContext(me),
     ]);
     if ($("#depComponentId") && !$("#depComponentId").value && state.componentIds[0]) {
       $("#depComponentId").value = state.componentIds[0];
@@ -1714,7 +1765,7 @@
       $("#sidebar")?.classList.toggle("open");
     });
     $("#tenantSwitcher")?.addEventListener("click", () => {
-      toast("Organization switching is a visual placeholder — not functional yet", true);
+      toast("SVRMON24 Legacy is the only org — switching disabled until isolation (Phase 5)", true);
     });
     $("#btnRefreshDash")?.addEventListener("click", async () => {
       if (!state.authenticated) {

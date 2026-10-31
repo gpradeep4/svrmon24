@@ -23,6 +23,7 @@ from ..models.components import (
     to_inventory_row,
 )
 from ..serialization import serialize_document
+from ..tenancy import stamp_tenant_id
 from . import custom_fields as custom_fields_service
 from .relationships import relationship_delete_warning
 
@@ -46,12 +47,15 @@ class ComponentError(Exception):
 
 def _collection() -> Collection:
     coll = require_database()[COLLECTION]
+    # component_id remains GLOBAL unique (preference) — not per-tenant.
     coll.create_index([("component_id", ASCENDING)], unique=True)
     coll.create_index([("component_type", ASCENDING)])
     coll.create_index([("environment", ASCENDING)])
     coll.create_index([("status", ASCENDING)])
     coll.create_index([("name", ASCENDING)])
     coll.create_index([("hostname", ASCENDING)])
+    # Phase 4 prep: non-unique tenant_id (hard scoping in Phase 5).
+    coll.create_index([("tenant_id", ASCENDING)], name="tenant_id_idx")
     return coll
 
 
@@ -87,6 +91,8 @@ def create_component(payload: ComponentCreate) -> dict[str, Any]:
     component_id = payload.component_id or generate_component_id(payload.component_type)
     now = _now()
     doc = build_component_document(payload, component_id=component_id, now=now)
+    # Dual-write migration tenant_id; APIs remain unscoped until Phase 5.
+    stamp_tenant_id(doc)
     try:
         _collection().insert_one(doc)
     except DuplicateKeyError as exc:
