@@ -137,7 +137,7 @@
             Notifications
             <span class="chip-label">Placeholder</span>
           </div>
-          <div class="auth-status" id="authStatusChip" title="HTTP Basic session status">
+          <div class="auth-status" id="authStatusChip" title="Authentication status">
             <span class="dot" aria-hidden="true"></span>
             <span id="authStatusText">Disconnected</span>
           </div>
@@ -147,21 +147,26 @@
               <strong id="userDisplayName">Not signed in</strong>
               <span id="sessionChip">Session: disconnected</span>
             </div>
-            <button type="button" id="btnLogout" class="ghost" title="Clears Basic credentials from this browser">Log out</button>
+            <button type="button" id="btnLogout" class="ghost" title="End OIDC session and/or clear Basic credentials">Log out</button>
           </div>
         </div>
       </header>
 
       <div class="content">
         <section class="panel auth-panel" id="authPanel">
-          <h2>Sign in (HTTP Basic)</h2>
-          <p class="hint">Master Phase 2 is UI only — authentication is still shared Basic credentials from `.env`. OIDC arrives in a later phase.</p>
-          <div class="auth-row">
-            <label>Username<input id="authUser" autocomplete="username" required /></label>
-            <label>Password<input id="authPass" type="password" autocomplete="current-password" required /></label>
-            <button type="button" id="btnConnect">Connect</button>
-            <p class="hint">Uses `BASIC_AUTH_USERNAME` / `BASIC_AUTH_PASSWORD`.</p>
+          <h2>Sign in</h2>
+          <p class="hint" id="authHint">Loading authentication options…</p>
+          <div class="auth-row auth-oidc-row hidden" id="oidcAuthRow">
+            <button type="button" id="btnOidcLogin" class="primary">Sign in with SSO (OIDC)</button>
+            <p class="hint">Uses Authorization Code + PKCE against the configured IdP (Keycloak / Entra ID).</p>
           </div>
+          <div class="auth-row auth-basic-row hidden" id="basicAuthRow">
+            <label>Username<input id="authUser" autocomplete="username" /></label>
+            <label>Password<input id="authPass" type="password" autocomplete="current-password" /></label>
+            <button type="button" id="btnConnect">Connect with Basic</button>
+            <p class="hint">Migration/testing only — requires <code>BASIC_AUTH_ENABLED=true</code>. Disabled by default for production.</p>
+          </div>
+          <p class="hint hidden" id="authMisconfigured">No authentication method is enabled. Set <code>OIDC_ENABLED=true</code> or temporarily enable <code>BASIC_AUTH_ENABLED</code>.</p>
         </section>
 
         <!-- keep legacy class for any old selectors; hidden via CSS -->
@@ -183,7 +188,7 @@
               <div class="kpi-card accent-grad">
                 <div class="label">Platform status</div>
                 <div class="value"><span class="status-pill disconnected" id="kpiConnPill">disconnected</span></div>
-                <div class="sub" id="kpiConnSub">Connect with Basic auth to load APIs</div>
+                <div class="sub" id="kpiConnSub">Sign in with OIDC (or Basic if enabled) to load APIs</div>
               </div>
               <div class="kpi-card accent-grad">
                 <div class="label">Components</div>
@@ -203,7 +208,7 @@
             </div>
             <div id="dashLoading" class="empty-state">
               <strong>API disconnected</strong>
-              Sign in with HTTP Basic credentials above to load live CMDB KPIs, relationships, and SIMULATED diagnostic widgets.
+              Sign in above to load live CMDB KPIs, relationships, and SIMULATED diagnostic widgets.
             </div>
             <div id="dashContent" class="hidden">
               <div class="dash-grid">
@@ -564,7 +569,7 @@
             <div class="placeholder-panel">
               <div class="ph-ico" aria-hidden="true"><svg viewBox="0 0 24 24"><circle cx="9" cy="8" r="3.2"/><path d="M3.5 19c.8-3 2.9-4.5 5.5-4.5S13.7 16 14.5 19"/></svg></div>
               <h3>Users</h3>
-              <p>User management is a visual placeholder. OIDC identity and membership arrive in later master phases. This screen does <strong>not</strong> create users or enforce roles.</p>
+              <p>User management is a visual placeholder. OIDC login is available in this phase; memberships and RBAC arrive later. This screen does <strong>not</strong> create users or enforce roles. First public registrant is never auto-promoted to platform admin.</p>
               <span class="badge-soon">Coming soon</span>
             </div>
           </section>
@@ -575,7 +580,7 @@
             <div class="placeholder-panel">
               <div class="ph-ico" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M12 3l8 4v5c0 4.5-3.2 7.8-8 9-4.8-1.2-8-4.5-8-9V7l8-4z"/></svg></div>
               <h3>Roles and Permissions</h3>
-              <p>Coming soon. Role-based access control is not implemented. Current access is shared HTTP Basic credentials only.</p>
+              <p>Coming soon. Role-based access control is not implemented. Access is via OIDC session (or feature-flagged Basic for migration).</p>
               <span class="badge-soon">Coming soon</span>
             </div>
           </section>

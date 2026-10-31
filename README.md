@@ -2,13 +2,13 @@
 
 AI-assisted infrastructure CMDB, dependency mapping, **SIMULATED** diagnostics, local Ollama analysis, and operations dashboard.
 
-Stack: **FastAPI + Uvicorn + MongoDB (PyMongo) + HTTP Basic auth**. Diagnostics never contact remote hosts and never execute shell/SQL/network scans.
+Stack: **FastAPI + Uvicorn + MongoDB (PyMongo) + provider-neutral OIDC** (HTTP Basic optional via feature flag). Diagnostics never contact remote hosts and never execute shell/SQL/network scans.
 
-## Features (Phases 2–8)
+## Features (through Master Phase 3)
 
 | Area | Capability |
 | --- | --- |
-| Auth / ops | HTTP Basic, `/health`, `/api/status`, structured logging |
+| Auth / ops | OIDC (Auth Code + PKCE), feature-flagged HTTP Basic, `/health`, `/api/status`, structured logging |
 | CMDB | Server / Network / Middleware / Database / Application inventory |
 | Custom fields | Per-type (or global) field definitions |
 | Relationships | HOSTED_ON / DEPENDS_ON / CONNECTS_TO / ROUTES_TO |
@@ -21,6 +21,7 @@ Stack: **FastAPI + Uvicorn + MongoDB (PyMongo) + HTTP Basic auth**. Diagnostics 
 
 - Python **3.11+** (verified on Windows 11 / Python 3.13; compatible with RHEL Linux)
 - MongoDB reachable via `MONGODB_URI` (app starts even if MongoDB is temporarily down)
+- Optional: OIDC IdP (Keycloak locally, or Entra ID / any OIDC-compliant provider)
 - Optional: local [Ollama](https://ollama.com/) for AI analysis (`llama3.2:3b` or another configured model)
 
 ## Quick start — Windows PowerShell
@@ -32,7 +33,7 @@ python -m venv .venv
 python -m pip install --upgrade pip
 pip install -r requirements.txt
 Copy-Item .env.example .env
-# Edit .env — set BASIC_AUTH_USERNAME / BASIC_AUTH_PASSWORD and MONGODB_URI
+# Edit .env — configure OIDC (recommended) or temporarily set BASIC_AUTH_ENABLED=true
 python -m app.main
 ```
 
@@ -42,7 +43,7 @@ Or with Uvicorn:
 uvicorn app.main:app --host 0.0.0.0 --port 8200
 ```
 
-Open `http://localhost:8200/` → enter Basic auth credentials → use Dashboard / Inventory / Relationships / Dependencies / Diagnostics.
+Open `http://localhost:8200/` → sign in with SSO (OIDC) or Basic (if enabled) → use Dashboard / Inventory / Relationships / Dependencies / Diagnostics.
 
 ## Quick start — RHEL / Linux bash
 
@@ -53,7 +54,7 @@ source .venv/bin/activate
 python -m pip install --upgrade pip
 pip install -r requirements.txt
 cp .env.example .env
-# Edit .env — set BASIC_AUTH_USERNAME / BASIC_AUTH_PASSWORD and MONGODB_URI
+# Edit .env — configure OIDC (recommended) or temporarily set BASIC_AUTH_ENABLED=true
 python -m app.main
 ```
 
@@ -67,20 +68,62 @@ uvicorn app.main:app --host 0.0.0.0 --port 8200
 
 Copy `.env.example` → `.env` (never commit `.env`). Placeholders only in the example file:
 
-| Variable | Purpose |
-| --- | --- |
-| `BASIC_AUTH_USERNAME` / `BASIC_AUTH_PASSWORD` | HTTP Basic credentials |
-| `MONGODB_URI` / `MONGODB_DB` | MongoDB connection |
-| `APP_HOST` / `APP_PORT` | Bind address (default `0.0.0.0:8200`) |
-| `OLLAMA_URL` / `OLLAMA_MODEL` / `OLLAMA_TIMEOUT_SECONDS` | Local Ollama for AI analysis |
+| Variable | Purpose | Production-oriented default |
+| --- | --- | --- |
+| `OIDC_ENABLED` / `OIDC_ISSUER` / `OIDC_CLIENT_ID` / `OIDC_CLIENT_SECRET` | Provider-neutral OIDC | `OIDC_ENABLED=false` until configured |
+| `OIDC_REDIRECT_URI` / `OIDC_SCOPES` | Callback + scopes | `http://localhost:8200/auth/callback`, `openid profile email` |
+| `SESSION_SECRET` | Signed session cookie | **change before shared use** |
+| `BASIC_AUTH_ENABLED` | Feature-flag coexistence for migration/testing | **`false`** |
+| `BASIC_AUTH_USERNAME` / `BASIC_AUTH_PASSWORD` | Shared Basic credentials (only when flag on) | placeholders |
+| `MONGODB_URI` / `MONGODB_DB` | MongoDB connection | local defaults |
+| `APP_HOST` / `APP_PORT` | Bind address | `0.0.0.0:8200` |
+| `OLLAMA_URL` / `OLLAMA_MODEL` / `OLLAMA_TIMEOUT_SECONDS` | Local Ollama for AI analysis | localhost |
 
 When Ollama is unavailable, diagnostic analysis uses a deterministic rule-based fallback. Analysis derived from simulated diagnostics is clearly labeled.
 
 ## Auth
 
-- Public: `/`, `/health`, `/static/*`
-- Protected: `/api/*` (HTTP Basic)
-- Longer-term auth is expected to move to OIDC
+- Public: `/`, `/health`, `/static/*`, `/api/auth/config`, `/auth/login`, `/auth/callback`, `/auth/logout`
+- Protected: `/api/*` (OIDC session cookie and/or HTTP Basic when `BASIC_AUTH_ENABLED=true`)
+- Browser login uses **Authorization Code + PKCE**; the server stores a signed session cookie
+- **Basic auth is disabled by default** for production-oriented deployments. Enable only for migration/testing. It must **not** bypass future tenant authorization once multi-tenant isolation lands.
+- Platform admin bootstrap is a later phase — **never** auto-admin the first public OIDC registrant
+- Organization / tenant switcher remains a non-functional placeholder in this phase
+
+### Keycloak local smoke test
+
+1. Run Keycloak (example with Docker):
+
+```bash
+docker run -d --name keycloak -p 8080:8080 \
+  -e KEYCLOAK_ADMIN=admin -e KEYCLOAK_ADMIN_PASSWORD=admin \
+  quay.io/keycloak/keycloak:25.0 start-dev
+```
+
+2. In the Keycloak admin console (`http://localhost:8080`):
+   - Create realm `svrmon24`
+   - Create client `svrmon24-ui` (confidential), Client authentication **On**
+   - Valid redirect URI: `http://localhost:8200/auth/callback`
+   - Valid post-logout redirect: `http://localhost:8200/`
+   - Create a test user (no special admin role required)
+
+3. Set in `.env`:
+
+```bash
+OIDC_ENABLED=true
+OIDC_ISSUER=http://localhost:8080/realms/svrmon24
+OIDC_CLIENT_ID=svrmon24-ui
+OIDC_CLIENT_SECRET=<client-secret-from-keycloak>
+OIDC_REDIRECT_URI=http://localhost:8200/auth/callback
+BASIC_AUTH_ENABLED=false
+SESSION_SECRET=<long-random-string>
+```
+
+4. Start the app, open `http://localhost:8200/`, click **Sign in with SSO (OIDC)**, complete Keycloak login, confirm `/api/me` shows `"auth_method": "oidc"`.
+
+5. Optional coexistence check: set `BASIC_AUTH_ENABLED=true` with known credentials; the Basic form appears alongside SSO. With the flag off, Basic headers must not authenticate.
+
+Entra ID works the same way with issuer `https://login.microsoftonline.com/<tenant-id>/v2.0` and an app registration redirect URI matching `OIDC_REDIRECT_URI`.
 
 ## Tests
 
@@ -100,23 +143,29 @@ pytest -v
 | --- | --- | --- | --- |
 | GET | `/` | Public UI | Dashboard + CMDB UI |
 | GET | `/health` | Public | Liveness |
-| GET | `/api/status` | Basic | App + MongoDB status |
-| GET | `/api/me` | Basic | Auth smoke check |
-| GET | `/api/dashboard/summary` | Basic | Live dashboard widgets |
-| GET/POST | `/api/components` | Basic | List / create components |
-| GET/PUT/DELETE | `/api/components/{id}` | Basic | Get / update / delete |
-| GET | `/api/components/{id}/delete-preview` | Basic | Delete confirmation + relationship warning |
-| GET/POST | `/api/custom-fields` | Basic | Custom field definitions |
-| GET/POST | `/api/relationships` | Basic | List / create relationships |
-| GET/PUT/DELETE | `/api/relationships/{id}` | Basic | Get / update / delete |
-| GET | `/api/relationships/types` | Basic | Type meaning + direction docs |
-| GET | `/api/dependencies/{id}` | Basic | Upstream + downstream + impact bundle |
-| GET | `/api/diagnostics/profiles` | Basic | Approved simulated profiles |
-| POST | `/api/diagnostics` | Basic | Start SIMULATED diagnostic |
-| GET | `/api/diagnostics` | Basic | Diagnostic history |
-| GET | `/api/diagnostics/{id}` | Basic | Diagnostic detail |
-| POST | `/api/diagnostics/{id}/analyze` | Basic | Ollama / fallback AI analysis |
-| GET | `/api/diagnostics/ollama/status` | Basic | Local Ollama probe |
+| GET | `/api/auth/config` | Public | Auth feature flags for the UI |
+| GET | `/auth/login` | Public | Start OIDC Authorization Code + PKCE |
+| GET | `/auth/callback` | Public | OIDC callback → session cookie |
+| GET/POST | `/auth/logout` | Public | Clear session (+ optional IdP logout) |
+| GET | `/api/status` | OIDC / Basic* | App + MongoDB status |
+| GET | `/api/me` | OIDC / Basic* | Auth smoke check |
+| GET | `/api/dashboard/summary` | OIDC / Basic* | Live dashboard widgets |
+| GET/POST | `/api/components` | OIDC / Basic* | List / create components |
+| GET/PUT/DELETE | `/api/components/{id}` | OIDC / Basic* | Get / update / delete |
+| GET | `/api/components/{id}/delete-preview` | OIDC / Basic* | Delete confirmation + relationship warning |
+| GET/POST | `/api/custom-fields` | OIDC / Basic* | Custom field definitions |
+| GET/POST | `/api/relationships` | OIDC / Basic* | List / create relationships |
+| GET/PUT/DELETE | `/api/relationships/{id}` | OIDC / Basic* | Get / update / delete |
+| GET | `/api/relationships/types` | OIDC / Basic* | Type meaning + direction docs |
+| GET | `/api/dependencies/{id}` | OIDC / Basic* | Upstream + downstream + impact bundle |
+| GET | `/api/diagnostics/profiles` | OIDC / Basic* | Approved simulated profiles |
+| POST | `/api/diagnostics` | OIDC / Basic* | Start SIMULATED diagnostic |
+| GET | `/api/diagnostics` | OIDC / Basic* | Diagnostic history |
+| GET | `/api/diagnostics/{id}` | OIDC / Basic* | Diagnostic detail |
+| POST | `/api/diagnostics/{id}/analyze` | OIDC / Basic* | Ollama / fallback AI analysis |
+| GET | `/api/diagnostics/ollama/status` | OIDC / Basic* | Local Ollama probe |
+
+\*Basic only when `BASIC_AUTH_ENABLED=true`.
 
 ### Inventory columns (never combined)
 
@@ -132,7 +181,8 @@ Relationship ID | Source | Target | Type | **Protocol** | **Source Port** | **Ta
 - No remote shell, SQL, or network scanning from this application.
 - AI analysis never auto-executes remediation and must not invent telemetry.
 - Impact results list **potentially affected** applications only — not confirmed outages.
-- Default Basic auth placeholders (`change-me`) must be replaced before any shared deployment.
+- Default Basic auth is **disabled**; placeholders (`change-me`) must be replaced if the flag is enabled for shared use.
+- Single logical tenant only in this phase — no tenant isolation or org switcher activation.
 
 ## Project layout
 
@@ -141,9 +191,11 @@ svrmon24/
   app/                 # FastAPI application
     diagnostics/       # Simulated profiles + generator
     models/            # Pydantic models
-    routers/           # HTTP routers
+    routers/           # HTTP routers (incl. OIDC auth routes)
     services/          # Business logic (CMDB, deps, AI, dashboard)
     static/            # Dashboard UI (HTML/CSS/JS)
+    auth.py            # Unified OIDC session + Basic flag
+    oidc.py            # Discovery / PKCE / token validation
   tests/               # Pytest suite
   requirements.txt
   .env.example         # Placeholders only

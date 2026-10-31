@@ -6,13 +6,13 @@ from typing import Any
 
 from fastapi import APIRouter, Depends, Query
 
-from ..auth import verify_basic_credentials
+from ..auth import require_user
 from ..services import dashboard as dashboard_service
 
 router = APIRouter(
     prefix="/api/dashboard",
     tags=["dashboard"],
-    dependencies=[Depends(verify_basic_credentials)],
+    dependencies=[Depends(require_user)],
 )
 
 

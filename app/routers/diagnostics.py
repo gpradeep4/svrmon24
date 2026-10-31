@@ -8,7 +8,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 
 from pydantic import BaseModel, Field
 
-from ..auth import verify_basic_credentials
+from ..auth import require_user
 from ..models.diagnostics import DiagnosticStartRequest
 from ..services import ai_analysis as ai_analysis_service
 from ..services import diagnostics as diagnostics_service
@@ -19,7 +19,7 @@ from ..services.ollama_client import OllamaClient
 router = APIRouter(
     prefix="/api/diagnostics",
     tags=["diagnostics"],
-    dependencies=[Depends(verify_basic_credentials)],
+    dependencies=[Depends(require_user)],
 )
 
 

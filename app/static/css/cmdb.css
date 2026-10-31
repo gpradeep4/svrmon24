@@ -501,6 +501,14 @@ body { padding: 0; }
   width: 100%;
 }
 
+.auth-oidc-row {
+  margin-bottom: 0.75rem;
+}
+
+.auth-oidc-row #btnOidcLogin {
+  min-height: 2.5rem;
+}
+
 .auth-panel {
   margin-bottom: 20px;
 }

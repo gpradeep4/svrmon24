@@ -6,7 +6,7 @@ from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 
-from ..auth import verify_basic_credentials
+from ..auth import require_user
 from ..models.custom_fields import CustomFieldCreate, CustomFieldUpdate
 from ..services import custom_fields as custom_fields_service
 from ..services.custom_fields import CustomFieldError
@@ -14,7 +14,7 @@ from ..services.custom_fields import CustomFieldError
 router = APIRouter(
     prefix="/api/custom-fields",
     tags=["cmdb-custom-fields"],
-    dependencies=[Depends(verify_basic_credentials)],
+    dependencies=[Depends(require_user)],
 )
 
 

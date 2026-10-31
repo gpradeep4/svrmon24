@@ -10,13 +10,15 @@ from typing import Any
 from fastapi import Depends, FastAPI
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
+from starlette.middleware.sessions import SessionMiddleware
 
 from . import __version__
-from .auth import verify_basic_credentials
+from .auth import AuthUser, require_user
 from .config import Settings, get_settings
 from .db import close_client, ping_database
 from .exceptions import register_exception_handlers
 from .logging_config import configure_logging
+from .routers import auth_routes
 from .routers import components as components_router
 from .routers import custom_fields as custom_fields_router
 from .routers import dashboard as dashboard_router
@@ -34,10 +36,12 @@ async def lifespan(_app: FastAPI):
     settings = get_settings()
     configure_logging(settings.log_level)
     logger.info(
-        "startup app=%s version=%s env=%s",
+        "startup app=%s version=%s env=%s oidc=%s basic=%s",
         settings.app_name,
         __version__,
         settings.app_env,
+        settings.oidc_enabled,
+        settings.basic_auth_enabled,
     )
     db_status = ping_database(settings)
     if db_status.get("ok"):
@@ -64,12 +68,27 @@ def create_app() -> FastAPI:
         description=(
             "SVRMON24: FastAPI + MongoDB CMDB, relationships, dependency/impact "
             "analysis, SIMULATED diagnostics, AI analysis, and dashboard with "
-            "HTTP Basic auth. Diagnostics are demo-only; no remote execution."
+            "provider-neutral OIDC auth (HTTP Basic optional via feature flag). "
+            "Diagnostics are demo-only; no remote execution."
         ),
         lifespan=lifespan,
     )
     register_exception_handlers(app)
 
+    # Session cookie for OIDC login state + authenticated principal.
+    same_site = (settings.session_same_site or "lax").lower()
+    if same_site not in {"lax", "strict", "none"}:
+        same_site = "lax"
+    app.add_middleware(
+        SessionMiddleware,
+        secret_key=settings.session_secret,
+        session_cookie=settings.session_cookie_name,
+        max_age=settings.session_max_age_seconds,
+        same_site=same_site,
+        https_only=settings.session_https_only,
+    )
+
+    app.include_router(auth_routes.router)
     app.include_router(components_router.router)
     app.include_router(custom_fields_router.router)
     app.include_router(relationships_router.router)
@@ -93,8 +112,11 @@ def create_app() -> FastAPI:
             "env": settings.app_env,
         }
 
-    @app.get("/api/status", tags=["status"], dependencies=[Depends(verify_basic_credentials)])
-    def api_status(settings_dep: Settings = Depends(get_settings)) -> dict[str, Any]:
+    @app.get("/api/status", tags=["status"])
+    def api_status(
+        settings_dep: Settings = Depends(get_settings),
+        _user: AuthUser = Depends(require_user),
+    ) -> dict[str, Any]:
         """Authenticated status including MongoDB connectivity."""
         db = ping_database(settings_dep)
         return {
@@ -103,11 +125,6 @@ def create_app() -> FastAPI:
             "version": __version__,
             "mongodb": serialize_document(db),
         }
-
-    @app.get("/api/me", tags=["auth"], dependencies=[Depends(verify_basic_credentials)])
-    def whoami(username: str = Depends(verify_basic_credentials)) -> dict[str, str]:
-        """Return the authenticated username (auth smoke check)."""
-        return {"username": username}
 
     return app
 
