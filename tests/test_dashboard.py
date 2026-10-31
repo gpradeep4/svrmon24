@@ -124,7 +124,11 @@ def test_ui_contains_dashboard_and_required_columns() -> None:
     assert "sidebar" in html or "nav-item" in html
     assert "tenantSwitcher" in html
     assert "Not functional" in html or "placeholder" in html.lower()
-    assert "--accent" in css and "#0D9488" in css
+    assert "--accent" in css and "#4F46E5" in css
+    assert "--accent-hover" in css
+    assert "svrmon24.accent" in js
+    assert 'id="accentPicker"' in html or 'id="accentSelect"' in html
+    assert "#2563EB" in html and "#0D9488" in html and "#475569" in html and "#7C3AED" in html
     assert "--sidebar-bg" in css
     assert "#EEF1F4" in css and "#FFFFFF" in css
     assert "fonts.googleapis.com" not in html

@@ -118,3 +118,5 @@ def test_main_user_journey(
     assert b"tenantSwitcher" in ui.content
     assert b'class="sidebar"' in ui.content or b"nav-item" in ui.content
     assert b"Coming soon" in ui.content
+    assert b"accentSelect" in ui.content or b"accentPicker" in ui.content
+    assert b"#4F46E5" in ui.content
