@@ -298,6 +298,44 @@ table.inventory tr:hover td {
 .toast.show { display: block; }
 .toast.error { background: #5c1712; }
 
+.graph-wrap {
+  width: 100%;
+  min-height: 280px;
+  overflow: auto;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: #fff;
+}
+
+#depGraph {
+  width: 100%;
+  min-height: 280px;
+}
+
+#depGraph .node-selected { fill: #20352f; }
+#depGraph .node-upstream { fill: #0f7a5a; }
+#depGraph .node-downstream { fill: #c45c26; }
+#depGraph .node-both { fill: #5a4a8a; }
+#depGraph text { fill: #f4f7f5; font-size: 11px; font-family: var(--mono); }
+#depGraph line.edge { stroke: #7a8f87; stroke-width: 1.5; }
+#depGraph line.edge-cycle { stroke: #b42318; stroke-dasharray: 4 3; }
+
+.impact-card {
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 10px 12px;
+  margin-bottom: 8px;
+  background: #fff;
+}
+
+.impact-card strong { font-family: var(--mono); }
+.impact-card .paths {
+  margin: 6px 0 0;
+  padding-left: 18px;
+  color: var(--muted);
+  font-size: 0.85rem;
+}
+
 .tabs {
   display: flex;
   gap: 8px;
