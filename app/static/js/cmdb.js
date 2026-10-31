@@ -12,6 +12,7 @@
     editingRelId: null,
     relTypes: [],
     componentIds: [],
+    currentDiagnosticId: null,
   };
 
   const $ = (sel, root = document) => root.querySelector(sel);
@@ -484,6 +485,7 @@
         refreshComponentIdList(),
         loadDiagnosticProfiles(),
         loadDiagnosticHistory(),
+        refreshOllamaStatus(),
       ]).catch((err) => toast(err.message, true));
     }
   }
@@ -501,12 +503,53 @@
     }
   }
 
+  function renderAnalysis(analysis) {
+    const wrap = $("#diagAnalysis");
+    if (!analysis) {
+      wrap.innerHTML = `<p class="hint">No AI analysis yet.</p>`;
+      return;
+    }
+    const obs = (analysis.observations_vs_hypotheses?.observations || analysis.observed_evidence || [])
+      .map((x) => `<li>${escapeHtml(x)}</li>`)
+      .join("");
+    const hyp = (analysis.observations_vs_hypotheses?.hypotheses || analysis.potential_causes || [])
+      .map((x) => `<li>${escapeHtml(x)}</li>`)
+      .join("");
+    const verify = (analysis.recommended_verification_steps || [])
+      .map((x) => `<li>${escapeHtml(x)}</li>`)
+      .join("");
+    const rem = (analysis.suggested_remediation || [])
+      .map((x) => `<li>${escapeHtml(x)}</li>`)
+      .join("");
+    wrap.innerHTML = `
+      <div class="warn-box">${escapeHtml(analysis.labels?.banner || "")}</div>
+      <p><strong>${escapeHtml(analysis.analysis_id)}</strong>
+        · source ${escapeHtml(analysis.source)}
+        · model ${escapeHtml(analysis.model || "—")}
+        · evidence ${escapeHtml(analysis.evidence_label)}
+        · confidence ${escapeHtml(analysis.confidence)}</p>
+      <p>${escapeHtml(analysis.executive_summary)}</p>
+      <p class="hint">Uncertainty: ${escapeHtml(analysis.uncertainty)}</p>
+      <p class="hint">Potential dependency impact: ${escapeHtml(analysis.potential_dependency_impact)}</p>
+      <h3 style="font-size:1rem;margin:10px 0 4px">Observations</h3>
+      <ul>${obs || "<li>None</li>"}</ul>
+      <h3 style="font-size:1rem;margin:10px 0 4px">Hypotheses</h3>
+      <ul>${hyp || "<li>None</li>"}</ul>
+      <h3 style="font-size:1rem;margin:10px 0 4px">Recommended verification (manual)</h3>
+      <ul>${verify || "<li>None</li>"}</ul>
+      <h3 style="font-size:1rem;margin:10px 0 4px">Suggested remediation (not executed)</h3>
+      <ul>${rem || "<li>None</li>"}</ul>
+      ${analysis.fallback_reason ? `<p class="hint">Fallback reason: ${escapeHtml(analysis.fallback_reason)}</p>` : ""}`;
+  }
+
   function renderDiagnosticResult(doc) {
     if (!doc) {
       $("#diagLatest").textContent = "No diagnostic run yet.";
       $("#diagChecksBody").innerHTML = "";
+      renderAnalysis(null);
       return;
     }
+    state.currentDiagnosticId = doc.diagnostic_id;
     const c = doc.component || {};
     $("#diagLatest").innerHTML = `
       <div class="warn-box">${escapeHtml(doc.labels?.banner || "SIMULATED")}</div>
@@ -535,6 +578,43 @@
         <td class="hint">${escapeHtml(check.note)}</td>`;
       tbody.appendChild(tr);
     }
+    renderAnalysis(doc.ai_analysis || null);
+  }
+
+  async function refreshOllamaStatus() {
+    try {
+      const status = await api("/api/diagnostics/ollama/status");
+      if (status.ok) {
+        $("#ollamaStatusHint").textContent =
+          `Ollama reachable at configured URL. Model=${status.configured_model}; present=${status.model_present}.`;
+      } else {
+        $("#ollamaStatusHint").textContent =
+          `Ollama unavailable (${status.error || "error"}). Analysis will use rule-based fallback.`;
+      }
+    } catch (err) {
+      $("#ollamaStatusHint").textContent = `Ollama status check failed: ${err.message}`;
+    }
+  }
+
+  async function analyzeCurrentDiagnostic(forceFallback) {
+    if (!state.currentDiagnosticId) {
+      toast("Run or open a diagnostic first", true);
+      return;
+    }
+    const doc = await api(
+      `/api/diagnostics/${encodeURIComponent(state.currentDiagnosticId)}/analyze`,
+      {
+        method: "POST",
+        body: JSON.stringify({ force_fallback: !!forceFallback }),
+      }
+    );
+    toast(
+      doc.ai_analysis?.source === "ollama"
+        ? "Ollama analysis stored"
+        : "Rule-based fallback analysis stored"
+    );
+    renderDiagnosticResult(doc);
+    await loadDiagnosticHistory();
   }
 
   async function loadDiagnosticHistory() {
@@ -1002,6 +1082,12 @@
     });
     $("#btnRunDiag").addEventListener("click", async () => {
       try { await runDiagnostic(); } catch (err) { toast(err.message, true); }
+    });
+    $("#btnAnalyzeDiag").addEventListener("click", async () => {
+      try { await analyzeCurrentDiagnostic(false); } catch (err) { toast(err.message, true); }
+    });
+    $("#btnAnalyzeFallback").addEventListener("click", async () => {
+      try { await analyzeCurrentDiagnostic(true); } catch (err) { toast(err.message, true); }
     });
     $("#btnRefreshDiagHistory").addEventListener("click", async () => {
       try { await loadDiagnosticHistory(); } catch (err) { toast(err.message, true); }

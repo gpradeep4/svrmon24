@@ -249,11 +249,17 @@
           <button type="button" id="btnRefreshDiagHistory" class="secondary">Refresh history</button>
         </div>
         <p class="hint" id="diagProfileNotice"></p>
+        <p class="hint" id="ollamaStatusHint">Ollama status: not checked.</p>
       </section>
 
       <section class="panel">
         <h2>Latest result</h2>
         <div id="diagLatest" class="hint">No diagnostic run yet.</div>
+        <div style="margin-top:10px;display:flex;gap:8px;flex-wrap:wrap">
+          <button type="button" id="btnAnalyzeDiag" class="secondary">Analyze with Ollama (fallback if unavailable)</button>
+          <button type="button" id="btnAnalyzeFallback" class="ghost">Force rule-based fallback</button>
+        </div>
+        <div id="diagAnalysis" class="hint" style="margin-top:12px">No AI analysis yet.</div>
         <div class="table-wrap" style="margin-top:12px">
           <table class="inventory">
             <thead>
