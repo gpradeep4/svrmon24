@@ -124,9 +124,21 @@ def test_ui_contains_dashboard_and_required_columns() -> None:
     assert "sidebar" in html or "nav-item" in html
     assert "tenantSwitcher" in html
     assert "Not functional" in html or "placeholder" in html.lower()
-    assert "--accent" in css and "#2563EB" in css
-    assert "#F5F7FB" in css and "#FFFFFF" in css
+    assert "--accent" in css and "#0D9488" in css
+    assert "--sidebar-bg" in css
+    assert "#EEF1F4" in css and "#FFFFFF" in css
     assert "fonts.googleapis.com" not in html
+    assert 'data-tab="servers"' in html
+    assert 'data-tab="network"' in html
+    assert 'data-tab="applications"' in html
+    assert 'data-tab="middleware"' in html
+    assert 'data-tab="databases"' in html
+    assert 'data-component-type="Server"' in html
+    assert "INVENTORY_TABS" in js
+    assert "Column Settings" in html
+    assert "Roles and Permissions" in html
+    assert "Audit Logs" in html
+    assert "Notifications" in html and "Placeholder" in html
     for screen in (
         "tab-inventory",
         "tab-relationships",
@@ -134,6 +146,11 @@ def test_ui_contains_dashboard_and_required_columns() -> None:
         "tab-diagnostics",
         "tab-users",
         "tab-settings",
+        "tab-columns",
+        "tab-roles",
+        "tab-organizations",
+        "tab-plans",
+        "tab-audit",
         "componentModal",
         "relationshipModal",
     ):

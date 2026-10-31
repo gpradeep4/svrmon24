@@ -10,20 +10,88 @@
   <div class="app-shell">
     <aside class="sidebar" id="sidebar">
       <div class="brand">
-        <h1>SVRMON24</h1>
-        <p class="tagline">CMDB · dependencies · SIMULATED diagnostics</p>
+        <div class="brand-mark">
+          <span class="logo" aria-hidden="true">
+            <svg viewBox="0 0 24 24"><path d="M4 7h16M4 12h10M4 17h14"/><circle cx="18" cy="12" r="2.2"/></svg>
+          </span>
+          <h1>SVRMON24</h1>
+        </div>
+        <p class="tagline">Enterprise CMDB · dependencies · SIMULATED diagnostics</p>
       </div>
       <nav class="nav" aria-label="Primary">
         <div class="nav-section">Operations</div>
-        <button type="button" class="nav-item active" data-tab="dashboard"><span class="nav-ico">◈</span> Dashboard</button>
-        <button type="button" class="nav-item" data-tab="inventory"><span class="nav-ico">☰</span> Inventory</button>
-        <button type="button" class="nav-item" data-tab="relationships"><span class="nav-ico">⇄</span> Relationships</button>
-        <button type="button" class="nav-item" data-tab="dependencies"><span class="nav-ico">↯</span> Dependencies</button>
-        <button type="button" class="nav-item" data-tab="diagnostics"><span class="nav-ico">◎</span> Diagnostics</button>
-        <button type="button" class="nav-item" data-tab="custom"><span class="nav-ico">▣</span> Custom Fields</button>
+        <button type="button" class="nav-item active" data-tab="dashboard">
+          <span class="nav-ico" aria-hidden="true"><svg viewBox="0 0 24 24"><rect x="3" y="3" width="8" height="8" rx="1.5"/><rect x="13" y="3" width="8" height="5" rx="1.5"/><rect x="13" y="10" width="8" height="11" rx="1.5"/><rect x="3" y="13" width="8" height="8" rx="1.5"/></svg></span>
+          Dashboard
+        </button>
+        <button type="button" class="nav-item" data-tab="servers" data-component-type="Server">
+          <span class="nav-ico" aria-hidden="true"><svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="6" rx="1.5"/><rect x="3" y="14" width="18" height="6" rx="1.5"/><circle cx="7" cy="7" r="1"/><circle cx="7" cy="17" r="1"/></svg></span>
+          Servers
+        </button>
+        <button type="button" class="nav-item" data-tab="network" data-component-type="Network">
+          <span class="nav-ico" aria-hidden="true"><svg viewBox="0 0 24 24"><circle cx="12" cy="5" r="2.5"/><circle cx="5" cy="19" r="2.5"/><circle cx="19" cy="19" r="2.5"/><path d="M12 7.5v4M12 11.5L5.8 17M12 11.5l6.2 5.5"/></svg></span>
+          Network
+        </button>
+        <button type="button" class="nav-item" data-tab="applications" data-component-type="Application">
+          <span class="nav-ico" aria-hidden="true"><svg viewBox="0 0 24 24"><rect x="4" y="3" width="16" height="18" rx="2"/><path d="M8 8h8M8 12h8M8 16h5"/></svg></span>
+          Applications
+        </button>
+        <button type="button" class="nav-item" data-tab="middleware" data-component-type="Middleware">
+          <span class="nav-ico" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M4 8l8-4 8 4-8 4-8-4z"/><path d="M4 12l8 4 8-4"/><path d="M4 16l8 4 8-4"/></svg></span>
+          Middleware
+        </button>
+        <button type="button" class="nav-item" data-tab="databases" data-component-type="Database">
+          <span class="nav-ico" aria-hidden="true"><svg viewBox="0 0 24 24"><ellipse cx="12" cy="6" rx="7" ry="3"/><path d="M5 6v6c0 1.7 3.1 3 7 3s7-1.3 7-3V6"/><path d="M5 12v6c0 1.7 3.1 3 7 3s7-1.3 7-3v-6"/></svg></span>
+          Databases
+        </button>
+        <button type="button" class="nav-item" data-tab="relationships">
+          <span class="nav-ico" aria-hidden="true"><svg viewBox="0 0 24 24"><circle cx="6" cy="12" r="3"/><circle cx="18" cy="6" r="3"/><circle cx="18" cy="18" r="3"/><path d="M8.7 10.2L15.3 7.2M8.7 13.8l6.6 3"/></svg></span>
+          Relationships
+        </button>
+        <button type="button" class="nav-item" data-tab="dependencies">
+          <span class="nav-ico" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M5 6h6v6H5zM13 12h6v6h-6z"/><path d="M11 9h4v4"/></svg></span>
+          Dependencies
+        </button>
+        <button type="button" class="nav-item" data-tab="diagnostics">
+          <span class="nav-ico" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M9 18h6M10 21h4"/><path d="M8 14a6 6 0 1 1 8 0"/><path d="M12 3v2"/></svg></span>
+          Diagnostics
+        </button>
+
+        <div class="nav-section">Configuration</div>
+        <button type="button" class="nav-item" data-tab="custom">
+          <span class="nav-ico" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M4 7h16M4 12h10M4 17h14"/><circle cx="17" cy="12" r="2"/></svg></span>
+          Custom Fields
+        </button>
+        <button type="button" class="nav-item" data-tab="columns">
+          <span class="nav-ico" aria-hidden="true"><svg viewBox="0 0 24 24"><rect x="3" y="4" width="5" height="16" rx="1"/><rect x="10" y="4" width="5" height="16" rx="1"/><rect x="17" y="4" width="4" height="16" rx="1"/></svg></span>
+          Column Settings <span class="coming">Soon</span>
+        </button>
+
         <div class="nav-section">Administration</div>
-        <button type="button" class="nav-item" data-tab="users"><span class="nav-ico">👤</span> Users <span class="coming">Soon</span></button>
-        <button type="button" class="nav-item" data-tab="settings"><span class="nav-ico">⚙</span> Settings <span class="coming">Soon</span></button>
+        <button type="button" class="nav-item" data-tab="users">
+          <span class="nav-ico" aria-hidden="true"><svg viewBox="0 0 24 24"><circle cx="9" cy="8" r="3.2"/><path d="M3.5 19c.8-3 2.9-4.5 5.5-4.5S13.7 16 14.5 19"/><circle cx="17" cy="9" r="2.4"/><path d="M15.2 19c.4-1.8 1.6-3 3.3-3 1.2 0 2.2.5 2.9 1.4"/></svg></span>
+          Users
+        </button>
+        <button type="button" class="nav-item" data-tab="roles">
+          <span class="nav-ico" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M12 3l8 4v5c0 4.5-3.2 7.8-8 9-4.8-1.2-8-4.5-8-9V7l8-4z"/><path d="M9.5 12l1.8 1.8L15 10"/></svg></span>
+          Roles and Permissions <span class="coming">Soon</span>
+        </button>
+        <button type="button" class="nav-item" data-tab="organizations">
+          <span class="nav-ico" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M3 20h18"/><path d="M5 20V9l7-5 7 5v11"/><path d="M9 20v-6h6v6"/></svg></span>
+          Organizations <span class="coming">Soon</span>
+        </button>
+        <button type="button" class="nav-item" data-tab="plans">
+          <span class="nav-ico" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M4 7h16v12H4z"/><path d="M8 7V5a4 4 0 0 1 8 0v2"/><path d="M8 12h8"/></svg></span>
+          Subscription Plans <span class="coming">Soon</span>
+        </button>
+        <button type="button" class="nav-item" data-tab="settings">
+          <span class="nav-ico" aria-hidden="true"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M12 3v2.2M12 18.8V21M4.9 6.5l1.6 1.6M17.5 17.9l1.6 1.6M3 12h2.2M18.8 12H21M4.9 17.5l1.6-1.6M17.5 6.1l1.6-1.6"/></svg></span>
+          Settings
+        </button>
+        <button type="button" class="nav-item" data-tab="audit">
+          <span class="nav-ico" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M7 4h10a2 2 0 0 1 2 2v14l-3-2-3 2-3-2-3 2V6a2 2 0 0 1 2-2z"/><path d="M9 9h6M9 13h6"/></svg></span>
+          Audit Logs <span class="coming">Soon</span>
+        </button>
       </nav>
       <div class="sidebar-foot">
         <span class="sim-pill" title="Diagnostics remain synthetic until live probes are approved">DEMO / SIMULATED</span>
@@ -34,8 +102,10 @@
       <header class="topbar">
         <div class="topbar-left">
           <button type="button" class="mobile-nav-toggle" id="btnMobileNav" aria-label="Open navigation">Menu</button>
-          <h2 id="pageTitle">Dashboard</h2>
-          <p class="hint" id="pageSubtitle">Live CMDB and diagnostic overview</p>
+          <div class="topbar-titles">
+            <h2 id="pageTitle">Dashboard</h2>
+            <p class="hint" id="pageSubtitle">Live CMDB and diagnostic overview</p>
+          </div>
         </div>
         <div class="topbar-right">
           <div class="tenant-switcher" title="Organization switching is not implemented yet">
@@ -44,6 +114,15 @@
               <option selected>SVRMON24 Legacy (placeholder)</option>
             </select>
             <span class="placeholder-note">Not functional yet — no tenant isolation</span>
+          </div>
+          <div class="header-chip placeholder" title="Notifications are a visual placeholder" aria-label="Notifications placeholder">
+            <span class="chip-ico" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M6 16V10a6 6 0 1 1 12 0v6"/><path d="M4 16h16"/><path d="M10 19a2 2 0 0 0 4 0"/></svg></span>
+            Notifications
+            <span class="chip-label">Placeholder</span>
+          </div>
+          <div class="auth-status" id="authStatusChip" title="HTTP Basic session status">
+            <span class="dot" aria-hidden="true"></span>
+            <span id="authStatusText">Disconnected</span>
           </div>
           <div class="user-menu" id="userMenu">
             <div class="avatar" id="userAvatar">?</div>
@@ -59,7 +138,7 @@
       <div class="content">
         <section class="panel auth-panel" id="authPanel">
           <h2>Sign in (HTTP Basic)</h2>
-          <p class="hint">Phase 1 UI only — authentication is still shared Basic credentials from `.env`. OIDC arrives in a later phase.</p>
+          <p class="hint">Master Phase 2 is UI only — authentication is still shared Basic credentials from `.env`. OIDC arrives in a later phase.</p>
           <div class="auth-row">
             <label>Username<input id="authUser" autocomplete="username" required /></label>
             <label>Password<input id="authPass" type="password" autocomplete="current-password" required /></label>
@@ -84,17 +163,17 @@
               Diagnostic widgets reflect <strong>SIMULATED / SYNTHETIC_DEMO</strong> evidence only — not live telemetry.
             </div>
             <div class="kpi-row" id="kpiRow">
-              <div class="kpi-card">
+              <div class="kpi-card accent-grad">
                 <div class="label">Platform status</div>
                 <div class="value"><span class="status-pill disconnected" id="kpiConnPill">disconnected</span></div>
                 <div class="sub" id="kpiConnSub">Connect with Basic auth to load APIs</div>
               </div>
-              <div class="kpi-card">
+              <div class="kpi-card accent-grad">
                 <div class="label">Components</div>
                 <div class="value" id="kpiComponents">—</div>
                 <div class="sub">CMDB inventory total</div>
               </div>
-              <div class="kpi-card">
+              <div class="kpi-card accent-grad-2">
                 <div class="label">Relationships</div>
                 <div class="value" id="kpiRels">—</div>
                 <div class="sub">Configured dependency edges</div>
@@ -146,9 +225,10 @@
 
         <section id="tab-inventory" class="tab-panel hidden">
           <section class="panel">
+            <p class="type-lock-hint" id="inventoryTypeHint">Showing one component type from the Operations sidebar.</p>
             <div class="toolbar">
               <label>Search<input id="searchQ" placeholder="id, name, hostname, product…" /></label>
-              <label>Type
+              <label id="filterTypeWrap">Type
                 <select id="filterType" data-keep-first="1">
                   <option value="">All</option>
                 </select>
@@ -170,7 +250,7 @@
           </section>
 
           <section class="panel">
-            <h2>Inventory</h2>
+            <h2 id="inventoryHeading">Inventory</h2>
             <div class="table-wrap">
               <div id="inventoryLoading" class="loading-overlay"><span class="spinner"></span> Loading inventory…</div>
               <table class="inventory">
@@ -282,7 +362,7 @@
 
           <section class="panel">
             <h2>Graph</h2>
-            <p class="hint">Supports multiple parents/children, shared dependencies, and cycles. Upstream = left/sky, Downstream = right/amber, Selected = indigo.</p>
+            <p class="hint">Supports multiple parents/children, shared dependencies, and cycles. Upstream = cyan, Downstream = amber, Selected = teal, Both = indigo.</p>
             <div id="depGraphWrap" class="graph-wrap">
               <svg id="depGraph" xmlns="http://www.w3.org/2000/svg"></svg>
             </div>
@@ -451,11 +531,57 @@
           </section>
         </section>
 
+        <section id="tab-columns" class="tab-panel hidden">
+          <section class="panel">
+            <div class="placeholder-panel">
+              <div class="ph-ico" aria-hidden="true"><svg viewBox="0 0 24 24"><rect x="3" y="4" width="5" height="16" rx="1"/><rect x="10" y="4" width="5" height="16" rx="1"/><rect x="17" y="4" width="4" height="16" rx="1"/></svg></div>
+              <h3>Column Settings</h3>
+              <p>Coming soon. Per-user / per-tenant grid column configurations are not implemented in Master Phase 2. Inventory columns remain fixed (including separate OS Family / OS Version / Product Type / Product Version).</p>
+              <span class="badge-soon">Coming soon</span>
+            </div>
+          </section>
+        </section>
+
         <section id="tab-users" class="tab-panel hidden">
           <section class="panel">
             <div class="placeholder-panel">
+              <div class="ph-ico" aria-hidden="true"><svg viewBox="0 0 24 24"><circle cx="9" cy="8" r="3.2"/><path d="M3.5 19c.8-3 2.9-4.5 5.5-4.5S13.7 16 14.5 19"/></svg></div>
               <h3>Users</h3>
-              <p>User management is a visual placeholder. OIDC identity and membership arrive in later SaaS phases. This screen does <strong>not</strong> create users or enforce roles.</p>
+              <p>User management is a visual placeholder. OIDC identity and membership arrive in later master phases. This screen does <strong>not</strong> create users or enforce roles.</p>
+              <span class="badge-soon">Coming soon</span>
+            </div>
+          </section>
+        </section>
+
+        <section id="tab-roles" class="tab-panel hidden">
+          <section class="panel">
+            <div class="placeholder-panel">
+              <div class="ph-ico" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M12 3l8 4v5c0 4.5-3.2 7.8-8 9-4.8-1.2-8-4.5-8-9V7l8-4z"/></svg></div>
+              <h3>Roles and Permissions</h3>
+              <p>Coming soon. Role-based access control is not implemented. Current access is shared HTTP Basic credentials only.</p>
+              <span class="badge-soon">Coming soon</span>
+            </div>
+          </section>
+        </section>
+
+        <section id="tab-organizations" class="tab-panel hidden">
+          <section class="panel">
+            <div class="placeholder-panel">
+              <div class="ph-ico" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M3 20h18"/><path d="M5 20V9l7-5 7 5v11"/></svg></div>
+              <h3>Organizations</h3>
+              <p>Coming soon. Multi-organization management and tenant isolation are not implemented. The organization selector in the header is decorative only.</p>
+              <span class="badge-soon">Coming soon</span>
+            </div>
+          </section>
+        </section>
+
+        <section id="tab-plans" class="tab-panel hidden">
+          <section class="panel">
+            <div class="placeholder-panel">
+              <div class="ph-ico" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M4 7h16v12H4z"/><path d="M8 7V5a4 4 0 0 1 8 0v2"/></svg></div>
+              <h3>Subscription Plans</h3>
+              <p>Coming soon. Entitlements and plan limits are not implemented in Master Phase 2. No payment provider is wired.</p>
+              <span class="badge-soon">Coming soon</span>
             </div>
           </section>
         </section>
@@ -463,8 +589,21 @@
         <section id="tab-settings" class="tab-panel hidden">
           <section class="panel">
             <div class="placeholder-panel">
+              <div class="ph-ico" aria-hidden="true"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M12 3v2.2M12 18.8V21M4.9 6.5l1.6 1.6M17.5 17.9l1.6 1.6"/></svg></div>
               <h3>Settings</h3>
-              <p>Tenant settings, plans/entitlements, and platform admin controls are not implemented in Phase 1. Organization switching above is decorative only.</p>
+              <p>Tenant settings and platform admin controls are not implemented in Master Phase 2. Organization switching above is decorative only.</p>
+              <span class="badge-soon">Coming soon</span>
+            </div>
+          </section>
+        </section>
+
+        <section id="tab-audit" class="tab-panel hidden">
+          <section class="panel">
+            <div class="placeholder-panel">
+              <div class="ph-ico" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M7 4h10a2 2 0 0 1 2 2v14l-3-2-3 2-3-2-3 2V6a2 2 0 0 1 2-2z"/></svg></div>
+              <h3>Audit Logs</h3>
+              <p>Coming soon. Audit log storage and UI are not implemented. No audit collection exists yet.</p>
+              <span class="badge-soon">Coming soon</span>
             </div>
           </section>
         </section>
