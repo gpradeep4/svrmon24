@@ -608,6 +608,47 @@ body.is-app .app-shell { display: grid; }
   background: currentColor;
 }
 
+.tenant-banner {
+  display: grid;
+  gap: 1px;
+  line-height: 1.15;
+  padding: 5px 10px;
+  border: 1px solid var(--line-soft);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+  min-width: 0;
+  max-width: 220px;
+}
+
+.tenant-banner[hidden] {
+  display: none !important;
+}
+
+.tenant-banner-kicker {
+  font-size: 0.58rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--muted-2);
+}
+
+.tenant-banner strong {
+  font-size: 0.78rem;
+  font-weight: 650;
+  color: var(--ink);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.tenant-banner-id {
+  font-size: 0.62rem;
+  color: var(--muted);
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
 .user-menu {
   display: flex;
   align-items: center;
@@ -1318,6 +1359,8 @@ table.inventory tr:hover td {
     grid-template-columns: 1fr;
   }
   .tenant-switcher { min-width: 150px; }
+  .tenant-banner { max-width: 140px; padding: 4px 8px; }
+  .tenant-banner-kicker { display: none; }
   .user-menu .meta { display: none; }
   .header-chip span:not(.chip-label):not(.chip-ico) { display: none; }
 }
