@@ -14,7 +14,7 @@
     <div class="brand-bar">
       <div>
         <h1>SVRMON24</h1>
-        <p>CMDB inventory, relationships, and dependency/impact analysis. Ports stay separate. Manual relationships only — no scanning.</p>
+        <p>CMDB, relationships, dependency/impact, and <strong>SIMULATED</strong> diagnostics. No remote execution or scanning.</p>
       </div>
     </div>
 
@@ -32,6 +32,7 @@
       <button type="button" data-tab="inventory" class="active">Inventory</button>
       <button type="button" data-tab="relationships">Relationships</button>
       <button type="button" data-tab="dependencies">Dependencies</button>
+      <button type="button" data-tab="diagnostics">Diagnostics</button>
       <button type="button" data-tab="custom">Custom fields</button>
     </div>
 
@@ -228,6 +229,67 @@
       <section class="panel">
         <h2>Potentially affected applications</h2>
         <div id="depImpactList" class="hint">No analysis yet.</div>
+      </section>
+    </section>
+
+    <section id="tab-diagnostics" class="tab-panel hidden">
+      <section class="panel">
+        <h2>Diagnostics (DEMO / SIMULATED)</h2>
+        <div class="warn-box" id="diagBanner">
+          All diagnostic output is synthetic demo data. Values are labeled SYNTHETIC_DEMO and
+          execution_mode is always SIMULATED. No servers are contacted; shell/SQL/network scans are blocked.
+        </div>
+        <div class="toolbar" style="grid-template-columns: 1.2fr 1.2fr 1fr auto auto;">
+          <label>Component ID<input id="diagComponentId" list="componentIdList" /></label>
+          <label>Profile
+            <select id="diagProfile"></select>
+          </label>
+          <label>Notes<input id="diagNotes" placeholder="optional" /></label>
+          <button type="button" id="btnRunDiag">Run simulated diagnostic</button>
+          <button type="button" id="btnRefreshDiagHistory" class="secondary">Refresh history</button>
+        </div>
+        <p class="hint" id="diagProfileNotice"></p>
+      </section>
+
+      <section class="panel">
+        <h2>Latest result</h2>
+        <div id="diagLatest" class="hint">No diagnostic run yet.</div>
+        <div class="table-wrap" style="margin-top:12px">
+          <table class="inventory">
+            <thead>
+              <tr>
+                <th>Check</th>
+                <th>Kind</th>
+                <th>Value</th>
+                <th>Unit</th>
+                <th>Status</th>
+                <th>Data source</th>
+                <th>Note</th>
+              </tr>
+            </thead>
+            <tbody id="diagChecksBody"></tbody>
+          </table>
+        </div>
+      </section>
+
+      <section class="panel">
+        <h2>Diagnostic history</h2>
+        <div class="table-wrap">
+          <table class="inventory">
+            <thead>
+              <tr>
+                <th>Diagnostic ID</th>
+                <th>Timestamp</th>
+                <th>Component</th>
+                <th>Profile</th>
+                <th>Mode</th>
+                <th>Overall</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody id="diagHistoryBody"></tbody>
+          </table>
+        </div>
       </section>
     </section>
 
