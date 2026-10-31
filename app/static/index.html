@@ -14,7 +14,7 @@
     <div class="brand-bar">
       <div>
         <h1>SVRMON24</h1>
-        <p>CMDB component inventory — Server, Network, Middleware, Database, Application. OS and Product fields stay separate.</p>
+        <p>CMDB inventory and manual relationships. OS / Product fields and Protocol / Source Port / Target Port stay separate. No network scanning.</p>
       </div>
     </div>
 
@@ -30,6 +30,7 @@
 
     <div class="tabs">
       <button type="button" data-tab="inventory" class="active">Inventory</button>
+      <button type="button" data-tab="relationships">Relationships</button>
       <button type="button" data-tab="custom">Custom fields</button>
     </div>
 
@@ -84,6 +85,56 @@
           <div class="controls">
             <button type="button" id="btnPrev" class="secondary">Previous</button>
             <button type="button" id="btnNext" class="secondary">Next</button>
+          </div>
+        </div>
+      </section>
+    </section>
+
+    <section id="tab-relationships" class="tab-panel hidden">
+      <section class="panel">
+        <h2>Relationship types (direction: source → target)</h2>
+        <div id="relTypeDocs" class="hint">Load after Connect.</div>
+      </section>
+      <section class="panel">
+        <div class="toolbar" style="grid-template-columns: 1.2fr 1fr 1fr auto auto;">
+          <label>Search<input id="relSearchQ" placeholder="id, component, protocol…" /></label>
+          <label>Type
+            <select id="relFilterType" data-keep-first="1">
+              <option value="">All</option>
+            </select>
+          </label>
+          <label>Component ID<input id="relFilterComponent" placeholder="as source or target" /></label>
+          <button type="button" id="btnRelSearch" class="secondary">Apply filters</button>
+          <button type="button" id="btnAddRel">Add relationship</button>
+        </div>
+      </section>
+      <section class="panel">
+        <h2>Relationships</h2>
+        <div class="table-wrap">
+          <table class="inventory">
+            <thead>
+              <tr>
+                <th>Relationship ID</th>
+                <th>Source</th>
+                <th>Target</th>
+                <th>Type</th>
+                <th>Protocol</th>
+                <th>Source Port</th>
+                <th>Target Port</th>
+                <th>Environment</th>
+                <th>Discovery</th>
+                <th>Verification</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody id="relationshipBody"></tbody>
+          </table>
+        </div>
+        <div class="pager">
+          <div id="relPageInfo">Page 1 / 1 · 0 relationships</div>
+          <div class="controls">
+            <button type="button" id="btnRelPrev" class="secondary">Previous</button>
+            <button type="button" id="btnRelNext" class="secondary">Next</button>
           </div>
         </div>
       </section>
@@ -178,6 +229,57 @@
         <button type="button" id="btnCancelDelete" class="secondary">Cancel</button>
         <button type="button" id="btnConfirmDelete" class="danger">Delete</button>
       </div>
+    </div>
+  </div>
+
+  <div id="relationshipModal" class="modal-backdrop" role="dialog" aria-modal="true">
+    <div class="modal">
+      <header>
+        <h3 id="relModalTitle">Relationship</h3>
+        <button type="button" id="btnCloseRelModal" class="ghost">Close</button>
+      </header>
+      <p id="relTypeHint" class="hint"></p>
+      <div id="relEnvWarn" class="warn-box" style="display:none"></div>
+      <form id="relationshipForm">
+        <div class="form-grid">
+          <label>Relationship ID<input id="relId" placeholder="auto if blank" /></label>
+          <label>Type
+            <select id="relType" required></select>
+          </label>
+          <label>Source component ID<input id="relSource" required list="componentIdList" /></label>
+          <label>Target component ID<input id="relTarget" required list="componentIdList" /></label>
+          <label>Protocol<input id="relProtocol" placeholder="TCP / HTTPS / …" /></label>
+          <label>Source Port<input id="relSourcePort" inputmode="numeric" placeholder="blank = unknown" /></label>
+          <label>Target Port<input id="relTargetPort" inputmode="numeric" placeholder="blank = unknown" /></label>
+          <label>URL / path<input id="relUrl" /></label>
+          <label>Environment<input id="relEnv" /></label>
+          <label>Discovery method
+            <select id="relDiscovery">
+              <option value="manually_configured">manually_configured</option>
+              <option value="discovered">discovered</option>
+            </select>
+          </label>
+          <label>Verification status
+            <select id="relVerification">
+              <option value="unverified">unverified</option>
+              <option value="verified">verified</option>
+              <option value="rejected">rejected</option>
+            </select>
+          </label>
+          <label>Confidence
+            <select id="relConfidence">
+              <option value="low">low</option>
+              <option value="medium" selected>medium</option>
+              <option value="high">high</option>
+            </select>
+          </label>
+          <label class="full">Evidence / notes<textarea id="relNotes"></textarea></label>
+        </div>
+        <datalist id="componentIdList"></datalist>
+        <div style="margin-top:14px;display:flex;gap:8px;justify-content:flex-end">
+          <button type="submit" id="btnSaveRel">Save</button>
+        </div>
+      </form>
     </div>
   </div>
 
