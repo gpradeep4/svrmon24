@@ -1,46 +1,50 @@
 ﻿# SVRMON24
 
-AI-powered infrastructure monitoring, CMDB, dependency mapping, and diagnostics.
+AI-assisted infrastructure CMDB, dependency mapping, **SIMULATED** diagnostics, local Ollama analysis, and operations dashboard.
 
-**Phase 2** foundation: FastAPI + Uvicorn, MongoDB via PyMongo, HTTP Basic auth, structured logging, and tests.
+Stack: **FastAPI + Uvicorn + MongoDB (PyMongo) + HTTP Basic auth**. Diagnostics never contact remote hosts and never execute shell/SQL/network scans.
 
-**Phase 3** adds the CMDB component inventory (Server / Network / Middleware / Database / Application) with CRUD API, search/filter/pagination, custom-field definitions, delete confirmation with relationship warning hook, and a browser UI at `/`.
+## Features (Phases 2–8)
 
-**Phase 4** adds manual relationship management (`cmdb_relationships`): HOSTED_ON / DEPENDS_ON / CONNECTS_TO / ROUTES_TO with separate Protocol, Source Port, and Target Port columns. No network scanning.
-
-**Phase 5** adds dependency traversal and impact analysis (upstream / downstream / potentially affected applications) with cycle detection, depth limits, and a Dependencies UI tab.
-
-**Phase 6** adds a DEMO/SIMULATED diagnostic engine with an approved `basic-health` profile, MongoDB history, and a Diagnostics UI tab. No remote execution.
-
-Diagnostics remain simulated — no real remote execution.
+| Area | Capability |
+| --- | --- |
+| Auth / ops | HTTP Basic, `/health`, `/api/status`, structured logging |
+| CMDB | Server / Network / Middleware / Database / Application inventory |
+| Custom fields | Per-type (or global) field definitions |
+| Relationships | HOSTED_ON / DEPENDS_ON / CONNECTS_TO / ROUTES_TO |
+| Dependencies | Upstream / downstream traversal, cycle detection, impact (“potentially affected”) |
+| Diagnostics | Approved `basic-health` profile — always `execution_mode=SIMULATED` |
+| AI analysis | Local Ollama (`OLLAMA_URL` / `OLLAMA_MODEL`) with rule-based fallback |
+| Dashboard | Live aggregates from MongoDB (no hardcoded counts) |
 
 ## Requirements
 
-- Python 3.11+ (verified on Windows; compatible with RHEL Linux)
+- Python **3.11+** (verified on Windows 11 / Python 3.13; compatible with RHEL Linux)
 - MongoDB reachable via `MONGODB_URI` (app starts even if MongoDB is temporarily down)
+- Optional: local [Ollama](https://ollama.com/) for AI analysis (`llama3.2:3b` or another configured model)
 
-## Quick start (PowerShell / Windows)
+## Quick start — Windows PowerShell
 
 ```powershell
-cd C:\Users\Pradeep\Projects\svrmon24
+cd C:\path\to\svrmon24
 python -m venv .venv
 .\.venv\Scripts\Activate.ps1
 python -m pip install --upgrade pip
 pip install -r requirements.txt
 Copy-Item .env.example .env
-# Edit .env: set BASIC_AUTH_USERNAME / BASIC_AUTH_PASSWORD and MONGODB_URI
+# Edit .env — set BASIC_AUTH_USERNAME / BASIC_AUTH_PASSWORD and MONGODB_URI
 python -m app.main
 ```
 
-Or with Uvicorn directly:
+Or with Uvicorn:
 
 ```powershell
 uvicorn app.main:app --host 0.0.0.0 --port 8200
 ```
 
-Open the UI at `http://localhost:8200/` and connect with Basic auth credentials.
+Open `http://localhost:8200/` → enter Basic auth credentials → use Dashboard / Inventory / Relationships / Dependencies / Diagnostics.
 
-## Quick start (RHEL / Linux bash)
+## Quick start — RHEL / Linux bash
 
 ```bash
 cd /path/to/svrmon24
@@ -49,28 +53,56 @@ source .venv/bin/activate
 python -m pip install --upgrade pip
 pip install -r requirements.txt
 cp .env.example .env
+# Edit .env — set BASIC_AUTH_USERNAME / BASIC_AUTH_PASSWORD and MONGODB_URI
 python -m app.main
 ```
 
+Or:
+
+```bash
+uvicorn app.main:app --host 0.0.0.0 --port 8200
+```
+
+## Configuration
+
+Copy `.env.example` → `.env` (never commit `.env`). Placeholders only in the example file:
+
+| Variable | Purpose |
+| --- | --- |
+| `BASIC_AUTH_USERNAME` / `BASIC_AUTH_PASSWORD` | HTTP Basic credentials |
+| `MONGODB_URI` / `MONGODB_DB` | MongoDB connection |
+| `APP_HOST` / `APP_PORT` | Bind address (default `0.0.0.0:8200`) |
+| `OLLAMA_URL` / `OLLAMA_MODEL` / `OLLAMA_TIMEOUT_SECONDS` | Local Ollama for AI analysis |
+
+When Ollama is unavailable, diagnostic analysis uses a deterministic rule-based fallback. Analysis derived from simulated diagnostics is clearly labeled.
+
 ## Auth
 
-Phase 2+ uses **HTTP Basic** credentials from `BASIC_AUTH_USERNAME` and `BASIC_AUTH_PASSWORD`.
-`/health` and the UI shell are public; API routes require authentication. Longer-term auth will move to OIDC.
+- Public: `/`, `/health`, `/static/*`
+- Protected: `/api/*` (HTTP Basic)
+- Longer-term auth is expected to move to OIDC
 
 ## Tests
 
 ```powershell
-pytest
+# Windows
+.\.venv\Scripts\python.exe -m pytest -v
 ```
 
-## Endpoints
+```bash
+# Linux
+pytest -v
+```
+
+## API overview
 
 | Method | Path | Auth | Purpose |
 | --- | --- | --- | --- |
-| GET | `/` | Public UI | CMDB inventory UI |
+| GET | `/` | Public UI | Dashboard + CMDB UI |
 | GET | `/health` | Public | Liveness |
 | GET | `/api/status` | Basic | App + MongoDB status |
 | GET | `/api/me` | Basic | Auth smoke check |
+| GET | `/api/dashboard/summary` | Basic | Live dashboard widgets |
 | GET/POST | `/api/components` | Basic | List / create components |
 | GET/PUT/DELETE | `/api/components/{id}` | Basic | Get / update / delete |
 | GET | `/api/components/{id}/delete-preview` | Basic | Delete confirmation + relationship warning |
@@ -79,21 +111,46 @@ pytest
 | GET/PUT/DELETE | `/api/relationships/{id}` | Basic | Get / update / delete |
 | GET | `/api/relationships/types` | Basic | Type meaning + direction docs |
 | GET | `/api/dependencies/{id}` | Basic | Upstream + downstream + impact bundle |
-| GET | `/api/dependencies/{id}/upstream` | Basic | Upstream traversal |
-| GET | `/api/dependencies/{id}/downstream` | Basic | Downstream traversal |
-| GET | `/api/dependencies/{id}/impact` | Basic | Potentially affected applications |
 | GET | `/api/diagnostics/profiles` | Basic | Approved simulated profiles |
 | POST | `/api/diagnostics` | Basic | Start SIMULATED diagnostic |
 | GET | `/api/diagnostics` | Basic | Diagnostic history |
 | GET | `/api/diagnostics/{id}` | Basic | Diagnostic detail |
+| POST | `/api/diagnostics/{id}/analyze` | Basic | Ollama / fallback AI analysis |
+| GET | `/api/diagnostics/ollama/status` | Basic | Local Ollama probe |
 
 ### Inventory columns (never combined)
 
-Component ID | Hostname/Component Name | Component Type | OS Family | OS Version | Product Type | Product Version | Environment | Status | Actions
-
-N/A values render as an em dash.
+Component ID | Hostname/Component Name | Component Type | **OS Family** | **OS Version** | **Product Type** | **Product Version** | Environment | Status | Actions
 
 ### Relationship columns (never combined)
 
-Relationship ID | Source | Target | Type | Protocol | Source Port | Target Port | Environment | Discovery | Verification | Actions
+Relationship ID | Source | Target | Type | **Protocol** | **Source Port** | **Target Port** | Environment | Discovery | Verification | Actions
 
+## Safety / limitations
+
+- Diagnostics are **SIMULATED / SYNTHETIC_DEMO** until live probes are explicitly approved in a later phase.
+- No remote shell, SQL, or network scanning from this application.
+- AI analysis never auto-executes remediation and must not invent telemetry.
+- Impact results list **potentially affected** applications only — not confirmed outages.
+- Default Basic auth placeholders (`change-me`) must be replaced before any shared deployment.
+
+## Project layout
+
+```
+svrmon24/
+  app/                 # FastAPI application
+    diagnostics/       # Simulated profiles + generator
+    models/            # Pydantic models
+    routers/           # HTTP routers
+    services/          # Business logic (CMDB, deps, AI, dashboard)
+    static/            # Dashboard UI (HTML/CSS/JS)
+  tests/               # Pytest suite
+  requirements.txt
+  .env.example         # Placeholders only
+  README.md
+  pytest.ini
+```
+
+## License / ownership
+
+Internal project repository: `gpradeep4/svrmon24`.
