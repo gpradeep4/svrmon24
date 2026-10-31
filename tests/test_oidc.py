@@ -124,7 +124,9 @@ def test_oidc_happy_path_callback_sets_session_and_protects_api(
         follow_redirects=False,
     )
     assert callback.status_code == 302
-    assert callback.headers["location"] in {"/", "http://testserver/"}
+    loc = callback.headers["location"]
+    assert "signed_in=1" in loc
+    assert loc.startswith("http://testserver/") or loc.startswith("/")
 
     me = oidc_client.get("/api/me")
     assert me.status_code == 200
@@ -235,9 +237,13 @@ def test_ui_exposes_oidc_login_controls() -> None:
     assert 'id="basicAuthRow"' in html
     assert 'id="loginGate"' in html
     assert "is-login" in html
+    assert 'id="authPanel"' not in html  # embedded sign-in removed
+    assert "login-gate-v2" in html
+    assert "cmdb.js?v=" in html and "cmdb.css?v=" in html
     assert "/api/auth/config" in js
     assert "/auth/login" in js
     assert "credentials: \"include\"" in js or "credentials: 'include'" in js
+    assert "signed_in" in js
     assert "tenantSwitcher" in html  # in Settings; still not activated
     assert "auth_error" in js
     assert "host_matches_redirect" in js or "hostMismatchBanner" in html

@@ -99,8 +99,14 @@ def create_app() -> FastAPI:
 
     @app.get("/", include_in_schema=False)
     def ui_index() -> FileResponse:
-        """CMDB inventory UI (browser)."""
-        return FileResponse(STATIC_DIR / "index.html")
+        """CMDB inventory UI (browser). Never cache HTML so login-gate updates apply."""
+        return FileResponse(
+            STATIC_DIR / "index.html",
+            headers={
+                "Cache-Control": "no-store, no-cache, must-revalidate, max-age=0",
+                "Pragma": "no-cache",
+            },
+        )
 
     @app.get("/health", tags=["health"])
     def health() -> dict[str, Any]:

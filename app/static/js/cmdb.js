@@ -239,17 +239,51 @@
   }
 
   function showLoginShell() {
+    state.authenticated = false;
     document.body.classList.add("is-login");
     document.body.classList.remove("is-app");
-    $("#loginGate")?.classList.remove("hidden");
-    $("#appShell")?.classList.add("hidden");
+    document.body.setAttribute("data-auth", "anonymous");
+    const gate = $("#loginGate");
+    if (gate) {
+      gate.classList.remove("hidden");
+      gate.removeAttribute("hidden");
+      gate.setAttribute("aria-hidden", "false");
+    }
+    const shell = $("#appShell");
+    if (shell) {
+      shell.classList.add("hidden");
+      shell.setAttribute("hidden", "");
+      shell.setAttribute("aria-hidden", "true");
+    }
+    // Legacy embedded sign-in must never appear inside the app shell.
+    $("#authPanel")?.setAttribute("hidden", "");
+    $("#authPanel")?.classList.add("hidden");
   }
 
   function showAppShell() {
+    state.authenticated = true;
     document.body.classList.remove("is-login");
     document.body.classList.add("is-app");
-    $("#loginGate")?.classList.add("hidden");
-    $("#appShell")?.classList.remove("hidden");
+    document.body.setAttribute("data-auth", "authenticated");
+    const gate = $("#loginGate");
+    if (gate) {
+      gate.classList.add("hidden");
+      gate.setAttribute("hidden", "");
+      gate.setAttribute("aria-hidden", "true");
+    }
+    const shell = $("#appShell");
+    if (shell) {
+      shell.classList.remove("hidden");
+      shell.removeAttribute("hidden");
+      shell.setAttribute("aria-hidden", "false");
+    }
+    // Belt-and-suspenders: purge any legacy embedded sign-in card.
+    const legacy = $("#authPanel");
+    if (legacy) {
+      legacy.setAttribute("hidden", "");
+      legacy.classList.add("hidden");
+      legacy.remove();
+    }
   }
 
   function logout() {
@@ -489,20 +523,53 @@
       await afterAuthenticated(me);
     } catch (err) {
       setSessionChip(false);
+      showLoginShell();
       toast(err.message || "Auth failed", true);
     } finally {
       setGlobalLoading(false);
     }
   }
 
+  function sleep(ms) {
+    return new Promise((resolve) => setTimeout(resolve, ms));
+  }
+
+  function clearQueryParams(keys) {
+    const params = new URLSearchParams(window.location.search);
+    let changed = false;
+    for (const key of keys) {
+      if (params.has(key)) {
+        params.delete(key);
+        changed = true;
+      }
+    }
+    if (!changed) return;
+    const next = `${window.location.pathname}${params.toString() ? `?${params}` : ""}${window.location.hash || ""}`;
+    window.history.replaceState({}, "", next);
+  }
+
   async function tryResumeSession() {
-    setGlobalLoading(true, "Checking session…");
+    const params = new URLSearchParams(window.location.search);
+    const justSignedIn = params.get("signed_in") === "1";
+    // Keep login gate visible until /api/me succeeds — never paint app chrome early.
+    showLoginShell();
+    setGlobalLoading(true, justSignedIn ? "Completing sign-in…" : "Checking session…");
+    const attempts = justSignedIn ? 6 : 2;
     try {
-      const me = await api("/api/me");
-      await afterAuthenticated(me, { toastMessage: "Session restored" });
-      return true;
-    } catch (_) {
+      for (let i = 0; i < attempts; i += 1) {
+        try {
+          const me = await api("/api/me");
+          clearQueryParams(["signed_in", "auth_error"]);
+          await afterAuthenticated(me, {
+            toastMessage: justSignedIn ? "Signed in" : "Session restored",
+          });
+          return true;
+        } catch (_) {
+          if (i < attempts - 1) await sleep(justSignedIn ? 200 : 120);
+        }
+      }
       setSessionChip(false);
+      showLoginShell();
       return false;
     } finally {
       setGlobalLoading(false);
@@ -1798,16 +1865,21 @@
     restoreAccent();
     loadAuthIntoForm();
     wireEvents();
+    // Default: full-page login only — app shell stays hidden until /api/me OK.
     showLoginShell();
     setSessionChip(false);
     showAuthErrorFromQuery();
     await loadAuthConfig();
-    // Resume OIDC cookie session or previously stored Basic credentials.
     const resumed = await tryResumeSession();
-    if (!resumed && authHeader() && authConfig.basic_auth_enabled) {
-      connect().catch(() => {});
-    } else if (!resumed) {
-      showLoginShell();
+    if (resumed) return;
+    if (authHeader() && authConfig.basic_auth_enabled) {
+      try {
+        await connect();
+      } catch (_) {
+        showLoginShell();
+      }
+      return;
     }
+    showLoginShell();
   });
 })();

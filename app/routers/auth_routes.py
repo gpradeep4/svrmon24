@@ -242,7 +242,11 @@ def oidc_callback(
         auth_payload.get("username"),
         auth_payload.get("subject"),
     )
-    response = RedirectResponse(url=_home_url(settings), status_code=status.HTTP_302_FOUND)
+    # signed_in=1 tells the SPA to resume /api/me before painting the app shell.
+    home = _home_url(settings)
+    target = home if home.endswith("/") else home + "/"
+    target = f"{target}{'&' if '?' in target else '?'}signed_in=1"
+    response = RedirectResponse(url=target, status_code=status.HTTP_302_FOUND)
     _clear_pending_cookie(response, settings)
     return response
 

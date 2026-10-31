@@ -3,12 +3,20 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="svrmon24-ui" content="login-gate-v2" />
   <title>SVRMON24</title>
-  <link rel="stylesheet" href="/static/css/cmdb.css" />
+  <!-- Critical gate CSS: never paint login + app chrome together (before cmdb.css). -->
+  <style>
+    body.is-login .app-shell,
+    body:not(.is-app) .app-shell { display: none !important; }
+    body.is-app .login-gate { display: none !important; }
+    #authPanel, .auth-panel-legacy { display: none !important; }
+  </style>
+  <link rel="stylesheet" href="/static/css/cmdb.css?v=0.12.2" />
 </head>
 <body class="is-login">
   <!-- Full-page login (no Operations chrome while signed out) -->
-  <div id="loginGate" class="login-gate" role="main">
+  <div id="loginGate" class="login-gate" role="main" data-auth-view="login">
     <div class="login-atmosphere" aria-hidden="true"></div>
     <div class="login-card panel">
       <div class="login-brand">
@@ -763,6 +771,6 @@
     <span class="spinner"></span><span id="globalLoadingText">Working…</span>
   </div>
   <div id="toast" class="toast"></div>
-  <script src="/static/js/cmdb.js"></script>
+  <script src="/static/js/cmdb.js?v=0.12.2"></script>
 </body>
 </html>
