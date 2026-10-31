@@ -111,8 +111,10 @@ def test_main_user_journey(
     ui = client.get("/")
     assert ui.status_code == 200
     assert b'data-tab="dashboard"' in ui.content
+    assert b'data-tab="servers"' in ui.content
     assert b"OS Family" in ui.content
     assert b"Source Port" in ui.content
     assert b"SIMULATED" in ui.content
     assert b"tenantSwitcher" in ui.content
     assert b'class="sidebar"' in ui.content or b"nav-item" in ui.content
+    assert b"Coming soon" in ui.content

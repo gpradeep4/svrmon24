@@ -13,6 +13,16 @@
     relTypes: [],
     componentIds: [],
     currentDiagnosticId: null,
+    inventoryType: null,
+    activeNav: "dashboard",
+  };
+
+  const INVENTORY_TABS = {
+    servers: "Server",
+    network: "Network",
+    applications: "Application",
+    middleware: "Middleware",
+    databases: "Database",
   };
 
   const $ = (sel, root = document) => root.querySelector(sel);
@@ -29,13 +39,23 @@
 
   const PAGE_META = {
     dashboard: { title: "Dashboard", subtitle: "Live CMDB and diagnostic overview" },
+    servers: { title: "Servers", subtitle: "Server inventory filtered by component_type=Server" },
+    network: { title: "Network", subtitle: "Network devices filtered by component_type=Network" },
+    applications: { title: "Applications", subtitle: "Applications filtered by component_type=Application" },
+    middleware: { title: "Middleware", subtitle: "Middleware filtered by component_type=Middleware" },
+    databases: { title: "Databases", subtitle: "Databases filtered by component_type=Database" },
     inventory: { title: "Inventory", subtitle: "CMDB components with separate OS and product columns" },
     relationships: { title: "Relationships", subtitle: "Manual links with separate protocol and ports" },
     dependencies: { title: "Dependencies", subtitle: "Traversal, cycles, and potentially affected apps" },
     diagnostics: { title: "Diagnostics", subtitle: "DEMO / SIMULATED evidence only — no live probes" },
     custom: { title: "Custom Fields", subtitle: "Extend inventory forms with typed definitions" },
+    columns: { title: "Column Settings", subtitle: "Coming soon — grid column configs not implemented" },
     users: { title: "Users", subtitle: "Placeholder — OIDC and memberships come later" },
+    roles: { title: "Roles and Permissions", subtitle: "Coming soon — RBAC not implemented" },
+    organizations: { title: "Organizations", subtitle: "Coming soon — no tenant isolation yet" },
+    plans: { title: "Subscription Plans", subtitle: "Coming soon — entitlements not implemented" },
     settings: { title: "Settings", subtitle: "Placeholder — tenant settings not implemented" },
+    audit: { title: "Audit Logs", subtitle: "Coming soon — audit collection not implemented" },
   };
 
   function setSessionChip(connected, username = "") {
@@ -46,6 +66,10 @@
         ? `Basic session · ${username || "user"}`
         : "Session: disconnected";
     }
+    const authChip = $("#authStatusChip");
+    const authText = $("#authStatusText");
+    if (authChip) authChip.classList.toggle("on", !!connected);
+    if (authText) authText.textContent = connected ? "Authenticated" : "Disconnected";
     const nameEl = $("#userDisplayName");
     const avatar = $("#userAvatar");
     if (nameEl) nameEl.textContent = connected ? (username || "user") : "Not signed in";
@@ -62,6 +86,32 @@
       sub.textContent = connected
         ? "Authenticated to live APIs (shared Basic — not multi-tenant)"
         : "Connect with Basic auth to load APIs";
+    }
+  }
+
+  function applyInventoryTypeLock(componentType) {
+    state.inventoryType = componentType || null;
+    const filter = $("#filterType");
+    const wrap = $("#filterTypeWrap");
+    const hint = $("#inventoryTypeHint");
+    const heading = $("#inventoryHeading");
+    if (filter) {
+      if (componentType) {
+        filter.value = componentType;
+        filter.disabled = true;
+      } else {
+        filter.disabled = false;
+      }
+    }
+    if (wrap) wrap.classList.toggle("hidden", !!componentType);
+    if (hint) {
+      hint.classList.toggle("show", !!componentType);
+      hint.textContent = componentType
+        ? `Filtered inventory via /api/components?component_type=${componentType}. Separate OS Family / OS Version / Product Type / Product Version columns are preserved.`
+        : "";
+    }
+    if (heading) {
+      heading.textContent = componentType ? `${componentType} inventory` : "Inventory";
     }
   }
 
@@ -326,7 +376,7 @@
   function queryParams() {
     const params = new URLSearchParams();
     const q = $("#searchQ").value.trim();
-    const component_type = $("#filterType").value;
+    const component_type = state.inventoryType || $("#filterType").value;
     const environment = $("#filterEnv").value.trim();
     const status = $("#filterStatus").value;
     if (q) params.set("q", q);
@@ -438,11 +488,12 @@
     state.editingId = null;
     $("#componentForm").reset();
     $("#fieldComponentId").disabled = false;
-    $("#fieldType").disabled = false;
-    $("#fieldType").value = "Server";
-    renderTypeFields("Server");
-    renderCustomInputs("Server", {});
-    openModal("Add component");
+    const locked = state.inventoryType || "Server";
+    $("#fieldType").disabled = !!state.inventoryType;
+    $("#fieldType").value = locked;
+    renderTypeFields(locked);
+    renderCustomInputs(locked, {});
+    openModal(state.inventoryType ? `Add ${state.inventoryType}` : "Add component");
   }
 
   async function openEdit(id, readOnly = false) {
@@ -694,13 +745,17 @@
   }
 
   function showTab(name) {
+    const inventoryType = INVENTORY_TABS[name] || null;
+    const panelName = inventoryType ? "inventory" : name;
     $$(".tab-panel").forEach((p) => p.classList.add("hidden"));
     $$(".nav-item").forEach((b) => b.classList.remove("active"));
-    const panel = $(`#tab-${name}`);
+    const panel = $(`#tab-${panelName}`);
     const btn = $(`.nav-item[data-tab="${name}"]`);
     if (!panel || !btn) return;
     panel.classList.remove("hidden");
     btn.classList.add("active");
+    state.activeNav = name;
+    applyInventoryTypeLock(inventoryType);
     const meta = PAGE_META[name] || { title: name, subtitle: "" };
     if ($("#pageTitle")) $("#pageTitle").textContent = meta.title;
     if ($("#pageSubtitle")) $("#pageSubtitle").textContent = meta.subtitle;
@@ -708,7 +763,8 @@
     if (name === "dashboard" && authHeader()) {
       loadDashboard().catch((err) => toast(err.message || "Dashboard failed", true));
     }
-    if (name === "inventory" && authHeader()) {
+    if ((inventoryType || name === "inventory") && authHeader()) {
+      state.page = 1;
       loadInventory().catch((err) => toast(err.message, true));
     }
     if (name === "relationships") {
