@@ -124,7 +124,9 @@ def test_ui_contains_dashboard_and_required_columns() -> None:
     assert "sidebar" in html or "nav-item" in html
     assert "tenantSwitcher" in html
     assert "Not functional" in html or "placeholder" in html.lower()
-    assert "--accent" in css and "#6366f1" in css
+    assert "--accent" in css and "#2563EB" in css
+    assert "#F5F7FB" in css and "#FFFFFF" in css
+    assert "fonts.googleapis.com" not in html
     for screen in (
         "tab-inventory",
         "tab-relationships",

@@ -69,7 +69,12 @@
     sessionStorage.removeItem(STORAGE_KEY);
     setSessionChip(false);
     $("#dashContent")?.classList.add("hidden");
-    $("#dashLoading")?.classList.remove("hidden");
+    const loading = $("#dashLoading");
+    if (loading) {
+      loading.classList.remove("hidden");
+      loading.innerHTML =
+        "<strong>API disconnected</strong> Sign in with HTTP Basic credentials above to load live CMDB KPIs, relationships, and SIMULATED diagnostic widgets.";
+    }
     if ($("#kpiComponents")) $("#kpiComponents").textContent = "—";
     if ($("#kpiRels")) $("#kpiRels").textContent = "—";
     toast("Signed out of this browser session");
@@ -1046,7 +1051,7 @@
       label.setAttribute("x", pos.x);
       label.setAttribute("y", pos.y + 32);
       label.setAttribute("text-anchor", "middle");
-      label.setAttribute("fill", "#e7f1ec");
+      label.setAttribute("fill", "#1E293B");
       label.textContent = n.component_id;
       g.appendChild(circle);
       g.appendChild(label);
