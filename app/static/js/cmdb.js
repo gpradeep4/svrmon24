@@ -27,13 +27,53 @@
     toast._t = setTimeout(() => el.classList.remove("show"), 4200);
   }
 
+  const PAGE_META = {
+    dashboard: { title: "Dashboard", subtitle: "Live CMDB and diagnostic overview" },
+    inventory: { title: "Inventory", subtitle: "CMDB components with separate OS and product columns" },
+    relationships: { title: "Relationships", subtitle: "Manual links with separate protocol and ports" },
+    dependencies: { title: "Dependencies", subtitle: "Traversal, cycles, and potentially affected apps" },
+    diagnostics: { title: "Diagnostics", subtitle: "DEMO / SIMULATED evidence only — no live probes" },
+    custom: { title: "Custom Fields", subtitle: "Extend inventory forms with typed definitions" },
+    users: { title: "Users", subtitle: "Placeholder — OIDC and memberships come later" },
+    settings: { title: "Settings", subtitle: "Placeholder — tenant settings not implemented" },
+  };
+
   function setSessionChip(connected, username = "") {
     const chip = $("#sessionChip");
-    if (!chip) return;
-    chip.classList.toggle("on", !!connected);
-    chip.textContent = connected
-      ? `Session: connected as ${username || "user"}`
-      : "Session: disconnected";
+    if (chip) {
+      chip.classList.toggle("on", !!connected);
+      chip.textContent = connected
+        ? `Basic session · ${username || "user"}`
+        : "Session: disconnected";
+    }
+    const nameEl = $("#userDisplayName");
+    const avatar = $("#userAvatar");
+    if (nameEl) nameEl.textContent = connected ? (username || "user") : "Not signed in";
+    if (avatar) avatar.textContent = connected
+      ? String(username || "U").trim().charAt(0).toUpperCase()
+      : "?";
+    const pill = $("#kpiConnPill");
+    const sub = $("#kpiConnSub");
+    if (pill) {
+      pill.className = `status-pill ${connected ? "healthy" : "disconnected"}`;
+      pill.textContent = connected ? "healthy" : "disconnected";
+    }
+    if (sub) {
+      sub.textContent = connected
+        ? "Authenticated to live APIs (shared Basic — not multi-tenant)"
+        : "Connect with Basic auth to load APIs";
+    }
+  }
+
+  function logout() {
+    sessionStorage.removeItem(STORAGE_KEY);
+    setSessionChip(false);
+    $("#dashContent")?.classList.add("hidden");
+    $("#dashLoading")?.classList.remove("hidden");
+    if ($("#kpiComponents")) $("#kpiComponents").textContent = "—";
+    if ($("#kpiRels")) $("#kpiRels").textContent = "—";
+    toast("Signed out of this browser session");
+    showTab("dashboard");
   }
 
   function setGlobalLoading(show, text = "Working…") {
@@ -91,6 +131,8 @@
     $("#dashContent").classList.remove("hidden");
     $("#dashTotalComponents").textContent = String(data.total_components ?? 0);
     $("#dashTotalRels").textContent = String(data.total_relationships ?? 0);
+    if ($("#kpiComponents")) $("#kpiComponents").textContent = String(data.total_components ?? 0);
+    if ($("#kpiRels")) $("#kpiRels").textContent = String(data.total_relationships ?? 0);
     renderCountList("#dashByType", data.components_by_type);
     renderCountList("#dashByEnv", data.components_by_environment);
     $("#dashDemoBanner").textContent =
@@ -188,10 +230,11 @@
   }
 
   function statusClass(status) {
-    if (status === "inactive") return "inactive";
-    if (status === "decommissioned") return "decommissioned";
-    if (status === "unknown") return "unknown";
-    return "";
+    if (status === "active") return "healthy";
+    if (status === "inactive") return "warning";
+    if (status === "decommissioned") return "critical";
+    if (status === "unknown") return "disconnected";
+    return "disconnected";
   }
 
   function saveAuthFromForm() {
@@ -647,12 +690,16 @@
 
   function showTab(name) {
     $$(".tab-panel").forEach((p) => p.classList.add("hidden"));
-    $$(".tabs button").forEach((b) => b.classList.remove("active"));
+    $$(".nav-item").forEach((b) => b.classList.remove("active"));
     const panel = $(`#tab-${name}`);
-    const btn = $(`.tabs button[data-tab="${name}"]`);
+    const btn = $(`.nav-item[data-tab="${name}"]`);
     if (!panel || !btn) return;
     panel.classList.remove("hidden");
     btn.classList.add("active");
+    const meta = PAGE_META[name] || { title: name, subtitle: "" };
+    if ($("#pageTitle")) $("#pageTitle").textContent = meta.title;
+    if ($("#pageSubtitle")) $("#pageSubtitle").textContent = meta.subtitle;
+    $("#sidebar")?.classList.remove("open");
     if (name === "dashboard" && authHeader()) {
       loadDashboard().catch((err) => toast(err.message || "Dashboard failed", true));
     }
@@ -1280,6 +1327,13 @@
 
   function wireEvents() {
     $("#btnConnect").addEventListener("click", connect);
+    $("#btnLogout")?.addEventListener("click", logout);
+    $("#btnMobileNav")?.addEventListener("click", () => {
+      $("#sidebar")?.classList.toggle("open");
+    });
+    $("#tenantSwitcher")?.addEventListener("click", () => {
+      toast("Organization switching is a visual placeholder — not functional yet", true);
+    });
     $("#btnRefreshDash")?.addEventListener("click", async () => {
       if (!authHeader()) {
         toast("Connect first", true);
@@ -1412,21 +1466,16 @@
         toast(err.message, true);
       }
     });
-    $$(".tabs button").forEach((btn) => {
+    $$(".nav-item").forEach((btn) => {
       btn.addEventListener("click", () => showTab(btn.getAttribute("data-tab")));
     });
   }
-
-  // minimal hidden helper class
-  const style = document.createElement("style");
-  style.textContent = `.hidden{display:none!important}`;
-  document.head.appendChild(style);
 
   document.addEventListener("DOMContentLoaded", () => {
     loadAuthIntoForm();
     wireEvents();
     showTab("dashboard");
-    setSessionChip(false);
+    setSessionChip(!!authHeader());
     if (authHeader()) {
       connect().catch(() => {});
     }
