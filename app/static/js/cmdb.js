@@ -1,5 +1,14 @@
 (() => {
   const STORAGE_KEY = "svrmon24.basicAuth";
+  const ACCENT_KEY = "svrmon24.accent";
+  const ACCENT_PRESETS = {
+    "#4F46E5": { hover: "#4338CA", soft: "rgba(79, 70, 229, 0.12)", ring: "rgba(79, 70, 229, 0.28)", accent2: "#6366F1" },
+    "#2563EB": { hover: "#1D4ED8", soft: "rgba(37, 99, 235, 0.12)", ring: "rgba(37, 99, 235, 0.28)", accent2: "#3B82F6" },
+    "#0D9488": { hover: "#0F766E", soft: "rgba(13, 148, 136, 0.12)", ring: "rgba(13, 148, 136, 0.28)", accent2: "#0891B2" },
+    "#475569": { hover: "#334155", soft: "rgba(71, 85, 105, 0.12)", ring: "rgba(71, 85, 105, 0.28)", accent2: "#64748B" },
+    "#7C3AED": { hover: "#6D28D9", soft: "rgba(124, 58, 237, 0.12)", ring: "rgba(124, 58, 237, 0.28)", accent2: "#8B5CF6" },
+  };
+  const DEFAULT_ACCENT = "#4F46E5";
   const state = {
     page: 1,
     pageSize: 25,
@@ -35,6 +44,49 @@
     el.classList.add("show");
     clearTimeout(toast._t);
     toast._t = setTimeout(() => el.classList.remove("show"), 4200);
+  }
+
+  function normalizeAccent(value) {
+    const raw = String(value || "").trim().toUpperCase();
+    if (!/^#[0-9A-F]{6}$/.test(raw)) return DEFAULT_ACCENT;
+    return ACCENT_PRESETS[raw] ? raw : DEFAULT_ACCENT;
+  }
+
+  function applyAccent(hex, { persist = true } = {}) {
+    const accent = normalizeAccent(hex);
+    const preset = ACCENT_PRESETS[accent];
+    const root = document.documentElement;
+    root.style.setProperty("--accent", accent);
+    root.style.setProperty("--accent-hover", preset.hover);
+    root.style.setProperty("--accent-dim", preset.hover);
+    root.style.setProperty("--accent-2", preset.accent2);
+    root.style.setProperty("--accent-soft", preset.soft);
+    root.style.setProperty("--accent-ring", preset.ring);
+
+    const select = $("#accentSelect");
+    if (select) select.value = accent;
+    $$(".accent-swatch").forEach((btn) => {
+      const active = normalizeAccent(btn.getAttribute("data-accent")) === accent;
+      btn.setAttribute("aria-pressed", active ? "true" : "false");
+    });
+
+    if (persist) {
+      try {
+        localStorage.setItem(ACCENT_KEY, accent);
+      } catch (_) {
+        /* ignore quota / private mode */
+      }
+    }
+  }
+
+  function restoreAccent() {
+    let saved = DEFAULT_ACCENT;
+    try {
+      saved = localStorage.getItem(ACCENT_KEY) || DEFAULT_ACCENT;
+    } catch (_) {
+      saved = DEFAULT_ACCENT;
+    }
+    applyAccent(saved, { persist: false });
   }
 
   const PAGE_META = {
@@ -1530,9 +1582,18 @@
     $$(".nav-item").forEach((btn) => {
       btn.addEventListener("click", () => showTab(btn.getAttribute("data-tab")));
     });
+    $("#accentSelect")?.addEventListener("change", (e) => {
+      applyAccent(e.target.value);
+    });
+    $$(".accent-swatch").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        applyAccent(btn.getAttribute("data-accent"));
+      });
+    });
   }
 
   document.addEventListener("DOMContentLoaded", () => {
+    restoreAccent();
     loadAuthIntoForm();
     wireEvents();
     showTab("dashboard");

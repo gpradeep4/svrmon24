@@ -115,6 +115,23 @@
             </select>
             <span class="placeholder-note">Not functional yet — no tenant isolation</span>
           </div>
+          <div class="accent-picker" id="accentPicker" title="Choose UI accent colour">
+            <label for="accentSelect">Accent</label>
+            <div class="accent-picker-swatches" role="group" aria-label="Accent colour">
+              <button type="button" class="accent-swatch" data-accent="#4F46E5" style="--swatch:#4F46E5" title="Indigo" aria-label="Indigo accent"></button>
+              <button type="button" class="accent-swatch" data-accent="#2563EB" style="--swatch:#2563EB" title="Blue" aria-label="Blue accent"></button>
+              <button type="button" class="accent-swatch" data-accent="#0D9488" style="--swatch:#0D9488" title="Teal" aria-label="Teal accent"></button>
+              <button type="button" class="accent-swatch" data-accent="#475569" style="--swatch:#475569" title="Slate" aria-label="Slate accent"></button>
+              <button type="button" class="accent-swatch" data-accent="#7C3AED" style="--swatch:#7C3AED" title="Violet" aria-label="Violet accent"></button>
+            </div>
+            <select id="accentSelect" class="accent-picker-select" aria-label="Accent colour">
+              <option value="#4F46E5">Indigo</option>
+              <option value="#2563EB">Blue</option>
+              <option value="#0D9488">Teal</option>
+              <option value="#475569">Slate</option>
+              <option value="#7C3AED">Violet</option>
+            </select>
+          </div>
           <div class="header-chip placeholder" title="Notifications are a visual placeholder" aria-label="Notifications placeholder">
             <span class="chip-ico" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M6 16V10a6 6 0 1 1 12 0v6"/><path d="M4 16h16"/><path d="M10 19a2 2 0 0 0 4 0"/></svg></span>
             Notifications
@@ -362,7 +379,7 @@
 
           <section class="panel">
             <h2>Graph</h2>
-            <p class="hint">Supports multiple parents/children, shared dependencies, and cycles. Upstream = cyan, Downstream = amber, Selected = teal, Both = indigo.</p>
+            <p class="hint">Supports multiple parents/children, shared dependencies, and cycles. Upstream = cyan, Downstream = amber, Selected = accent, Both = indigo.</p>
             <div id="depGraphWrap" class="graph-wrap">
               <svg id="depGraph" xmlns="http://www.w3.org/2000/svg"></svg>
             </div>

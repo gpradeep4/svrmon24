@@ -18,19 +18,20 @@
   --shadow: 0 1px 2px rgba(15, 35, 52, 0.04), 0 8px 22px rgba(15, 35, 52, 0.06);
   --shadow-sm: 0 1px 2px rgba(15, 35, 52, 0.05);
 
-  /* Brand — deep teal sidebar + teal accent */
+  /* Brand — deep teal sidebar + selectable accent (indigo default) */
   --sidebar-bg: #0B3B44;
   --sidebar-bg-2: #0A333B;
   --sidebar-ink: #E8F4F6;
   --sidebar-muted: #9BB8BE;
   --sidebar-hover: rgba(255, 255, 255, 0.07);
-  --sidebar-active: rgba(45, 180, 180, 0.18);
-  --accent: #0D9488;
-  --accent-dim: #0F766E;
-  --accent-2: #0891B2;
-  --accent-3: #4F46E5;
-  --accent-soft: rgba(13, 148, 136, 0.12);
-  --accent-ring: rgba(13, 148, 136, 0.28);
+  --sidebar-active: color-mix(in srgb, var(--accent) 22%, transparent);
+  --accent: #4F46E5;
+  --accent-hover: #4338CA;
+  --accent-dim: #4338CA;
+  --accent-2: #6366F1;
+  --accent-3: #0D9488;
+  --accent-soft: rgba(79, 70, 229, 0.12);
+  --accent-ring: rgba(79, 70, 229, 0.28);
 
   /* Status */
   --ok: #15803D;
@@ -64,7 +65,7 @@ html, body {
   line-height: 1.45;
   color: var(--ink);
   background:
-    radial-gradient(1200px 480px at 85% -10%, rgba(13, 148, 136, 0.06), transparent 60%),
+    radial-gradient(1200px 480px at 85% -10%, color-mix(in srgb, var(--accent) 8%, transparent), transparent 60%),
     linear-gradient(180deg, var(--bg0), var(--bg1));
 }
 
@@ -109,7 +110,7 @@ body { padding: 0; }
   width: 34px;
   height: 34px;
   border-radius: 10px;
-  background: linear-gradient(145deg, #14B8A6, #0E7490);
+  background: linear-gradient(145deg, var(--accent-2), var(--accent));
   display: grid;
   place-items: center;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.22);
@@ -186,7 +187,7 @@ body { padding: 0; }
 .nav-item.active {
   background: var(--sidebar-active);
   color: #fff;
-  box-shadow: inset 3px 0 0 #2DD4BF;
+  box-shadow: inset 3px 0 0 var(--accent);
 }
 
 .nav-item .nav-ico {
@@ -214,9 +215,9 @@ body { padding: 0; }
   font-weight: 700;
   letter-spacing: 0.04em;
   text-transform: uppercase;
-  color: #99F6E4;
-  background: rgba(45, 212, 191, 0.14);
-  border: 1px solid rgba(45, 212, 191, 0.28);
+  color: color-mix(in srgb, var(--accent) 45%, white);
+  background: color-mix(in srgb, var(--accent) 18%, transparent);
+  border: 1px solid color-mix(in srgb, var(--accent) 35%, transparent);
   border-radius: 999px;
   padding: 2px 7px;
 }
@@ -322,6 +323,64 @@ body { padding: 0; }
 .placeholder-note {
   font-size: 0.68rem;
   color: var(--muted);
+}
+
+.accent-picker {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+}
+
+.accent-picker > span,
+.accent-picker label {
+  font-size: 0.65rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--muted);
+  font-weight: 650;
+}
+
+.accent-picker-swatches {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: var(--surface);
+}
+
+.accent-swatch {
+  width: 22px;
+  height: 22px;
+  border-radius: 999px;
+  border: 2px solid transparent;
+  padding: 0;
+  background: var(--swatch, var(--accent));
+  box-shadow: inset 0 0 0 1px rgba(15, 23, 42, 0.12);
+  cursor: pointer;
+}
+
+.accent-swatch:hover:not(:disabled) {
+  background: var(--swatch, var(--accent));
+  box-shadow: inset 0 0 0 1px rgba(15, 23, 42, 0.18), 0 0 0 2px color-mix(in srgb, var(--swatch, var(--accent)) 35%, transparent);
+}
+
+.accent-swatch[aria-pressed="true"] {
+  border-color: var(--ink);
+  box-shadow: inset 0 0 0 1px rgba(15, 23, 42, 0.2), 0 0 0 2px color-mix(in srgb, var(--swatch, var(--accent)) 28%, white);
+}
+
+.accent-picker-select {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
 }
 
 .header-chip {
@@ -538,7 +597,7 @@ button {
 }
 
 button:hover:not(:disabled) {
-  background: var(--accent-dim);
+  background: var(--accent-hover);
 }
 
 button.secondary {
@@ -550,7 +609,7 @@ button.secondary {
 button.ghost {
   background: transparent;
   color: var(--accent-dim);
-  border: 1px solid #99E6DE;
+  border: 1px solid color-mix(in srgb, var(--accent) 42%, white);
 }
 
 button.danger { background: var(--danger); color: #fff; }
@@ -730,8 +789,8 @@ table.inventory tr:hover td {
 }
 
 .placeholder-panel {
-  border: 1px dashed #99E6DE;
-  background: linear-gradient(180deg, #F0FDFA, #F8FAFC);
+  border: 1px dashed color-mix(in srgb, var(--accent) 42%, white);
+  background: linear-gradient(180deg, color-mix(in srgb, var(--accent) 6%, white), #F8FAFC);
   border-radius: 12px;
   padding: 36px 22px;
   text-align: center;
@@ -779,7 +838,7 @@ table.inventory tr:hover td {
   text-transform: uppercase;
   color: var(--accent-dim);
   background: var(--accent-soft);
-  border: 1px solid #99E6DE;
+  border: 1px solid color-mix(in srgb, var(--accent) 42%, white);
   border-radius: 999px;
   padding: 4px 10px;
 }
@@ -816,7 +875,7 @@ table.inventory tr:hover td {
   min-height: 280px;
 }
 
-#depGraph .node-selected { fill: #0D9488; }
+#depGraph .node-selected { fill: var(--accent); }
 #depGraph .node-upstream { fill: #0891B2; }
 #depGraph .node-downstream { fill: #D97706; }
 #depGraph .node-both { fill: #4F46E5; }
@@ -896,14 +955,14 @@ table.inventory tr:hover td {
 
 .kpi-card.accent-grad {
   background:
-    linear-gradient(145deg, rgba(13, 148, 136, 0.10), rgba(8, 145, 178, 0.05) 55%, #FFFFFF 100%);
-  border-color: #B6E4DF;
+    linear-gradient(145deg, color-mix(in srgb, var(--accent) 12%, white), color-mix(in srgb, var(--accent-2) 6%, white) 55%, #FFFFFF 100%);
+  border-color: color-mix(in srgb, var(--accent) 28%, white);
 }
 
 .kpi-card.accent-grad-2 {
   background:
-    linear-gradient(145deg, rgba(79, 70, 229, 0.08), rgba(8, 145, 178, 0.05) 50%, #FFFFFF 100%);
-  border-color: #C7D2FE;
+    linear-gradient(145deg, color-mix(in srgb, var(--accent) 10%, white), color-mix(in srgb, var(--accent-2) 6%, white) 50%, #FFFFFF 100%);
+  border-color: color-mix(in srgb, var(--accent) 32%, white);
 }
 
 .kpi-card .label {
@@ -1029,7 +1088,7 @@ table.inventory tr:hover td {
 .spinner {
   width: 18px;
   height: 18px;
-  border: 2px solid #99E6DE;
+  border: 2px solid color-mix(in srgb, var(--accent) 35%, white);
   border-top-color: var(--accent);
   border-radius: 50%;
   animation: spin 0.7s linear infinite;
