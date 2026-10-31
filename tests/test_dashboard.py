@@ -130,6 +130,10 @@ def test_ui_contains_dashboard_and_required_columns() -> None:
     assert 'id="accentPicker"' in html or 'id="accentSelect"' in html
     assert "#2563EB" in html and "#0D9488" in html and "#475569" in html and "#7C3AED" in html
     assert "--sidebar-bg" in css
+    assert "--sidebar-border" in css
+    assert "#0F172A" in css and "#1E1B4B" in css
+    assert "#0B3B44" not in css and "#0A333B" not in css
+    assert "sidebarBg" in js and "--sidebar-bg" in js
     assert "#EEF1F4" in css and "#FFFFFF" in css
     assert "fonts.googleapis.com" not in html
     assert 'data-tab="servers"' in html

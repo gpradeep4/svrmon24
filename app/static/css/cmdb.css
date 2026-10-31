@@ -18,11 +18,12 @@
   --shadow: 0 1px 2px rgba(15, 35, 52, 0.04), 0 8px 22px rgba(15, 35, 52, 0.06);
   --shadow-sm: 0 1px 2px rgba(15, 35, 52, 0.05);
 
-  /* Brand — deep teal sidebar + selectable accent (indigo default) */
-  --sidebar-bg: #0B3B44;
-  --sidebar-bg-2: #0A333B;
-  --sidebar-ink: #E8F4F6;
-  --sidebar-muted: #9BB8BE;
+  /* Brand — deep navy/indigo sidebar + selectable accent (indigo default) */
+  --sidebar-bg: #0F172A;
+  --sidebar-bg-2: #1E1B4B;
+  --sidebar-border: rgba(148, 163, 184, 0.16);
+  --sidebar-ink: #E2E8F0;
+  --sidebar-muted: #94A3B8;
   --sidebar-hover: rgba(255, 255, 255, 0.07);
   --sidebar-active: color-mix(in srgb, var(--accent) 22%, transparent);
   --accent: #4F46E5;
@@ -77,7 +78,7 @@ body { padding: 0; }
   min-height: 100vh;
 }
 
-/* —— Sidebar (deep teal) —— */
+/* —— Sidebar (deep navy / indigo) —— */
 .sidebar {
   position: sticky;
   top: 0;
@@ -88,7 +89,7 @@ body { padding: 0; }
   padding: 18px 12px 14px;
   background:
     linear-gradient(180deg, var(--sidebar-bg) 0%, var(--sidebar-bg-2) 100%);
-  border-right: 1px solid rgba(255, 255, 255, 0.06);
+  border-right: 1px solid var(--sidebar-border);
   z-index: 20;
   color: var(--sidebar-ink);
 }
@@ -133,7 +134,7 @@ body { padding: 0; }
   font-size: 1.28rem;
   font-weight: 700;
   letter-spacing: -0.02em;
-  color: #F4FBFC;
+  color: #F8FAFC;
 }
 
 .brand .tagline {
@@ -159,7 +160,7 @@ body { padding: 0; }
   font-weight: 700;
   letter-spacing: 0.1em;
   text-transform: uppercase;
-  color: #7FA3AA;
+  color: var(--sidebar-muted);
 }
 
 .nav-item {
@@ -172,7 +173,7 @@ body { padding: 0; }
   border-radius: 10px;
   padding: 9px 11px;
   background: transparent;
-  color: #D5E8EC;
+  color: #CBD5E1;
   font-weight: 600;
   font-size: 0.9rem;
   cursor: pointer;
@@ -224,7 +225,7 @@ body { padding: 0; }
 
 .sidebar-foot {
   padding: 10px 6px 2px;
-  border-top: 1px solid rgba(255, 255, 255, 0.08);
+  border-top: 1px solid var(--sidebar-border);
 }
 
 .sim-pill {
