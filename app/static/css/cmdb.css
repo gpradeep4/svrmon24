@@ -1,11 +1,11 @@
 :root {
-  /* Surfaces */
+  /* Surfaces — warm light grey page (no teal/green wash) */
   --bg0: #EEF1F4;
-  --bg1: #E8ECF0;
+  --bg1: #F5F7FB;
   --surface: #FFFFFF;
-  --surface-tint: #F7FAFB;
-  --surface-2: #F3F6F8;
-  --surface-3: #ECF1F4;
+  --surface-tint: #F5F7FB;
+  --surface-2: #F0F3F7;
+  --surface-3: #E8ECF2;
 
   /* Ink */
   --ink: #1A2332;
@@ -30,7 +30,8 @@
   --accent-hover: #4338CA;
   --accent-dim: #4338CA;
   --accent-2: #6366F1;
-  --accent-3: #0D9488;
+  /* Companion soft fills stay indigo-family so Teal accent never paints chrome green */
+  --accent-3: #6366F1;
   --accent-soft: rgba(79, 70, 229, 0.12);
   --accent-ring: rgba(79, 70, 229, 0.28);
 
@@ -65,8 +66,9 @@ html, body {
   font-size: 15px;
   line-height: 1.45;
   color: var(--ink);
+  /* Neutral grey canvas only — accent must not tint the page (Teal stays button/nav only) */
   background:
-    radial-gradient(1200px 480px at 85% -10%, color-mix(in srgb, var(--accent) 8%, transparent), transparent 60%),
+    radial-gradient(1200px 480px at 85% -10%, rgba(15, 23, 42, 0.035), transparent 60%),
     linear-gradient(180deg, var(--bg0), var(--bg1));
 }
 
@@ -791,7 +793,7 @@ table.inventory tr:hover td {
 
 .placeholder-panel {
   border: 1px dashed color-mix(in srgb, var(--accent) 42%, white);
-  background: linear-gradient(180deg, color-mix(in srgb, var(--accent) 6%, white), #F8FAFC);
+  background: linear-gradient(180deg, #F5F7FB, #FFFFFF);
   border-radius: 12px;
   padding: 36px 22px;
   text-align: center;
@@ -954,16 +956,17 @@ table.inventory tr:hover td {
   overflow: hidden;
 }
 
+/* Controlled KPI gradients: fixed indigo/slate cool greys (not --accent) so Teal never greens cards */
 .kpi-card.accent-grad {
   background:
-    linear-gradient(145deg, color-mix(in srgb, var(--accent) 12%, white), color-mix(in srgb, var(--accent-2) 6%, white) 55%, #FFFFFF 100%);
-  border-color: color-mix(in srgb, var(--accent) 28%, white);
+    linear-gradient(145deg, #EEF2FF 0%, #F5F7FB 55%, #FFFFFF 100%);
+  border-color: #C7D2FE;
 }
 
 .kpi-card.accent-grad-2 {
   background:
-    linear-gradient(145deg, color-mix(in srgb, var(--accent) 10%, white), color-mix(in srgb, var(--accent-2) 6%, white) 50%, #FFFFFF 100%);
-  border-color: color-mix(in srgb, var(--accent) 32%, white);
+    linear-gradient(145deg, #F1F5F9 0%, #F5F7FB 50%, #FFFFFF 100%);
+  border-color: #CBD5E1;
 }
 
 .kpi-card .label {

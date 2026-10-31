@@ -133,8 +133,10 @@ def test_ui_contains_dashboard_and_required_columns() -> None:
     assert "--sidebar-border" in css
     assert "#0F172A" in css and "#1E1B4B" in css
     assert "#0B3B44" not in css and "#0A333B" not in css
+    assert "#134E4A" not in js and "#0B1C1F" not in js
     assert "sidebarBg" in js and "--sidebar-bg" in js
-    assert "#EEF1F4" in css and "#FFFFFF" in css
+    assert "#EEF1F4" in css and "#F5F7FB" in css and "#FFFFFF" in css
+    assert "color-mix(in srgb, var(--accent) 8%, transparent)" not in css
     assert "fonts.googleapis.com" not in html
     assert 'data-tab="servers"' in html
     assert 'data-tab="network"' in html
