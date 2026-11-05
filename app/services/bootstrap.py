@@ -1,4 +1,4 @@
-"""Startup / CLI bootstrap helpers for tenancy (Master Phase 5)."""
+"""Startup / CLI bootstrap helpers for tenancy (Master Phase 5–6)."""
 
 from __future__ import annotations
 
@@ -7,6 +7,7 @@ from typing import Any
 
 from ..db import DatabaseUnavailableError, get_database, ping_database
 from ..tenancy import ISOLATION_ENFORCED, MIGRATION_TENANT_ID
+from . import cmdb_migrate
 from . import memberships as memberships_service
 from . import tenant_indexes
 from . import tenants as tenants_service
@@ -16,7 +17,7 @@ logger = logging.getLogger(__name__)
 
 
 def ensure_tenancy_ready() -> dict[str, Any]:
-    """Idempotent seed: migration tenant, indexes, null tenant_id backfill.
+    """Idempotent seed: migration tenant, indexes, backfill, typed CMDB migrate.
 
     Safe when MongoDB is down — returns a structured status instead of raising.
     """
@@ -38,12 +39,16 @@ def ensure_tenancy_ready() -> dict[str, Any]:
         backfill = tenant_indexes.backfill_null_tenant_ids(
             db, tenant_id=MIGRATION_TENANT_ID
         )
+        typed_migrate = cmdb_migrate.migrate_components_to_typed(
+            db, default_tenant_id=MIGRATION_TENANT_ID, remove_legacy=False
+        )
         return {
             "ok": True,
             "migration_tenant_id": tenant.get("tenant_id"),
             "migration_tenant_display_name": tenant.get("display_name"),
             "tenant_id_indexes": tenant_idx,
             "backfill": backfill,
+            "typed_cmdb_migrate": typed_migrate,
             "isolation_enforced": ISOLATION_ENFORCED,
         }
     except DatabaseUnavailableError as exc:

@@ -63,9 +63,11 @@ def _fail(msg: str) -> None:
 def wipe_demo() -> dict[str, int]:
     """Delete only demo-* / demo_ sample records. Leaves other user data alone."""
     from app.db import get_database
+    from app.tenancy import TYPED_CMDB_COLLECTIONS
 
     db = get_database()
-    counts = {
+    demo_component_filter = {"component_id": {"$regex": f"^{DEMO_PREFIX}"}}
+    counts: dict[str, int] = {
         "diagnostics": db["diagnostic_history"].delete_many(
             {
                 "$or": [
@@ -78,13 +80,19 @@ def wipe_demo() -> dict[str, int]:
         "relationships": db["cmdb_relationships"].delete_many(
             {"relationship_id": {"$regex": f"^{DEMO_PREFIX}"}}
         ).deleted_count,
-        "components": db["components"].delete_many(
-            {"component_id": {"$regex": f"^{DEMO_PREFIX}"}}
-        ).deleted_count,
         "custom_fields": db["custom_field_definitions"].delete_many(
             {"field_key": {"$regex": f"^{DEMO_FIELD_PREFIX}"}}
         ).deleted_count,
     }
+    typed_wiped = 0
+    for name in TYPED_CMDB_COLLECTIONS:
+        n = db[name].delete_many(demo_component_filter).deleted_count
+        counts[name] = n
+        typed_wiped += n
+    legacy_wiped = db["components"].delete_many(demo_component_filter).deleted_count
+    counts["components_legacy"] = legacy_wiped
+    # Total CI docs removed (typed primary + any leftover legacy rows).
+    counts["components"] = typed_wiped + legacy_wiped
     return counts
 
 

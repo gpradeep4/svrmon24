@@ -4,13 +4,13 @@ AI-assisted infrastructure CMDB, dependency mapping, **SIMULATED** diagnostics, 
 
 Stack: **FastAPI + Uvicorn + MongoDB (PyMongo) + provider-neutral OIDC** (HTTP Basic optional via feature flag). Diagnostics never contact remote hosts and never execute shell/SQL/network scans.
 
-## Features (through Master Phase 5)
+## Features (through Master Phase 6)
 
 | Area | Capability |
 | --- | --- |
 | Auth / ops | OIDC (Auth Code + PKCE), feature-flagged HTTP Basic, `/health`, `/api/status`, structured logging |
 | Tenancy | Hard `tenant_id` isolation on CMDB/relationships/custom-fields/diagnostics/dashboard; migration tenant **SVRMON24 Legacy** (`tenant-svrmon24-legacy`); Basic scoped to migration tenant (no auth bypass); org switcher still disabled |
-| CMDB | Server / Network / Middleware / Database / Application inventory |
+| CMDB | Typed Mongo collections (`cmdb_servers`, `cmdb_network`, `cmdb_middleware`, `cmdb_databases`, `cmdb_applications`) behind stable `/api/components*` facade; OS Family/Version and Product Type/Version stay separate |
 | Custom fields | Per-type (or global) field definitions |
 | Relationships | HOSTED_ON / DEPENDS_ON / CONNECTS_TO / ROUTES_TO |
 | Dependencies | Upstream / downstream traversal, cycle detection, impact (“potentially affected”) |
@@ -96,12 +96,19 @@ When Ollama is unavailable, diagnostic analysis uses a deterministic rule-based 
 ### Tenancy (Phase 5 — hard isolation)
 
 - Startup (and `python scripts/ensure_migration_tenant.py`) idempotently seeds `tenant-svrmon24-legacy` / **SVRMON24 Legacy**
-- Startup / `python scripts/backfill_tenant_id.py` backfills missing/null `tenant_id` → `tenant-svrmon24-legacy` on `components`, `custom_field_definitions`, `cmdb_relationships`, `diagnostic_history`
+- Startup / `python scripts/backfill_tenant_id.py` backfills missing/null `tenant_id` → `tenant-svrmon24-legacy` on typed `cmdb_*`, legacy `components`, `custom_field_definitions`, `cmdb_relationships`, `diagnostic_history`
 - Every list/get/update/delete/dashboard/deps/diag query is scoped to the current tenant; cross-tenant access returns **404**
 - Writes require `tenant_id` (stamped from the session tenant)
 - `component_id` remains **globally** unique; compound indexes include `tenant_id` for scoped lists
 - APIs: `GET /api/tenants`, `GET /api/tenants/current`, `GET /api/tenants/{id}`, `GET /api/memberships` — org switcher remains **disabled**; `isolation_enforced=true`
 - `/api/me` includes `current_tenant_id` + `current_tenant_display_name` for the header banner
+
+### Typed CMDB (Phase 6)
+
+- Inventory documents live in typed collections: `cmdb_servers`, `cmdb_network`, `cmdb_middleware`, `cmdb_databases`, `cmdb_applications`
+- `/api/components*` remains the stable facade (service routes by `component_type`)
+- Startup / `python scripts/migrate_components_to_typed.py` idempotently copies legacy `components` → typed collections (legacy retained unless `--remove-legacy`)
+- Demo seed writes via the facade into typed collections; wipe clears demo rows from typed + legacy
 
 ### Important: one browser host only
 

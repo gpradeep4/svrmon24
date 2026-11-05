@@ -45,7 +45,7 @@ def other_tenant_docs(clean_db):
         },
         upsert=True,
     )
-    db["components"].insert_one(
+    db["cmdb_servers"].insert_one(
         {
             "component_id": OTHER_COMPONENT_ID,
             "component_type": "Server",
@@ -118,7 +118,6 @@ def other_tenant_docs(clean_db):
 
 def test_backfill_null_tenant_ids(clean_db) -> None:
     from app.db import get_database
-    from app.services import tenant_indexes
     from app.services import tenants as tenants_service
     from app.services.bootstrap import ensure_tenancy_ready
 
@@ -143,6 +142,11 @@ def test_backfill_null_tenant_ids(clean_db) -> None:
     doc = db["components"].find_one({"component_id": "legacy-null-tenant"})
     assert doc is not None
     assert doc["tenant_id"] == MIGRATION_TENANT_ID
+    # Phase 6: bootstrap also migrates into typed collections
+    typed = db["cmdb_servers"].find_one({"component_id": "legacy-null-tenant"})
+    assert typed is not None
+    assert typed["tenant_id"] == MIGRATION_TENANT_ID
+    assert result.get("typed_cmdb_migrate", {}).get("migrated", 0) >= 1
 
 
 def test_basic_cannot_read_other_tenant_component(
@@ -174,10 +178,10 @@ def test_basic_cannot_update_or_delete_other_tenant(
         f"/api/components/{cid}?confirmed=true", headers=auth_headers
     )
     assert deleted.status_code == 404
-    # Still present under other tenant in DB
+    # Still present under other tenant in typed CMDB collection
     from app.db import get_database
 
-    doc = get_database()["components"].find_one({"component_id": cid})
+    doc = get_database()["cmdb_servers"].find_one({"component_id": cid})
     assert doc is not None
     assert doc["tenant_id"] == OTHER_TENANT_ID
     assert doc["name"] == "other-tenant-server"

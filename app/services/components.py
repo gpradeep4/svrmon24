@@ -1,4 +1,9 @@
-"""CMDB component inventory persistence and queries (tenant-scoped)."""
+"""CMDB component inventory — typed collections with stable API facade.
+
+Master Phase 6: documents live in ``cmdb_servers`` / ``cmdb_network`` /
+``cmdb_middleware`` / ``cmdb_databases`` / ``cmdb_applications``. The public
+``/api/components*`` surface is unchanged; callers still pass ``tenant_id``.
+"""
 
 from __future__ import annotations
 
@@ -8,7 +13,6 @@ from datetime import datetime, timezone
 from typing import Any
 
 from pymongo import ASCENDING, DESCENDING
-from pymongo.collection import Collection
 from pymongo.errors import DuplicateKeyError
 
 from ..db import require_database
@@ -25,9 +29,20 @@ from ..models.components import (
 from ..serialization import serialize_document
 from ..tenancy import merge_tenant_filter, require_tenant_id, stamp_tenant_id, tenant_filter
 from . import custom_fields as custom_fields_service
+from .cmdb_collections import (
+    LEGACY_COMPONENTS_COLLECTION,
+    TYPED_CMDB_COLLECTIONS,
+    collection_name_for_type,
+    component_id_taken,
+    ensure_typed_cmdb_indexes,
+    find_raw_across_typed,
+    get_typed_collection,
+    typed_collection_names,
+)
 from .relationships import relationship_delete_warning
 
-COLLECTION = "components"
+# Kept for callers/tests that still import the legacy name.
+COLLECTION = LEGACY_COMPONENTS_COLLECTION
 
 _PREFIX: dict[ComponentType, str] = {
     ComponentType.SERVER: "srv",
@@ -45,17 +60,15 @@ class ComponentError(Exception):
         self.status_code = status_code
 
 
-def _collection() -> Collection:
-    coll = require_database()[COLLECTION]
-    # component_id remains GLOBAL unique (preference) — not per-tenant.
-    coll.create_index([("component_id", ASCENDING)], unique=True)
-    coll.create_index([("component_type", ASCENDING)])
-    coll.create_index([("environment", ASCENDING)])
-    coll.create_index([("status", ASCENDING)])
-    coll.create_index([("name", ASCENDING)])
-    coll.create_index([("hostname", ASCENDING)])
-    coll.create_index([("tenant_id", ASCENDING)], name="tenant_id_idx")
-    return coll
+def ensure_component_indexes() -> dict[str, list[str]]:
+    """Ensure indexes on typed CMDB collections (+ legacy source indexes)."""
+    db = require_database()
+    created = ensure_typed_cmdb_indexes(db)
+    legacy = db[LEGACY_COMPONENTS_COLLECTION]
+    legacy.create_index([("component_id", ASCENDING)], unique=True)
+    legacy.create_index([("tenant_id", ASCENDING)], name="tenant_id_idx")
+    created[LEGACY_COMPONENTS_COLLECTION] = ["component_id_1", "tenant_id_idx"]
+    return created
 
 
 def _now() -> datetime:
@@ -76,44 +89,74 @@ def ensure_type_keys(doc: dict[str, Any]) -> dict[str, Any]:
     return doc
 
 
-def get_component(component_id: str, *, tenant_id: str) -> dict[str, Any] | None:
-    tid = require_tenant_id(tenant_id)
-    doc = _collection().find_one(
-        {"component_id": component_id, **tenant_filter(tid)}
-    )
-    if doc is None:
-        return None
+def _serialize(doc: dict[str, Any]) -> dict[str, Any]:
     return serialize_document(ensure_type_keys(doc))  # type: ignore[return-value]
+
+
+def _find_scoped(
+    component_id: str, *, tenant_id: str
+) -> tuple[str, dict[str, Any]] | None:
+    """Find a component in typed collections, then legacy fallback."""
+    tid = require_tenant_id(tenant_id)
+    db = require_database()
+    scoped = tenant_filter(tid)
+    hit = find_raw_across_typed(db, component_id, extra_filter=scoped)
+    if hit is not None:
+        return hit
+    # Transitional adapter: unmigrated rows still readable via facade.
+    legacy = db[LEGACY_COMPONENTS_COLLECTION].find_one(
+        {"component_id": component_id, **scoped}
+    )
+    if legacy is not None:
+        return LEGACY_COMPONENTS_COLLECTION, legacy
+    return None
+
+
+def get_component(component_id: str, *, tenant_id: str) -> dict[str, Any] | None:
+    require_tenant_id(tenant_id)
+    hit = _find_scoped(component_id, tenant_id=tenant_id)
+    if hit is None:
+        return None
+    _, doc = hit
+    return _serialize(doc)
 
 
 def create_component(payload: ComponentCreate, *, tenant_id: str) -> dict[str, Any]:
     tid = require_tenant_id(tenant_id)
+    ensure_component_indexes()
     custom_fields_service.validate_component_custom_fields(
         payload.component_type, payload.custom_fields or {}, tenant_id=tid
     )
     component_id = payload.component_id or generate_component_id(payload.component_type)
+    db = require_database()
+    if component_id_taken(db, component_id):
+        raise ComponentError(
+            f"Component ID '{component_id}' already exists",
+            status_code=409,
+        )
     now = _now()
     doc = build_component_document(payload, component_id=component_id, now=now)
     stamp_tenant_id(doc, tenant_id=tid)
+    coll = get_typed_collection(db, payload.component_type)
     try:
-        _collection().insert_one(doc)
+        coll.insert_one(doc)
     except DuplicateKeyError as exc:
         raise ComponentError(
             f"Component ID '{component_id}' already exists",
             status_code=409,
         ) from exc
-    return serialize_document(ensure_type_keys(doc))  # type: ignore[return-value]
+    return _serialize(doc)
 
 
 def update_component(
     component_id: str, payload: ComponentUpdate, *, tenant_id: str
 ) -> dict[str, Any]:
     tid = require_tenant_id(tenant_id)
-    coll = _collection()
-    existing = coll.find_one({"component_id": component_id, **tenant_filter(tid)})
-    if existing is None:
+    hit = _find_scoped(component_id, tenant_id=tid)
+    if hit is None:
         raise ComponentError(f"Component '{component_id}' not found", status_code=404)
 
+    coll_name, existing = hit
     existing = ensure_type_keys(existing)
     try:
         updated = apply_component_update(existing, payload, now=_now())
@@ -127,9 +170,27 @@ def update_component(
 
     to_set = {k: v for k, v in updated.items() if k != "_id"}
     stamp_tenant_id(to_set, tenant_id=tid)
-    coll.update_one(
-        {"component_id": component_id, **tenant_filter(tid)}, {"$set": to_set}
-    )
+    target_name = collection_name_for_type(ctype)
+
+    db = require_database()
+    if coll_name == LEGACY_COMPONENTS_COLLECTION:
+        # Promote on write: persist to typed collection and leave legacy copy.
+        try:
+            db[target_name].update_one(
+                {"component_id": component_id},
+                {"$set": to_set},
+                upsert=True,
+            )
+        except DuplicateKeyError as exc:
+            raise ComponentError(
+                f"Component ID '{component_id}' already exists",
+                status_code=409,
+            ) from exc
+    else:
+        db[coll_name].update_one(
+            {"component_id": component_id, **tenant_filter(tid)},
+            {"$set": to_set},
+        )
     return get_component(component_id, tenant_id=tid)  # type: ignore[return-value]
 
 
@@ -157,10 +218,14 @@ def delete_component(
             status_code=400,
         )
     preview = delete_preview(component_id, tenant_id=tid)
-    result = _collection().delete_one(
-        {"component_id": component_id, **tenant_filter(tid)}
-    )
-    if result.deleted_count == 0:
+    db = require_database()
+    deleted = 0
+    for name in (*TYPED_CMDB_COLLECTIONS, LEGACY_COMPONENTS_COLLECTION):
+        result = db[name].delete_one(
+            {"component_id": component_id, **tenant_filter(tid)}
+        )
+        deleted += int(result.deleted_count)
+    if deleted == 0:
         raise ComponentError(f"Component '{component_id}' not found", status_code=404)
     return {
         "deleted": True,
@@ -220,6 +285,7 @@ def list_components(
     sort_dir: str = "desc",
 ) -> dict[str, Any]:
     tid = require_tenant_id(tenant_id)
+    ensure_component_indexes()
     page = max(1, page)
     page_size = min(max(1, page_size), 200)
     allowed_sort = {
@@ -240,29 +306,39 @@ def list_components(
         sort_by = "updated_at"
     direction = DESCENDING if sort_dir.lower() == "desc" else ASCENDING
 
-    query = merge_tenant_filter(
-        _build_query(
-            q=q,
-            component_type=component_type,
-            environment=environment,
-            status=status,
-            os_family=os_family,
-            product_type=product_type,
-        ),
-        tid,
+    base_query = _build_query(
+        q=q,
+        component_type=component_type,
+        environment=environment,
+        status=status,
+        os_family=os_family,
+        product_type=product_type,
     )
-    coll = _collection()
-    total = coll.count_documents(query)
-    cursor = (
-        coll.find(query)
-        .sort(sort_by, direction)
-        .skip((page - 1) * page_size)
-        .limit(page_size)
-    )
+    query = merge_tenant_filter(base_query, tid)
+    names = typed_collection_names(component_type)
+
+    db = require_database()
+    primary = names[0]
+    match_stage = {"$match": query}
+    pipeline: list[dict[str, Any]] = [match_stage]
+    for other in names[1:]:
+        pipeline.append(
+            {"$unionWith": {"coll": other, "pipeline": [match_stage]}}
+        )
+
+    count_rows = list(db[primary].aggregate([*pipeline, {"$count": "total"}]))
+    total = int(count_rows[0]["total"]) if count_rows else 0
+
+    data_pipeline = [
+        *pipeline,
+        {"$sort": {sort_by: direction}},
+        {"$skip": (page - 1) * page_size},
+        {"$limit": page_size},
+    ]
     items: list[dict[str, Any]] = []
     inventory: list[dict[str, Any]] = []
-    for raw in cursor:
-        doc = serialize_document(ensure_type_keys(raw))
+    for raw in db[primary].aggregate(data_pipeline):
+        doc = _serialize(raw)
         assert doc is not None
         items.append(doc)
         inventory.append(to_inventory_row(doc).model_dump())
@@ -275,6 +351,8 @@ def list_components(
         "items": items,
         "inventory": inventory,
         "tenant_id": tid,
+        "storage": "typed_cmdb",
+        "collections": list(names),
     }
 
 

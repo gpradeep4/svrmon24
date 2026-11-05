@@ -6,23 +6,44 @@ from typing import Any
 
 from ..db import get_database
 from ..serialization import serialize_document
-from ..tenancy import require_tenant_id, tenant_filter
+from ..tenancy import TYPED_CMDB_COLLECTIONS, require_tenant_id, tenant_filter
 
 
-def _count_by(collection_name: str, field: str, *, tenant_id: str) -> dict[str, int]:
+def _count_by_typed(field: str, *, tenant_id: str) -> dict[str, int]:
+    """Aggregate a field across all typed CMDB collections."""
     db = get_database()
     tid = require_tenant_id(tenant_id)
-    pipeline = [
-        {"$match": tenant_filter(tid)},
-        {"$group": {"_id": f"${field}", "count": {"$sum": 1}}},
-        {"$sort": {"count": -1}},
-    ]
     out: dict[str, int] = {}
-    for row in db[collection_name].aggregate(pipeline):
-        key = row.get("_id")
-        label = "unknown" if key is None or key == "" else str(key)
-        out[label] = int(row.get("count") or 0)
-    return out
+    match = {"$match": tenant_filter(tid)}
+    for name in TYPED_CMDB_COLLECTIONS:
+        pipeline = [
+            match,
+            {"$group": {"_id": f"${field}", "count": {"$sum": 1}}},
+        ]
+        for row in db[name].aggregate(pipeline):
+            key = row.get("_id")
+            label = "unknown" if key is None or key == "" else str(key)
+            out[label] = out.get(label, 0) + int(row.get("count") or 0)
+    return dict(sorted(out.items(), key=lambda kv: (-kv[1], kv[0])))
+
+
+def _count_typed_components(*, tenant_id: str) -> int:
+    db = get_database()
+    tid = require_tenant_id(tenant_id)
+    scope = tenant_filter(tid)
+    return sum(db[name].count_documents(scope) for name in TYPED_CMDB_COLLECTIONS)
+
+
+def _find_typed(
+    query: dict[str, Any],
+    projection: dict[str, Any] | None = None,
+) -> list[dict[str, Any]]:
+    db = get_database()
+    rows: list[dict[str, Any]] = []
+    for name in TYPED_CMDB_COLLECTIONS:
+        cursor = db[name].find(query, projection)
+        rows.extend(list(cursor))
+    return rows
 
 
 def get_dashboard_summary(
@@ -32,15 +53,14 @@ def get_dashboard_summary(
     tid = require_tenant_id(tenant_id)
     recent_limit = max(1, min(int(recent_limit), 50))
     db = get_database()
-    components = db["components"]
     relationships = db["cmdb_relationships"]
     diagnostics = db["diagnostic_history"]
     scope = tenant_filter(tid)
 
-    total_components = components.count_documents(scope)
+    total_components = _count_typed_components(tenant_id=tid)
     total_relationships = relationships.count_documents(scope)
-    by_type = _count_by("components", "component_type", tenant_id=tid)
-    by_environment = _count_by("components", "environment", tenant_id=tid)
+    by_type = _count_by_typed("component_type", tenant_id=tid)
+    by_environment = _count_by_typed("environment", tenant_id=tid)
 
     recent_diagnostics = list(
         diagnostics.find(scope, {"_id": 0})
@@ -89,10 +109,17 @@ def get_dashboard_summary(
 
     review_map: dict[str, dict[str, Any]] = {}
 
-    for doc in components.find(
+    for doc in _find_typed(
         {**scope, "status": {"$in": ["inactive", "decommissioned", "unknown"]}},
-        {"_id": 0, "component_id": 1, "name": 1, "hostname": 1, "component_type": 1,
-         "environment": 1, "status": 1},
+        {
+            "_id": 0,
+            "component_id": 1,
+            "name": 1,
+            "hostname": 1,
+            "component_type": 1,
+            "environment": 1,
+            "status": 1,
+        },
     ):
         cid = doc.get("component_id")
         if not cid:
@@ -108,8 +135,13 @@ def get_dashboard_summary(
 
     for rel in relationships.find(
         {**scope, "verification_status": {"$ne": "verified"}},
-        {"_id": 0, "source_component_id": 1, "target_component_id": 1,
-         "relationship_id": 1, "verification_status": 1},
+        {
+            "_id": 0,
+            "source_component_id": 1,
+            "target_component_id": 1,
+            "relationship_id": 1,
+            "verification_status": 1,
+        },
     ):
         for side in ("source_component_id", "target_component_id"):
             cid = rel.get(side)
@@ -161,10 +193,17 @@ def get_dashboard_summary(
         if row.get("name") is None or row.get("status") is None
     ]
     if missing_ids:
-        for doc in components.find(
+        for doc in _find_typed(
             {**scope, "component_id": {"$in": missing_ids}},
-            {"_id": 0, "component_id": 1, "name": 1, "hostname": 1,
-             "component_type": 1, "environment": 1, "status": 1},
+            {
+                "_id": 0,
+                "component_id": 1,
+                "name": 1,
+                "hostname": 1,
+                "component_type": 1,
+                "environment": 1,
+                "status": 1,
+            },
         ):
             cid = doc["component_id"]
             entry = review_map[cid]
@@ -190,6 +229,7 @@ def get_dashboard_summary(
             "recent_findings": findings,
             "critical_components_requiring_review": critical,
             "tenant_id": tid,
+            "cmdb_storage": "typed",
             "labels": {
                 "diagnostics_mode": "SIMULATED",
                 "findings_banner": (

@@ -1,9 +1,12 @@
-"""Shared tenancy constants and helpers (Master Phase 5 — hard isolation).
+"""Shared tenancy constants and helpers (Master Phase 5–6).
 
 Phase 5 makes ``tenant_id`` mandatory on CMDB collections, scopes every
 read/write/aggregate, and denies cross-tenant access. ``component_id`` remains
 **globally** unique. Organization switching stays disabled until multi-org UX
 is explicitly enabled with isolation tests green.
+
+Phase 6 adds typed ``cmdb_*`` collections; legacy ``components`` remains in the
+tenanted set as a migration source / transitional fallback.
 """
 
 from __future__ import annotations
@@ -22,9 +25,19 @@ MEMBERSHIP_ROLES: frozenset[str] = frozenset(
     {MEMBERSHIP_ROLE_MEMBER, MEMBERSHIP_ROLE_ADMIN}
 )
 
+# Typed CMDB collections (Master Phase 6) + legacy polymorphic source.
+TYPED_CMDB_COLLECTIONS: tuple[str, ...] = (
+    "cmdb_servers",
+    "cmdb_network",
+    "cmdb_middleware",
+    "cmdb_databases",
+    "cmdb_applications",
+)
+
 # Collections that require tenant_id scoping.
 TENANTED_COLLECTIONS: tuple[str, ...] = (
-    "components",
+    *TYPED_CMDB_COLLECTIONS,
+    "components",  # legacy polymorphic — migration source / fallback
     "custom_field_definitions",
     "cmdb_relationships",
     "diagnostic_history",

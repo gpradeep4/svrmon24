@@ -1,4 +1,4 @@
-"""Index planning for shared-DB tenancy (Master Phase 5 — hard isolation).
+"""Index planning for shared-DB tenancy (Master Phase 5–6).
 
 Phase 5:
 
@@ -7,6 +7,11 @@ Phase 5:
 3. Enforce ``tenant_id`` filters on every read/write/aggregate
 4. Keep compound indexes with ``tenant_id`` for scoped lists
 5. Keep ``component_id`` **globally** unique (preference)
+
+Phase 6:
+
+6. Typed ``cmdb_*`` collections get the same tenant compound indexes
+7. Legacy ``components`` indexes retained for migration / fallback
 """
 
 from __future__ import annotations
@@ -21,20 +26,28 @@ from ..tenancy import (
     MIGRATION_TENANT_ID,
     MISSING_TENANT_ID_FILTER,
     TENANTED_COLLECTIONS,
+    TYPED_CMDB_COLLECTIONS,
 )
+from .cmdb_collections import ensure_typed_cmdb_indexes
 
 
 def ensure_tenant_id_indexes(db: Database) -> dict[str, list[str]]:
     """Create tenant_id (+ compound) indexes on tenanted collections.
 
-    Does **not** change uniqueness of ``component_id`` — it stays globally unique.
+    Does **not** change uniqueness of ``component_id`` — it stays globally unique
+    (per typed collection unique index + service-layer cross-collection checks).
     """
     created: dict[str, list[str]] = {}
+    created.update(ensure_typed_cmdb_indexes(db))
+
     for name in TENANTED_COLLECTIONS:
+        if name in TYPED_CMDB_COLLECTIONS:
+            continue  # already indexed above
         coll = db[name]
         coll.create_index([("tenant_id", ASCENDING)], name="tenant_id_idx")
         names = ["tenant_id_idx"]
         if name == "components":
+            coll.create_index([("component_id", ASCENDING)], unique=True)
             coll.create_index(
                 [("tenant_id", ASCENDING), ("component_type", ASCENDING)],
                 name="tenant_component_type_idx",
@@ -49,6 +62,7 @@ def ensure_tenant_id_indexes(db: Database) -> dict[str, list[str]]:
             )
             names.extend(
                 [
+                    "component_id_1",
                     "tenant_component_type_idx",
                     "tenant_environment_idx",
                     "tenant_status_idx",
@@ -125,4 +139,14 @@ Phase 5 migration (executed):
 5. Keep unique index on component_id (GLOBAL)
 6. Cross-tenant denial returns 404; Basic auth still scoped to migration tenant
 7. Org switcher remains disabled until multi-org UX is intentionally enabled
+"""
+
+PHASE6_MIGRATION_NOTES = """
+Phase 6 migration (typed CMDB):
+
+1. ensure_typed_cmdb_indexes() on cmdb_servers/network/middleware/databases/applications
+2. migrate_components_to_typed() copies legacy components → typed collections
+3. Service layer writes/reads typed collections; /api/components* facade unchanged
+4. Legacy components retained as migration source / read fallback (unless --remove-legacy)
+5. tenant_id still mandatory; component_id still globally unique across types
 """
