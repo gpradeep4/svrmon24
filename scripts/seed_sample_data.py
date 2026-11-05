@@ -35,14 +35,17 @@ from app.services import components as components_service
 from app.services import custom_fields as custom_fields_service
 from app.services import diagnostics as diagnostics_service
 from app.services import relationships as relationships_service
+from app.services.bootstrap import ensure_tenancy_ready
 from app.services.components import ComponentError
 from app.services.custom_fields import CustomFieldError
 from app.services.relationships import RelationshipError
+from app.tenancy import MIGRATION_TENANT_ID
 
 
 DEMO_PREFIX = "demo-"
 DEMO_FIELD_PREFIX = "demo_"
 DEMO_NOTE_TAG = "[demo-seed]"
+SEED_TENANT_ID = MIGRATION_TENANT_ID
 
 
 def _ok(msg: str) -> None:
@@ -87,7 +90,7 @@ def wipe_demo() -> dict[str, int]:
 
 def ensure_custom_field() -> str:
     key = "demo_cost_center"
-    existing = custom_fields_service.get_definition(key)
+    existing = custom_fields_service.get_definition(key, tenant_id=SEED_TENANT_ID)
     if existing:
         _skip(f"custom field {key}")
         return "skipped"
@@ -100,7 +103,8 @@ def ensure_custom_field() -> str:
                 applies_to=["*"],
                 required=False,
                 enum_values=[],
-            )
+            ),
+            tenant_id=SEED_TENANT_ID,
         )
         _ok(f"custom field {key}")
         return "created"
@@ -111,11 +115,13 @@ def ensure_custom_field() -> str:
 
 def ensure_component(payload: dict[str, Any]) -> str:
     cid = payload["component_id"]
-    if components_service.get_component(cid):
+    if components_service.get_component(cid, tenant_id=SEED_TENANT_ID):
         _skip(f"component {cid}")
         return "skipped"
     try:
-        components_service.create_component(ComponentCreate(**payload))
+        components_service.create_component(
+            ComponentCreate(**payload), tenant_id=SEED_TENANT_ID
+        )
         _ok(f"component {cid} ({payload['component_type']})")
         return "created"
     except ComponentError as exc:
@@ -127,11 +133,13 @@ def ensure_component(payload: dict[str, Any]) -> str:
 
 def ensure_relationship(payload: dict[str, Any]) -> str:
     rid = payload["relationship_id"]
-    if relationships_service.get_relationship(rid):
+    if relationships_service.get_relationship(rid, tenant_id=SEED_TENANT_ID):
         _skip(f"relationship {rid}")
         return "skipped"
     try:
-        relationships_service.create_relationship(RelationshipCreate(**payload))
+        relationships_service.create_relationship(
+            RelationshipCreate(**payload), tenant_id=SEED_TENANT_ID
+        )
         ports = f"src={payload.get('source_port')} tgt={payload.get('target_port')}"
         _ok(
             f"relationship {rid} {payload['relationship_type']} "
@@ -149,11 +157,16 @@ def ensure_relationship(payload: dict[str, Any]) -> str:
 def ensure_simulated_diagnostic(component_id: str) -> str:
     """Create one SIMULATED diagnostic + rule-based AI analysis if missing."""
     history = diagnostics_service.list_diagnostics(
-        component_id=component_id, page=1, page_size=50
+        tenant_id=SEED_TENANT_ID,
+        component_id=component_id,
+        page=1,
+        page_size=50,
     )
     for item in history.get("items") or []:
         # list items may be summary rows; fetch detail for notes
-        detail = diagnostics_service.get_diagnostic(item["diagnostic_id"])
+        detail = diagnostics_service.get_diagnostic(
+            item["diagnostic_id"], tenant_id=SEED_TENANT_ID
+        )
         if detail and DEMO_NOTE_TAG in str(detail.get("notes") or ""):
             _skip(f"diagnostic for {component_id} ({detail['diagnostic_id']})")
             return "skipped"
@@ -163,14 +176,17 @@ def ensure_simulated_diagnostic(component_id: str) -> str:
             component_id=component_id,
             profile_name="basic-health",
             notes=f"{DEMO_NOTE_TAG} Sample SIMULATED diagnostic for UI demo.",
-        )
+        ),
+        tenant_id=SEED_TENANT_ID,
     )
     assert doc.get("execution_mode") == "SIMULATED"
     diag_id = doc["diagnostic_id"]
     _ok(f"diagnostic {diag_id} for {component_id} (SIMULATED)")
 
     # Attach rule-based fallback analysis (no Ollama required)
-    updated = ai_analysis_service.analyze_diagnostic(diag_id, force_fallback=True)
+    updated = ai_analysis_service.analyze_diagnostic(
+        diag_id, tenant_id=SEED_TENANT_ID, force_fallback=True
+    )
     source = (updated.get("ai_analysis") or {}).get("source")
     _ok(f"ai analysis on {diag_id} source={source}")
     return "created"
@@ -181,6 +197,11 @@ def seed() -> dict[str, int]:
 
     def tally(result: str) -> None:
         stats[result if result in stats else "created"] = stats.get(result, 0) + 1
+
+    tenancy = ensure_tenancy_ready()
+    if not tenancy.get("ok"):
+        raise RuntimeError(f"tenancy bootstrap failed: {tenancy}")
+    print(f"Tenancy ready tenant={SEED_TENANT_ID} isolation=on")
 
     print("Seeding custom fields…")
     tally(ensure_custom_field())
@@ -456,7 +477,9 @@ def main() -> int:
     print(f"\nDone. created={stats['created']} skipped={stats['skipped']}")
 
     # Quick counts for smoke reporting
-    comps = components_service.list_components(q="demo-", page=1, page_size=50)
+    comps = components_service.list_components(
+        tenant_id=SEED_TENANT_ID, q="demo-", page=1, page_size=50
+    )
     rels = relationships_service.list_relationships(q="demo-", page=1, page_size=50)
     diags = diagnostics_service.list_diagnostics(page=1, page_size=50)
     demo_diags = [

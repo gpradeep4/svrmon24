@@ -309,11 +309,14 @@ def analyze_with_ollama(
 def analyze_diagnostic(
     diagnostic_id: str,
     *,
+    tenant_id: str,
     force_fallback: bool = False,
     client: OllamaClient | None = None,
 ) -> dict[str, Any]:
     """Produce analysis, persist onto the diagnostic record, return updated record."""
-    diagnostic = diagnostics_service.get_diagnostic(diagnostic_id)
+    diagnostic = diagnostics_service.get_diagnostic(
+        diagnostic_id, tenant_id=tenant_id
+    )
     if diagnostic is None:
         raise AnalysisError(f"Diagnostic '{diagnostic_id}' not found", status_code=404)
 
@@ -337,5 +340,7 @@ def analyze_diagnostic(
                 reason=f"ollama_{exc.kind}: {exc.message}",
             )
 
-    updated = diagnostics_service.attach_ai_analysis(diagnostic_id, analysis)
+    updated = diagnostics_service.attach_ai_analysis(
+        diagnostic_id, analysis, tenant_id=tenant_id
+    )
     return updated

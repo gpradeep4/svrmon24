@@ -33,12 +33,16 @@ class DependencyError(Exception):
         self.status_code = status_code
 
 
-def _all_relationships() -> list[dict[str, Any]]:
-    result = relationships_service.list_relationships(page=1, page_size=200)
+def _all_relationships(*, tenant_id: str) -> list[dict[str, Any]]:
+    result = relationships_service.list_relationships(
+        tenant_id=tenant_id, page=1, page_size=200
+    )
     items = list(result.get("items") or [])
     total_pages = int(result.get("total_pages") or 1)
     for page in range(2, total_pages + 1):
-        more = relationships_service.list_relationships(page=page, page_size=200)
+        more = relationships_service.list_relationships(
+            tenant_id=tenant_id, page=page, page_size=200
+        )
         items.extend(more.get("items") or [])
     return items
 
@@ -59,10 +63,15 @@ def _index_edges(
 
 
 def _component_summary(
-    component_id: str, cache: dict[str, dict[str, Any] | None]
+    component_id: str,
+    cache: dict[str, dict[str, Any] | None],
+    *,
+    tenant_id: str,
 ) -> dict[str, Any] | None:
     if component_id not in cache:
-        cache[component_id] = components_service.get_component(component_id)
+        cache[component_id] = components_service.get_component(
+            component_id, tenant_id=tenant_id
+        )
     doc = cache[component_id]
     if doc is None:
         return None
@@ -140,6 +149,7 @@ def _row_from_node_edge(
 def traverse(
     component_id: str,
     *,
+    tenant_id: str,
     direction: Direction,
     depth: int = 5,
     environment: str | None = None,
@@ -152,11 +162,11 @@ def traverse(
     if depth > 50:
         raise DependencyError("depth must be <= 50", status_code=422)
 
-    selected = components_service.get_component(component_id)
+    selected = components_service.get_component(component_id, tenant_id=tenant_id)
     if selected is None:
         raise DependencyError(f"Component '{component_id}' not found", status_code=404)
 
-    relationships = _all_relationships()
+    relationships = _all_relationships(tenant_id=tenant_id)
     outgoing, incoming = _index_edges(relationships)
     adjacency = outgoing if direction == "upstream" else incoming
 
@@ -170,7 +180,7 @@ def traverse(
     expanded: set[str] = set()
 
     if include_selected:
-        summary = _component_summary(component_id, cache)
+        summary = _component_summary(component_id, cache, tenant_id=tenant_id)
         assert summary is not None
         nodes_by_id[component_id] = {
             **summary,
@@ -216,7 +226,7 @@ def traverse(
                     edges_by_id[rel_id] = _edge_view(rel, depth=next_depth, direct=direct)
                 continue
 
-            summary = _component_summary(neighbor, cache)
+            summary = _component_summary(neighbor, cache, tenant_id=tenant_id)
             if summary is None:
                 missing.add(neighbor)
                 if rel_id and rel_id not in edges_by_id:
@@ -279,6 +289,7 @@ def traverse(
         environment=environment,
         status=status,
         missing=missing,
+        tenant_id=tenant_id,
     )
 
     cycle_keys: set[str] = set()
@@ -314,7 +325,7 @@ def traverse(
         rows.append(_row_from_node_edge(node, edge, direction=direction))
 
     return {
-        "selected": _component_summary(component_id, cache),
+        "selected": _component_summary(component_id, cache, tenant_id=tenant_id),
         "direction": direction,
         "depth": depth,
         "filters": {"environment": environment, "status": status},
@@ -324,6 +335,7 @@ def traverse(
         "paths": sorted(paths, key=lambda p: (int(p["depth"]), len(p["component_ids"]))),
         "cycles_detected": unique_cycles,
         "missing_components": sorted(missing),
+        "tenant_id": tenant_id,
         "counts": {
             "nodes": len(nodes),
             "edges": len(edges),
@@ -349,6 +361,7 @@ def _capture_additional_paths(
     environment: str | None,
     status: str | None,
     missing: set[str],
+    tenant_id: str,
 ) -> None:
     """DFS limited path enumeration to record multiple routes / shared deps."""
 
@@ -377,7 +390,7 @@ def _capture_additional_paths(
                     edges_by_id[rel_id] = _edge_view(rel, depth=next_depth, direct=direct)
                 continue
 
-            summary = _component_summary(neighbor, cache)
+            summary = _component_summary(neighbor, cache, tenant_id=tenant_id)
             if summary is None:
                 missing.add(neighbor)
                 if rel_id and rel_id not in edges_by_id:
@@ -423,12 +436,14 @@ def _capture_additional_paths(
 def get_upstream(
     component_id: str,
     *,
+    tenant_id: str,
     depth: int = 5,
     environment: str | None = None,
     status: str | None = None,
 ) -> dict[str, Any]:
     return traverse(
         component_id,
+        tenant_id=tenant_id,
         direction="upstream",
         depth=depth,
         environment=environment,
@@ -439,12 +454,14 @@ def get_upstream(
 def get_downstream(
     component_id: str,
     *,
+    tenant_id: str,
     depth: int = 5,
     environment: str | None = None,
     status: str | None = None,
 ) -> dict[str, Any]:
     return traverse(
         component_id,
+        tenant_id=tenant_id,
         direction="downstream",
         depth=depth,
         environment=environment,
@@ -452,17 +469,18 @@ def get_downstream(
     )
 
 
-def get_direct_upstream(component_id: str, **filters: Any) -> dict[str, Any]:
-    return get_upstream(component_id, depth=1, **filters)
+def get_direct_upstream(component_id: str, *, tenant_id: str, **filters: Any) -> dict[str, Any]:
+    return get_upstream(component_id, tenant_id=tenant_id, depth=1, **filters)
 
 
-def get_direct_downstream(component_id: str, **filters: Any) -> dict[str, Any]:
-    return get_downstream(component_id, depth=1, **filters)
+def get_direct_downstream(component_id: str, *, tenant_id: str, **filters: Any) -> dict[str, Any]:
+    return get_downstream(component_id, tenant_id=tenant_id, depth=1, **filters)
 
 
 def analyze_impact(
     component_id: str,
     *,
+    tenant_id: str,
     depth: int = 10,
     environment: str | None = None,
     status: str | None = None,
@@ -470,6 +488,7 @@ def analyze_impact(
     """Identify potentially affected applications via downstream traversal."""
     downstream = get_downstream(
         component_id,
+        tenant_id=tenant_id,
         depth=depth,
         environment=environment,
         status=status,
@@ -526,16 +545,25 @@ def analyze_impact(
 def dependency_bundle(
     component_id: str,
     *,
+    tenant_id: str,
     depth: int = 5,
     environment: str | None = None,
     status: str | None = None,
 ) -> dict[str, Any]:
     """Combined upstream + downstream + impact for UI."""
     upstream = get_upstream(
-        component_id, depth=depth, environment=environment, status=status
+        component_id,
+        tenant_id=tenant_id,
+        depth=depth,
+        environment=environment,
+        status=status,
     )
     impact = analyze_impact(
-        component_id, depth=depth, environment=environment, status=status
+        component_id,
+        tenant_id=tenant_id,
+        depth=depth,
+        environment=environment,
+        status=status,
     )
     return {
         "selected": upstream["selected"],

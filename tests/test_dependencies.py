@@ -241,6 +241,8 @@ def test_missing_related_component_reported(
     from datetime import datetime, timezone
 
     now = datetime.now(timezone.utc)
+    from app.tenancy import MIGRATION_TENANT_ID
+
     get_database()["cmdb_relationships"].insert_one(
         {
             "relationship_id": "rel-orphan",
@@ -254,6 +256,7 @@ def test_missing_related_component_reported(
             "verification_status": "unverified",
             "confidence": "low",
             "duplicate_key": "app-x|gone-db|DEPENDS_ON|||",
+            "tenant_id": MIGRATION_TENANT_ID,
             "created_at": now,
             "updated_at": now,
         }

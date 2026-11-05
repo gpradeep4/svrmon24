@@ -1,4 +1,4 @@
-"""CMDB component inventory persistence and queries."""
+"""CMDB component inventory persistence and queries (tenant-scoped)."""
 
 from __future__ import annotations
 
@@ -23,7 +23,7 @@ from ..models.components import (
     to_inventory_row,
 )
 from ..serialization import serialize_document
-from ..tenancy import stamp_tenant_id
+from ..tenancy import merge_tenant_filter, require_tenant_id, stamp_tenant_id, tenant_filter
 from . import custom_fields as custom_fields_service
 from .relationships import relationship_delete_warning
 
@@ -54,7 +54,6 @@ def _collection() -> Collection:
     coll.create_index([("status", ASCENDING)])
     coll.create_index([("name", ASCENDING)])
     coll.create_index([("hostname", ASCENDING)])
-    # Phase 4 prep: non-unique tenant_id (hard scoping in Phase 5).
     coll.create_index([("tenant_id", ASCENDING)], name="tenant_id_idx")
     return coll
 
@@ -77,22 +76,25 @@ def ensure_type_keys(doc: dict[str, Any]) -> dict[str, Any]:
     return doc
 
 
-def get_component(component_id: str) -> dict[str, Any] | None:
-    doc = _collection().find_one({"component_id": component_id})
+def get_component(component_id: str, *, tenant_id: str) -> dict[str, Any] | None:
+    tid = require_tenant_id(tenant_id)
+    doc = _collection().find_one(
+        {"component_id": component_id, **tenant_filter(tid)}
+    )
     if doc is None:
         return None
     return serialize_document(ensure_type_keys(doc))  # type: ignore[return-value]
 
 
-def create_component(payload: ComponentCreate) -> dict[str, Any]:
+def create_component(payload: ComponentCreate, *, tenant_id: str) -> dict[str, Any]:
+    tid = require_tenant_id(tenant_id)
     custom_fields_service.validate_component_custom_fields(
-        payload.component_type, payload.custom_fields or {}
+        payload.component_type, payload.custom_fields or {}, tenant_id=tid
     )
     component_id = payload.component_id or generate_component_id(payload.component_type)
     now = _now()
     doc = build_component_document(payload, component_id=component_id, now=now)
-    # Dual-write migration tenant_id; APIs remain unscoped until Phase 5.
-    stamp_tenant_id(doc)
+    stamp_tenant_id(doc, tenant_id=tid)
     try:
         _collection().insert_one(doc)
     except DuplicateKeyError as exc:
@@ -103,9 +105,12 @@ def create_component(payload: ComponentCreate) -> dict[str, Any]:
     return serialize_document(ensure_type_keys(doc))  # type: ignore[return-value]
 
 
-def update_component(component_id: str, payload: ComponentUpdate) -> dict[str, Any]:
+def update_component(
+    component_id: str, payload: ComponentUpdate, *, tenant_id: str
+) -> dict[str, Any]:
+    tid = require_tenant_id(tenant_id)
     coll = _collection()
-    existing = coll.find_one({"component_id": component_id})
+    existing = coll.find_one({"component_id": component_id, **tenant_filter(tid)})
     if existing is None:
         raise ComponentError(f"Component '{component_id}' not found", status_code=404)
 
@@ -117,20 +122,23 @@ def update_component(component_id: str, payload: ComponentUpdate) -> dict[str, A
 
     ctype = ComponentType(updated["component_type"])
     custom_fields_service.validate_component_custom_fields(
-        ctype, updated.get("custom_fields") or {}
+        ctype, updated.get("custom_fields") or {}, tenant_id=tid
     )
 
-    # Persist without Mongo _id mutation issues
     to_set = {k: v for k, v in updated.items() if k != "_id"}
-    coll.update_one({"component_id": component_id}, {"$set": to_set})
-    return get_component(component_id)  # type: ignore[return-value]
+    stamp_tenant_id(to_set, tenant_id=tid)
+    coll.update_one(
+        {"component_id": component_id, **tenant_filter(tid)}, {"$set": to_set}
+    )
+    return get_component(component_id, tenant_id=tid)  # type: ignore[return-value]
 
 
-def delete_preview(component_id: str) -> dict[str, Any]:
-    doc = get_component(component_id)
+def delete_preview(component_id: str, *, tenant_id: str) -> dict[str, Any]:
+    tid = require_tenant_id(tenant_id)
+    doc = get_component(component_id, tenant_id=tid)
     if doc is None:
         raise ComponentError(f"Component '{component_id}' not found", status_code=404)
-    warning = relationship_delete_warning(component_id)
+    warning = relationship_delete_warning(component_id, tenant_id=tid)
     return {
         "component": doc,
         "can_delete": True,
@@ -139,14 +147,19 @@ def delete_preview(component_id: str) -> dict[str, Any]:
     }
 
 
-def delete_component(component_id: str, *, confirmed: bool = False) -> dict[str, Any]:
+def delete_component(
+    component_id: str, *, confirmed: bool = False, tenant_id: str
+) -> dict[str, Any]:
+    tid = require_tenant_id(tenant_id)
     if not confirmed:
         raise ComponentError(
             "Deletion requires confirmation (set confirmed=true)",
             status_code=400,
         )
-    preview = delete_preview(component_id)
-    result = _collection().delete_one({"component_id": component_id})
+    preview = delete_preview(component_id, tenant_id=tid)
+    result = _collection().delete_one(
+        {"component_id": component_id, **tenant_filter(tid)}
+    )
     if result.deleted_count == 0:
         raise ComponentError(f"Component '{component_id}' not found", status_code=404)
     return {
@@ -194,6 +207,7 @@ def _build_query(
 
 def list_components(
     *,
+    tenant_id: str,
     q: str | None = None,
     component_type: str | None = None,
     environment: str | None = None,
@@ -205,6 +219,7 @@ def list_components(
     sort_by: str = "updated_at",
     sort_dir: str = "desc",
 ) -> dict[str, Any]:
+    tid = require_tenant_id(tenant_id)
     page = max(1, page)
     page_size = min(max(1, page_size), 200)
     allowed_sort = {
@@ -225,13 +240,16 @@ def list_components(
         sort_by = "updated_at"
     direction = DESCENDING if sort_dir.lower() == "desc" else ASCENDING
 
-    query = _build_query(
-        q=q,
-        component_type=component_type,
-        environment=environment,
-        status=status,
-        os_family=os_family,
-        product_type=product_type,
+    query = merge_tenant_filter(
+        _build_query(
+            q=q,
+            component_type=component_type,
+            environment=environment,
+            status=status,
+            os_family=os_family,
+            product_type=product_type,
+        ),
+        tid,
     )
     coll = _collection()
     total = coll.count_documents(query)
@@ -256,6 +274,7 @@ def list_components(
         "total_pages": (total + page_size - 1) // page_size if page_size else 0,
         "items": items,
         "inventory": inventory,
+        "tenant_id": tid,
     }
 
 

@@ -1,7 +1,7 @@
-"""Minimal tenant + membership APIs (Master Phase 4).
+"""Minimal tenant + membership APIs (Master Phase 5 — isolation enforced).
 
-Single logical org: the migration tenant is listed/returned as non-switchable.
-Hard isolation is Phase 5 — these endpoints do not claim cross-tenant denial.
+Org switcher remains disabled. Current tenant comes from OIDC membership
+(or migration tenant for Basic). Hard isolation is active on CMDB routes.
 """
 
 from __future__ import annotations
@@ -15,7 +15,12 @@ from ..config import Settings, get_settings
 from ..services import memberships as memberships_service
 from ..services import tenants as tenants_service
 from ..services import users as users_service
-from ..tenancy import MIGRATION_TENANT_ID
+from ..tenancy import (
+    ISOLATION_ENFORCED,
+    MIGRATION_TENANT_ID,
+    ORG_SWITCHER_ENABLED,
+)
+from ..tenant_context import TenantContext, require_tenant
 
 router = APIRouter(tags=["tenants"], dependencies=[Depends(require_user)])
 
@@ -34,42 +39,62 @@ def _resolve_local_user(user: AuthUser, settings: Settings) -> dict[str, Any] | 
 
 
 @router.get("/api/tenants/current")
-def get_current_tenant(_user: AuthUser = Depends(require_user)) -> dict[str, Any]:
-    """Return the current (migration) tenant — single logical org, not switchable."""
-    tenant = tenants_service.get_current_tenant()
+def get_current_tenant(
+    tenant_ctx: TenantContext = Depends(require_tenant),
+) -> dict[str, Any]:
+    """Return the current tenant for this session (membership-resolved)."""
+    tenant = tenants_service.get_tenant(tenant_ctx.tenant_id)
+    if tenant is None:
+        tenant = tenants_service.get_current_tenant()
+    tenant["switchable"] = False
+    tenant["isolation_enforced"] = ISOLATION_ENFORCED
     return {
         "tenant": tenant,
-        "isolation_enforced": False,
+        "isolation_enforced": ISOLATION_ENFORCED,
+        "org_switcher_enabled": ORG_SWITCHER_ENABLED,
         "notes": (
-            "Master Phase 4: tenant models only. Organization switching and "
-            "hard cross-tenant denial are not active."
+            "Master Phase 5: hard tenant isolation is enforced on CMDB data. "
+            "Organization switching remains disabled (single-tenant UX)."
         ),
     }
 
 
 @router.get("/api/tenants")
-def list_tenants(_user: AuthUser = Depends(require_user)) -> dict[str, Any]:
-    """List tenants visible in this phase (migration tenant only)."""
+def list_tenants(
+    tenant_ctx: TenantContext = Depends(require_tenant),
+) -> dict[str, Any]:
+    """List tenants. Switcher disabled — returns current/migration tenant only."""
     tenants_service.ensure_migration_tenant()
-    items = tenants_service.list_tenants()
+    # Single-tenant UX: expose current tenant (not a multi-org catalog).
+    current = tenants_service.get_tenant(tenant_ctx.tenant_id)
+    items = [current] if current else tenants_service.list_tenants()
     for item in items:
-        item["switchable"] = False
+        if item:
+            item["switchable"] = False
+            item["isolation_enforced"] = ISOLATION_ENFORCED
+    items = [i for i in items if i]
     return {
         "items": items,
         "count": len(items),
         "default_tenant_id": MIGRATION_TENANT_ID,
-        "org_switcher_enabled": False,
-        "isolation_enforced": False,
+        "org_switcher_enabled": ORG_SWITCHER_ENABLED,
+        "isolation_enforced": ISOLATION_ENFORCED,
     }
 
 
 @router.get("/api/tenants/{tenant_id}")
-def get_tenant(tenant_id: str, _user: AuthUser = Depends(require_user)) -> dict[str, Any]:
+def get_tenant(
+    tenant_id: str,
+    tenant_ctx: TenantContext = Depends(require_tenant),
+) -> dict[str, Any]:
+    # Deny cross-tenant tenant metadata reads (404) unless it is the current tenant.
+    if tenant_id != tenant_ctx.tenant_id:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Tenant not found")
     tenant = tenants_service.get_tenant(tenant_id)
     if tenant is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Tenant not found")
     tenant["switchable"] = False
-    tenant["isolation_enforced"] = False
+    tenant["isolation_enforced"] = ISOLATION_ENFORCED
     return tenant
 
 
@@ -89,10 +114,13 @@ def list_my_memberships(
             "count": 0,
             "user_id": None,
             "auth_method": user.auth_method,
+            "org_switcher_enabled": ORG_SWITCHER_ENABLED,
+            "isolation_enforced": ISOLATION_ENFORCED,
             "notes": (
                 "No local user identity linked yet. OIDC login creates/links "
                 "a user and a member membership on the migration tenant. "
-                "HTTP Basic does not create memberships."
+                "HTTP Basic does not create memberships and is scoped to the "
+                "migration tenant only (no tenant-auth bypass)."
             ),
         }
     items = memberships_service.list_memberships_for_user(local["user_id"])
@@ -102,6 +130,6 @@ def list_my_memberships(
         "user_id": local["user_id"],
         "is_platform_admin": bool(local.get("is_platform_admin")),
         "auth_method": user.auth_method,
-        "org_switcher_enabled": False,
-        "isolation_enforced": False,
+        "org_switcher_enabled": ORG_SWITCHER_ENABLED,
+        "isolation_enforced": ISOLATION_ENFORCED,
     }

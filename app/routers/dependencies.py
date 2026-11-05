@@ -1,4 +1,4 @@
-"""Dependency traversal and impact analysis APIs."""
+"""Dependency traversal and impact analysis APIs (tenant-scoped)."""
 
 from __future__ import annotations
 
@@ -9,6 +9,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from ..auth import require_user
 from ..services import dependencies as dependencies_service
 from ..services.dependencies import DependencyError
+from ..tenant_context import TenantContext, require_tenant
 
 router = APIRouter(
     prefix="/api/dependencies",
@@ -28,12 +29,14 @@ def upstream(
     environment: str | None = Query(default=None),
     status: str | None = Query(default=None),
     direct_only: bool = Query(default=False),
+    tenant: TenantContext = Depends(require_tenant),
 ) -> dict[str, Any]:
     """Upstream dependencies (follow source → target outgoing edges)."""
     try:
         effective_depth = 1 if direct_only else depth
         return dependencies_service.get_upstream(
             component_id,
+            tenant_id=tenant.tenant_id,
             depth=effective_depth,
             environment=environment,
             status=status,
@@ -50,12 +53,14 @@ def downstream(
     environment: str | None = Query(default=None),
     status: str | None = Query(default=None),
     direct_only: bool = Query(default=False),
+    tenant: TenantContext = Depends(require_tenant),
 ) -> dict[str, Any]:
     """Downstream dependants (follow incoming edges where component is target)."""
     try:
         effective_depth = 1 if direct_only else depth
         return dependencies_service.get_downstream(
             component_id,
+            tenant_id=tenant.tenant_id,
             depth=effective_depth,
             environment=environment,
             status=status,
@@ -71,11 +76,13 @@ def impact(
     depth: int = Query(default=10, ge=0, le=50),
     environment: str | None = Query(default=None),
     status: str | None = Query(default=None),
+    tenant: TenantContext = Depends(require_tenant),
 ) -> dict[str, Any]:
     """Potentially affected applications if this component becomes unavailable."""
     try:
         return dependencies_service.analyze_impact(
             component_id,
+            tenant_id=tenant.tenant_id,
             depth=depth,
             environment=environment,
             status=status,
@@ -91,11 +98,13 @@ def dependency_overview(
     depth: int = Query(default=5, ge=0, le=50),
     environment: str | None = Query(default=None),
     status: str | None = Query(default=None),
+    tenant: TenantContext = Depends(require_tenant),
 ) -> dict[str, Any]:
     """Combined upstream, downstream, impact, and graph payload for the UI."""
     try:
         return dependencies_service.dependency_bundle(
             component_id,
+            tenant_id=tenant.tenant_id,
             depth=depth,
             environment=environment,
             status=status,

@@ -1,4 +1,4 @@
-"""CMDB relationship API — manual entry only."""
+"""CMDB relationship API — manual entry only (tenant-scoped)."""
 
 from __future__ import annotations
 
@@ -10,6 +10,7 @@ from ..auth import require_user
 from ..models.relationships import RelationshipCreate, RelationshipUpdate
 from ..services import relationships as relationships_service
 from ..services.relationships import RelationshipError
+from ..tenant_context import TenantContext, require_tenant
 
 router = APIRouter(
     prefix="/api/relationships",
@@ -39,9 +40,11 @@ def list_relationships(
     relationship_type: str | None = Query(default=None),
     page: int = Query(default=1, ge=1),
     page_size: int = Query(default=25, ge=1, le=200),
+    tenant: TenantContext = Depends(require_tenant),
 ) -> dict[str, Any]:
     try:
         return relationships_service.list_relationships(
+            tenant_id=tenant.tenant_id,
             q=q,
             source_component_id=source_component_id,
             target_component_id=target_component_id,
@@ -56,17 +59,27 @@ def list_relationships(
 
 
 @router.post("", status_code=201)
-def create_relationship(payload: RelationshipCreate) -> dict[str, Any]:
+def create_relationship(
+    payload: RelationshipCreate,
+    tenant: TenantContext = Depends(require_tenant),
+) -> dict[str, Any]:
     try:
-        return relationships_service.create_relationship(payload)
+        return relationships_service.create_relationship(
+            payload, tenant_id=tenant.tenant_id
+        )
     except RelationshipError as exc:
         _raise(exc)
         raise  # pragma: no cover
 
 
 @router.get("/{relationship_id}")
-def get_relationship(relationship_id: str) -> dict[str, Any]:
-    doc = relationships_service.get_relationship(relationship_id)
+def get_relationship(
+    relationship_id: str,
+    tenant: TenantContext = Depends(require_tenant),
+) -> dict[str, Any]:
+    doc = relationships_service.get_relationship(
+        relationship_id, tenant_id=tenant.tenant_id
+    )
     if doc is None:
         raise HTTPException(
             status_code=404, detail=f"Relationship '{relationship_id}' not found"
@@ -76,19 +89,28 @@ def get_relationship(relationship_id: str) -> dict[str, Any]:
 
 @router.put("/{relationship_id}")
 def update_relationship(
-    relationship_id: str, payload: RelationshipUpdate
+    relationship_id: str,
+    payload: RelationshipUpdate,
+    tenant: TenantContext = Depends(require_tenant),
 ) -> dict[str, Any]:
     try:
-        return relationships_service.update_relationship(relationship_id, payload)
+        return relationships_service.update_relationship(
+            relationship_id, payload, tenant_id=tenant.tenant_id
+        )
     except RelationshipError as exc:
         _raise(exc)
         raise  # pragma: no cover
 
 
 @router.delete("/{relationship_id}")
-def delete_relationship(relationship_id: str) -> dict[str, Any]:
+def delete_relationship(
+    relationship_id: str,
+    tenant: TenantContext = Depends(require_tenant),
+) -> dict[str, Any]:
     try:
-        return relationships_service.delete_relationship(relationship_id)
+        return relationships_service.delete_relationship(
+            relationship_id, tenant_id=tenant.tenant_id
+        )
     except RelationshipError as exc:
         _raise(exc)
         raise  # pragma: no cover

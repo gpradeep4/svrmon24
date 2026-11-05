@@ -1,4 +1,4 @@
-"""Diagnostic engine service — DEMO/SIMULATED execution only."""
+"""Diagnostic engine service — DEMO/SIMULATED execution only (tenant-scoped)."""
 
 from __future__ import annotations
 
@@ -14,7 +14,7 @@ from ..diagnostics.profiles import EXECUTION_MODE, list_profiles, require_profil
 from ..diagnostics.simulator import run_simulated_profile
 from ..models.diagnostics import DiagnosticStartRequest
 from ..serialization import serialize_document
-from ..tenancy import stamp_tenant_id
+from ..tenancy import merge_tenant_filter, require_tenant_id, stamp_tenant_id, tenant_filter
 from . import components as components_service
 from . import dependencies as dependencies_service
 
@@ -34,7 +34,6 @@ def _db_collection() -> Collection:
     coll.create_index([("component_id", ASCENDING)])
     coll.create_index([("profile_name", ASCENDING)])
     coll.create_index([("timestamp", DESCENDING)])
-    # Phase 4 prep: non-unique tenant_id (hard scoping in Phase 5).
     coll.create_index([("tenant_id", ASCENDING)], name="tenant_id_idx")
     return coll
 
@@ -74,11 +73,15 @@ def _component_snapshot(component: dict[str, Any]) -> dict[str, Any]:
     }
 
 
-def _dependency_context(component_id: str) -> dict[str, Any]:
+def _dependency_context(component_id: str, *, tenant_id: str) -> dict[str, Any]:
     """Attach relevant dependency context from relationship traversal."""
     try:
-        upstream = dependencies_service.get_direct_upstream(component_id)
-        downstream = dependencies_service.get_direct_downstream(component_id)
+        upstream = dependencies_service.get_direct_upstream(
+            component_id, tenant_id=tenant_id
+        )
+        downstream = dependencies_service.get_direct_downstream(
+            component_id, tenant_id=tenant_id
+        )
     except dependencies_service.DependencyError:
         return {
             "upstream_direct": [],
@@ -124,9 +127,12 @@ def _dependency_context(component_id: str) -> dict[str, Any]:
     }
 
 
-def start_diagnostic(payload: DiagnosticStartRequest) -> dict[str, Any]:
+def start_diagnostic(
+    payload: DiagnosticStartRequest, *, tenant_id: str
+) -> dict[str, Any]:
     """Validate and run an approved profile in SIMULATED mode; persist history."""
-    component = components_service.get_component(payload.component_id)
+    tid = require_tenant_id(tenant_id)
+    component = components_service.get_component(payload.component_id, tenant_id=tid)
     if component is None:
         raise DiagnosticError(
             f"Unknown component_id '{payload.component_id}'",
@@ -172,7 +178,7 @@ def start_diagnostic(payload: DiagnosticStartRequest) -> dict[str, Any]:
         "profile_name": payload.profile_name,
         "component_id": payload.component_id,
         "component": _component_snapshot(component),
-        "dependency_context": _dependency_context(payload.component_id),
+        "dependency_context": _dependency_context(payload.component_id, tenant_id=tid),
         "checks": checks,
         "summary": {
             "overall_status": "ok" if ok_count == len(checks) else "warning",
@@ -194,21 +200,27 @@ def start_diagnostic(payload: DiagnosticStartRequest) -> dict[str, Any]:
             "network_scan": False,
         },
     }
-    stamp_tenant_id(record)
+    stamp_tenant_id(record, tenant_id=tid)
 
     _db_collection().insert_one(record)
     return serialize_document(record)  # type: ignore[return-value]
 
 
-def get_diagnostic(diagnostic_id: str) -> dict[str, Any] | None:
-    doc = _db_collection().find_one({"diagnostic_id": diagnostic_id})
+def get_diagnostic(diagnostic_id: str, *, tenant_id: str) -> dict[str, Any] | None:
+    tid = require_tenant_id(tenant_id)
+    doc = _db_collection().find_one(
+        {"diagnostic_id": diagnostic_id, **tenant_filter(tid)}
+    )
     return serialize_document(doc)  # type: ignore[return-value]
 
 
-def attach_ai_analysis(diagnostic_id: str, analysis: dict[str, Any]) -> dict[str, Any]:
+def attach_ai_analysis(
+    diagnostic_id: str, analysis: dict[str, Any], *, tenant_id: str
+) -> dict[str, Any]:
     """Store latest analysis and append to history on the diagnostic record."""
+    tid = require_tenant_id(tenant_id)
     coll = _db_collection()
-    existing = coll.find_one({"diagnostic_id": diagnostic_id})
+    existing = coll.find_one({"diagnostic_id": diagnostic_id, **tenant_filter(tid)})
     if existing is None:
         raise DiagnosticError(
             f"Diagnostic '{diagnostic_id}' not found",
@@ -217,7 +229,7 @@ def attach_ai_analysis(diagnostic_id: str, analysis: dict[str, Any]) -> dict[str
     history = list(existing.get("ai_analysis_history") or [])
     history.append(analysis)
     coll.update_one(
-        {"diagnostic_id": diagnostic_id},
+        {"diagnostic_id": diagnostic_id, **tenant_filter(tid)},
         {
             "$set": {
                 "ai_analysis": analysis,
@@ -226,18 +238,20 @@ def attach_ai_analysis(diagnostic_id: str, analysis: dict[str, Any]) -> dict[str
             }
         },
     )
-    doc = get_diagnostic(diagnostic_id)
+    doc = get_diagnostic(diagnostic_id, tenant_id=tid)
     assert doc is not None
     return doc
 
 
 def list_diagnostics(
     *,
+    tenant_id: str,
     component_id: str | None = None,
     profile_name: str | None = None,
     page: int = 1,
     page_size: int = 25,
 ) -> dict[str, Any]:
+    tid = require_tenant_id(tenant_id)
     page = max(1, page)
     page_size = min(max(1, page_size), 200)
     query: dict[str, Any] = {}
@@ -246,10 +260,11 @@ def list_diagnostics(
     if profile_name:
         query["profile_name"] = profile_name
 
+    scoped = merge_tenant_filter(query, tid)
     coll = _db_collection()
-    total = coll.count_documents(query)
+    total = coll.count_documents(scoped)
     cursor = (
-        coll.find(query)
+        coll.find(scoped)
         .sort("timestamp", DESCENDING)
         .skip((page - 1) * page_size)
         .limit(page_size)
@@ -262,4 +277,5 @@ def list_diagnostics(
         "total_pages": (total + page_size - 1) // page_size if page_size else 0,
         "execution_mode": EXECUTION_MODE,
         "items": items,
+        "tenant_id": tid,
     }

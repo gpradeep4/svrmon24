@@ -85,8 +85,10 @@ def ensure_migration_tenant() -> dict[str, Any]:
 
 def get_current_tenant() -> dict[str, Any]:
     """Return the migration tenant, ensuring it exists."""
+    from ..tenancy import ISOLATION_ENFORCED
+
     tenant = ensure_migration_tenant()
-    # Explicit UX signal: not switchable in Phase 4.
+    # Explicit UX signal: not switchable (org switcher still disabled).
     tenant["switchable"] = False
-    tenant["isolation_enforced"] = False
+    tenant["isolation_enforced"] = ISOLATION_ENFORCED
     return tenant
