@@ -12,7 +12,7 @@
     body.is-app .login-gate { display: none !important; }
     #authPanel, .auth-panel-legacy { display: none !important; }
   </style>
-  <link rel="stylesheet" href="/static/css/cmdb.css?v=0.13.0" />
+  <link rel="stylesheet" href="/static/css/cmdb.css?v=0.13.1" />
 </head>
 <body class="is-login">
   <!-- Full-page login (no Operations chrome while signed out) -->
@@ -151,6 +151,17 @@
           <div class="auth-status" id="authStatusChip" title="Authentication status">
             <span class="dot" aria-hidden="true"></span>
             <span id="authStatusText">Disconnected</span>
+          </div>
+          <div
+            class="tenant-banner"
+            id="tenantBanner"
+            hidden
+            aria-label="Current organization"
+            title="tenant-svrmon24-legacy"
+          >
+            <span class="tenant-banner-kicker">Organization</span>
+            <strong id="tenantDisplayName">SVRMON24 Legacy</strong>
+            <span class="tenant-banner-id" id="tenantIdSub">tenant-svrmon24-legacy</span>
           </div>
           <div class="user-menu" id="userMenu">
             <div class="avatar" id="userAvatar">?</div>
@@ -773,6 +784,6 @@
     <span class="spinner"></span><span id="globalLoadingText">Working…</span>
   </div>
   <div id="toast" class="toast"></div>
-  <script src="/static/js/cmdb.js?v=0.13.0"></script>
+  <script src="/static/js/cmdb.js?v=0.13.1"></script>
 </body>
 </html>

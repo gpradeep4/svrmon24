@@ -88,7 +88,7 @@ When Ollama is unavailable, diagnostic analysis uses a deterministic rule-based 
 - Protected: `/api/*` (OIDC session cookie and/or HTTP Basic when `BASIC_AUTH_ENABLED=true`)
 - Browser login uses **Authorization Code + PKCE**; state/PKCE live in the signed session cookie **and** a short-lived pending cookie
 - Unauthenticated users see a **dedicated full-page login** (no Operations sidebar/header chrome). After SSO/Basic, the app shell loads on Dashboard
-- Organization switcher + Accent picker live under **Settings** (switcher shows **SVRMON24 Legacy**, disabled / non-switchable)
+- Authenticated top banner shows the current tenant (**SVRMON24 Legacy** + `tenant-svrmon24-legacy`); Organization switcher + Accent picker stay under **Settings** (switcher disabled / non-switchable)
 - **Basic auth is disabled by default** for production-oriented deployments. Enable only for migration/testing. It must **not** bypass future tenant authorization once multi-tenant isolation lands.
 - OIDC login links a local user + **member** membership on the migration tenant — **never** auto-admin the first public registrant
 - Platform admin is **CLI/operator bootstrap only**: `python scripts/bootstrap_platform_admin.py --username operator --email ops@example.com`
@@ -99,6 +99,7 @@ When Ollama is unavailable, diagnostic analysis uses a deterministic rule-based 
 - New writes to `components`, `custom_field_definitions`, `cmdb_relationships`, and `diagnostic_history` dual-write `tenant_id` (migration tenant). Existing rows may still have null `tenant_id` until Phase 5 backfill
 - `component_id` remains **globally** unique
 - APIs: `GET /api/tenants`, `GET /api/tenants/current`, `GET /api/tenants/{id}`, `GET /api/memberships` — org switcher is **not** activated; `isolation_enforced=false`
+- `/api/me` includes `current_tenant_id` + `current_tenant_display_name` for the header banner
 - Hard cross-tenant denial is **Master Phase 5** (not this release)
 
 ### Important: one browser host only

@@ -155,12 +155,17 @@ def test_ui_contains_dashboard_and_required_columns() -> None:
     assert 'id="settingsOrgBlock"' in html or 'id="settingsAccentBlock"' in html
     assert "showLoginShell" in js and "showAppShell" in js
     assert "signed_in" in js
-    # Org + accent live in Settings, not the lean top header.
+    # Org switcher + accent live in Settings; lean top header shows tenant label only.
     topbar = html.split('<header class="topbar">', 1)[1].split("</header>", 1)[0]
     assert "tenantSwitcher" not in topbar
     assert "accentPicker" not in topbar
+    assert 'id="tenantBanner"' in topbar
+    assert 'id="tenantDisplayName"' in topbar
+    assert "SVRMON24 Legacy" in topbar
+    assert "tenant-svrmon24-legacy" in topbar
     assert 'id="tenantSwitcher"' in html
     assert 'id="accentPicker"' in html
+    assert "setTenantBanner" in js
     for screen in (
         "tab-inventory",
         "tab-relationships",
