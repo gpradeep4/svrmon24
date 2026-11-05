@@ -1,4 +1,4 @@
-"""CMDB relationship persistence and delete-warning lookups.
+"""CMDB relationship persistence (tenant-scoped).
 
 Manual entry only — no network scanning or hostname inference.
 """
@@ -23,7 +23,7 @@ from ..models.relationships import (
     to_relationship_row,
 )
 from ..serialization import serialize_document
-from ..tenancy import stamp_tenant_id
+from ..tenancy import merge_tenant_filter, require_tenant_id, stamp_tenant_id, tenant_filter
 
 COLLECTION = "cmdb_relationships"
 
@@ -42,7 +42,6 @@ def _collection() -> Collection:
     coll.create_index([("source_component_id", ASCENDING)])
     coll.create_index([("target_component_id", ASCENDING)])
     coll.create_index([("relationship_type", ASCENDING)])
-    # Phase 4 prep: non-unique tenant_id (hard scoping in Phase 5).
     coll.create_index([("tenant_id", ASCENDING)], name="tenant_id_idx")
     return coll
 
@@ -55,11 +54,10 @@ def generate_relationship_id() -> str:
     return f"rel-{uuid.uuid4().hex[:12]}"
 
 
-def _require_component(component_id: str, role: str) -> dict[str, Any]:
-    # Lazy import avoids circular dependency with components.delete_preview
+def _require_component(component_id: str, role: str, *, tenant_id: str) -> dict[str, Any]:
     from . import components as components_service
 
-    doc = components_service.get_component(component_id)
+    doc = components_service.get_component(component_id, tenant_id=tenant_id)
     if doc is None:
         raise RelationshipError(
             f"Invalid {role} component_id '{component_id}' — component does not exist",
@@ -101,27 +99,34 @@ def _enum_value(value: Any) -> Any:
     return value.value if hasattr(value, "value") else value
 
 
-def find_relationships_referencing(component_id: str) -> list[dict[str, Any]]:
-    """Return relationships where component is source or target."""
+def find_relationships_referencing(
+    component_id: str, *, tenant_id: str
+) -> list[dict[str, Any]]:
+    """Return relationships where component is source or target (same tenant)."""
+    tid = require_tenant_id(tenant_id)
     try:
         coll = _collection()
     except Exception:
-        # DB unavailable — treat as no refs for delete preview soft path
         return []
     cursor = coll.find(
-        {
-            "$or": [
-                {"source_component_id": component_id},
-                {"target_component_id": component_id},
-            ]
-        }
+        merge_tenant_filter(
+            {
+                "$or": [
+                    {"source_component_id": component_id},
+                    {"target_component_id": component_id},
+                ]
+            },
+            tid,
+        )
     ).sort("updated_at", DESCENDING)
     return [serialize_document(doc) for doc in cursor]  # type: ignore[misc]
 
 
-def relationship_delete_warning(component_id: str) -> dict[str, Any]:
-    """Build the delete-warning payload for a component (wired for Phase 4)."""
-    refs = find_relationships_referencing(component_id)
+def relationship_delete_warning(
+    component_id: str, *, tenant_id: str
+) -> dict[str, Any]:
+    """Build the delete-warning payload for a component."""
+    refs = find_relationships_referencing(component_id, tenant_id=tenant_id)
     return {
         "component_id": component_id,
         "has_relationships": len(refs) > 0,
@@ -138,14 +143,20 @@ def relationship_delete_warning(component_id: str) -> dict[str, Any]:
     }
 
 
-def get_relationship(relationship_id: str) -> dict[str, Any] | None:
-    doc = _collection().find_one({"relationship_id": relationship_id})
+def get_relationship(relationship_id: str, *, tenant_id: str) -> dict[str, Any] | None:
+    tid = require_tenant_id(tenant_id)
+    doc = _collection().find_one(
+        {"relationship_id": relationship_id, **tenant_filter(tid)}
+    )
     return serialize_document(doc)  # type: ignore[return-value]
 
 
-def create_relationship(payload: RelationshipCreate) -> dict[str, Any]:
-    source = _require_component(payload.source_component_id, "source")
-    target = _require_component(payload.target_component_id, "target")
+def create_relationship(
+    payload: RelationshipCreate, *, tenant_id: str
+) -> dict[str, Any]:
+    tid = require_tenant_id(tenant_id)
+    source = _require_component(payload.source_component_id, "source", tenant_id=tid)
+    target = _require_component(payload.target_component_id, "target", tenant_id=tid)
 
     relationship_id = payload.relationship_id or generate_relationship_id()
     now = _now()
@@ -176,7 +187,7 @@ def create_relationship(payload: RelationshipCreate) -> dict[str, Any]:
         "created_at": now,
         "updated_at": now,
     }
-    stamp_tenant_id(doc)
+    stamp_tenant_id(doc, tenant_id=tid)
     try:
         _collection().insert_one(doc)
     except DuplicateKeyError as exc:
@@ -194,9 +205,14 @@ def create_relationship(payload: RelationshipCreate) -> dict[str, Any]:
     return result
 
 
-def update_relationship(relationship_id: str, payload: RelationshipUpdate) -> dict[str, Any]:
+def update_relationship(
+    relationship_id: str, payload: RelationshipUpdate, *, tenant_id: str
+) -> dict[str, Any]:
+    tid = require_tenant_id(tenant_id)
     coll = _collection()
-    existing = coll.find_one({"relationship_id": relationship_id})
+    existing = coll.find_one(
+        {"relationship_id": relationship_id, **tenant_filter(tid)}
+    )
     if existing is None:
         raise RelationshipError(
             f"Relationship '{relationship_id}' not found",
@@ -222,8 +238,8 @@ def update_relationship(relationship_id: str, payload: RelationshipUpdate) -> di
             status_code=422,
         )
 
-    source = _require_component(source_id, "source")
-    target = _require_component(target_id, "target")
+    source = _require_component(source_id, "source", tenant_id=tid)
+    target = _require_component(target_id, "target", tenant_id=tid)
 
     fingerprint = duplicate_fingerprint(
         source_component_id=source_id,
@@ -235,9 +251,13 @@ def update_relationship(relationship_id: str, payload: RelationshipUpdate) -> di
     )
     data["duplicate_key"] = fingerprint
     data["updated_at"] = _now()
+    stamp_tenant_id(data, tenant_id=tid)
 
     try:
-        coll.update_one({"relationship_id": relationship_id}, {"$set": data})
+        coll.update_one(
+            {"relationship_id": relationship_id, **tenant_filter(tid)},
+            {"$set": data},
+        )
     except DuplicateKeyError as exc:
         raise RelationshipError(
             "Duplicate relationship: same source, target, type, protocol, "
@@ -245,7 +265,7 @@ def update_relationship(relationship_id: str, payload: RelationshipUpdate) -> di
             status_code=409,
         ) from exc
 
-    result = get_relationship(relationship_id)
+    result = get_relationship(relationship_id, tenant_id=tid)
     assert result is not None
     warning = _environment_mismatch_warning(source, target, result.get("environment"))
     if warning:
@@ -253,8 +273,11 @@ def update_relationship(relationship_id: str, payload: RelationshipUpdate) -> di
     return result
 
 
-def delete_relationship(relationship_id: str) -> dict[str, Any]:
-    result = _collection().delete_one({"relationship_id": relationship_id})
+def delete_relationship(relationship_id: str, *, tenant_id: str) -> dict[str, Any]:
+    tid = require_tenant_id(tenant_id)
+    result = _collection().delete_one(
+        {"relationship_id": relationship_id, **tenant_filter(tid)}
+    )
     if result.deleted_count == 0:
         raise RelationshipError(
             f"Relationship '{relationship_id}' not found",
@@ -265,6 +288,7 @@ def delete_relationship(relationship_id: str) -> dict[str, Any]:
 
 def list_relationships(
     *,
+    tenant_id: str,
     q: str | None = None,
     source_component_id: str | None = None,
     target_component_id: str | None = None,
@@ -273,6 +297,7 @@ def list_relationships(
     page: int = 1,
     page_size: int = 25,
 ) -> dict[str, Any]:
+    tid = require_tenant_id(tenant_id)
     page = max(1, page)
     page_size = min(max(1, page_size), 200)
     query: dict[str, Any] = {}
@@ -310,10 +335,11 @@ def list_relationships(
         else:
             query["$or"] = text_or
 
+    scoped = merge_tenant_filter(query, tid)
     coll = _collection()
-    total = coll.count_documents(query)
+    total = coll.count_documents(scoped)
     cursor = (
-        coll.find(query)
+        coll.find(scoped)
         .sort("updated_at", DESCENDING)
         .skip((page - 1) * page_size)
         .limit(page_size)
@@ -333,6 +359,7 @@ def list_relationships(
         "total_pages": (total + page_size - 1) // page_size if page_size else 0,
         "items": items,
         "rows": rows,
+        "tenant_id": tid,
     }
 
 

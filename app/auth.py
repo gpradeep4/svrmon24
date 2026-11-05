@@ -1,8 +1,9 @@
 """Authentication for SVRMON24 — OIDC session (primary) + feature-flagged HTTP Basic.
 
 Basic auth is a migration/testing coexistence path only. It must never bypass
-future tenant-scoped authorization once multi-tenant isolation lands. Defaults
-are production-oriented: ``BASIC_AUTH_ENABLED=false``.
+tenant-scoped authorization — Basic sessions are always scoped to the migration
+tenant via :mod:`app.tenant_context`. Defaults are production-oriented:
+``BASIC_AUTH_ENABLED=false``.
 """
 
 from __future__ import annotations

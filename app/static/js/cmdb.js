@@ -233,7 +233,7 @@
       "tenant-svrmon24-legacy";
     if (sub) {
       sub.textContent = connected
-        ? `Authenticated via ${methodLabel} · ${tenantName} (no isolation yet)`
+        ? `Authenticated via ${methodLabel} · ${tenantName} (tenant isolation on)`
         : "Sign in with OIDC (or Basic if enabled) to load APIs";
     }
     setTenantBanner(connected, connected ? tenantName : "", connected ? tenantId : "");
@@ -277,7 +277,7 @@
       if (orgEl) {
         orgEl.textContent =
           `${tenantName} (${tenantId}) — ` +
-          "not switchable; isolation_enforced=false";
+          "not switchable; isolation_enforced=true";
       }
     } catch (err) {
       if (orgEl) orgEl.textContent = err.message || "Could not load tenant";

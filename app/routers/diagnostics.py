@@ -1,4 +1,4 @@
-"""Diagnostic APIs — SIMULATED / demo only."""
+"""Diagnostic APIs — SIMULATED / demo only (tenant-scoped)."""
 
 from __future__ import annotations
 
@@ -15,6 +15,7 @@ from ..services import diagnostics as diagnostics_service
 from ..services.ai_analysis import AnalysisError
 from ..services.diagnostics import DiagnosticError
 from ..services.ollama_client import OllamaClient
+from ..tenant_context import TenantContext, require_tenant
 
 router = APIRouter(
     prefix="/api/diagnostics",
@@ -46,9 +47,14 @@ def ollama_status() -> dict[str, Any]:
 
 
 @router.post("", status_code=201)
-def start_diagnostic(payload: DiagnosticStartRequest) -> dict[str, Any]:
+def start_diagnostic(
+    payload: DiagnosticStartRequest,
+    tenant: TenantContext = Depends(require_tenant),
+) -> dict[str, Any]:
     try:
-        return diagnostics_service.start_diagnostic(payload)
+        return diagnostics_service.start_diagnostic(
+            payload, tenant_id=tenant.tenant_id
+        )
     except DiagnosticError as exc:
         _raise(exc)
         raise  # pragma: no cover
@@ -60,8 +66,10 @@ def list_history(
     profile_name: str | None = Query(default=None),
     page: int = Query(default=1, ge=1),
     page_size: int = Query(default=25, ge=1, le=200),
+    tenant: TenantContext = Depends(require_tenant),
 ) -> dict[str, Any]:
     return diagnostics_service.list_diagnostics(
+        tenant_id=tenant.tenant_id,
         component_id=component_id,
         profile_name=profile_name,
         page=page,
@@ -73,11 +81,13 @@ def list_history(
 def analyze_diagnostic(
     diagnostic_id: str,
     payload: AnalyzeRequest | None = None,
+    tenant: TenantContext = Depends(require_tenant),
 ) -> dict[str, Any]:
     """Run AI analysis (Ollama) with rule-based fallback; store on the diagnostic."""
     try:
         return ai_analysis_service.analyze_diagnostic(
             diagnostic_id,
+            tenant_id=tenant.tenant_id,
             force_fallback=bool(payload.force_fallback) if payload else False,
         )
     except AnalysisError as exc:
@@ -89,8 +99,13 @@ def analyze_diagnostic(
 
 
 @router.get("/{diagnostic_id}")
-def get_diagnostic(diagnostic_id: str) -> dict[str, Any]:
-    doc = diagnostics_service.get_diagnostic(diagnostic_id)
+def get_diagnostic(
+    diagnostic_id: str,
+    tenant: TenantContext = Depends(require_tenant),
+) -> dict[str, Any]:
+    doc = diagnostics_service.get_diagnostic(
+        diagnostic_id, tenant_id=tenant.tenant_id
+    )
     if doc is None:
         raise HTTPException(
             status_code=404, detail=f"Diagnostic '{diagnostic_id}' not found"

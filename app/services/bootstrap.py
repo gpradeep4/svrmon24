@@ -1,4 +1,4 @@
-"""Startup / CLI bootstrap helpers for tenancy (Master Phase 4)."""
+"""Startup / CLI bootstrap helpers for tenancy (Master Phase 5)."""
 
 from __future__ import annotations
 
@@ -6,6 +6,7 @@ import logging
 from typing import Any
 
 from ..db import DatabaseUnavailableError, get_database, ping_database
+from ..tenancy import ISOLATION_ENFORCED, MIGRATION_TENANT_ID
 from . import memberships as memberships_service
 from . import tenant_indexes
 from . import tenants as tenants_service
@@ -15,7 +16,7 @@ logger = logging.getLogger(__name__)
 
 
 def ensure_tenancy_ready() -> dict[str, Any]:
-    """Idempotent seed: migration tenant + indexes for tenancy collections.
+    """Idempotent seed: migration tenant, indexes, null tenant_id backfill.
 
     Safe when MongoDB is down — returns a structured status instead of raising.
     """
@@ -34,12 +35,16 @@ def ensure_tenancy_ready() -> dict[str, Any]:
         memberships_service.ensure_indexes()
         tenant_idx = tenant_indexes.ensure_tenant_id_indexes(db)
         tenant = tenants_service.ensure_migration_tenant()
+        backfill = tenant_indexes.backfill_null_tenant_ids(
+            db, tenant_id=MIGRATION_TENANT_ID
+        )
         return {
             "ok": True,
             "migration_tenant_id": tenant.get("tenant_id"),
             "migration_tenant_display_name": tenant.get("display_name"),
             "tenant_id_indexes": tenant_idx,
-            "isolation_enforced": False,
+            "backfill": backfill,
+            "isolation_enforced": ISOLATION_ENFORCED,
         }
     except DatabaseUnavailableError as exc:
         logger.warning("tenancy_bootstrap_skipped detail=%s", exc)

@@ -1,4 +1,4 @@
-"""CMDB component inventory API."""
+"""CMDB component inventory API (tenant-scoped)."""
 
 from __future__ import annotations
 
@@ -10,6 +10,7 @@ from ..auth import require_user
 from ..models.components import COMPONENT_TYPES, ComponentCreate, ComponentUpdate
 from ..services import components as components_service
 from ..services.components import ComponentError
+from ..tenant_context import TenantContext, require_tenant
 
 router = APIRouter(
     prefix="/api/components",
@@ -39,10 +40,12 @@ def list_components(
     page_size: int = Query(default=25, ge=1, le=200),
     sort_by: str = Query(default="updated_at"),
     sort_dir: str = Query(default="desc", pattern="^(?i)(asc|desc)$"),
+    tenant: TenantContext = Depends(require_tenant),
 ) -> dict[str, Any]:
     if component_type and component_type not in COMPONENT_TYPES:
         raise HTTPException(status_code=422, detail=f"Invalid component_type: {component_type}")
     return components_service.list_components(
+        tenant_id=tenant.tenant_id,
         q=q,
         component_type=component_type,
         environment=environment,
@@ -57,14 +60,16 @@ def list_components(
 
 
 @router.post("", status_code=201)
-def create_component(payload: ComponentCreate) -> dict[str, Any]:
+def create_component(
+    payload: ComponentCreate,
+    tenant: TenantContext = Depends(require_tenant),
+) -> dict[str, Any]:
     try:
-        return components_service.create_component(payload)
+        return components_service.create_component(payload, tenant_id=tenant.tenant_id)
     except ComponentError as exc:
         _raise(exc)
         raise  # pragma: no cover
     except Exception as exc:
-        # custom field validation errors
         from ..services.custom_fields import CustomFieldError
 
         if isinstance(exc, CustomFieldError):
@@ -73,17 +78,26 @@ def create_component(payload: ComponentCreate) -> dict[str, Any]:
 
 
 @router.get("/{component_id}")
-def get_component(component_id: str) -> dict[str, Any]:
-    doc = components_service.get_component(component_id)
+def get_component(
+    component_id: str,
+    tenant: TenantContext = Depends(require_tenant),
+) -> dict[str, Any]:
+    doc = components_service.get_component(component_id, tenant_id=tenant.tenant_id)
     if doc is None:
         raise HTTPException(status_code=404, detail=f"Component '{component_id}' not found")
     return doc
 
 
 @router.put("/{component_id}")
-def update_component(component_id: str, payload: ComponentUpdate) -> dict[str, Any]:
+def update_component(
+    component_id: str,
+    payload: ComponentUpdate,
+    tenant: TenantContext = Depends(require_tenant),
+) -> dict[str, Any]:
     try:
-        return components_service.update_component(component_id, payload)
+        return components_service.update_component(
+            component_id, payload, tenant_id=tenant.tenant_id
+        )
     except ComponentError as exc:
         _raise(exc)
         raise  # pragma: no cover
@@ -96,9 +110,14 @@ def update_component(component_id: str, payload: ComponentUpdate) -> dict[str, A
 
 
 @router.get("/{component_id}/delete-preview")
-def delete_preview(component_id: str) -> dict[str, Any]:
+def delete_preview(
+    component_id: str,
+    tenant: TenantContext = Depends(require_tenant),
+) -> dict[str, Any]:
     try:
-        return components_service.delete_preview(component_id)
+        return components_service.delete_preview(
+            component_id, tenant_id=tenant.tenant_id
+        )
     except ComponentError as exc:
         _raise(exc)
         raise  # pragma: no cover
@@ -108,9 +127,12 @@ def delete_preview(component_id: str) -> dict[str, Any]:
 def delete_component(
     component_id: str,
     confirmed: bool = Query(default=False, description="Must be true to delete"),
+    tenant: TenantContext = Depends(require_tenant),
 ) -> dict[str, Any]:
     try:
-        return components_service.delete_component(component_id, confirmed=confirmed)
+        return components_service.delete_component(
+            component_id, confirmed=confirmed, tenant_id=tenant.tenant_id
+        )
     except ComponentError as exc:
         _raise(exc)
         raise  # pragma: no cover

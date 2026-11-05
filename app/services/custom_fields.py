@@ -1,4 +1,4 @@
-"""Custom-field definition persistence."""
+"""Custom-field definition persistence (tenant-scoped)."""
 
 from __future__ import annotations
 
@@ -18,7 +18,7 @@ from ..models.custom_fields import (
 )
 from ..models.components import ComponentType
 from ..serialization import serialize_document
-from ..tenancy import stamp_tenant_id
+from ..tenancy import require_tenant_id, stamp_tenant_id, tenant_filter
 
 COLLECTION = "custom_field_definitions"
 
@@ -33,7 +33,6 @@ class CustomFieldError(Exception):
 def _collection() -> Collection:
     coll = require_database()[COLLECTION]
     coll.create_index([("field_key", ASCENDING)], unique=True)
-    # Phase 4 prep: non-unique tenant_id (hard scoping in Phase 5).
     coll.create_index([("tenant_id", ASCENDING)], name="tenant_id_idx")
     return coll
 
@@ -42,8 +41,13 @@ def _now() -> datetime:
     return datetime.now(timezone.utc)
 
 
-def list_definitions(*, component_type: str | None = None) -> list[dict[str, Any]]:
-    docs = list(_collection().find().sort("field_key", ASCENDING))
+def list_definitions(
+    *, tenant_id: str, component_type: str | None = None
+) -> list[dict[str, Any]]:
+    tid = require_tenant_id(tenant_id)
+    docs = list(
+        _collection().find(tenant_filter(tid)).sort("field_key", ASCENDING)
+    )
     serialized = [serialize_document(doc) for doc in docs]
     if component_type:
         ctype = ComponentType(component_type) if component_type != "*" else None
@@ -52,12 +56,14 @@ def list_definitions(*, component_type: str | None = None) -> list[dict[str, Any
     return serialized  # type: ignore[return-value]
 
 
-def get_definition(field_key: str) -> dict[str, Any] | None:
-    doc = _collection().find_one({"field_key": field_key})
+def get_definition(field_key: str, *, tenant_id: str) -> dict[str, Any] | None:
+    tid = require_tenant_id(tenant_id)
+    doc = _collection().find_one({"field_key": field_key, **tenant_filter(tid)})
     return serialize_document(doc)  # type: ignore[return-value]
 
 
-def create_definition(payload: CustomFieldCreate) -> dict[str, Any]:
+def create_definition(payload: CustomFieldCreate, *, tenant_id: str) -> dict[str, Any]:
+    tid = require_tenant_id(tenant_id)
     now = _now()
     doc = {
         "field_key": payload.field_key,
@@ -69,7 +75,7 @@ def create_definition(payload: CustomFieldCreate) -> dict[str, Any]:
         "created_at": now,
         "updated_at": now,
     }
-    stamp_tenant_id(doc)
+    stamp_tenant_id(doc, tenant_id=tid)
     try:
         _collection().insert_one(doc)
     except DuplicateKeyError as exc:
@@ -80,9 +86,12 @@ def create_definition(payload: CustomFieldCreate) -> dict[str, Any]:
     return serialize_document(doc)  # type: ignore[return-value]
 
 
-def update_definition(field_key: str, payload: CustomFieldUpdate) -> dict[str, Any]:
+def update_definition(
+    field_key: str, payload: CustomFieldUpdate, *, tenant_id: str
+) -> dict[str, Any]:
+    tid = require_tenant_id(tenant_id)
     coll = _collection()
-    existing = coll.find_one({"field_key": field_key})
+    existing = coll.find_one({"field_key": field_key, **tenant_filter(tid)})
     if existing is None:
         raise CustomFieldError(f"Custom field '{field_key}' not found", status_code=404)
 
@@ -92,7 +101,6 @@ def update_definition(field_key: str, payload: CustomFieldUpdate) -> dict[str, A
     if not data:
         return serialize_document(existing)  # type: ignore[return-value]
 
-    # Validate enum consistency after merge
     merged = {**existing, **data}
     CustomFieldCreate.model_validate(
         {
@@ -105,12 +113,14 @@ def update_definition(field_key: str, payload: CustomFieldUpdate) -> dict[str, A
         }
     )
     data["updated_at"] = _now()
-    coll.update_one({"field_key": field_key}, {"$set": data})
-    return get_definition(field_key)  # type: ignore[return-value]
+    stamp_tenant_id(data, tenant_id=tid)
+    coll.update_one({"field_key": field_key, **tenant_filter(tid)}, {"$set": data})
+    return get_definition(field_key, tenant_id=tid)  # type: ignore[return-value]
 
 
-def delete_definition(field_key: str) -> None:
-    result = _collection().delete_one({"field_key": field_key})
+def delete_definition(field_key: str, *, tenant_id: str) -> None:
+    tid = require_tenant_id(tenant_id)
+    result = _collection().delete_one({"field_key": field_key, **tenant_filter(tid)})
     if result.deleted_count == 0:
         raise CustomFieldError(f"Custom field '{field_key}' not found", status_code=404)
 
@@ -118,15 +128,15 @@ def delete_definition(field_key: str) -> None:
 def validate_component_custom_fields(
     component_type: ComponentType,
     custom_fields: dict[str, Any],
+    *,
+    tenant_id: str,
 ) -> None:
     """Validate custom_fields against configured definitions (required + types)."""
-    definitions = list_definitions()
+    definitions = list_definitions(tenant_id=tenant_id)
     applicable = [d for d in definitions if field_applies_to_type(d, component_type)]
     known_keys = {d["field_key"] for d in applicable}
 
     unknown = set(custom_fields) - known_keys
-    # Allow unknown keys for forward-compat / free-form, but warn via exception only if
-    # definitions exist and required ones are missing. Unknown keys are permitted.
     _ = unknown
 
     for definition in applicable:

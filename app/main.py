@@ -83,8 +83,8 @@ def create_app() -> FastAPI:
             "SVRMON24: FastAPI + MongoDB CMDB, relationships, dependency/impact "
             "analysis, SIMULATED diagnostics, AI analysis, and dashboard with "
             "provider-neutral OIDC auth (HTTP Basic optional via feature flag). "
-            "Tenant/membership models (single logical org); hard isolation is later. "
-            "Diagnostics are demo-only; no remote execution."
+            "Hard tenant isolation on shared MongoDB; single-tenant UX "
+            "(org switcher disabled). Diagnostics are demo-only; no remote execution."
         ),
         lifespan=lifespan,
     )

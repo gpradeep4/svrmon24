@@ -355,11 +355,17 @@ def whoami(
     from ..services import memberships as memberships_service
     from ..services import tenants as tenants_service
     from ..services import users as users_service
-    from ..tenancy import MIGRATION_TENANT_DISPLAY_NAME, MIGRATION_TENANT_ID
+    from ..tenancy import (
+        ISOLATION_ENFORCED,
+        MIGRATION_TENANT_DISPLAY_NAME,
+        MIGRATION_TENANT_ID,
+        ORG_SWITCHER_ENABLED,
+    )
+    from ..tenant_context import SESSION_CURRENT_TENANT
 
     payload = user.as_dict()
-    payload["isolation_enforced"] = False
-    payload["org_switcher_enabled"] = False
+    payload["isolation_enforced"] = ISOLATION_ENFORCED
+    payload["org_switcher_enabled"] = ORG_SWITCHER_ENABLED
     payload["current_tenant_id"] = MIGRATION_TENANT_ID
     payload["current_tenant_display_name"] = MIGRATION_TENANT_DISPLAY_NAME
     payload["is_platform_admin"] = False
@@ -375,9 +381,11 @@ def whoami(
             payload["is_platform_admin"] = bool(session_auth.get("is_platform_admin"))
 
     if user.auth_method != "oidc":
+        request.session[SESSION_CURRENT_TENANT] = MIGRATION_TENANT_ID
         payload["notes"] = (
             "HTTP Basic migration session — no local user/membership link. "
-            "Basic must not bypass future tenant authorization."
+            "Basic is scoped to the migration tenant only and must not bypass "
+            "tenant authorization."
         )
         return payload
 
@@ -406,11 +414,24 @@ def whoami(
         payload["is_platform_admin"] = bool(local.get("is_platform_admin"))
         memberships = memberships_service.list_memberships_for_user(local["user_id"])
         payload["memberships"] = memberships
-        tenant = tenants_service.get_current_tenant()
-        payload["current_tenant_id"] = tenant.get("tenant_id", MIGRATION_TENANT_ID)
+
+        member_ids = {str(m.get("tenant_id")) for m in memberships if m.get("tenant_id")}
+        session_tid = request.session.get(SESSION_CURRENT_TENANT)
+        if isinstance(session_tid, str) and session_tid in member_ids:
+            current_tid = session_tid
+        elif MIGRATION_TENANT_ID in member_ids:
+            current_tid = MIGRATION_TENANT_ID
+        elif memberships:
+            current_tid = str(memberships[0]["tenant_id"])
+        else:
+            current_tid = MIGRATION_TENANT_ID
+
+        tenant = tenants_service.get_tenant(current_tid) or tenants_service.get_current_tenant()
+        payload["current_tenant_id"] = tenant.get("tenant_id", current_tid)
         payload["current_tenant_display_name"] = tenant.get(
             "display_name", MIGRATION_TENANT_DISPLAY_NAME
         )
+        request.session[SESSION_CURRENT_TENANT] = payload["current_tenant_id"]
         # Refresh session cache for subsequent requests.
         if isinstance(session_auth, dict):
             session_auth["user_id"] = local.get("user_id")

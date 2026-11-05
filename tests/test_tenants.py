@@ -127,7 +127,7 @@ def test_ensure_migration_tenant_idempotent(clean_db) -> None:
     first = ensure_tenancy_ready()
     assert first["ok"] is True
     assert first["migration_tenant_id"] == MIGRATION_TENANT_ID
-    assert first["isolation_enforced"] is False
+    assert first["isolation_enforced"] is True
 
     again = tenants_service.ensure_migration_tenant()
     assert again["tenant_id"] == MIGRATION_TENANT_ID
@@ -211,7 +211,7 @@ def test_oidc_login_links_user_never_auto_platform_admin(
     assert body["current_tenant_id"] == MIGRATION_TENANT_ID
     assert body["current_tenant_display_name"] == MIGRATION_TENANT_DISPLAY_NAME
     assert body["org_switcher_enabled"] is False
-    assert body["isolation_enforced"] is False
+    assert body["isolation_enforced"] is True
     assert any(m["role"] == "member" for m in body.get("memberships") or [])
 
     # Direct DB proof: no accidental platform admin
@@ -223,7 +223,7 @@ def test_oidc_login_links_user_never_auto_platform_admin(
     tenants = oidc_client.get("/api/tenants/current")
     assert tenants.status_code == 200
     assert tenants.json()["tenant"]["tenant_id"] == MIGRATION_TENANT_ID
-    assert tenants.json()["isolation_enforced"] is False
+    assert tenants.json()["isolation_enforced"] is True
 
     mem = oidc_client.get("/api/memberships")
     assert mem.status_code == 200
@@ -322,4 +322,5 @@ def test_ui_shows_migration_tenant_non_switchable() -> None:
     assert "/api/tenants/current" in js
     assert "/api/memberships" in js
     assert ".tenant-banner" in css
-    assert "0.13.1" in html
+    assert "0.14.0" in html
+    assert "isolation_enforced=true" in js

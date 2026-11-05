@@ -1,4 +1,4 @@
-"""Dashboard aggregates from live MongoDB collections (no hardcoded counts)."""
+"""Dashboard aggregates from live MongoDB collections (tenant-scoped)."""
 
 from __future__ import annotations
 
@@ -6,11 +6,14 @@ from typing import Any
 
 from ..db import get_database
 from ..serialization import serialize_document
+from ..tenancy import require_tenant_id, tenant_filter
 
 
-def _count_by(collection_name: str, field: str) -> dict[str, int]:
+def _count_by(collection_name: str, field: str, *, tenant_id: str) -> dict[str, int]:
     db = get_database()
+    tid = require_tenant_id(tenant_id)
     pipeline = [
+        {"$match": tenant_filter(tid)},
         {"$group": {"_id": f"${field}", "count": {"$sum": 1}}},
         {"$sort": {"count": -1}},
     ]
@@ -22,28 +25,31 @@ def _count_by(collection_name: str, field: str) -> dict[str, int]:
     return out
 
 
-def get_dashboard_summary(*, recent_limit: int = 8) -> dict[str, Any]:
-    """Build dashboard widgets from live CMDB / diagnostic data."""
+def get_dashboard_summary(
+    *, tenant_id: str, recent_limit: int = 8
+) -> dict[str, Any]:
+    """Build dashboard widgets from live CMDB / diagnostic data for one tenant."""
+    tid = require_tenant_id(tenant_id)
     recent_limit = max(1, min(int(recent_limit), 50))
     db = get_database()
     components = db["components"]
     relationships = db["cmdb_relationships"]
     diagnostics = db["diagnostic_history"]
+    scope = tenant_filter(tid)
 
-    total_components = components.count_documents({})
-    total_relationships = relationships.count_documents({})
-    by_type = _count_by("components", "component_type")
-    by_environment = _count_by("components", "environment")
+    total_components = components.count_documents(scope)
+    total_relationships = relationships.count_documents(scope)
+    by_type = _count_by("components", "component_type", tenant_id=tid)
+    by_environment = _count_by("components", "environment", tenant_id=tid)
 
     recent_diagnostics = list(
-        diagnostics.find({}, {"_id": 0})
+        diagnostics.find(scope, {"_id": 0})
         .sort("timestamp", -1)
         .limit(recent_limit)
     )
 
-    # Recent findings: diagnostics with non-ok overall or non-ok checks
     findings: list[dict[str, Any]] = []
-    for doc in diagnostics.find({}).sort("timestamp", -1).limit(40):
+    for doc in diagnostics.find(scope).sort("timestamp", -1).limit(40):
         summary = doc.get("summary") or {}
         overall = str(summary.get("overall_status") or "ok")
         checks = doc.get("checks") or []
@@ -81,11 +87,10 @@ def get_dashboard_summary(*, recent_limit: int = 8) -> dict[str, Any]:
         if len(findings) >= recent_limit:
             break
 
-    # Critical components requiring review (status + unverified edges + warning diags)
     review_map: dict[str, dict[str, Any]] = {}
 
     for doc in components.find(
-        {"status": {"$in": ["inactive", "decommissioned", "unknown"]}},
+        {**scope, "status": {"$in": ["inactive", "decommissioned", "unknown"]}},
         {"_id": 0, "component_id": 1, "name": 1, "hostname": 1, "component_type": 1,
          "environment": 1, "status": 1},
     ):
@@ -102,7 +107,7 @@ def get_dashboard_summary(*, recent_limit: int = 8) -> dict[str, Any]:
         }
 
     for rel in relationships.find(
-        {"verification_status": {"$ne": "verified"}},
+        {**scope, "verification_status": {"$ne": "verified"}},
         {"_id": 0, "source_component_id": 1, "target_component_id": 1,
          "relationship_id": 1, "verification_status": 1},
     ):
@@ -150,7 +155,6 @@ def get_dashboard_summary(*, recent_limit: int = 8) -> dict[str, Any]:
         if reason not in entry["reasons"]:
             entry["reasons"].append(reason)
 
-    # Enrich missing component metadata
     missing_ids = [
         cid
         for cid, row in review_map.items()
@@ -158,7 +162,7 @@ def get_dashboard_summary(*, recent_limit: int = 8) -> dict[str, Any]:
     ]
     if missing_ids:
         for doc in components.find(
-            {"component_id": {"$in": missing_ids}},
+            {**scope, "component_id": {"$in": missing_ids}},
             {"_id": 0, "component_id": 1, "name": 1, "hostname": 1,
              "component_type": 1, "environment": 1, "status": 1},
         ):
@@ -185,6 +189,7 @@ def get_dashboard_summary(*, recent_limit: int = 8) -> dict[str, Any]:
             "recent_diagnostics": recent_diagnostics,
             "recent_findings": findings,
             "critical_components_requiring_review": critical,
+            "tenant_id": tid,
             "labels": {
                 "diagnostics_mode": "SIMULATED",
                 "findings_banner": (

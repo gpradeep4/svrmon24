@@ -1,8 +1,9 @@
-"""Shared tenancy constants and helpers (Master Phase 4).
+"""Shared tenancy constants and helpers (Master Phase 5 — hard isolation).
 
-Phase 4 introduces tenant / membership models and dual-writes ``tenant_id`` on
-new CMDB documents. Hard cross-tenant denial is intentionally deferred to
-Phase 5 — queries remain globally scoped until then.
+Phase 5 makes ``tenant_id`` mandatory on CMDB collections, scopes every
+read/write/aggregate, and denies cross-tenant access. ``component_id`` remains
+**globally** unique. Organization switching stays disabled until multi-org UX
+is explicitly enabled with isolation tests green.
 """
 
 from __future__ import annotations
@@ -21,7 +22,7 @@ MEMBERSHIP_ROLES: frozenset[str] = frozenset(
     {MEMBERSHIP_ROLE_MEMBER, MEMBERSHIP_ROLE_ADMIN}
 )
 
-# Collections that receive nullable / dual-written tenant_id in Phase 4.
+# Collections that require tenant_id scoping.
 TENANTED_COLLECTIONS: tuple[str, ...] = (
     "components",
     "custom_field_definitions",
@@ -29,18 +30,49 @@ TENANTED_COLLECTIONS: tuple[str, ...] = (
     "diagnostic_history",
 )
 
+# Master Phase 5: hard isolation is on.
+ISOLATION_ENFORCED = True
+ORG_SWITCHER_ENABLED = False
+
+# Match documents missing or empty tenant_id (pre-Phase-5 rows).
+MISSING_TENANT_ID_FILTER: dict[str, Any] = {
+    "$or": [
+        {"tenant_id": {"$exists": False}},
+        {"tenant_id": None},
+        {"tenant_id": ""},
+    ]
+}
+
+
+def require_tenant_id(tenant_id: str | None) -> str:
+    """Return a non-empty tenant_id or raise ``ValueError``."""
+    value = (tenant_id or "").strip()
+    if not value:
+        raise ValueError("tenant_id is required")
+    return value
+
+
+def tenant_filter(tenant_id: str) -> dict[str, Any]:
+    """Mongo filter that scopes a query to one tenant."""
+    return {"tenant_id": require_tenant_id(tenant_id)}
+
+
+def merge_tenant_filter(query: dict[str, Any] | None, tenant_id: str) -> dict[str, Any]:
+    """AND an existing query with mandatory ``tenant_id`` scoping."""
+    scoped = tenant_filter(tenant_id)
+    if not query:
+        return scoped
+    return {"$and": [scoped, query]}
+
 
 def stamp_tenant_id(
     doc: dict[str, Any],
     *,
-    tenant_id: str | None = None,
+    tenant_id: str,
 ) -> dict[str, Any]:
-    """Dual-write helper: set ``tenant_id`` when missing (does not overwrite).
+    """Require and set ``tenant_id`` on a document being written.
 
-    New writes stamp the migration tenant by default so Phase 5 can flip on
-    mandatory scoping after a null-backfill. Existing APIs stay compatible —
-    callers still look up by global ids; filters are not applied yet.
+    Phase 5: always stamps the caller's tenant (no optional/null dual-write).
     """
-    if doc.get("tenant_id") in (None, ""):
-        doc["tenant_id"] = tenant_id or MIGRATION_TENANT_ID
+    doc["tenant_id"] = require_tenant_id(tenant_id)
     return doc

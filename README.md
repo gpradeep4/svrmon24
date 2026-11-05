@@ -4,12 +4,12 @@ AI-assisted infrastructure CMDB, dependency mapping, **SIMULATED** diagnostics, 
 
 Stack: **FastAPI + Uvicorn + MongoDB (PyMongo) + provider-neutral OIDC** (HTTP Basic optional via feature flag). Diagnostics never contact remote hosts and never execute shell/SQL/network scans.
 
-## Features (through Master Phase 4)
+## Features (through Master Phase 5)
 
 | Area | Capability |
 | --- | --- |
 | Auth / ops | OIDC (Auth Code + PKCE), feature-flagged HTTP Basic, `/health`, `/api/status`, structured logging |
-| Tenancy | `tenants` / `users` / `memberships`; migration tenant **SVRMON24 Legacy** (`tenant-svrmon24-legacy`); dual-write `tenant_id` on new CMDB docs — **no hard isolation yet** |
+| Tenancy | Hard `tenant_id` isolation on CMDB/relationships/custom-fields/diagnostics/dashboard; migration tenant **SVRMON24 Legacy** (`tenant-svrmon24-legacy`); Basic scoped to migration tenant (no auth bypass); org switcher still disabled |
 | CMDB | Server / Network / Middleware / Database / Application inventory |
 | Custom fields | Per-type (or global) field definitions |
 | Relationships | HOSTED_ON / DEPENDS_ON / CONNECTS_TO / ROUTES_TO |
@@ -89,18 +89,19 @@ When Ollama is unavailable, diagnostic analysis uses a deterministic rule-based 
 - Browser login uses **Authorization Code + PKCE**; state/PKCE live in the signed session cookie **and** a short-lived pending cookie
 - Unauthenticated users see a **dedicated full-page login** (no Operations sidebar/header chrome). After SSO/Basic, the app shell loads on Dashboard
 - Authenticated top banner shows the current tenant (**SVRMON24 Legacy** + `tenant-svrmon24-legacy`); Organization switcher + Accent picker stay under **Settings** (switcher disabled / non-switchable)
-- **Basic auth is disabled by default** for production-oriented deployments. Enable only for migration/testing. It must **not** bypass future tenant authorization once multi-tenant isolation lands.
-- OIDC login links a local user + **member** membership on the migration tenant — **never** auto-admin the first public registrant
+- **Basic auth is disabled by default** for production-oriented deployments. Enable only for migration/testing. Basic is always scoped to the migration tenant and **must not** bypass tenant isolation.
+- OIDC login links a local user + **member** membership on the migration tenant — **never** auto-admin the first public registrant. Current tenant is resolved from membership.
 - Platform admin is **CLI/operator bootstrap only**: `python scripts/bootstrap_platform_admin.py --username operator --email ops@example.com`
 
-### Tenancy (Phase 4)
+### Tenancy (Phase 5 — hard isolation)
 
 - Startup (and `python scripts/ensure_migration_tenant.py`) idempotently seeds `tenant-svrmon24-legacy` / **SVRMON24 Legacy**
-- New writes to `components`, `custom_field_definitions`, `cmdb_relationships`, and `diagnostic_history` dual-write `tenant_id` (migration tenant). Existing rows may still have null `tenant_id` until Phase 5 backfill
-- `component_id` remains **globally** unique
-- APIs: `GET /api/tenants`, `GET /api/tenants/current`, `GET /api/tenants/{id}`, `GET /api/memberships` — org switcher is **not** activated; `isolation_enforced=false`
+- Startup / `python scripts/backfill_tenant_id.py` backfills missing/null `tenant_id` → `tenant-svrmon24-legacy` on `components`, `custom_field_definitions`, `cmdb_relationships`, `diagnostic_history`
+- Every list/get/update/delete/dashboard/deps/diag query is scoped to the current tenant; cross-tenant access returns **404**
+- Writes require `tenant_id` (stamped from the session tenant)
+- `component_id` remains **globally** unique; compound indexes include `tenant_id` for scoped lists
+- APIs: `GET /api/tenants`, `GET /api/tenants/current`, `GET /api/tenants/{id}`, `GET /api/memberships` — org switcher remains **disabled**; `isolation_enforced=true`
 - `/api/me` includes `current_tenant_id` + `current_tenant_display_name` for the header banner
-- Hard cross-tenant denial is **Master Phase 5** (not this release)
 
 ### Important: one browser host only
 
@@ -208,7 +209,7 @@ Relationship ID | Source | Target | Type | **Protocol** | **Source Port** | **Ta
 - AI analysis never auto-executes remediation and must not invent telemetry.
 - Impact results list **potentially affected** applications only — not confirmed outages.
 - Default Basic auth is **disabled**; placeholders (`change-me`) must be replaced if the flag is enabled for shared use.
-- Single logical tenant (**SVRMON24 Legacy**) — tenant models exist; **no** hard isolation or org switcher activation yet (Phase 5).
+- Shared-DB hard tenant isolation is **on** (`isolation_enforced=true`). UX remains single logical org (**SVRMON24 Legacy**); org switcher is still disabled.
 
 ## Project layout
 
@@ -222,9 +223,10 @@ svrmon24/
     static/            # Dashboard UI (HTML/CSS/JS)
     auth.py            # Unified OIDC session + Basic flag
     oidc.py            # Discovery / PKCE / token validation
-    tenancy.py         # Migration tenant constants + dual-write helper
-  scripts/             # Demo seed, migration tenant ensure, platform-admin CLI
-  tests/               # Pytest suite
+    tenancy.py         # Migration tenant constants + scoping helpers
+    tenant_context.py  # Resolve current tenant from membership / Basic
+  scripts/             # Demo seed, tenant backfill, platform-admin CLI
+  tests/               # Pytest suite (incl. cross-tenant denial)
   requirements.txt
   .env.example         # Placeholders only
   README.md
