@@ -80,7 +80,10 @@ def wipe_demo() -> dict[str, int]:
         "relationships": db["cmdb_relationships"].delete_many(
             {"relationship_id": {"$regex": f"^{DEMO_PREFIX}"}}
         ).deleted_count,
-        "custom_fields": db["custom_field_definitions"].delete_many(
+        "custom_fields": db["cmdb_field_definitions"].delete_many(
+            {"field_key": {"$regex": f"^{DEMO_FIELD_PREFIX}"}}
+        ).deleted_count
+        + db["custom_field_definitions"].delete_many(
             {"field_key": {"$regex": f"^{DEMO_FIELD_PREFIX}"}}
         ).deleted_count,
     }

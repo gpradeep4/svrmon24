@@ -107,6 +107,7 @@ def create_app() -> FastAPI:
     app.include_router(tenants_router.router)
     app.include_router(components_router.router)
     app.include_router(custom_fields_router.router)
+    app.include_router(custom_fields_router.facade_router)
     app.include_router(relationships_router.router)
     app.include_router(dependencies_router.router)
     app.include_router(diagnostics_router.router)

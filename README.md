@@ -4,14 +4,14 @@ AI-assisted infrastructure CMDB, dependency mapping, **SIMULATED** diagnostics, 
 
 Stack: **FastAPI + Uvicorn + MongoDB (PyMongo) + provider-neutral OIDC** (HTTP Basic optional via feature flag). Diagnostics never contact remote hosts and never execute shell/SQL/network scans.
 
-## Features (through Master Phase 6)
+## Features (through Master Phase 7)
 
 | Area | Capability |
 | --- | --- |
 | Auth / ops | OIDC (Auth Code + PKCE), feature-flagged HTTP Basic, `/health`, `/api/status`, structured logging |
-| Tenancy | Hard `tenant_id` isolation on CMDB/relationships/custom-fields/diagnostics/dashboard; migration tenant **SVRMON24 Legacy** (`tenant-svrmon24-legacy`); Basic scoped to migration tenant (no auth bypass); org switcher still disabled |
+| Tenancy | Hard `tenant_id` isolation on CMDB/relationships/field-definitions/diagnostics/dashboard; migration tenant **SVRMON24 Legacy** (`tenant-svrmon24-legacy`); Basic scoped to migration tenant (no auth bypass); org switcher still disabled |
 | CMDB | Typed Mongo collections (`cmdb_servers`, `cmdb_network`, `cmdb_middleware`, `cmdb_databases`, `cmdb_applications`) behind stable `/api/components*` facade; OS Family/Version and Product Type/Version stay separate |
-| Custom fields | Per-type (or global) field definitions |
+| Field definitions | Tenant-scoped `cmdb_field_definitions` (custom + locked built-in OS/product natives); `/api/custom-fields` facade; values still on component `custom_fields` |
 | Relationships | HOSTED_ON / DEPENDS_ON / CONNECTS_TO / ROUTES_TO |
 | Dependencies | Upstream / downstream traversal, cycle detection, impact (“potentially affected”) |
 | Diagnostics | Approved `basic-health` profile — always `execution_mode=SIMULATED` |
@@ -96,7 +96,7 @@ When Ollama is unavailable, diagnostic analysis uses a deterministic rule-based 
 ### Tenancy (Phase 5 — hard isolation)
 
 - Startup (and `python scripts/ensure_migration_tenant.py`) idempotently seeds `tenant-svrmon24-legacy` / **SVRMON24 Legacy**
-- Startup / `python scripts/backfill_tenant_id.py` backfills missing/null `tenant_id` → `tenant-svrmon24-legacy` on typed `cmdb_*`, legacy `components`, `custom_field_definitions`, `cmdb_relationships`, `diagnostic_history`
+- Startup / `python scripts/backfill_tenant_id.py` backfills missing/null `tenant_id` → `tenant-svrmon24-legacy` on typed `cmdb_*`, legacy `components`, `cmdb_field_definitions`, legacy `custom_field_definitions`, `cmdb_relationships`, `diagnostic_history`
 - Every list/get/update/delete/dashboard/deps/diag query is scoped to the current tenant; cross-tenant access returns **404**
 - Writes require `tenant_id` (stamped from the session tenant)
 - `component_id` remains **globally** unique; compound indexes include `tenant_id` for scoped lists
@@ -109,6 +109,15 @@ When Ollama is unavailable, diagnostic analysis uses a deterministic rule-based 
 - `/api/components*` remains the stable facade (service routes by `component_type`)
 - Startup / `python scripts/migrate_components_to_typed.py` idempotently copies legacy `components` → typed collections (legacy retained unless `--remove-legacy`)
 - Demo seed writes via the facade into typed collections; wipe clears demo rows from typed + legacy
+
+### Field definitions (Phase 7)
+
+- Canonical collection: `cmdb_field_definitions` (unique `(tenant_id, field_key)`)
+- Startup / `python scripts/migrate_custom_fields_to_cmdb.py` copies legacy `custom_field_definitions` → `cmdb_field_definitions` and seeds locked built-ins
+- Built-in **OS Family** / **OS Version** and **Product Type** / **Product Version** are separate native fields (`origin=builtin`, `storage=native`) — never collapsed or deleted
+- Custom defs use `origin=custom`, `storage=custom_fields`; values still attach on component `custom_fields`
+- APIs: `/api/field-definitions` (all defs) and `/api/custom-fields` facade (custom-only list for Inventory forms)
+- Column configuration persistence is **not** in this phase (Phase 8)
 
 ### Important: one browser host only
 
@@ -187,7 +196,10 @@ pytest -v
 | GET/POST | `/api/components` | OIDC / Basic* | List / create components |
 | GET/PUT/DELETE | `/api/components/{id}` | OIDC / Basic* | Get / update / delete |
 | GET | `/api/components/{id}/delete-preview` | OIDC / Basic* | Delete confirmation + relationship warning |
-| GET/POST | `/api/custom-fields` | OIDC / Basic* | Custom field definitions |
+| GET/POST | `/api/field-definitions` | OIDC / Basic* | CMDB field definitions (custom + built-in) |
+| GET/PUT/DELETE | `/api/field-definitions/{key}` | OIDC / Basic* | Get / update / delete field definition |
+| GET/POST | `/api/custom-fields` | OIDC / Basic* | Facade — custom field definitions (compat) |
+| GET/PUT/DELETE | `/api/custom-fields/{key}` | OIDC / Basic* | Facade — get / update / delete custom field |
 | GET/POST | `/api/relationships` | OIDC / Basic* | List / create relationships |
 | GET/PUT/DELETE | `/api/relationships/{id}` | OIDC / Basic* | Get / update / delete |
 | GET | `/api/relationships/types` | OIDC / Basic* | Type meaning + direction docs |

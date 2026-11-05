@@ -1,4 +1,4 @@
-"""Index planning for shared-DB tenancy (Master Phase 5–6).
+"""Index planning for shared-DB tenancy (Master Phase 5–7).
 
 Phase 5:
 
@@ -12,6 +12,11 @@ Phase 6:
 
 6. Typed ``cmdb_*`` collections get the same tenant compound indexes
 7. Legacy ``components`` indexes retained for migration / fallback
+
+Phase 7:
+
+8. ``cmdb_field_definitions`` unique ``(tenant_id, field_key)``
+9. Legacy ``custom_field_definitions`` indexes retained for migration
 """
 
 from __future__ import annotations
@@ -68,6 +73,17 @@ def ensure_tenant_id_indexes(db: Database) -> dict[str, list[str]]:
                     "tenant_status_idx",
                 ]
             )
+        elif name == "cmdb_field_definitions":
+            coll.create_index(
+                [("tenant_id", ASCENDING), ("field_key", ASCENDING)],
+                unique=True,
+                name="tenant_field_key_unique",
+            )
+            coll.create_index(
+                [("tenant_id", ASCENDING), ("origin", ASCENDING)],
+                name="tenant_origin_idx",
+            )
+            names.extend(["tenant_field_key_unique", "tenant_origin_idx"])
         elif name == "custom_field_definitions":
             coll.create_index(
                 [("tenant_id", ASCENDING), ("field_key", ASCENDING)],
@@ -149,4 +165,14 @@ Phase 6 migration (typed CMDB):
 3. Service layer writes/reads typed collections; /api/components* facade unchanged
 4. Legacy components retained as migration source / read fallback (unless --remove-legacy)
 5. tenant_id still mandatory; component_id still globally unique across types
+"""
+
+PHASE7_MIGRATION_NOTES = """
+Phase 7 migration (field definitions):
+
+1. migrate_custom_fields_to_cmdb() copies custom_field_definitions → cmdb_field_definitions
+2. Unique index (tenant_id, field_key) on cmdb_field_definitions
+3. Seed locked built-in OS Family/OS Version + Product Type/Product Version (native storage)
+4. /api/custom-fields remains a facade; /api/field-definitions is canonical
+5. Custom values still attach on component custom_fields; column configs are Phase 8
 """

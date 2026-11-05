@@ -61,7 +61,7 @@ def other_tenant_docs(clean_db):
             "updated_at": now,
         }
     )
-    db["custom_field_definitions"].insert_one(
+    db["cmdb_field_definitions"].insert_one(
         {
             "field_key": OTHER_FIELD_KEY,
             "label": "Other Field",
@@ -69,6 +69,10 @@ def other_tenant_docs(clean_db):
             "applies_to": ["*"],
             "required": False,
             "enum_values": [],
+            "origin": "custom",
+            "storage": "custom_fields",
+            "locked": False,
+            "active": True,
             "tenant_id": OTHER_TENANT_ID,
             "created_at": now,
             "updated_at": now,
@@ -201,6 +205,10 @@ def test_basic_cannot_read_other_tenant_relationships_fields_diags_dashboard(
     )
     assert (
         client.get(f"/api/custom-fields/{fkey}", headers=auth_headers).status_code
+        == 404
+    )
+    assert (
+        client.get(f"/api/field-definitions/{fkey}", headers=auth_headers).status_code
         == 404
     )
     assert (

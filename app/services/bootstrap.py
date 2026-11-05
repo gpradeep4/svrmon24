@@ -1,4 +1,4 @@
-"""Startup / CLI bootstrap helpers for tenancy (Master Phase 5–6)."""
+"""Startup / CLI bootstrap helpers for tenancy (Master Phase 5–7)."""
 
 from __future__ import annotations
 
@@ -8,6 +8,7 @@ from typing import Any
 from ..db import DatabaseUnavailableError, get_database, ping_database
 from ..tenancy import ISOLATION_ENFORCED, MIGRATION_TENANT_ID
 from . import cmdb_migrate
+from . import field_defs_migrate
 from . import memberships as memberships_service
 from . import tenant_indexes
 from . import tenants as tenants_service
@@ -17,7 +18,7 @@ logger = logging.getLogger(__name__)
 
 
 def ensure_tenancy_ready() -> dict[str, Any]:
-    """Idempotent seed: migration tenant, indexes, backfill, typed CMDB migrate.
+    """Idempotent seed: migration tenant, indexes, backfill, typed CMDB + field defs.
 
     Safe when MongoDB is down — returns a structured status instead of raising.
     """
@@ -42,6 +43,9 @@ def ensure_tenancy_ready() -> dict[str, Any]:
         typed_migrate = cmdb_migrate.migrate_components_to_typed(
             db, default_tenant_id=MIGRATION_TENANT_ID, remove_legacy=False
         )
+        field_migrate = field_defs_migrate.migrate_custom_fields_to_cmdb(
+            db, default_tenant_id=MIGRATION_TENANT_ID, remove_legacy=False
+        )
         return {
             "ok": True,
             "migration_tenant_id": tenant.get("tenant_id"),
@@ -49,6 +53,7 @@ def ensure_tenancy_ready() -> dict[str, Any]:
             "tenant_id_indexes": tenant_idx,
             "backfill": backfill,
             "typed_cmdb_migrate": typed_migrate,
+            "field_defs_migrate": field_migrate,
             "isolation_enforced": ISOLATION_ENFORCED,
         }
     except DatabaseUnavailableError as exc:
