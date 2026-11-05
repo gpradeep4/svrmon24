@@ -60,7 +60,12 @@ def clean_db(client: TestClient) -> Generator[None, None, None]:
         pytest.skip(f"MongoDB unavailable for CMDB tests: {status.get('detail')}")
 
     db = get_database()
-    for name in (
+    collections = (
+        "cmdb_servers",
+        "cmdb_network",
+        "cmdb_middleware",
+        "cmdb_databases",
+        "cmdb_applications",
         "components",
         "custom_field_definitions",
         "cmdb_relationships",
@@ -68,18 +73,11 @@ def clean_db(client: TestClient) -> Generator[None, None, None]:
         "tenants",
         "users",
         "memberships",
-    ):
+    )
+    for name in collections:
         db[name].delete_many({})
     yield
-    for name in (
-        "components",
-        "custom_field_definitions",
-        "cmdb_relationships",
-        "diagnostic_history",
-        "tenants",
-        "users",
-        "memberships",
-    ):
+    for name in collections:
         db[name].delete_many({})
     reset_client_for_tests()
     get_settings.cache_clear()
