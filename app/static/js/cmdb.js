@@ -1827,6 +1827,125 @@
     ) || null;
   }
 
+  const TABLE_COMBO_SELECT_IDS = [
+    "ctSelectedTable",
+    "ccRefTable",
+    "relSourceTable",
+    "relTargetTable",
+  ];
+
+  function closeAllComboSelects(exceptWrap = null) {
+    $$(".combo-select.open").forEach((wrap) => {
+      if (exceptWrap && wrap === exceptWrap) return;
+      wrap.classList.remove("open");
+      const list = wrap.querySelector(".combo-select-list");
+      const trigger = wrap.querySelector(".combo-select-trigger");
+      if (list) list.hidden = true;
+      if (trigger) trigger.setAttribute("aria-expanded", "false");
+    });
+  }
+
+  function optionDisplayText(opt) {
+    if (!opt) return "(none)";
+    const text = String(opt.textContent || opt.label || "").trim();
+    if (text) return text;
+    const value = String(opt.value || "").trim();
+    return value || "(unnamed)";
+  }
+
+  function rebuildComboSelect(selectEl) {
+    if (!selectEl) return;
+    const wrap = selectEl.closest(".combo-select");
+    if (!wrap) return;
+    const list = wrap.querySelector(".combo-select-list");
+    const trigger = wrap.querySelector(".combo-select-trigger");
+    const labelEl = wrap.querySelector(".combo-select-trigger-label");
+    if (!list || !trigger || !labelEl) return;
+
+    list.innerHTML = "";
+    for (const opt of [...selectEl.options]) {
+      const btn = document.createElement("button");
+      btn.type = "button";
+      btn.className = "combo-select-option";
+      btn.setAttribute("role", "option");
+      btn.dataset.value = opt.value;
+      btn.textContent = optionDisplayText(opt);
+      btn.setAttribute("aria-selected", opt.selected ? "true" : "false");
+      if (opt.disabled) {
+        btn.disabled = true;
+        btn.setAttribute("aria-disabled", "true");
+      }
+      btn.addEventListener("click", (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        if (opt.disabled) return;
+        selectEl.value = opt.value;
+        selectEl.dispatchEvent(new Event("change", { bubbles: true }));
+        closeAllComboSelects();
+        rebuildComboSelect(selectEl);
+      });
+      list.appendChild(btn);
+    }
+
+    const selected = selectEl.selectedOptions?.[0] || selectEl.options[selectEl.selectedIndex];
+    labelEl.textContent = optionDisplayText(selected);
+    trigger.disabled = !!selectEl.disabled;
+    trigger.title = labelEl.textContent;
+  }
+
+  function upgradeComboSelect(selectEl) {
+    if (!selectEl || selectEl.dataset.comboReady === "1") {
+      rebuildComboSelect(selectEl);
+      return selectEl?.closest(".combo-select") || null;
+    }
+    const wrap = document.createElement("div");
+    wrap.className = "combo-select";
+    selectEl.parentNode.insertBefore(wrap, selectEl);
+    wrap.appendChild(selectEl);
+    selectEl.classList.add("combo-select-native");
+    selectEl.dataset.comboReady = "1";
+    selectEl.setAttribute("tabindex", "-1");
+    selectEl.setAttribute("aria-hidden", "true");
+
+    const trigger = document.createElement("button");
+    trigger.type = "button";
+    trigger.className = "combo-select-trigger";
+    trigger.setAttribute("aria-haspopup", "listbox");
+    trigger.setAttribute("aria-expanded", "false");
+    trigger.innerHTML =
+      `<span class="combo-select-trigger-label"></span><span class="combo-select-caret" aria-hidden="true">▾</span>`;
+
+    const list = document.createElement("div");
+    list.className = "combo-select-list";
+    list.hidden = true;
+    list.setAttribute("role", "listbox");
+
+    wrap.appendChild(trigger);
+    wrap.appendChild(list);
+
+    trigger.addEventListener("click", (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      if (selectEl.disabled || trigger.disabled) return;
+      const willOpen = !wrap.classList.contains("open");
+      closeAllComboSelects(willOpen ? wrap : null);
+      wrap.classList.toggle("open", willOpen);
+      list.hidden = !willOpen;
+      trigger.setAttribute("aria-expanded", willOpen ? "true" : "false");
+    });
+
+    selectEl.addEventListener("change", () => rebuildComboSelect(selectEl));
+    rebuildComboSelect(selectEl);
+    return wrap;
+  }
+
+  function syncTableComboSelects() {
+    for (const id of TABLE_COMBO_SELECT_IDS) {
+      const sel = document.getElementById(id);
+      if (sel) upgradeComboSelect(sel);
+    }
+  }
+
   /** Visible select/nav text: always include display name + table_key (never blank). */
   function formatTableChoiceLabel(tableOrKey, { prefix = "" } = {}) {
     let key = "";
@@ -1895,6 +2014,7 @@
     }
     populateRefTableSelect();
     populateRelTableSelects();
+    syncTableComboSelects();
   }
 
   function populateRefTableSelect() {
@@ -1924,6 +2044,7 @@
         )
         .join("");
     if (prev && [...sel.options].some((o) => o.value === prev)) sel.value = prev;
+    upgradeComboSelect(sel);
   }
 
   function populateRelTableSelects() {
@@ -1951,6 +2072,7 @@
           )
           .join("");
       if (prev && [...sel.options].some((o) => o.value === prev)) sel.value = prev;
+      upgradeComboSelect(sel);
     }
   }
 
@@ -2055,6 +2177,7 @@
     if ($("#ccRefTable")) {
       $("#ccRefTable").disabled = true;
       $("#ccRefTable").value = "";
+      upgradeComboSelect($("#ccRefTable"));
     }
     if ($("#ccSubmitBtn")) $("#ccSubmitBtn").textContent = "Add column";
     $("#ccEditHint")?.classList.add("hidden");
@@ -2080,6 +2203,7 @@
     $("#ccRefTable").disabled = !isRef;
     populateRefTableSelect();
     if (isRef) $("#ccRefTable").value = col.reference_table || "";
+    upgradeComboSelect($("#ccRefTable"));
     if ($("#ccSubmitBtn")) $("#ccSubmitBtn").textContent = "Save column";
     $("#ccEditHint")?.classList.remove("hidden");
     $("#btnCcCancelEdit")?.classList.remove("hidden");
@@ -2771,10 +2895,16 @@
     // Keep help “i” balloons from toggling parent <label> controls.
     document.addEventListener("click", (e) => {
       const tip = e.target.closest?.(".help-balloon");
-      if (!tip) return;
-      e.preventDefault();
-      e.stopPropagation();
-      tip.focus();
+      if (tip) {
+        e.preventDefault();
+        e.stopPropagation();
+        tip.focus();
+        return;
+      }
+      if (!e.target.closest?.(".combo-select")) closeAllComboSelects();
+    });
+    document.addEventListener("keydown", (e) => {
+      if (e.key === "Escape") closeAllComboSelects();
     });
     $("#btnConnect")?.addEventListener("click", connect);
     $("#btnOidcLogin")?.addEventListener("click", () => {
@@ -2934,8 +3064,12 @@
     });
     $("#ccType")?.addEventListener("change", () => {
       const isRef = $("#ccType").value === "reference";
-      $("#ccRefTable").disabled = !isRef;
-      if (!isRef) $("#ccRefTable").value = "";
+      const refSel = $("#ccRefTable");
+      if (refSel) {
+        refSel.disabled = !isRef;
+        if (!isRef) refSel.value = "";
+        upgradeComboSelect(refSel);
+      }
     });
     $("#btnCtDelete")?.addEventListener("click", async () => {
       const key = $("#ctSelectedTable")?.value || state.selectedCustomTableKey;
