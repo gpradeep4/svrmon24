@@ -97,6 +97,12 @@
       columns: [],
       is_default: true,
     },
+    customTables: [],
+    selectedCustomTableKey: null,
+    customRecordPage: 1,
+    customRecordTotalPages: 1,
+    editingCustomRecordId: null,
+    entityRefs: [],
   };
 
   const INVENTORY_TABS = {
@@ -177,6 +183,14 @@
     dependencies: { title: "Dependencies", subtitle: "Traversal, cycles, and potentially affected apps" },
     diagnostics: { title: "Diagnostics", subtitle: "DEMO / SIMULATED evidence only — no live probes" },
     custom: { title: "Custom Fields", subtitle: "Extend inventory forms with typed definitions" },
+    "custom-tables": {
+      title: "Custom Tables",
+      subtitle: "Define tenant-scoped entity tables, columns, and references",
+    },
+    "custom-records": {
+      title: "Custom records",
+      subtitle: "Browse and edit rows for a custom entity table",
+    },
     columns: { title: "Column Settings", subtitle: "Tenant-scoped grid visibility, order, width, and pin" },
     users: { title: "Users", subtitle: "OIDC-linked memberships (no auto platform-admin)" },
     roles: { title: "Roles and Permissions", subtitle: "Coming soon — RBAC not implemented" },
@@ -595,11 +609,13 @@
       loadDashboard(),
       loadTypes(),
       loadCustomFields(),
+      loadCustomTables(),
       loadColumnConfigurations(),
       loadInventory(),
       loadRelationshipTypes(),
       loadRelationships(),
       refreshComponentIdList(),
+      refreshEntityIdList(),
       loadDiagnosticProfiles(),
       loadDiagnosticHistory(),
       loadTenancyContext(me),
@@ -1246,7 +1262,10 @@
 
   function showTab(name) {
     const inventoryType = INVENTORY_TABS[name] || null;
-    const panelName = inventoryType ? "inventory" : name;
+    const customTableKey =
+      name && name.startsWith("ct:") ? name.slice(3) : null;
+    let panelName = inventoryType ? "inventory" : name;
+    if (customTableKey) panelName = "custom-records";
     $$(".tab-panel").forEach((p) => p.classList.add("hidden"));
     $$(".nav-item").forEach((b) => b.classList.remove("active"));
     const panel = $(`#tab-${panelName}`);
@@ -1256,7 +1275,13 @@
     btn.classList.add("active");
     state.activeNav = name;
     applyInventoryTypeLock(inventoryType);
-    const meta = PAGE_META[name] || { title: name, subtitle: "" };
+    const meta = PAGE_META[name] ||
+      (customTableKey
+        ? {
+            title: customTableKey,
+            subtitle: `Custom table records (${customTableKey})`,
+          }
+        : { title: name, subtitle: "" });
     if ($("#pageTitle")) $("#pageTitle").textContent = meta.title;
     if ($("#pageSubtitle")) $("#pageSubtitle").textContent = meta.subtitle;
     $("#sidebar")?.classList.remove("open");
@@ -1268,7 +1293,8 @@
       loadInventory().catch((err) => toast(err.message, true));
     }
     if (name === "relationships") {
-      loadRelationships().catch((err) => toast(err.message, true));
+      Promise.all([loadRelationships(), refreshEntityIdList(), populateRelTableSelects()])
+        .catch((err) => toast(err.message, true));
     }
     if (name === "dependencies") {
       refreshComponentIdList().catch(() => {});
@@ -1285,6 +1311,14 @@
       openColumnSettings($("#colGridKey")?.value || "inventory").catch((err) =>
         toast(err.message || "Column settings failed", true)
       );
+    }
+    if (name === "custom-tables" && state.authenticated) {
+      loadCustomTables().catch((err) => toast(err.message, true));
+    }
+    if (customTableKey && state.authenticated) {
+      state.selectedCustomTableKey = customTableKey;
+      state.customRecordPage = 1;
+      loadCustomRecords().catch((err) => toast(err.message, true));
     }
   }
 
@@ -1674,6 +1708,434 @@
       .join("");
   }
 
+  async function refreshEntityIdList() {
+    const data = await api("/api/entity-refs?limit=200");
+    state.entityRefs = data.items || [];
+    const list = $("#entityIdList");
+    if (!list) return;
+    list.innerHTML = state.entityRefs
+      .map(
+        (e) =>
+          `<option value="${escapeAttr(e.entity_id)}">${escapeHtml(
+            `${e.display_name || e.entity_id} [${e.ref_table}]`
+          )}</option>`
+      )
+      .join("");
+  }
+
+  function selectedCustomTable() {
+    return (state.customTables || []).find(
+      (t) => t.table_key === state.selectedCustomTableKey
+    ) || null;
+  }
+
+  function renderCustomTablesNav() {
+    const wrap = $("#navCustomTables");
+    const section = $("#navCustomTablesSection");
+    if (!wrap) return;
+    const tables = state.customTables || [];
+    if (section) section.hidden = tables.length === 0;
+    wrap.innerHTML = tables
+      .map(
+        (t) => `
+      <button type="button" class="nav-item" data-tab="ct:${escapeAttr(t.table_key)}">
+        <span class="nav-ico" aria-hidden="true"><svg viewBox="0 0 24 24"><rect x="4" y="4" width="16" height="16" rx="2"/><path d="M8 8h8M8 12h8M8 16h5"/></svg></span>
+        ${escapeHtml(t.label || t.table_key)}
+      </button>`
+      )
+      .join("");
+    wrap.querySelectorAll(".nav-item").forEach((btn) => {
+      btn.addEventListener("click", () => showTab(btn.getAttribute("data-tab")));
+    });
+  }
+
+  function populateCustomTableSelects() {
+    const sel = $("#ctSelectedTable");
+    if (sel) {
+      const prev = sel.value || state.selectedCustomTableKey || "";
+      sel.innerHTML = (state.customTables || [])
+        .map(
+          (t) =>
+            `<option value="${escapeAttr(t.table_key)}">${escapeHtml(
+              t.label || t.table_key
+            )}</option>`
+        )
+        .join("");
+      if (prev && [...sel.options].some((o) => o.value === prev)) {
+        sel.value = prev;
+      }
+      if (sel.value) state.selectedCustomTableKey = sel.value;
+    }
+    populateRefTableSelect();
+    populateRelTableSelects();
+  }
+
+  function populateRefTableSelect() {
+    const sel = $("#ccRefTable");
+    if (!sel) return;
+    const builtins = ["Server", "Network", "Middleware", "Database", "Application"];
+    const customs = (state.customTables || [])
+      .map((t) => t.table_key)
+      .filter((k) => k !== state.selectedCustomTableKey);
+    sel.innerHTML =
+      `<option value="">—</option>` +
+      builtins
+        .map((t) => `<option value="${escapeAttr(t)}">CMDB: ${escapeHtml(t)}</option>`)
+        .join("") +
+      customs
+        .map(
+          (t) =>
+            `<option value="${escapeAttr(t)}">Custom: ${escapeHtml(t)}</option>`
+        )
+        .join("");
+  }
+
+  function populateRelTableSelects() {
+    for (const id of ["#relSourceTable", "#relTargetTable"]) {
+      const sel = $(id);
+      if (!sel) continue;
+      const prev = sel.value;
+      const builtins = ["Server", "Network", "Middleware", "Database", "Application"];
+      sel.innerHTML =
+        `<option value="">CMDB component (any)</option>` +
+        builtins
+          .map((t) => `<option value="${escapeAttr(t)}">CMDB: ${escapeHtml(t)}</option>`)
+          .join("") +
+        (state.customTables || [])
+          .map(
+            (t) =>
+              `<option value="${escapeAttr(t.table_key)}">Custom: ${escapeHtml(
+                t.label || t.table_key
+              )}</option>`
+          )
+          .join("");
+      if (prev && [...sel.options].some((o) => o.value === prev)) sel.value = prev;
+    }
+  }
+
+  function renderCustomTableList() {
+    const tbody = $("#customTableBody");
+    if (!tbody) return;
+    tbody.innerHTML = "";
+    for (const t of state.customTables || []) {
+      const tr = document.createElement("tr");
+      tr.innerHTML = `
+        <td class="mono">${escapeHtml(t.table_key)}</td>
+        <td>${escapeHtml(t.label || "")}</td>
+        <td>${(t.columns || []).length}</td>
+        <td>${t.active === false ? "no" : "yes"}</td>
+        <td><button type="button" class="secondary" data-ct-browse="${escapeAttr(
+          t.table_key
+        )}">Open</button></td>`;
+      tbody.appendChild(tr);
+    }
+  }
+
+  function renderCustomColumns() {
+    const tbody = $("#customColumnBody");
+    if (!tbody) return;
+    tbody.innerHTML = "";
+    const table = selectedCustomTable();
+    if (!table) return;
+    for (const col of table.columns || []) {
+      const tr = document.createElement("tr");
+      tr.innerHTML = `
+        <td class="mono">${escapeHtml(col.column_key)}</td>
+        <td>${escapeHtml(col.label || "")}</td>
+        <td>${escapeHtml(col.field_type || "")}</td>
+        <td class="mono">${escapeHtml(col.reference_table || "—")}</td>
+        <td>${col.required ? "yes" : "no"}</td>
+        <td><button type="button" class="danger" data-cc-del="${escapeAttr(
+          col.column_key
+        )}">Delete</button></td>`;
+      tbody.appendChild(tr);
+    }
+  }
+
+  async function loadCustomTables() {
+    const data = await api("/api/custom-tables");
+    state.customTables = data.items || [];
+    if (
+      state.selectedCustomTableKey &&
+      !state.customTables.some((t) => t.table_key === state.selectedCustomTableKey)
+    ) {
+      state.selectedCustomTableKey = state.customTables[0]?.table_key || null;
+    }
+    if (!state.selectedCustomTableKey && state.customTables[0]) {
+      state.selectedCustomTableKey = state.customTables[0].table_key;
+    }
+    renderCustomTablesNav();
+    populateCustomTableSelects();
+    renderCustomTableList();
+    renderCustomColumns();
+  }
+
+  async function createCustomTable(event) {
+    event.preventDefault();
+    const payload = {
+      table_key: $("#ctKey").value.trim(),
+      label: $("#ctLabel").value.trim(),
+      description: $("#ctDesc").value.trim() || null,
+      columns: [],
+    };
+    try {
+      await api("/api/custom-tables", {
+        method: "POST",
+        body: JSON.stringify(payload),
+      });
+      toast("Custom table created");
+      $("#customTableForm").reset();
+      state.selectedCustomTableKey = payload.table_key;
+      await loadCustomTables();
+    } catch (err) {
+      toast(err.message || "Create table failed", true);
+    }
+  }
+
+  async function addCustomColumn(event) {
+    event.preventDefault();
+    const tableKey = $("#ctSelectedTable")?.value || state.selectedCustomTableKey;
+    if (!tableKey) {
+      toast("Select a table first", true);
+      return;
+    }
+    const field_type = $("#ccType").value;
+    const payload = {
+      column_key: $("#ccKey").value.trim(),
+      label: $("#ccLabel").value.trim(),
+      field_type,
+      required: $("#ccRequired").checked,
+      enum_values:
+        field_type === "enum"
+          ? $("#ccEnum")
+              .value.split(",")
+              .map((s) => s.trim())
+              .filter(Boolean)
+          : [],
+      reference_table: field_type === "reference" ? $("#ccRefTable").value || null : null,
+    };
+    try {
+      await api(`/api/custom-tables/${encodeURIComponent(tableKey)}/columns`, {
+        method: "POST",
+        body: JSON.stringify(payload),
+      });
+      toast("Column added");
+      $("#customColumnForm").reset();
+      $("#ccType").value = "string";
+      $("#ccRefTable").disabled = true;
+      await loadCustomTables();
+    } catch (err) {
+      toast(err.message || "Add column failed", true);
+    }
+  }
+
+  async function loadCustomRecords() {
+    const tableKey = state.selectedCustomTableKey;
+    const table = selectedCustomTable();
+    if (!tableKey || !table) {
+      $("#customRecordsTitle").textContent = "Custom records";
+      $("#customRecordsHint").textContent = "Select a custom table from the sidebar.";
+      $("#customRecordBody").innerHTML = "";
+      return;
+    }
+    $("#customRecordsTitle").textContent = table.label || tableKey;
+    $("#customRecordsHint").textContent = `table_key=${tableKey} · records in cmdb_custom_records`;
+    const params = new URLSearchParams({
+      page: String(state.customRecordPage),
+      page_size: String(state.pageSize),
+    });
+    const q = $("#customRecordSearch")?.value.trim();
+    if (q) params.set("q", q);
+    const data = await api(
+      `/api/custom-tables/${encodeURIComponent(tableKey)}/records?${params}`
+    );
+    state.customRecordTotalPages = data.total_pages || 1;
+    $("#customRecordPageInfo").textContent =
+      `Page ${data.page} / ${state.customRecordTotalPages || 1} · ${data.total} records`;
+    $("#btnCustomRecordPrev").disabled = data.page <= 1;
+    $("#btnCustomRecordNext").disabled = data.page >= (data.total_pages || 1);
+    const cols = table.columns || [];
+    const head = $("#customRecordHeadRow");
+    head.innerHTML =
+      `<th>Record ID</th><th>Display name</th>` +
+      cols
+        .slice(0, 6)
+        .map((c) => `<th>${escapeHtml(c.label || c.column_key)}</th>`)
+        .join("") +
+      `<th>Actions</th>`;
+    const tbody = $("#customRecordBody");
+    tbody.innerHTML = "";
+    for (const row of data.items || []) {
+      const fields = row.fields || {};
+      const tr = document.createElement("tr");
+      const fieldCells = cols
+        .slice(0, 6)
+        .map((c) => {
+          const v = fields[c.column_key];
+          if (v && typeof v === "object" && v.ref_id) {
+            return `<td class="mono">${escapeHtml(v.ref_id)} [${escapeHtml(
+              v.ref_table || ""
+            )}]</td>`;
+          }
+          return `<td>${escapeHtml(v == null ? "—" : String(v))}</td>`;
+        })
+        .join("");
+      tr.innerHTML = `
+        <td class="mono">${escapeHtml(row.record_id)}</td>
+        <td>${escapeHtml(row.display_name || "")}</td>
+        ${fieldCells}
+        <td>
+          <button type="button" class="secondary" data-cr-edit="${escapeAttr(
+            row.record_id
+          )}">Edit</button>
+          <button type="button" class="danger" data-cr-del="${escapeAttr(
+            row.record_id
+          )}">Delete</button>
+        </td>`;
+      tbody.appendChild(tr);
+    }
+  }
+
+  function buildCustomRecordFieldInputs(table, values = {}) {
+    const wrap = $("#customRecordFields");
+    if (!wrap) return;
+    wrap.innerHTML = `
+      <label>Record ID<input id="crId" placeholder="auto if blank" ${
+        state.editingCustomRecordId ? "disabled" : ""
+      } /></label>
+      <label>Display name<input id="crDisplayName" required /></label>`;
+    for (const col of table.columns || []) {
+      const key = col.column_key;
+      const val = values[key];
+      const id = `crField_${key}`;
+      let control = "";
+      if (col.field_type === "boolean") {
+        control = `<label><span>${escapeHtml(col.label)}</span><input id="${id}" type="checkbox" ${
+          val ? "checked" : ""
+        } /></label>`;
+      } else if (col.field_type === "enum") {
+        const opts = (col.enum_values || [])
+          .map(
+            (e) =>
+              `<option value="${escapeAttr(e)}" ${
+                val === e ? "selected" : ""
+              }>${escapeHtml(e)}</option>`
+          )
+          .join("");
+        control = `<label>${escapeHtml(col.label)}
+          <select id="${id}" ${col.required ? "required" : ""}>
+            <option value="">—</option>${opts}
+          </select></label>`;
+      } else if (col.field_type === "reference") {
+        const refId = val && typeof val === "object" ? val.ref_id || "" : "";
+        control = `<label>${escapeHtml(col.label)} → ${escapeHtml(col.reference_table || "")}
+          <input id="${id}" class="mono" list="entityIdList" placeholder="ref id"
+            value="${escapeAttr(refId)}" ${col.required ? "required" : ""} />
+        </label>`;
+      } else if (col.field_type === "number") {
+        control = `<label>${escapeHtml(col.label)}
+          <input id="${id}" type="number" value="${escapeAttr(
+          val == null ? "" : String(val)
+        )}" ${col.required ? "required" : ""} /></label>`;
+      } else {
+        control = `<label>${escapeHtml(col.label)}
+          <input id="${id}" value="${escapeAttr(val == null ? "" : String(val))}" ${
+          col.required ? "required" : ""
+        } /></label>`;
+      }
+      wrap.insertAdjacentHTML("beforeend", control);
+    }
+  }
+
+  function collectCustomRecordFields(table) {
+    const fields = {};
+    for (const col of table.columns || []) {
+      const el = $(`#crField_${col.column_key}`);
+      if (!el) continue;
+      if (col.field_type === "boolean") {
+        fields[col.column_key] = el.checked;
+      } else if (col.field_type === "reference") {
+        const refId = el.value.trim();
+        fields[col.column_key] = refId
+          ? { ref_id: refId, ref_table: col.reference_table }
+          : null;
+      } else if (col.field_type === "number") {
+        const raw = el.value.trim();
+        fields[col.column_key] = raw === "" ? null : Number(raw);
+      } else {
+        fields[col.column_key] = el.value.trim() || null;
+      }
+    }
+    return fields;
+  }
+
+  function openCustomRecordCreate() {
+    const table = selectedCustomTable();
+    if (!table) {
+      toast("Select a custom table first", true);
+      return;
+    }
+    state.editingCustomRecordId = null;
+    buildCustomRecordFieldInputs(table, {});
+    $("#crId").disabled = false;
+    $("#crId").value = "";
+    $("#crDisplayName").value = "";
+    $("#customRecordModalTitle").textContent = `Add ${table.label || table.table_key}`;
+    $("#customRecordModal").classList.add("open");
+  }
+
+  async function openCustomRecordEdit(recordId) {
+    const table = selectedCustomTable();
+    if (!table) return;
+    const doc = await api(
+      `/api/custom-tables/${encodeURIComponent(table.table_key)}/records/${encodeURIComponent(
+        recordId
+      )}`
+    );
+    state.editingCustomRecordId = recordId;
+    buildCustomRecordFieldInputs(table, doc.fields || {});
+    $("#crId").value = doc.record_id;
+    $("#crId").disabled = true;
+    $("#crDisplayName").value = doc.display_name || "";
+    $("#customRecordModalTitle").textContent = `Edit ${recordId}`;
+    $("#customRecordModal").classList.add("open");
+  }
+
+  async function saveCustomRecord(event) {
+    event.preventDefault();
+    const table = selectedCustomTable();
+    if (!table) return;
+    const payload = {
+      display_name: $("#crDisplayName").value.trim(),
+      fields: collectCustomRecordFields(table),
+    };
+    try {
+      if (state.editingCustomRecordId) {
+        await api(
+          `/api/custom-tables/${encodeURIComponent(table.table_key)}/records/${encodeURIComponent(
+            state.editingCustomRecordId
+          )}`,
+          { method: "PUT", body: JSON.stringify(payload) }
+        );
+        toast("Record updated");
+      } else {
+        const rid = $("#crId").value.trim();
+        if (rid) payload.record_id = rid;
+        await api(
+          `/api/custom-tables/${encodeURIComponent(table.table_key)}/records`,
+          { method: "POST", body: JSON.stringify(payload) }
+        );
+        toast("Record created");
+      }
+      $("#customRecordModal").classList.remove("open");
+      state.editingCustomRecordId = null;
+      await loadCustomRecords();
+      await refreshEntityIdList();
+    } catch (err) {
+      toast(err.message || "Record save failed", true);
+    }
+  }
+
   async function loadRelationshipTypes() {
     const data = await api("/api/relationships/types");
     state.relTypes = data.types || [];
@@ -1919,6 +2381,9 @@
     $("#relDiscovery").value = "manually_configured";
     $("#relVerification").value = "unverified";
     $("#relEnvWarn").style.display = "none";
+    populateRelTableSelects();
+    if ($("#relSourceTable")) $("#relSourceTable").value = "";
+    if ($("#relTargetTable")) $("#relTargetTable").value = "";
     if ($("#relType").options.length) $("#relType").selectedIndex = 0;
     updateRelTypeHint();
     $("#relModalTitle").textContent = "Add relationship";
@@ -1928,9 +2393,12 @@
   async function openRelEdit(id) {
     const doc = await api(`/api/relationships/${encodeURIComponent(id)}`);
     state.editingRelId = id;
+    populateRelTableSelects();
     $("#relId").value = doc.relationship_id;
     $("#relId").disabled = true;
     $("#relType").value = doc.relationship_type;
+    if ($("#relSourceTable")) $("#relSourceTable").value = doc.source_table || "";
+    if ($("#relTargetTable")) $("#relTargetTable").value = doc.target_table || "";
     $("#relSource").value = doc.source_component_id;
     $("#relTarget").value = doc.target_component_id;
     $("#relProtocol").value = doc.protocol || "";
@@ -1949,9 +2417,13 @@
   }
 
   function collectRelPayload() {
+    const sourceTable = $("#relSourceTable")?.value.trim() || null;
+    const targetTable = $("#relTargetTable")?.value.trim() || null;
     const payload = {
       source_component_id: $("#relSource").value.trim(),
       target_component_id: $("#relTarget").value.trim(),
+      source_table: sourceTable,
+      target_table: targetTable,
       relationship_type: $("#relType").value,
       protocol: $("#relProtocol").value.trim() || null,
       source_port: parseOptionalPort($("#relSourcePort").value),
@@ -1994,11 +2466,14 @@
     try {
       const payload = collectRelPayload();
       if (!payload.source_component_id || !payload.target_component_id) {
-        toast("Source and target component IDs are required", true);
+        toast("Source and target entity IDs are required", true);
         return;
       }
-      if (payload.source_component_id === payload.target_component_id) {
-        toast("Source and target cannot be the same component", true);
+      if (
+        payload.source_component_id === payload.target_component_id &&
+        (payload.source_table || "") === (payload.target_table || "")
+      ) {
+        toast("Source and target cannot be the same entity", true);
         return;
       }
       let result;
@@ -2159,8 +2634,119 @@
     });
     $("#btnAddRel").addEventListener("click", async () => {
       try {
-        await refreshComponentIdList();
+        await Promise.all([refreshComponentIdList(), refreshEntityIdList(), populateRelTableSelects()]);
         openRelCreate();
+      } catch (err) {
+        toast(err.message, true);
+      }
+    });
+    $("#customTableForm")?.addEventListener("submit", createCustomTable);
+    $("#customColumnForm")?.addEventListener("submit", addCustomColumn);
+    $("#ctSelectedTable")?.addEventListener("change", () => {
+      state.selectedCustomTableKey = $("#ctSelectedTable").value;
+      populateRefTableSelect();
+      renderCustomColumns();
+    });
+    $("#ccType")?.addEventListener("change", () => {
+      const isRef = $("#ccType").value === "reference";
+      $("#ccRefTable").disabled = !isRef;
+      if (!isRef) $("#ccRefTable").value = "";
+    });
+    $("#btnCtDelete")?.addEventListener("click", async () => {
+      const key = $("#ctSelectedTable")?.value || state.selectedCustomTableKey;
+      if (!key) return;
+      if (!confirm(`Delete custom table '${key}' and all its records?`)) return;
+      try {
+        await api(`/api/custom-tables/${encodeURIComponent(key)}`, { method: "DELETE" });
+        toast(`Deleted table ${key}`);
+        state.selectedCustomTableKey = null;
+        await loadCustomTables();
+      } catch (err) {
+        toast(err.message, true);
+      }
+    });
+    $("#customColumnBody")?.addEventListener("click", async (e) => {
+      const key = e.target.getAttribute("data-cc-del");
+      if (!key) return;
+      const tableKey = $("#ctSelectedTable")?.value || state.selectedCustomTableKey;
+      if (!tableKey) return;
+      if (!confirm(`Delete column '${key}'?`)) return;
+      try {
+        await api(
+          `/api/custom-tables/${encodeURIComponent(tableKey)}/columns/${encodeURIComponent(key)}`,
+          { method: "DELETE" }
+        );
+        toast("Column deleted");
+        await loadCustomTables();
+      } catch (err) {
+        toast(err.message, true);
+      }
+    });
+    $("#customTableBody")?.addEventListener("click", (e) => {
+      const key = e.target.getAttribute("data-ct-browse");
+      if (key) showTab(`ct:${key}`);
+    });
+    $("#btnAddCustomRecord")?.addEventListener("click", async () => {
+      try {
+        await refreshEntityIdList();
+        openCustomRecordCreate();
+      } catch (err) {
+        toast(err.message, true);
+      }
+    });
+    $("#btnReloadCustomRecords")?.addEventListener("click", async () => {
+      try {
+        await loadCustomRecords();
+      } catch (err) {
+        toast(err.message, true);
+      }
+    });
+    $("#btnCustomRecordSearch")?.addEventListener("click", async () => {
+      state.customRecordPage = 1;
+      try {
+        await loadCustomRecords();
+      } catch (err) {
+        toast(err.message, true);
+      }
+    });
+    $("#btnCustomRecordPrev")?.addEventListener("click", async () => {
+      state.customRecordPage = Math.max(1, state.customRecordPage - 1);
+      await loadCustomRecords();
+    });
+    $("#btnCustomRecordNext")?.addEventListener("click", async () => {
+      state.customRecordPage = Math.min(
+        state.customRecordTotalPages || 1,
+        state.customRecordPage + 1
+      );
+      await loadCustomRecords();
+    });
+    $("#customRecordForm")?.addEventListener("submit", saveCustomRecord);
+    $("#btnCloseCustomRecordModal")?.addEventListener("click", () => {
+      $("#customRecordModal").classList.remove("open");
+      state.editingCustomRecordId = null;
+    });
+    $("#customRecordBody")?.addEventListener("click", async (e) => {
+      const edit = e.target.getAttribute("data-cr-edit");
+      const del = e.target.getAttribute("data-cr-del");
+      try {
+        if (edit) {
+          await refreshEntityIdList();
+          await openCustomRecordEdit(edit);
+        }
+        if (del) {
+          const tableKey = state.selectedCustomTableKey;
+          if (!tableKey) return;
+          if (!confirm(`Delete record ${del}?`)) return;
+          await api(
+            `/api/custom-tables/${encodeURIComponent(tableKey)}/records/${encodeURIComponent(
+              del
+            )}`,
+            { method: "DELETE" }
+          );
+          toast(`Deleted ${del}`);
+          await loadCustomRecords();
+          await refreshEntityIdList();
+        }
       } catch (err) {
         toast(err.message, true);
       }

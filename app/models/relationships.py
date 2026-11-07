@@ -91,8 +91,20 @@ class RelationshipCreate(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     relationship_id: str | None = Field(default=None, min_length=1, max_length=128)
-    source_component_id: str = Field(min_length=1, max_length=128)
-    target_component_id: str = Field(min_length=1, max_length=128)
+    source_component_id: str = Field(
+        min_length=1,
+        max_length=128,
+        description="Source entity id (CMDB component_id or custom record_id)",
+    )
+    target_component_id: str = Field(
+        min_length=1,
+        max_length=128,
+        description="Target entity id (CMDB component_id or custom record_id)",
+    )
+    # Optional table hints: CMDB component type (Server/…) or custom table_key.
+    # Omit / null → resolve as typed CMDB component (backward compatible).
+    source_table: str | None = Field(default=None, max_length=64)
+    target_table: str | None = Field(default=None, max_length=64)
     relationship_type: RelationshipType
     protocol: str | None = Field(default=None, max_length=64)
     source_port: int | None = None
@@ -114,7 +126,14 @@ class RelationshipCreate(BaseModel):
             raise ValueError("value cannot be blank")
         return cleaned
 
-    @field_validator("protocol", "url_or_path", "environment", "evidence_or_notes")
+    @field_validator(
+        "protocol",
+        "url_or_path",
+        "environment",
+        "evidence_or_notes",
+        "source_table",
+        "target_table",
+    )
     @classmethod
     def strip_optional(cls, value: str | None) -> str | None:
         if value is None:
@@ -129,8 +148,13 @@ class RelationshipCreate(BaseModel):
 
     @model_validator(mode="after")
     def reject_self_reference(self) -> RelationshipCreate:
-        if self.source_component_id == self.target_component_id:
-            raise ValueError("source_component_id and target_component_id cannot be the same")
+        same_id = self.source_component_id == self.target_component_id
+        same_table = (self.source_table or "") == (self.target_table or "")
+        if same_id and same_table:
+            raise ValueError(
+                "source and target cannot be the same entity "
+                "(same id and table)"
+            )
         return self
 
 
@@ -141,6 +165,8 @@ class RelationshipUpdate(BaseModel):
 
     source_component_id: str | None = Field(default=None, min_length=1, max_length=128)
     target_component_id: str | None = Field(default=None, min_length=1, max_length=128)
+    source_table: str | None = Field(default=None, max_length=64)
+    target_table: str | None = Field(default=None, max_length=64)
     relationship_type: RelationshipType | None = None
     protocol: str | None = None
     source_port: int | None = None
@@ -152,7 +178,12 @@ class RelationshipUpdate(BaseModel):
     confidence: ConfidenceLevel | None = None
     evidence_or_notes: str | None = None
 
-    @field_validator("source_component_id", "target_component_id")
+    @field_validator(
+        "source_component_id",
+        "target_component_id",
+        "source_table",
+        "target_table",
+    )
     @classmethod
     def strip_ids(cls, value: str | None) -> str | None:
         if value is None:
@@ -185,6 +216,8 @@ class RelationshipView(BaseModel):
     relationship_id: str
     source_component_id: str
     target_component_id: str
+    source_table: str | None = None
+    target_table: str | None = None
     relationship_type: RelationshipType
     protocol: str | None = None
     source_port: int | None = None
@@ -207,10 +240,20 @@ def display_port(value: Any) -> str:
 
 def to_relationship_row(doc: dict[str, Any]) -> dict[str, Any]:
     """Table row with Protocol / Source Port / Target Port as separate columns."""
+    source_table = doc.get("source_table")
+    target_table = doc.get("target_table")
+    source_label = doc.get("source_component_id") or ""
+    target_label = doc.get("target_component_id") or ""
+    if source_table:
+        source_label = f"{source_label} [{source_table}]"
+    if target_table:
+        target_label = f"{target_label} [{target_table}]"
     return {
         "relationship_id": doc.get("relationship_id"),
-        "source_component_id": doc.get("source_component_id"),
-        "target_component_id": doc.get("target_component_id"),
+        "source_component_id": source_label,
+        "target_component_id": target_label,
+        "source_table": source_table or "—",
+        "target_table": target_table or "—",
         "relationship_type": doc.get("relationship_type"),
         "protocol": doc.get("protocol") or "—",
         "source_port": display_port(doc.get("source_port")),
@@ -231,12 +274,26 @@ def duplicate_fingerprint(
     protocol: str | None,
     source_port: int | None,
     target_port: int | None,
+    source_table: str | None = None,
+    target_table: str | None = None,
 ) -> str:
-    """Stable key for duplicate detection (ports remain independent fields)."""
+    """Stable key for duplicate detection (ports remain independent fields).
+
+    CMDB-only edges (no source_table/target_table) keep the legacy fingerprint
+    shape so existing unique keys remain valid.
+    """
+    if source_table or target_table:
+        ends = [
+            source_table or "",
+            source_component_id,
+            target_table or "",
+            target_component_id,
+        ]
+    else:
+        ends = [source_component_id, target_component_id]
     return "|".join(
         [
-            source_component_id,
-            target_component_id,
+            *ends,
             relationship_type,
             (protocol or "").lower(),
             "" if source_port is None else str(source_port),

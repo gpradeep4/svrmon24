@@ -1,4 +1,4 @@
-"""Index planning for shared-DB tenancy (Master Phase 5–8).
+"""Index planning for shared-DB tenancy (Master Phase 5–8 + custom entities).
 
 Phase 5:
 
@@ -21,6 +21,11 @@ Phase 7:
 Phase 8:
 
 10. ``cmdb_column_configurations`` unique ``(tenant_id, grid_key)``
+
+Custom entity tables:
+
+11. ``cmdb_custom_table_definitions`` unique ``(tenant_id, table_key)``
+12. ``cmdb_custom_records`` unique ``(tenant_id, table_key, record_id)``
 """
 
 from __future__ import annotations
@@ -95,6 +100,28 @@ def ensure_tenant_id_indexes(db: Database) -> dict[str, list[str]]:
                 name="tenant_grid_key_unique",
             )
             names.append("tenant_grid_key_unique")
+        elif name == "cmdb_custom_table_definitions":
+            coll.create_index(
+                [("tenant_id", ASCENDING), ("table_key", ASCENDING)],
+                unique=True,
+                name="tenant_table_key_unique",
+            )
+            names.append("tenant_table_key_unique")
+        elif name == "cmdb_custom_records":
+            coll.create_index(
+                [
+                    ("tenant_id", ASCENDING),
+                    ("table_key", ASCENDING),
+                    ("record_id", ASCENDING),
+                ],
+                unique=True,
+                name="tenant_table_record_unique",
+            )
+            coll.create_index(
+                [("tenant_id", ASCENDING), ("record_id", ASCENDING)],
+                name="tenant_record_id_idx",
+            )
+            names.extend(["tenant_table_record_unique", "tenant_record_id_idx"])
         elif name == "custom_field_definitions":
             coll.create_index(
                 [("tenant_id", ASCENDING), ("field_key", ASCENDING)],
@@ -196,4 +223,14 @@ Phase 8 (column configurations):
 3. Locked columns stay visible: OS Family/Version, Product Type/Version,
    protocol, source_port, target_port (+ actions)
 4. /api/column-configurations drives Column Settings UI + grid rendering
+"""
+
+CUSTOM_ENTITY_TABLES_NOTES = """
+Custom entity tables:
+
+1. cmdb_custom_table_definitions unique (tenant_id, table_key) — schema + columns
+2. cmdb_custom_records unique (tenant_id, table_key, record_id) — single data collection
+3. Reference fields store {ref_id, ref_table}; ref_table is CMDB type or custom table_key
+4. Relationships may set source_table/target_table to include custom entities
+5. /api/components* and typed CMDB collections remain unchanged
 """
