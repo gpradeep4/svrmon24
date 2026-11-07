@@ -12,7 +12,7 @@
     body.is-app .login-gate { display: none !important; }
     #authPanel, .auth-panel-legacy { display: none !important; }
   </style>
-  <link rel="stylesheet" href="/static/css/cmdb.css?v=0.22.0" />
+  <link rel="stylesheet" href="/static/css/cmdb.css?v=0.23.0" />
 </head>
 <body class="is-login">
   <!-- Full-page login (no Operations chrome while signed out) -->
@@ -649,9 +649,9 @@
               </label>
               <label>
                 <span class="label-with-help">Reference target
-                  <button type="button" class="help-balloon" aria-label="Help: reference target" data-help="Required when type is reference. Choose a CMDB component type (Server, …) or another custom table. Options show display name + key.">i</button>
+                  <button type="button" class="help-balloon" aria-label="Help: reference target" data-help="Optional unless Type is reference. Leave as “— select target —” for string/number/boolean/enum. For reference, pick a CMDB type or custom table (display name + key).">i</button>
                 </span>
-                <select id="ccRefTable" disabled>
+                <select id="ccRefTable" disabled aria-required="false">
                   <option value="">— select target —</option>
                 </select>
               </label>
@@ -661,11 +661,13 @@
                 </span>
                 <input id="ccEnum" placeholder="e.g. gold, silver, bronze" />
               </label>
-              <label>
+              <label class="check-field">
                 <span class="label-with-help">Required
                   <button type="button" class="help-balloon" aria-label="Help: required" data-help="When checked, new and updated records must supply this column.">i</button>
                 </span>
-                <input id="ccRequired" type="checkbox" />
+                <span class="check-row">
+                  <input id="ccRequired" type="checkbox" />
+                </span>
               </label>
               <div class="form-actions full">
                 <button type="submit" id="ccSubmitBtn">Add column</button>
@@ -1033,6 +1035,6 @@
     </div>
   </div>
 
-  <script src="/static/js/cmdb.js?v=0.22.0"></script>
+  <script src="/static/js/cmdb.js?v=0.23.0"></script>
 </body>
 </html>

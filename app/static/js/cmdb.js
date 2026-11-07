@@ -1834,15 +1834,38 @@
     "relTargetTable",
   ];
 
+  function setComboSelectOpen(wrap, open) {
+    if (!wrap) return;
+    const list = wrap.querySelector(".combo-select-list");
+    const trigger = wrap.querySelector(".combo-select-trigger");
+    wrap.classList.toggle("open", !!open);
+    if (list) {
+      list.hidden = !open;
+      list.setAttribute("aria-hidden", open ? "false" : "true");
+    }
+    if (trigger) trigger.setAttribute("aria-expanded", open ? "true" : "false");
+  }
+
   function closeAllComboSelects(exceptWrap = null) {
     $$(".combo-select.open").forEach((wrap) => {
       if (exceptWrap && wrap === exceptWrap) return;
-      wrap.classList.remove("open");
-      const list = wrap.querySelector(".combo-select-list");
-      const trigger = wrap.querySelector(".combo-select-trigger");
-      if (list) list.hidden = true;
-      if (trigger) trigger.setAttribute("aria-expanded", "false");
+      setComboSelectOpen(wrap, false);
     });
+  }
+
+  function syncReferenceTargetControl() {
+    const typeEl = $("#ccType");
+    const refSel = $("#ccRefTable");
+    if (!refSel) return;
+    const isRef = typeEl?.value === "reference";
+    refSel.disabled = !isRef;
+    refSel.removeAttribute("required");
+    if (!isRef) {
+      refSel.value = "";
+      const wrap = refSel.closest(".combo-select");
+      if (wrap) setComboSelectOpen(wrap, false);
+    }
+    upgradeComboSelect(refSel);
   }
 
   function optionDisplayText(opt) {
@@ -1891,6 +1914,7 @@
     labelEl.textContent = optionDisplayText(selected);
     trigger.disabled = !!selectEl.disabled;
     trigger.title = labelEl.textContent;
+    if (selectEl.disabled) setComboSelectOpen(wrap, false);
   }
 
   function upgradeComboSelect(selectEl) {
@@ -1919,6 +1943,7 @@
     list.className = "combo-select-list";
     list.hidden = true;
     list.setAttribute("role", "listbox");
+    list.setAttribute("aria-hidden", "true");
 
     wrap.appendChild(trigger);
     wrap.appendChild(list);
@@ -1929,9 +1954,7 @@
       if (selectEl.disabled || trigger.disabled) return;
       const willOpen = !wrap.classList.contains("open");
       closeAllComboSelects(willOpen ? wrap : null);
-      wrap.classList.toggle("open", willOpen);
-      list.hidden = !willOpen;
-      trigger.setAttribute("aria-expanded", willOpen ? "true" : "false");
+      setComboSelectOpen(wrap, willOpen);
     });
 
     selectEl.addEventListener("change", () => rebuildComboSelect(selectEl));
@@ -2174,11 +2197,7 @@
       $("#ccKey").readOnly = false;
     }
     if ($("#ccType")) $("#ccType").value = "string";
-    if ($("#ccRefTable")) {
-      $("#ccRefTable").disabled = true;
-      $("#ccRefTable").value = "";
-      upgradeComboSelect($("#ccRefTable"));
-    }
+    syncReferenceTargetControl();
     if ($("#ccSubmitBtn")) $("#ccSubmitBtn").textContent = "Add column";
     $("#ccEditHint")?.classList.add("hidden");
     $("#btnCcCancelEdit")?.classList.add("hidden");
@@ -2200,10 +2219,11 @@
     $("#ccEnum").value = (col.enum_values || []).join(", ");
     $("#ccRequired").checked = !!col.required;
     const isRef = col.field_type === "reference";
-    $("#ccRefTable").disabled = !isRef;
     populateRefTableSelect();
-    if (isRef) $("#ccRefTable").value = col.reference_table || "";
-    upgradeComboSelect($("#ccRefTable"));
+    if (isRef && $("#ccRefTable")) {
+      $("#ccRefTable").value = col.reference_table || "";
+    }
+    syncReferenceTargetControl();
     if ($("#ccSubmitBtn")) $("#ccSubmitBtn").textContent = "Save column";
     $("#ccEditHint")?.classList.remove("hidden");
     $("#btnCcCancelEdit")?.classList.remove("hidden");
@@ -2274,6 +2294,17 @@
     }
     const field_type = $("#ccType").value;
     const columnKey = (state.editingCcKey || $("#ccKey").value.trim()).trim();
+    const refTarget = ($("#ccRefTable")?.value || "").trim();
+    // Reference target is required only for reference columns; empty OK for string/other.
+    if (field_type === "reference" && !refTarget) {
+      toast("Reference target is required when type is reference", true);
+      const wrap = $("#ccRefTable")?.closest(".combo-select");
+      if (wrap) {
+        closeAllComboSelects(wrap);
+        setComboSelectOpen(wrap, true);
+      }
+      return;
+    }
     const payload = {
       label: $("#ccLabel").value.trim(),
       field_type,
@@ -2285,7 +2316,7 @@
               .map((s) => s.trim())
               .filter(Boolean)
           : [],
-      reference_table: field_type === "reference" ? $("#ccRefTable").value || null : null,
+      reference_table: field_type === "reference" ? refTarget || null : null,
     };
     try {
       if (state.editingCcKey) {
@@ -3063,13 +3094,7 @@
       renderCustomColumns();
     });
     $("#ccType")?.addEventListener("change", () => {
-      const isRef = $("#ccType").value === "reference";
-      const refSel = $("#ccRefTable");
-      if (refSel) {
-        refSel.disabled = !isRef;
-        if (!isRef) refSel.value = "";
-        upgradeComboSelect(refSel);
-      }
+      syncReferenceTargetControl();
     });
     $("#btnCtDelete")?.addEventListener("click", async () => {
       const key = $("#ctSelectedTable")?.value || state.selectedCustomTableKey;

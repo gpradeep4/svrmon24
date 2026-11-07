@@ -485,7 +485,9 @@ def test_custom_tables_ui_includes_edit_and_help(
     assert 'id="btnCtEditSelected"' in html
     assert "help-balloon" in html
     assert "e.g. business_services" in html
-    assert "cmdb.js?v=" in html and "0.22.0" in html
+    assert "cmdb.js?v=" in html and "0.23.0" in html
+    assert 'class="check-field"' in html
+    assert 'id="ccRequired"' in html
 
 
 def test_custom_tables_dropdown_css_avoids_blank_options(
@@ -510,4 +512,29 @@ def test_custom_tables_dropdown_css_avoids_blank_options(
     assert 'id="ccRefTable"' in html
     assert 'id="relSourceTable"' in html
     assert 'id="relTargetTable"' in html
-    assert "0.22.0" in html
+    assert "0.23.0" in html
+
+
+def test_custom_tables_form_layout_and_combo_collapse_css(
+    client: TestClient, auth_headers: dict[str, str]
+) -> None:
+    """Closed combo lists must stay display:none; checkbox width not 100%."""
+    css = client.get("/static/css/cmdb.css", headers=auth_headers).text
+    js = client.get("/static/js/cmdb.js", headers=auth_headers).text
+    html = client.get("/", headers=auth_headers).text
+
+    assert ".combo-select-list[hidden]" in css
+    assert "display: none !important" in css
+    assert ".combo-select.open > .combo-select-list" in css
+    assert "#customColumnForm" in css
+    assert "input[type=\"checkbox\"]" in css or "input[type='checkbox']" in css
+    assert "setComboSelectOpen" in js
+    assert "syncReferenceTargetControl" in js
+    assert "closeAllComboSelects" in js
+    # Reference target stays optional in markup (no HTML required=); only enforced in JS for reference type.
+    assert 'id="ccRefTable"' in html
+    ref_attrs = html.split('id="ccRefTable"', 1)[1].split(">", 1)[0]
+    assert " aria-required=\"false\"" in ref_attrs or 'aria-required="false"' in ref_attrs
+    assert " required" not in f" {ref_attrs} " and not ref_attrs.strip().startswith("required")
+    assert 'required="' not in ref_attrs.replace('aria-required="false"', "")
+    assert "Reference target is required when type is reference" in js

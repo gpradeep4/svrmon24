@@ -831,6 +831,19 @@ input, select, textarea {
   color-scheme: light;
 }
 
+/* Checkboxes must not inherit width:100% (that shoved the box far from its label). */
+input[type="checkbox"],
+input[type="radio"] {
+  width: auto;
+  min-width: 1rem;
+  max-width: none;
+  height: auto;
+  margin: 0;
+  padding: 0;
+  accent-color: var(--accent);
+  flex: 0 0 auto;
+}
+
 input:focus, select:focus, textarea:focus {
   outline: 2px solid var(--accent-ring);
   border-color: var(--accent);
@@ -840,6 +853,11 @@ input:focus, select:focus, textarea:focus {
 .combo-select {
   position: relative;
   width: 100%;
+  z-index: 1;
+}
+
+.combo-select.open {
+  z-index: 80;
 }
 
 .combo-select > select.combo-select-native {
@@ -905,6 +923,11 @@ input:focus, select:focus, textarea:focus {
   line-height: 1;
 }
 
+/*
+  IMPORTANT: do not set display:flex as the default for .combo-select-list.
+  Author display rules override the UA [hidden] { display:none }, which left
+  menus permanently visible (overlap + “stuck open”).
+*/
 .combo-select-list {
   position: absolute;
   left: 0;
@@ -913,7 +936,7 @@ input:focus, select:focus, textarea:focus {
   z-index: 60;
   margin: 0;
   padding: 6px;
-  display: flex;
+  display: none;
   flex-direction: column;
   gap: 2px;
   max-height: min(280px, 50vh);
@@ -923,6 +946,14 @@ input:focus, select:focus, textarea:focus {
   border: 1px solid var(--line);
   border-radius: 10px;
   box-shadow: var(--shadow);
+}
+
+.combo-select.open > .combo-select-list {
+  display: flex;
+}
+
+.combo-select-list[hidden] {
+  display: none !important;
 }
 
 .combo-select-option {
@@ -955,6 +986,28 @@ input:focus, select:focus, textarea:focus {
 .combo-select.open .combo-select-trigger {
   border-color: var(--accent);
   outline: 2px solid var(--accent-ring);
+}
+
+/* Keep column form clear of the Selected-table toolbar / combo. */
+#tab-custom-tables .toolbar {
+  margin-bottom: 14px;
+  align-items: end;
+}
+
+#customColumnForm {
+  margin-top: 4px;
+  row-gap: 14px;
+}
+
+label.check-field {
+  align-content: start;
+}
+
+label.check-field .check-row {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 42px;
 }
 
 input:invalid:not(:placeholder-shown),
