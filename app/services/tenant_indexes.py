@@ -1,4 +1,4 @@
-"""Index planning for shared-DB tenancy (Master Phase 5–7).
+"""Index planning for shared-DB tenancy (Master Phase 5–8).
 
 Phase 5:
 
@@ -17,6 +17,10 @@ Phase 7:
 
 8. ``cmdb_field_definitions`` unique ``(tenant_id, field_key)``
 9. Legacy ``custom_field_definitions`` indexes retained for migration
+
+Phase 8:
+
+10. ``cmdb_column_configurations`` unique ``(tenant_id, grid_key)``
 """
 
 from __future__ import annotations
@@ -84,6 +88,13 @@ def ensure_tenant_id_indexes(db: Database) -> dict[str, list[str]]:
                 name="tenant_origin_idx",
             )
             names.extend(["tenant_field_key_unique", "tenant_origin_idx"])
+        elif name == "cmdb_column_configurations":
+            coll.create_index(
+                [("tenant_id", ASCENDING), ("grid_key", ASCENDING)],
+                unique=True,
+                name="tenant_grid_key_unique",
+            )
+            names.append("tenant_grid_key_unique")
         elif name == "custom_field_definitions":
             coll.create_index(
                 [("tenant_id", ASCENDING), ("field_key", ASCENDING)],
@@ -175,4 +186,14 @@ Phase 7 migration (field definitions):
 3. Seed locked built-in OS Family/OS Version + Product Type/Product Version (native storage)
 4. /api/custom-fields remains a facade; /api/field-definitions is canonical
 5. Custom values still attach on component custom_fields; column configs are Phase 8
+"""
+
+PHASE8_MIGRATION_NOTES = """
+Phase 8 (column configurations):
+
+1. cmdb_column_configurations unique (tenant_id, grid_key)
+2. Defaults for inventory + relationships grids (no legacy migrate)
+3. Locked columns stay visible: OS Family/Version, Product Type/Version,
+   protocol, source_port, target_port (+ actions)
+4. /api/column-configurations drives Column Settings UI + grid rendering
 """

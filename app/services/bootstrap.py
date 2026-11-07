@@ -1,4 +1,4 @@
-"""Startup / CLI bootstrap helpers for tenancy (Master Phase 5–7)."""
+"""Startup / CLI bootstrap helpers for tenancy (Master Phase 5–8)."""
 
 from __future__ import annotations
 

@@ -12,7 +12,7 @@
     body.is-app .login-gate { display: none !important; }
     #authPanel, .auth-panel-legacy { display: none !important; }
   </style>
-  <link rel="stylesheet" href="/static/css/cmdb.css?v=0.16.0" />
+  <link rel="stylesheet" href="/static/css/cmdb.css?v=0.17.0" />
 </head>
 <body class="is-login">
   <!-- Full-page login (no Operations chrome while signed out) -->
@@ -104,7 +104,7 @@
         </button>
         <button type="button" class="nav-item" data-tab="columns">
           <span class="nav-ico" aria-hidden="true"><svg viewBox="0 0 24 24"><rect x="3" y="4" width="5" height="16" rx="1"/><rect x="10" y="4" width="5" height="16" rx="1"/><rect x="17" y="4" width="4" height="16" rx="1"/></svg></span>
-          Column Settings <span class="coming">Soon</span>
+          Column Settings
         </button>
 
         <div class="nav-section">Administration</div>
@@ -281,19 +281,19 @@
             <h2 id="inventoryHeading">Inventory</h2>
             <div class="table-wrap">
               <div id="inventoryLoading" class="loading-overlay"><span class="spinner"></span> Loading inventory…</div>
-              <table class="inventory">
+              <table class="inventory" id="inventoryTable">
                 <thead>
-                  <tr>
-                    <th>Component ID</th>
-                    <th>Hostname/Component Name</th>
-                    <th>Component Type</th>
-                    <th>OS Family</th>
-                    <th>OS Version</th>
-                    <th>Product Type</th>
-                    <th>Product Version</th>
-                    <th>Environment</th>
-                    <th>Status</th>
-                    <th>Actions</th>
+                  <tr id="inventoryHeadRow">
+                    <th data-col="component_id">Component ID</th>
+                    <th data-col="hostname_or_name">Hostname/Component Name</th>
+                    <th data-col="component_type">Component Type</th>
+                    <th data-col="os_family">OS Family</th>
+                    <th data-col="os_version">OS Version</th>
+                    <th data-col="product_type">Product Type</th>
+                    <th data-col="product_version">Product Version</th>
+                    <th data-col="environment">Environment</th>
+                    <th data-col="status">Status</th>
+                    <th data-col="actions">Actions</th>
                   </tr>
                 </thead>
                 <tbody id="inventoryBody"></tbody>
@@ -330,20 +330,20 @@
           <section class="panel">
             <h2>Relationships</h2>
             <div class="table-wrap">
-              <table class="inventory">
+              <table class="inventory" id="relationshipTable">
                 <thead>
-                  <tr>
-                    <th>Relationship ID</th>
-                    <th>Source</th>
-                    <th>Target</th>
-                    <th>Type</th>
-                    <th>Protocol</th>
-                    <th>Source Port</th>
-                    <th>Target Port</th>
-                    <th>Environment</th>
-                    <th>Discovery</th>
-                    <th>Verification</th>
-                    <th>Actions</th>
+                  <tr id="relationshipHeadRow">
+                    <th data-col="relationship_id">Relationship ID</th>
+                    <th data-col="source_component_id">Source</th>
+                    <th data-col="target_component_id">Target</th>
+                    <th data-col="relationship_type">Type</th>
+                    <th data-col="protocol">Protocol</th>
+                    <th data-col="source_port">Source Port</th>
+                    <th data-col="target_port">Target Port</th>
+                    <th data-col="environment">Environment</th>
+                    <th data-col="discovery_method">Discovery</th>
+                    <th data-col="verification_status">Verification</th>
+                    <th data-col="actions">Actions</th>
                   </tr>
                 </thead>
                 <tbody id="relationshipBody"></tbody>
@@ -561,11 +561,42 @@
 
         <section id="tab-columns" class="tab-panel hidden">
           <section class="panel">
-            <div class="placeholder-panel">
-              <div class="ph-ico" aria-hidden="true"><svg viewBox="0 0 24 24"><rect x="3" y="4" width="5" height="16" rx="1"/><rect x="10" y="4" width="5" height="16" rx="1"/><rect x="17" y="4" width="4" height="16" rx="1"/></svg></div>
-              <h3>Column Settings</h3>
-              <p>Coming soon (Master Phase 8). Field definitions are live in Phase 7; per-user / per-tenant grid column configurations are not persisted yet. Inventory columns remain fixed (including separate OS Family / OS Version / Product Type / Product Version).</p>
-              <span class="badge-soon">Coming soon</span>
+            <h2>Column Settings</h2>
+            <p class="hint">
+              Tenant-scoped grid layouts for Inventory and Relationships.
+              Locked columns stay visible and separate:
+              <strong>OS Family / OS Version</strong>,
+              <strong>Product Type / Product Version</strong>,
+              and relationship <strong>Protocol / Source Port / Target Port</strong>.
+            </p>
+            <div class="toolbar" style="grid-template-columns: 1fr auto auto auto;">
+              <label>Grid
+                <select id="colGridKey">
+                  <option value="inventory">Inventory</option>
+                  <option value="relationships">Relationships</option>
+                </select>
+              </label>
+              <button type="button" id="btnColReload" class="secondary">Reload</button>
+              <button type="button" id="btnColReset" class="secondary">Reset to defaults</button>
+              <button type="button" id="btnColSave">Save</button>
+            </div>
+            <p class="hint" id="colConfigMeta">Sign in to load column configurations.</p>
+          </section>
+          <section class="panel">
+            <div class="table-wrap">
+              <table class="inventory column-settings-table">
+                <thead>
+                  <tr>
+                    <th>Order</th>
+                    <th>Column</th>
+                    <th>Visible</th>
+                    <th>Width (px)</th>
+                    <th>Pin</th>
+                    <th>Move</th>
+                  </tr>
+                </thead>
+                <tbody id="columnSettingsBody"></tbody>
+              </table>
             </div>
           </section>
         </section>
@@ -784,6 +815,6 @@
     <span class="spinner"></span><span id="globalLoadingText">Working…</span>
   </div>
   <div id="toast" class="toast"></div>
-  <script src="/static/js/cmdb.js?v=0.16.0"></script>
+  <script src="/static/js/cmdb.js?v=0.17.0"></script>
 </body>
 </html>
