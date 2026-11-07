@@ -322,5 +322,5 @@ def test_ui_shows_migration_tenant_non_switchable() -> None:
     assert "/api/tenants/current" in js
     assert "/api/memberships" in js
     assert ".tenant-banner" in css
-    assert "0.16.0" in html
+    assert "0.17.0" in html
     assert "isolation_enforced=true" in js

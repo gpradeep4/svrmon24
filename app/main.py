@@ -19,6 +19,7 @@ from .db import close_client, ping_database
 from .exceptions import register_exception_handlers
 from .logging_config import configure_logging
 from .routers import auth_routes
+from .routers import column_configs as column_configs_router
 from .routers import components as components_router
 from .routers import custom_fields as custom_fields_router
 from .routers import dashboard as dashboard_router
@@ -108,6 +109,7 @@ def create_app() -> FastAPI:
     app.include_router(components_router.router)
     app.include_router(custom_fields_router.router)
     app.include_router(custom_fields_router.facade_router)
+    app.include_router(column_configs_router.router)
     app.include_router(relationships_router.router)
     app.include_router(dependencies_router.router)
     app.include_router(diagnostics_router.router)

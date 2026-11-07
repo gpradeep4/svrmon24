@@ -88,6 +88,15 @@
     activeNav: "dashboard",
     authenticated: false,
     authMethod: "",
+    columnConfigs: {
+      inventory: null,
+      relationships: null,
+    },
+    columnEditor: {
+      grid_key: "inventory",
+      columns: [],
+      is_default: true,
+    },
   };
 
   const INVENTORY_TABS = {
@@ -168,7 +177,7 @@
     dependencies: { title: "Dependencies", subtitle: "Traversal, cycles, and potentially affected apps" },
     diagnostics: { title: "Diagnostics", subtitle: "DEMO / SIMULATED evidence only — no live probes" },
     custom: { title: "Custom Fields", subtitle: "Extend inventory forms with typed definitions" },
-    columns: { title: "Column Settings", subtitle: "Coming soon — grid column configs not implemented" },
+    columns: { title: "Column Settings", subtitle: "Tenant-scoped grid visibility, order, width, and pin" },
     users: { title: "Users", subtitle: "OIDC-linked memberships (no auto platform-admin)" },
     roles: { title: "Roles and Permissions", subtitle: "Coming soon — RBAC not implemented" },
     organizations: { title: "Organizations", subtitle: "SVRMON24 Legacy — single logical org" },
@@ -586,6 +595,7 @@
       loadDashboard(),
       loadTypes(),
       loadCustomFields(),
+      loadColumnConfigurations(),
       loadInventory(),
       loadRelationshipTypes(),
       loadRelationships(),
@@ -790,9 +800,113 @@
     return params;
   }
 
+  function visibleColumns(gridKey) {
+    const cfg = state.columnConfigs[gridKey];
+    const cols = (cfg && cfg.columns) || [];
+    return cols
+      .filter((c) => c.visible !== false)
+      .slice()
+      .sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
+  }
+
+  function applyHeadRow(headSel, columns) {
+    const head = $(headSel);
+    if (!head) return;
+    head.innerHTML = columns
+      .map((c) => {
+        const style = [];
+        if (c.width) style.push(`width:${Number(c.width)}px`);
+        if (c.pinned === "left" || c.pinned === "right") {
+          style.push(`position:sticky;${c.pinned}:0;z-index:1;background:var(--surface)`);
+        }
+        const styleAttr = style.length ? ` style="${style.join(";")}"` : "";
+        return `<th data-col="${escapeAttr(c.column_key)}"${styleAttr}>${escapeHtml(c.label || c.column_key)}</th>`;
+      })
+      .join("");
+  }
+
+  function inventoryCellHtml(row, columnKey) {
+    switch (columnKey) {
+      case "component_id":
+        return `<td class="mono">${escapeHtml(row.component_id)}</td>`;
+      case "hostname_or_name":
+        return `<td>${escapeHtml(row.hostname_or_name)}</td>`;
+      case "component_type":
+        return `<td>${escapeHtml(row.component_type)}</td>`;
+      case "os_family":
+        return `<td class="${row.os_family === "—" ? "dash" : ""}">${escapeHtml(row.os_family)}</td>`;
+      case "os_version":
+        return `<td class="${row.os_version === "—" ? "dash" : ""}">${escapeHtml(row.os_version)}</td>`;
+      case "product_type":
+        return `<td class="${row.product_type === "—" ? "dash" : ""}">${escapeHtml(row.product_type)}</td>`;
+      case "product_version":
+        return `<td class="${row.product_version === "—" ? "dash" : ""}">${escapeHtml(row.product_version)}</td>`;
+      case "environment":
+        return `<td>${escapeHtml(row.environment)}</td>`;
+      case "status":
+        return `<td><span class="status-pill ${statusClass(row.status)}">${escapeHtml(row.status)}</span></td>`;
+      case "actions":
+        return `<td class="actions">
+            <button type="button" class="ghost" data-view="${escapeAttr(row.component_id)}">View</button>
+            <button type="button" class="secondary" data-edit="${escapeAttr(row.component_id)}">Edit</button>
+            <button type="button" class="danger" data-del="${escapeAttr(row.component_id)}">Delete</button>
+          </td>`;
+      default:
+        return `<td></td>`;
+    }
+  }
+
+  function relationshipCellHtml(row, columnKey) {
+    switch (columnKey) {
+      case "relationship_id":
+        return `<td class="mono">${escapeHtml(row.relationship_id)}</td>`;
+      case "source_component_id":
+        return `<td class="mono">${escapeHtml(row.source_component_id)}</td>`;
+      case "target_component_id":
+        return `<td class="mono">${escapeHtml(row.target_component_id)}</td>`;
+      case "relationship_type":
+        return `<td>${escapeHtml(row.relationship_type)}</td>`;
+      case "protocol":
+        return `<td class="${row.protocol === "—" ? "dash" : ""}">${escapeHtml(row.protocol)}</td>`;
+      case "source_port":
+        return `<td class="mono ${row.source_port === "—" ? "dash" : ""}">${escapeHtml(row.source_port)}</td>`;
+      case "target_port":
+        return `<td class="mono ${row.target_port === "—" ? "dash" : ""}">${escapeHtml(row.target_port)}</td>`;
+      case "environment":
+        return `<td>${escapeHtml(row.environment)}</td>`;
+      case "discovery_method":
+        return `<td>${escapeHtml(row.discovery_method)}</td>`;
+      case "verification_status":
+        return `<td>${escapeHtml(row.verification_status)}</td>`;
+      case "actions":
+        return `<td class="actions">
+          <button type="button" class="secondary" data-rel-edit="${escapeAttr(row.relationship_id)}">Edit</button>
+          <button type="button" class="danger" data-rel-del="${escapeAttr(row.relationship_id)}">Delete</button>
+        </td>`;
+      default:
+        return `<td></td>`;
+    }
+  }
+
+  async function loadColumnConfigurations() {
+    const data = await api("/api/column-configurations");
+    for (const item of data.items || []) {
+      if (item.grid_key === "inventory" || item.grid_key === "relationships") {
+        state.columnConfigs[item.grid_key] = item;
+      }
+    }
+    applyHeadRow("#inventoryHeadRow", visibleColumns("inventory"));
+    applyHeadRow("#relationshipHeadRow", visibleColumns("relationships"));
+  }
+
   async function loadInventory() {
     setOverlayLoading("#inventoryLoading", true);
     try {
+      if (!state.columnConfigs.inventory) {
+        await loadColumnConfigurations();
+      }
+      const columns = visibleColumns("inventory");
+      applyHeadRow("#inventoryHeadRow", columns);
       const data = await api(`/api/components?${queryParams().toString()}`);
       state.totalPages = data.total_pages || 1;
       $("#pageInfo").textContent = `Page ${data.page} / ${state.totalPages || 1} · ${data.total} components`;
@@ -811,21 +925,7 @@
       }
       for (const row of rows) {
         const tr = document.createElement("tr");
-        tr.innerHTML = `
-          <td class="mono">${escapeHtml(row.component_id)}</td>
-          <td>${escapeHtml(row.hostname_or_name)}</td>
-          <td>${escapeHtml(row.component_type)}</td>
-          <td class="${row.os_family === "—" ? "dash" : ""}">${escapeHtml(row.os_family)}</td>
-          <td class="${row.os_version === "—" ? "dash" : ""}">${escapeHtml(row.os_version)}</td>
-          <td class="${row.product_type === "—" ? "dash" : ""}">${escapeHtml(row.product_type)}</td>
-          <td class="${row.product_version === "—" ? "dash" : ""}">${escapeHtml(row.product_version)}</td>
-          <td>${escapeHtml(row.environment)}</td>
-          <td><span class="status-pill ${statusClass(row.status)}">${escapeHtml(row.status)}</span></td>
-          <td class="actions">
-            <button type="button" class="ghost" data-view="${escapeAttr(row.component_id)}">View</button>
-            <button type="button" class="secondary" data-edit="${escapeAttr(row.component_id)}">Edit</button>
-            <button type="button" class="danger" data-del="${escapeAttr(row.component_id)}">Delete</button>
-          </td>`;
+        tr.innerHTML = columns.map((c) => inventoryCellHtml(row, c.column_key)).join("");
         tbody.appendChild(tr);
       }
     } finally {
@@ -1180,6 +1280,11 @@
         loadDiagnosticHistory(),
         refreshOllamaStatus(),
       ]).catch((err) => toast(err.message, true));
+    }
+    if (name === "columns" && state.authenticated) {
+      openColumnSettings($("#colGridKey")?.value || "inventory").catch((err) =>
+        toast(err.message || "Column settings failed", true)
+      );
     }
   }
 
@@ -1618,6 +1723,11 @@
   }
 
   async function loadRelationships() {
+    if (!state.columnConfigs.relationships) {
+      await loadColumnConfigurations();
+    }
+    const columns = visibleColumns("relationships");
+    applyHeadRow("#relationshipHeadRow", columns);
     const data = await api(`/api/relationships?${relQueryParams().toString()}`);
     state.relTotalPages = data.total_pages || 1;
     $("#relPageInfo").textContent =
@@ -1636,23 +1746,156 @@
     }
     for (const row of rows) {
       const tr = document.createElement("tr");
-      tr.innerHTML = `
-        <td class="mono">${escapeHtml(row.relationship_id)}</td>
-        <td class="mono">${escapeHtml(row.source_component_id)}</td>
-        <td class="mono">${escapeHtml(row.target_component_id)}</td>
-        <td>${escapeHtml(row.relationship_type)}</td>
-        <td class="${row.protocol === "—" ? "dash" : ""}">${escapeHtml(row.protocol)}</td>
-        <td class="mono ${row.source_port === "—" ? "dash" : ""}">${escapeHtml(row.source_port)}</td>
-        <td class="mono ${row.target_port === "—" ? "dash" : ""}">${escapeHtml(row.target_port)}</td>
-        <td>${escapeHtml(row.environment)}</td>
-        <td>${escapeHtml(row.discovery_method)}</td>
-        <td>${escapeHtml(row.verification_status)}</td>
-        <td class="actions">
-          <button type="button" class="secondary" data-rel-edit="${escapeAttr(row.relationship_id)}">Edit</button>
-          <button type="button" class="danger" data-rel-del="${escapeAttr(row.relationship_id)}">Delete</button>
-        </td>`;
+      tr.innerHTML = columns.map((c) => relationshipCellHtml(row, c.column_key)).join("");
       tbody.appendChild(tr);
     }
+  }
+
+  function renderColumnSettingsEditor() {
+    const tbody = $("#columnSettingsBody");
+    const meta = $("#colConfigMeta");
+    if (!tbody) return;
+    const cols = (state.columnEditor.columns || [])
+      .slice()
+      .sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
+    state.columnEditor.columns = cols.map((c, idx) => ({ ...c, order: idx }));
+    if (meta) {
+      const src = state.columnEditor.is_default ? "catalog defaults" : "saved tenant config";
+      meta.textContent = `Editing ${state.columnEditor.grid_key} · ${src}. Locked columns cannot be hidden.`;
+    }
+    tbody.innerHTML = "";
+    cols.forEach((col, idx) => {
+      const tr = document.createElement("tr");
+      const locked = !!col.locked;
+      tr.innerHTML = `
+        <td class="mono">${idx + 1}</td>
+        <td>
+          ${escapeHtml(col.label || col.column_key)}
+          <div class="hint mono">${escapeHtml(col.column_key)}${locked ? " · locked" : ""}</div>
+        </td>
+        <td>
+          <input type="checkbox" data-col-vis="${escapeAttr(col.column_key)}"
+            ${col.visible !== false ? "checked" : ""} ${locked ? "disabled" : ""} />
+        </td>
+        <td>
+          <input type="number" min="40" max="1200" placeholder="auto"
+            data-col-width="${escapeAttr(col.column_key)}"
+            value="${col.width != null ? escapeAttr(col.width) : ""}" />
+        </td>
+        <td>
+          <select data-col-pin="${escapeAttr(col.column_key)}">
+            <option value="" ${!col.pinned ? "selected" : ""}>None</option>
+            <option value="left" ${col.pinned === "left" ? "selected" : ""}>Left</option>
+            <option value="right" ${col.pinned === "right" ? "selected" : ""}>Right</option>
+          </select>
+        </td>
+        <td class="actions">
+          <button type="button" class="secondary" data-col-up="${escapeAttr(col.column_key)}" ${idx === 0 ? "disabled" : ""}>Up</button>
+          <button type="button" class="secondary" data-col-down="${escapeAttr(col.column_key)}" ${idx === cols.length - 1 ? "disabled" : ""}>Down</button>
+        </td>`;
+      tbody.appendChild(tr);
+    });
+  }
+
+  function syncColumnEditorFromDom() {
+    const byKey = Object.fromEntries(
+      (state.columnEditor.columns || []).map((c) => [c.column_key, { ...c }])
+    );
+    for (const el of $$("[data-col-vis]")) {
+      const key = el.getAttribute("data-col-vis");
+      if (!byKey[key]) continue;
+      if (!byKey[key].locked) byKey[key].visible = el.checked;
+      else byKey[key].visible = true;
+    }
+    for (const el of $$("[data-col-width]")) {
+      const key = el.getAttribute("data-col-width");
+      if (!byKey[key]) continue;
+      const raw = String(el.value || "").trim();
+      byKey[key].width = raw ? Number(raw) : null;
+      if (Number.isNaN(byKey[key].width)) byKey[key].width = null;
+    }
+    for (const el of $$("[data-col-pin]")) {
+      const key = el.getAttribute("data-col-pin");
+      if (!byKey[key]) continue;
+      const val = el.value;
+      byKey[key].pinned = val === "left" || val === "right" ? val : null;
+    }
+    state.columnEditor.columns = Object.values(byKey).sort(
+      (a, b) => (a.order ?? 0) - (b.order ?? 0)
+    );
+  }
+
+  function moveColumnEditor(key, direction) {
+    syncColumnEditorFromDom();
+    const cols = state.columnEditor.columns.slice().sort((a, b) => a.order - b.order);
+    const idx = cols.findIndex((c) => c.column_key === key);
+    if (idx < 0) return;
+    const swap = idx + direction;
+    if (swap < 0 || swap >= cols.length) return;
+    const tmp = cols[idx];
+    cols[idx] = cols[swap];
+    cols[swap] = tmp;
+    state.columnEditor.columns = cols.map((c, i) => ({ ...c, order: i }));
+    renderColumnSettingsEditor();
+  }
+
+  async function openColumnSettings(gridKey) {
+    const key = gridKey || $("#colGridKey")?.value || "inventory";
+    if ($("#colGridKey")) $("#colGridKey").value = key;
+    const cfg = await api(`/api/column-configurations/${encodeURIComponent(key)}`);
+    state.columnConfigs[key] = cfg;
+    state.columnEditor = {
+      grid_key: key,
+      columns: (cfg.columns || []).map((c) => ({ ...c })),
+      is_default: !!cfg.is_default,
+    };
+    renderColumnSettingsEditor();
+  }
+
+  async function saveColumnSettings() {
+    syncColumnEditorFromDom();
+    const key = state.columnEditor.grid_key;
+    const payload = {
+      columns: state.columnEditor.columns.map((c) => ({
+        column_key: c.column_key,
+        visible: c.locked ? true : !!c.visible,
+        order: c.order,
+        width: c.width == null || c.width === "" ? null : Number(c.width),
+        pinned: c.pinned || null,
+      })),
+    };
+    const saved = await api(`/api/column-configurations/${encodeURIComponent(key)}`, {
+      method: "PUT",
+      body: JSON.stringify(payload),
+    });
+    state.columnConfigs[key] = saved;
+    state.columnEditor = {
+      grid_key: key,
+      columns: (saved.columns || []).map((c) => ({ ...c })),
+      is_default: !!saved.is_default,
+    };
+    renderColumnSettingsEditor();
+    if (key === "inventory") await loadInventory();
+    if (key === "relationships") await loadRelationships();
+    toast(`Saved ${key} column settings`);
+  }
+
+  async function resetColumnSettings() {
+    const key = state.columnEditor.grid_key || $("#colGridKey")?.value || "inventory";
+    if (!confirm(`Reset ${key} columns to catalog defaults?`)) return;
+    const reset = await api(`/api/column-configurations/${encodeURIComponent(key)}`, {
+      method: "DELETE",
+    });
+    state.columnConfigs[key] = reset;
+    state.columnEditor = {
+      grid_key: key,
+      columns: (reset.columns || []).map((c) => ({ ...c })),
+      is_default: !!reset.is_default,
+    };
+    renderColumnSettingsEditor();
+    if (key === "inventory") await loadInventory();
+    if (key === "relationships") await loadRelationships();
+    toast(`Reset ${key} column settings`);
   }
 
   function parseOptionalPort(raw) {
@@ -1850,6 +2093,41 @@
     });
     $("#btnConfirmDelete").addEventListener("click", confirmDelete);
     $("#customFieldForm").addEventListener("submit", saveCustomField);
+    $("#colGridKey")?.addEventListener("change", async () => {
+      try {
+        await openColumnSettings($("#colGridKey").value);
+      } catch (err) {
+        toast(err.message, true);
+      }
+    });
+    $("#btnColReload")?.addEventListener("click", async () => {
+      try {
+        await openColumnSettings($("#colGridKey")?.value || "inventory");
+        toast("Column settings reloaded");
+      } catch (err) {
+        toast(err.message, true);
+      }
+    });
+    $("#btnColSave")?.addEventListener("click", async () => {
+      try {
+        await saveColumnSettings();
+      } catch (err) {
+        toast(err.message, true);
+      }
+    });
+    $("#btnColReset")?.addEventListener("click", async () => {
+      try {
+        await resetColumnSettings();
+      } catch (err) {
+        toast(err.message, true);
+      }
+    });
+    $("#columnSettingsBody")?.addEventListener("click", (e) => {
+      const up = e.target.getAttribute("data-col-up");
+      const down = e.target.getAttribute("data-col-down");
+      if (up) moveColumnEditor(up, -1);
+      if (down) moveColumnEditor(down, 1);
+    });
     $("#btnAnalyzeDeps").addEventListener("click", async () => {
       try { await analyzeDependencies(); } catch (err) { toast(err.message, true); }
     });

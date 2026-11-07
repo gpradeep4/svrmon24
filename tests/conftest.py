@@ -69,6 +69,7 @@ def clean_db(client: TestClient) -> Generator[None, None, None]:
         "components",
         "cmdb_field_definitions",
         "custom_field_definitions",
+        "cmdb_column_configurations",
         "cmdb_relationships",
         "diagnostic_history",
         "tenants",

@@ -1045,6 +1045,20 @@ table.inventory tr:hover td {
   padding: 4px 10px;
 }
 
+.column-settings-table input[type="number"] {
+  width: 6.5rem;
+  max-width: 100%;
+}
+
+.column-settings-table select {
+  min-width: 6.5rem;
+}
+
+.column-settings-table .hint.mono {
+  margin-top: 2px;
+  font-size: 0.72rem;
+}
+
 .toast {
   position: fixed;
   right: 18px;
