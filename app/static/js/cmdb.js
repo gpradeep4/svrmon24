@@ -198,7 +198,7 @@
     users: { title: "Users", subtitle: "OIDC-linked memberships (no auto platform-admin)" },
     roles: { title: "Roles and Permissions", subtitle: "Coming soon — RBAC not implemented" },
     organizations: { title: "Organizations", subtitle: "SVRMON24 Legacy — single logical org" },
-    plans: { title: "Subscription Plans", subtitle: "Coming soon — entitlements not implemented" },
+    plans: { title: "Subscription Plans", subtitle: "Entitlements-only plan limits (no payment provider)" },
     settings: { title: "Settings", subtitle: "Organization (non-switchable) and accent colour" },
     audit: { title: "Audit Logs", subtitle: "Coming soon — audit collection not implemented" },
   };
@@ -622,6 +622,7 @@
       loadDiagnosticProfiles(),
       loadDiagnosticHistory(),
       loadTenancyContext(me),
+      loadEntitlements(),
     ]);
     if ($("#depComponentId") && !$("#depComponentId").value && state.componentIds[0]) {
       $("#depComponentId").value = state.componentIds[0];
@@ -911,6 +912,10 @@
         return `<td class="mono">${escapeHtml(row.source_component_id)}</td>`;
       case "target_component_id":
         return `<td class="mono">${escapeHtml(row.target_component_id)}</td>`;
+      case "source_table":
+        return `<td class="mono ${row.source_table === "—" ? "dash" : ""}">${escapeHtml(row.source_table || "—")}</td>`;
+      case "target_table":
+        return `<td class="mono ${row.target_table === "—" ? "dash" : ""}">${escapeHtml(row.target_table || "—")}</td>`;
       case "relationship_type":
         return `<td>${escapeHtml(row.relationship_type)}</td>`;
       case "protocol":
@@ -1413,6 +1418,9 @@
     if (name === "custom-tables" && state.authenticated) {
       loadCustomTables().catch((err) => toast(err.message, true));
     }
+    if (name === "plans" && state.authenticated) {
+      loadEntitlements().catch((err) => toast(err.message, true));
+    }
     if (customTableKey && state.authenticated) {
       state.selectedCustomTableKey = customTableKey;
       state.customRecordPage = 1;
@@ -1806,19 +1814,85 @@
       .join("");
   }
 
+  function entityRefOptionHtml(e) {
+    return `<option value="${escapeAttr(e.entity_id)}">${escapeHtml(
+      `${e.display_name || e.entity_id} [${e.ref_table}]`
+    )}</option>`;
+  }
+
+  function filterEntityRefs(tableKey) {
+    const refs = state.entityRefs || [];
+    const key = (tableKey || "").trim();
+    if (!key) {
+      // Blank table = CMDB-only picker (compat edges with null tables).
+      return refs.filter((e) => e.kind === "component");
+    }
+    return refs.filter((e) => e.ref_table === key);
+  }
+
+  function syncRelEntityDatalists() {
+    const sourceTable = $("#relSourceTable")?.value || "";
+    const targetTable = $("#relTargetTable")?.value || "";
+    const sourceList = $("#entityIdListSource");
+    const targetList = $("#entityIdListTarget");
+    const legacyList = $("#entityIdList");
+    const sourceOpts = filterEntityRefs(sourceTable)
+      .map(entityRefOptionHtml)
+      .join("");
+    const targetOpts = filterEntityRefs(targetTable)
+      .map(entityRefOptionHtml)
+      .join("");
+    if (sourceList) sourceList.innerHTML = sourceOpts;
+    if (targetList) targetList.innerHTML = targetOpts;
+    // Keep legacy shared list for any other consumers.
+    if (legacyList) {
+      legacyList.innerHTML = (state.entityRefs || []).map(entityRefOptionHtml).join("");
+    }
+  }
+
   async function refreshEntityIdList() {
     const data = await api("/api/entity-refs?limit=200");
     state.entityRefs = data.items || [];
-    const list = $("#entityIdList");
-    if (!list) return;
-    list.innerHTML = state.entityRefs
-      .map(
-        (e) =>
-          `<option value="${escapeAttr(e.entity_id)}">${escapeHtml(
-            `${e.display_name || e.entity_id} [${e.ref_table}]`
-          )}</option>`
-      )
-      .join("");
+    syncRelEntityDatalists();
+  }
+
+  async function loadEntitlements() {
+    const label = $("#entitlementsPlanLabel");
+    const notes = $("#entitlementsNotes");
+    const limitsEl = $("#entitlementsLimits");
+    if (!label) return;
+    try {
+      const data = await api("/api/entitlements");
+      state.entitlements = data;
+      label.textContent = data.plan_label || data.plan_code || "Plan";
+      if (notes) {
+        notes.textContent =
+          data.notes ||
+          "Entitlements-only; no payment provider.";
+      }
+      if (limitsEl) {
+        const limits = data.limits || {};
+        const rows = Object.keys(limits)
+          .sort()
+          .map((key) => {
+            const val = limits[key];
+            const shown = val == null ? "unlimited" : String(val);
+            return `<div><strong>${escapeHtml(key)}</strong>: ${escapeHtml(shown)}</div>`;
+          })
+          .join("");
+        limitsEl.innerHTML =
+          rows +
+          `<div class="hint" style="margin-top:8px">billing_enabled=${escapeHtml(
+            String(!!data.billing_enabled)
+          )} · payment_provider=${escapeHtml(
+            data.payment_provider == null ? "none" : String(data.payment_provider)
+          )}</div>`;
+      }
+    } catch (err) {
+      label.textContent = "Entitlements unavailable";
+      if (notes) notes.textContent = err.message || "Could not load entitlements";
+      if (limitsEl) limitsEl.innerHTML = "";
+    }
   }
 
   function selectedCustomTable() {
@@ -2097,6 +2171,7 @@
       if (prev && [...sel.options].some((o) => o.value === prev)) sel.value = prev;
       upgradeComboSelect(sel);
     }
+    syncRelEntityDatalists();
   }
 
   function renderCustomTableList() {
@@ -2802,6 +2877,8 @@
     populateRelTableSelects();
     if ($("#relSourceTable")) $("#relSourceTable").value = "";
     if ($("#relTargetTable")) $("#relTargetTable").value = "";
+    syncTableComboSelects();
+    syncRelEntityDatalists();
     if ($("#relType").options.length) $("#relType").selectedIndex = 0;
     updateRelTypeHint();
     $("#relModalTitle").textContent = "Add relationship";
@@ -2817,6 +2894,8 @@
     $("#relType").value = doc.relationship_type;
     if ($("#relSourceTable")) $("#relSourceTable").value = doc.source_table || "";
     if ($("#relTargetTable")) $("#relTargetTable").value = doc.target_table || "";
+    syncTableComboSelects();
+    syncRelEntityDatalists();
     $("#relSource").value = doc.source_component_id;
     $("#relTarget").value = doc.target_component_id;
     $("#relProtocol").value = doc.protocol || "";
@@ -3217,6 +3296,12 @@
       await loadRelationships();
     });
     $("#relType").addEventListener("change", updateRelTypeHint);
+    $("#relSourceTable")?.addEventListener("change", () => {
+      syncRelEntityDatalists();
+    });
+    $("#relTargetTable")?.addEventListener("change", () => {
+      syncRelEntityDatalists();
+    });
     $("#relationshipForm").addEventListener("submit", saveRelationship);
     $("#btnCloseRelModal").addEventListener("click", () => {
       $("#relationshipModal").classList.remove("open");

@@ -491,8 +491,12 @@ def main() -> int:
     comps = components_service.list_components(
         tenant_id=SEED_TENANT_ID, q="demo-", page=1, page_size=50
     )
-    rels = relationships_service.list_relationships(q="demo-", page=1, page_size=50)
-    diags = diagnostics_service.list_diagnostics(page=1, page_size=50)
+    rels = relationships_service.list_relationships(
+        tenant_id=SEED_TENANT_ID, q="demo-", page=1, page_size=50
+    )
+    diags = diagnostics_service.list_diagnostics(
+        tenant_id=SEED_TENANT_ID, page=1, page_size=50
+    )
     demo_diags = [
         i
         for i in (diags.get("items") or [])
