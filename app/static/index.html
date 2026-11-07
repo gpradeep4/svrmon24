@@ -12,7 +12,7 @@
     body.is-app .login-gate { display: none !important; }
     #authPanel, .auth-panel-legacy { display: none !important; }
   </style>
-  <link rel="stylesheet" href="/static/css/cmdb.css?v=0.24.0" />
+  <link rel="stylesheet" href="/static/css/cmdb.css?v=0.25.0" />
 </head>
 <body class="is-login">
   <!-- Full-page login (no Operations chrome while signed out) -->
@@ -375,13 +375,29 @@
         <section id="tab-dependencies" class="tab-panel hidden">
           <section class="panel">
             <h2>Dependency traversal &amp; impact</h2>
+            <p class="hint">
+              Tenant-scoped wrap of the existing graph engine. Walks typed CMDB
+              <strong>and</strong> custom-table relationship edges. Protocol / Source Port /
+              Target Port stay separate on every edge.
+            </p>
             <p class="hint" id="impactDisclaimer">
               Impact results list <strong>potentially affected</strong> applications only.
               Presence in the graph does not mean a component is actually down.
+              <button type="button" class="help-balloon" aria-label="Help: impact disclaimer" data-help="Impact uses relationship data only. “Potentially affected” never claims an application is currently down or degraded.">i</button>
             </p>
-            <div class="toolbar" style="grid-template-columns: 1.2fr 0.7fr 1fr 1fr auto;">
-              <label>Component ID<input id="depComponentId" list="componentIdList" placeholder="e.g. db-1" /></label>
-              <label>Depth<input id="depDepth" type="number" min="0" max="50" value="5" /></label>
+            <div class="toolbar" style="grid-template-columns: 1.2fr 0.9fr 0.6fr 0.9fr 0.9fr auto;">
+              <label>Entity ID
+                <button type="button" class="help-balloon" aria-label="Help: dependency entity" data-help="CMDB component_id or custom record_id (entity-refs). Optional Table hints a custom table_key or CMDB type.">i</button>
+                <input id="depComponentId" list="depEntityIdList" placeholder="e.g. db-1 or clu-1" />
+              </label>
+              <label>Table (optional)
+                <button type="button" class="help-balloon" aria-label="Help: dependency table" data-help="Optional. Leave blank for typed CMDB (or unique custom record_id). Set to a custom table_key when starting from a custom entity.">i</button>
+                <input id="depTable" list="depTableList" placeholder="Server or clusters" />
+              </label>
+              <label>Depth
+                <button type="button" class="help-balloon" aria-label="Help: dependency depth" data-help="How many hops to walk (0–50). Tenant entitlements may cap max_dependency_depth.">i</button>
+                <input id="depDepth" type="number" min="0" max="50" value="5" />
+              </label>
               <label>Environment filter<input id="depEnv" placeholder="optional" /></label>
               <label>Status filter
                 <select id="depStatus">
@@ -394,16 +410,18 @@
               </label>
               <button type="button" id="btnAnalyzeDeps">Analyze</button>
             </div>
+            <datalist id="depEntityIdList"></datalist>
+            <datalist id="depTableList"></datalist>
           </section>
 
           <section class="panel">
-            <h2>Selected component</h2>
-            <div id="depSelected" class="hint">Select a component and click Analyze.</div>
+            <h2>Selected entity</h2>
+            <div id="depSelected" class="hint">Select an entity and click Analyze.</div>
           </section>
 
           <section class="panel">
             <h2>Graph</h2>
-            <p class="hint">Supports multiple parents/children, shared dependencies, and cycles. Upstream = cyan, Downstream = amber, Selected = accent, Both = indigo.</p>
+            <p class="hint">Supports multiple parents/children, shared dependencies, custom-table endpoints, and cycles. Upstream = cyan, Downstream = amber, Selected = accent, Both = indigo.</p>
             <div id="depGraphWrap" class="graph-wrap">
               <svg id="depGraph" xmlns="http://www.w3.org/2000/svg"></svg>
             </div>
@@ -416,11 +434,13 @@
               <table class="inventory">
                 <thead>
                   <tr>
-                    <th>Component ID</th>
+                    <th>Entity ID</th>
                     <th>Name</th>
-                    <th>Type</th>
+                    <th>Type / Table</th>
                     <th>Direct/Indirect</th>
                     <th>Relationship Type</th>
+                    <th>Source Table</th>
+                    <th>Target Table</th>
                     <th>Protocol</th>
                     <th>Source Port</th>
                     <th>Target Port</th>
@@ -439,11 +459,13 @@
               <table class="inventory">
                 <thead>
                   <tr>
-                    <th>Component ID</th>
+                    <th>Entity ID</th>
                     <th>Name</th>
-                    <th>Type</th>
+                    <th>Type / Table</th>
                     <th>Direct/Indirect</th>
                     <th>Relationship Type</th>
+                    <th>Source Table</th>
+                    <th>Target Table</th>
                     <th>Protocol</th>
                     <th>Source Port</th>
                     <th>Target Port</th>
@@ -457,7 +479,9 @@
           </section>
 
           <section class="panel">
-            <h2>Potentially affected applications</h2>
+            <h2>Potentially affected applications
+              <button type="button" class="help-balloon" aria-label="Help: potentially affected" data-help="Only typed CMDB Application nodes reachable downstream. Wording is always “potentially affected” — never an outage claim.">i</button>
+            </h2>
             <div id="depImpactList" class="hint">No analysis yet.</div>
           </section>
         </section>
@@ -833,7 +857,7 @@
             <h2>Subscription Plans</h2>
             <p class="hint">
               v1 is <strong>entitlements-only</strong> — plan limits for resources such as
-              relationships. No payment provider, checkout, or billing webhooks are wired.
+              relationships and <code>max_dependency_depth</code>. No payment provider, checkout, or billing webhooks are wired.
             </p>
             <div id="entitlementsPanel" class="placeholder-panel">
               <div class="ph-ico" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M4 7h16v12H4z"/><path d="M8 7V5a4 4 0 0 1 8 0v2"/></svg></div>
@@ -1075,6 +1099,6 @@
     </div>
   </div>
 
-  <script src="/static/js/cmdb.js?v=0.24.0"></script>
+  <script src="/static/js/cmdb.js?v=0.25.0"></script>
 </body>
 </html>
