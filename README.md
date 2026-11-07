@@ -4,7 +4,7 @@ AI-assisted infrastructure CMDB, dependency mapping, **SIMULATED** diagnostics, 
 
 Stack: **FastAPI + Uvicorn + MongoDB (PyMongo) + provider-neutral OIDC** (HTTP Basic optional via feature flag). Diagnostics never contact remote hosts and never execute shell/SQL/network scans.
 
-## Features (through custom-tables UX / 0.21.0)
+## Features (through custom-tables dropdown fix / 0.22.0)
 
 | Area | Capability |
 | --- | --- |
@@ -13,7 +13,7 @@ Stack: **FastAPI + Uvicorn + MongoDB (PyMongo) + provider-neutral OIDC** (HTTP B
 | CMDB | Typed Mongo collections (`cmdb_servers`, `cmdb_network`, `cmdb_middleware`, `cmdb_databases`, `cmdb_applications`) behind stable `/api/components*` facade; OS Family/Version and Product Type/Version stay separate |
 | Field definitions | Tenant-scoped `cmdb_field_definitions` (custom + locked built-in OS/product natives); `/api/custom-fields` facade; values still on component `custom_fields` |
 | Column configurations | Tenant-scoped `cmdb_column_configurations` driving Inventory + Relationships grids (visibility / order / width / pin); Inventory includes toggleable **custom field** columns; locked OS/product and protocol/port columns |
-| Custom entity tables | Tenant-scoped `cmdb_custom_table_definitions` + `cmdb_custom_records` (`table_key`); typed columns including **reference** fields; relationships can link custom entities via `source_table` / `target_table`; Edit UI for defs/columns; dropdowns show display name + `table_key`; beginner help balloons |
+| Custom entity tables | Tenant-scoped `cmdb_custom_table_definitions` + `cmdb_custom_records` (`table_key`); typed columns including **reference** fields; relationships can link custom entities via `source_table` / `target_table`; Edit UI for defs/columns; dropdowns show display name + `table_key` (open lists via ink-on-white combo selects); beginner help balloons |
 | Relationships | HOSTED_ON / DEPENDS_ON / CONNECTS_TO / ROUTES_TO (CMDB ↔ CMDB, custom ↔ CMDB, custom ↔ custom) |
 | Dependencies | Upstream / downstream traversal, cycle detection, impact (“potentially affected”) |
 | Diagnostics | Approved `basic-health` profile — always `execution_mode=SIMULATED` |
@@ -141,7 +141,7 @@ When Ollama is unavailable, diagnostic analysis uses a deterministic rule-based 
 - Relationships: optional `source_table` / `target_table` so custom records can HOSTED_ON / DEPENDS_ON / etc. with CMDB CIs or other custom rows; `/api/components*` unchanged
 - APIs: `/api/custom-tables*`, `/api/custom-tables/{key}/records*`, `/api/entity-refs`
 - UI: Configuration → Custom Tables (create/**Edit**/delete defs + columns); Operations sidebar lists defined tables for inventory-like CRUD; Relationships picker includes custom entities
-- Selects (config selected table, reference target, relationship source/target) show **display name (`table_key`)** so options are never blank
+- Selects (config selected table, reference target, relationship source/target) show **display name (`table_key`)**; open menus use ink-on-white `.combo-select` lists (avoids blank native option popups on dark OS themes)
 - Beginner help: sample placeholders + “i” balloon tooltips on create/edit fields (`table_key` snake_case, column types, reference target, enums)
 - Core CMDB builtins (OS/product; protocol/ports) are **not** collapsed
 

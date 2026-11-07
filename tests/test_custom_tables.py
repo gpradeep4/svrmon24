@@ -485,4 +485,29 @@ def test_custom_tables_ui_includes_edit_and_help(
     assert 'id="btnCtEditSelected"' in html
     assert "help-balloon" in html
     assert "e.g. business_services" in html
-    assert "cmdb.js?v=" in html and "0.21.0" in html
+    assert "cmdb.js?v=" in html and "0.22.0" in html
+
+
+def test_custom_tables_dropdown_css_avoids_blank_options(
+    client: TestClient, auth_headers: dict[str, str]
+) -> None:
+    """Open native option lists must not force dark option color (dark-on-dark).
+
+    Table-key selects are upgraded to .combo-select with ink-on-white open menus.
+    """
+    css = client.get("/static/css/cmdb.css", headers=auth_headers).text
+    js = client.get("/static/js/cmdb.js", headers=auth_headers).text
+    html = client.get("/", headers=auth_headers).text
+
+    assert "color-scheme: light" in css
+    assert ".combo-select" in css
+    assert ".combo-select-option" in css
+    # Regression: forced option color + ignored option background → blank open list
+    assert "select option" not in css
+    assert "upgradeComboSelect" in js
+    assert "syncTableComboSelects" in js
+    assert 'id="ctSelectedTable"' in html
+    assert 'id="ccRefTable"' in html
+    assert 'id="relSourceTable"' in html
+    assert 'id="relTargetTable"' in html
+    assert "0.22.0" in html
