@@ -1,4 +1,4 @@
-"""Shared tenancy constants and helpers (Master Phase 5–6).
+"""Shared tenancy constants and helpers (Master Phase 5–7).
 
 Phase 5 makes ``tenant_id`` mandatory on CMDB collections, scopes every
 read/write/aggregate, and denies cross-tenant access. ``component_id`` remains
@@ -7,6 +7,9 @@ is explicitly enabled with isolation tests green.
 
 Phase 6 adds typed ``cmdb_*`` collections; legacy ``components`` remains in the
 tenanted set as a migration source / transitional fallback.
+
+Phase 7 adds ``cmdb_field_definitions``; legacy ``custom_field_definitions``
+remains as a migration source until cut over.
 """
 
 from __future__ import annotations
@@ -38,7 +41,8 @@ TYPED_CMDB_COLLECTIONS: tuple[str, ...] = (
 TENANTED_COLLECTIONS: tuple[str, ...] = (
     *TYPED_CMDB_COLLECTIONS,
     "components",  # legacy polymorphic — migration source / fallback
-    "custom_field_definitions",
+    "cmdb_field_definitions",  # Phase 7 canonical field defs
+    "custom_field_definitions",  # legacy field defs — migration source
     "cmdb_relationships",
     "diagnostic_history",
 )
