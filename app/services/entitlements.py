@@ -17,6 +17,8 @@ RESOURCE_RELATIONSHIPS = "relationships"
 RESOURCE_COMPONENTS = "components"
 RESOURCE_CUSTOM_TABLES = "custom_tables"
 RESOURCE_CUSTOM_RECORDS = "custom_records"
+# Max depth for dependency / impact traversal (API hard-caps at 50).
+RESOURCE_MAX_DEPENDENCY_DEPTH = "max_dependency_depth"
 
 PLAN_LEGACY_UNLIMITED = "legacy_unlimited"
 
@@ -31,6 +33,7 @@ _PLAN_CATALOG: dict[str, dict[str, Any]] = {
             RESOURCE_COMPONENTS: None,
             RESOURCE_CUSTOM_TABLES: None,
             RESOURCE_CUSTOM_RECORDS: None,
+            RESOURCE_MAX_DEPENDENCY_DEPTH: None,
         },
         "notes": (
             "Default entitlements for all tenants in v1. "
@@ -97,5 +100,33 @@ def assert_can_create_relationship(tenant_id: str) -> None:
         raise EntitlementError(
             f"Relationship limit reached for this tenant "
             f"({total}/{limit}). Upgrade entitlements to create more.",
+            status_code=403,
+        )
+
+
+def max_dependency_depth(tenant_id: str) -> int | None:
+    """Max dependency/impact depth for tenant, or None when unlimited (API ≤50)."""
+    entitlements = get_tenant_entitlements(tenant_id)
+    limit = entitlements["limits"].get(RESOURCE_MAX_DEPENDENCY_DEPTH)
+    if limit is None:
+        return None
+    return int(limit)
+
+
+def assert_dependency_depth_allowed(tenant_id: str, depth: int) -> None:
+    """Enforce requested traversal depth against tenant entitlements.
+
+    Unlimited (None) always passes (API still caps at 50). When a numeric
+    ceiling is set, requests deeper than that raise EntitlementError (403).
+    """
+    tid = require_tenant_id(tenant_id)
+    limit = max_dependency_depth(tid)
+    if limit is None:
+        return
+    if int(depth) > int(limit):
+        raise EntitlementError(
+            f"Dependency depth {depth} exceeds tenant entitlement "
+            f"(max_dependency_depth={limit}). Upgrade entitlements for deeper "
+            "traversal.",
             status_code=403,
         )

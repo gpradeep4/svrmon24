@@ -183,7 +183,7 @@
     databases: { title: "Databases", subtitle: "Databases filtered by component_type=Database" },
     inventory: { title: "Inventory", subtitle: "CMDB components with separate OS and product columns" },
     relationships: { title: "Relationships", subtitle: "Manual links with separate protocol and ports" },
-    dependencies: { title: "Dependencies", subtitle: "Traversal, cycles, and potentially affected apps" },
+    dependencies: { title: "Dependencies", subtitle: "Tenant-scoped graph wrap · CMDB + custom edges · potentially affected apps" },
     diagnostics: { title: "Diagnostics", subtitle: "DEMO / SIMULATED evidence only — no live probes" },
     custom: { title: "Custom Fields", subtitle: "Extend inventory forms with typed definitions" },
     "custom-tables": {
@@ -624,6 +624,7 @@
       loadTenancyContext(me),
       loadEntitlements(),
     ]);
+    syncDepPickers();
     if ($("#depComponentId") && !$("#depComponentId").value && state.componentIds[0]) {
       $("#depComponentId").value = state.componentIds[0];
     }
@@ -1400,7 +1401,13 @@
         .catch((err) => toast(err.message, true));
     }
     if (name === "dependencies") {
-      refreshComponentIdList().catch(() => {});
+      Promise.all([
+        refreshComponentIdList(),
+        refreshEntityIdList(),
+        loadCustomTables(),
+      ])
+        .then(() => syncDepPickers())
+        .catch((err) => toast(err.message, true));
     }
     if (name === "diagnostics") {
       Promise.all([
@@ -1613,17 +1620,23 @@
     const tbody = $(tbodySel);
     tbody.innerHTML = "";
     if (!rows || !rows.length) {
-      tbody.innerHTML = emptyStateHtml("No rows", "No dependencies in this direction for the selected component.");
+      tbody.innerHTML = emptyStateHtml("No rows", "No dependencies in this direction for the selected entity.");
       return;
     }
     for (const row of rows) {
       const tr = document.createElement("tr");
+      const typeLabel =
+        row.kind === "custom"
+          ? `${row.component_type || row.ref_table || "custom"} (custom)`
+          : row.component_type || row.ref_table || "—";
       tr.innerHTML = `
         <td class="mono">${escapeHtml(row.component_id)}</td>
         <td>${escapeHtml(row.name)}</td>
-        <td>${escapeHtml(row.component_type)}</td>
+        <td>${escapeHtml(typeLabel)}</td>
         <td>${escapeHtml(row.direct_or_indirect)}</td>
         <td>${escapeHtml(row.relationship_type)}</td>
+        <td class="mono ${row.source_table === "—" ? "dash" : ""}">${escapeHtml(row.source_table || "—")}</td>
+        <td class="mono ${row.target_table === "—" ? "dash" : ""}">${escapeHtml(row.target_table || "—")}</td>
         <td class="${row.protocol === "—" ? "dash" : ""}">${escapeHtml(row.protocol)}</td>
         <td class="mono ${row.source_port === "—" ? "dash" : ""}">${escapeHtml(row.source_port)}</td>
         <td class="mono ${row.target_port === "—" ? "dash" : ""}">${escapeHtml(row.target_port)}</td>
@@ -1773,23 +1786,27 @@
   async function analyzeDependencies() {
     const componentId = $("#depComponentId").value.trim();
     if (!componentId) {
-      toast("Enter a component ID", true);
+      toast("Enter an entity ID (CMDB or custom record)", true);
       return;
     }
     const depth = Number($("#depDepth").value || 5);
     const params = new URLSearchParams({ depth: String(depth) });
     const env = $("#depEnv").value.trim();
     const status = $("#depStatus").value;
+    const table = ($("#depTable")?.value || "").trim();
     if (env) params.set("environment", env);
     if (status) params.set("status", status);
+    if (table) params.set("table", table);
     const data = await api(
       `/api/dependencies/${encodeURIComponent(componentId)}?${params.toString()}`
     );
     const selected = data.selected || {};
+    const kindLabel = selected.kind === "custom" ? "custom" : "CMDB";
+    const tableLabel = selected.ref_table || selected.component_type || "—";
     $("#depSelected").innerHTML = `
       <div><strong class="mono">${escapeHtml(selected.component_id || "")}</strong>
       — ${escapeHtml(selected.name || "")}
-      (${escapeHtml(selected.component_type || "")},
+      (${escapeHtml(kindLabel)} · ${escapeHtml(tableLabel)},
       env ${escapeHtml(selected.environment || "—")},
       status ${escapeHtml(selected.status || "—")})</div>`;
     renderDepRows("#depUpstreamBody", data.upstream?.rows || []);
@@ -1800,7 +1817,7 @@
     );
     renderGraph(data.graph || {}, data.cycles_detected || []);
     if ((data.missing_components || []).length) {
-      toast(`Missing related components: ${data.missing_components.join(", ")}`, true);
+      toast(`Missing related entities: ${data.missing_components.join(", ")}`, true);
     }
   }
 
@@ -1812,6 +1829,30 @@
     list.innerHTML = state.componentIds
       .map((id) => `<option value="${escapeAttr(id)}"></option>`)
       .join("");
+  }
+
+  function syncDepPickers() {
+    const entityList = $("#depEntityIdList");
+    if (entityList) {
+      const refs = state.entityRefs || [];
+      entityList.innerHTML = refs
+        .map(
+          (e) =>
+            `<option value="${escapeAttr(e.entity_id)}">${escapeHtml(
+              `${e.display_name || e.entity_id} [${e.ref_table}]`
+            )}</option>`
+        )
+        .join("");
+    }
+    const tableList = $("#depTableList");
+    if (tableList) {
+      const builtins = ["Server", "Network", "Middleware", "Database", "Application"];
+      const customs = (state.customTables || []).map((t) => t.table_key);
+      const keys = [...builtins, ...customs];
+      tableList.innerHTML = keys
+        .map((k) => `<option value="${escapeAttr(k)}"></option>`)
+        .join("");
+    }
   }
 
   function entityRefOptionHtml(e) {
@@ -1854,6 +1895,7 @@
     const data = await api("/api/entity-refs?limit=200");
     state.entityRefs = data.items || [];
     syncRelEntityDatalists();
+    syncDepPickers();
   }
 
   async function loadEntitlements() {

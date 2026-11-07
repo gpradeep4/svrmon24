@@ -551,6 +551,20 @@ def get_record(
     return _serialize_record(doc)
 
 
+def find_record_by_id(record_id: str, *, tenant_id: str) -> dict[str, Any] | None:
+    """Lookup a custom record by tenant-scoped ``record_id`` (any table).
+
+    ``record_id`` is unique per tenant (and cannot collide with ``component_id``),
+    so dependency graphs can resolve custom endpoints without an explicit table.
+    """
+    tid = require_tenant_id(tenant_id)
+    eid = (record_id or "").strip()
+    if not eid:
+        return None
+    doc = _records().find_one({"record_id": eid, **tenant_filter(tid)})
+    return _serialize_record(doc)
+
+
 def create_record(
     table_key: str, payload: CustomRecordCreate, *, tenant_id: str
 ) -> dict[str, Any]:

@@ -28,6 +28,10 @@ def upstream(
     depth: int = Query(default=5, ge=0, le=50),
     environment: str | None = Query(default=None),
     status: str | None = Query(default=None),
+    table: str | None = Query(
+        default=None,
+        description="Optional CMDB type or custom table_key for the starting entity",
+    ),
     direct_only: bool = Query(default=False),
     tenant: TenantContext = Depends(require_tenant),
 ) -> dict[str, Any]:
@@ -40,6 +44,7 @@ def upstream(
             depth=effective_depth,
             environment=environment,
             status=status,
+            table=table,
         )
     except DependencyError as exc:
         _raise(exc)
@@ -52,6 +57,10 @@ def downstream(
     depth: int = Query(default=5, ge=0, le=50),
     environment: str | None = Query(default=None),
     status: str | None = Query(default=None),
+    table: str | None = Query(
+        default=None,
+        description="Optional CMDB type or custom table_key for the starting entity",
+    ),
     direct_only: bool = Query(default=False),
     tenant: TenantContext = Depends(require_tenant),
 ) -> dict[str, Any]:
@@ -64,6 +73,7 @@ def downstream(
             depth=effective_depth,
             environment=environment,
             status=status,
+            table=table,
         )
     except DependencyError as exc:
         _raise(exc)
@@ -76,6 +86,10 @@ def impact(
     depth: int = Query(default=10, ge=0, le=50),
     environment: str | None = Query(default=None),
     status: str | None = Query(default=None),
+    table: str | None = Query(
+        default=None,
+        description="Optional CMDB type or custom table_key for the starting entity",
+    ),
     tenant: TenantContext = Depends(require_tenant),
 ) -> dict[str, Any]:
     """Potentially affected applications if this component becomes unavailable."""
@@ -86,6 +100,7 @@ def impact(
             depth=depth,
             environment=environment,
             status=status,
+            table=table,
         )
     except DependencyError as exc:
         _raise(exc)
@@ -98,6 +113,10 @@ def dependency_overview(
     depth: int = Query(default=5, ge=0, le=50),
     environment: str | None = Query(default=None),
     status: str | None = Query(default=None),
+    table: str | None = Query(
+        default=None,
+        description="Optional CMDB type or custom table_key for the starting entity",
+    ),
     tenant: TenantContext = Depends(require_tenant),
 ) -> dict[str, Any]:
     """Combined upstream, downstream, impact, and graph payload for the UI."""
@@ -108,6 +127,7 @@ def dependency_overview(
             depth=depth,
             environment=environment,
             status=status,
+            table=table,
         )
     except DependencyError as exc:
         _raise(exc)
