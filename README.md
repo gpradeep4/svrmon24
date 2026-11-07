@@ -4,16 +4,17 @@ AI-assisted infrastructure CMDB, dependency mapping, **SIMULATED** diagnostics, 
 
 Stack: **FastAPI + Uvicorn + MongoDB (PyMongo) + provider-neutral OIDC** (HTTP Basic optional via feature flag). Diagnostics never contact remote hosts and never execute shell/SQL/network scans.
 
-## Features (through Master Phase 8)
+## Features (through custom entity tables / 0.18.0)
 
 | Area | Capability |
 | --- | --- |
 | Auth / ops | OIDC (Auth Code + PKCE), feature-flagged HTTP Basic, `/health`, `/api/status`, structured logging |
-| Tenancy | Hard `tenant_id` isolation on CMDB/relationships/field-definitions/column-configurations/diagnostics/dashboard; migration tenant **SVRMON24 Legacy** (`tenant-svrmon24-legacy`); Basic scoped to migration tenant (no auth bypass); org switcher still disabled |
+| Tenancy | Hard `tenant_id` isolation on CMDB/relationships/field-definitions/column-configurations/custom-tables/diagnostics/dashboard; migration tenant **SVRMON24 Legacy** (`tenant-svrmon24-legacy`); Basic scoped to migration tenant (no auth bypass); org switcher still disabled |
 | CMDB | Typed Mongo collections (`cmdb_servers`, `cmdb_network`, `cmdb_middleware`, `cmdb_databases`, `cmdb_applications`) behind stable `/api/components*` facade; OS Family/Version and Product Type/Version stay separate |
 | Field definitions | Tenant-scoped `cmdb_field_definitions` (custom + locked built-in OS/product natives); `/api/custom-fields` facade; values still on component `custom_fields` |
 | Column configurations | Tenant-scoped `cmdb_column_configurations` driving Inventory + Relationships grids (visibility / order / width / pin); locked OS/product and protocol/port columns |
-| Relationships | HOSTED_ON / DEPENDS_ON / CONNECTS_TO / ROUTES_TO |
+| Custom entity tables | Tenant-scoped `cmdb_custom_table_definitions` + `cmdb_custom_records` (`table_key`); typed columns including **reference** fields; relationships can link custom entities via `source_table` / `target_table` |
+| Relationships | HOSTED_ON / DEPENDS_ON / CONNECTS_TO / ROUTES_TO (CMDB ↔ CMDB, custom ↔ CMDB, custom ↔ custom) |
 | Dependencies | Upstream / downstream traversal, cycle detection, impact (“potentially affected”) |
 | Diagnostics | Approved `basic-health` profile — always `execution_mode=SIMULATED` |
 | AI analysis | Local Ollama (`OLLAMA_URL` / `OLLAMA_MODEL`) with rule-based fallback |
@@ -128,6 +129,15 @@ When Ollama is unavailable, diagnostic analysis uses a deterministic rule-based 
 - APIs: `GET/PUT/DELETE /api/column-configurations/{grid_key}` (+ list)
 - Column Settings UI replaces the Phase 2/7 “coming soon” placeholder and drives both grids
 
+### Custom entity tables (0.18.0)
+
+- **Storage:** `cmdb_custom_table_definitions` (schema) + single `cmdb_custom_records` collection partitioned by `table_key` (not one Mongo collection per table)
+- Columns: `string` / `number` / `boolean` / `enum` / `reference` — references store `{ref_id, ref_table}` targeting a CMDB type (`Server`…) or another custom `table_key`
+- Relationships: optional `source_table` / `target_table` so custom records can HOSTED_ON / DEPENDS_ON / etc. with CMDB CIs or other custom rows; `/api/components*` unchanged
+- APIs: `/api/custom-tables*`, `/api/custom-tables/{key}/records*`, `/api/entity-refs`
+- UI: Configuration → Custom Tables; Operations sidebar lists defined tables for inventory-like CRUD; Relationships picker includes custom entities
+- Core CMDB builtins (OS/product; protocol/ports) are **not** collapsed
+
 ### Important: one browser host only
 
 Session cookies are **host-scoped**. `http://localhost:8200` and `http://127.0.0.1:8200` are **different** sites to the browser.
@@ -211,6 +221,12 @@ pytest -v
 | GET/PUT/DELETE | `/api/custom-fields/{key}` | OIDC / Basic* | Facade — get / update / delete custom field |
 | GET | `/api/column-configurations` | OIDC / Basic* | List Inventory + Relationships column configs |
 | GET/PUT/DELETE | `/api/column-configurations/{grid}` | OIDC / Basic* | Get / save / reset grid column configuration |
+| GET/POST | `/api/custom-tables` | OIDC / Basic* | List / create custom table definitions |
+| GET/PUT/DELETE | `/api/custom-tables/{key}` | OIDC / Basic* | Get / update / delete custom table (+ records on delete) |
+| POST/PUT/DELETE | `/api/custom-tables/{key}/columns[/{col}]` | OIDC / Basic* | Add / update / delete columns |
+| GET/POST | `/api/custom-tables/{key}/records` | OIDC / Basic* | List / create custom records |
+| GET/PUT/DELETE | `/api/custom-tables/{key}/records/{id}` | OIDC / Basic* | Get / update / delete custom record |
+| GET | `/api/entity-refs` | OIDC / Basic* | Unified CMDB + custom entity picker |
 | GET/POST | `/api/relationships` | OIDC / Basic* | List / create relationships |
 | GET/PUT/DELETE | `/api/relationships/{id}` | OIDC / Basic* | Get / update / delete |
 | GET | `/api/relationships/types` | OIDC / Basic* | Type meaning + direction docs |

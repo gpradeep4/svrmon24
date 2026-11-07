@@ -22,6 +22,7 @@ from .routers import auth_routes
 from .routers import column_configs as column_configs_router
 from .routers import components as components_router
 from .routers import custom_fields as custom_fields_router
+from .routers import custom_tables as custom_tables_router
 from .routers import dashboard as dashboard_router
 from .routers import dependencies as dependencies_router
 from .routers import diagnostics as diagnostics_router
@@ -110,6 +111,8 @@ def create_app() -> FastAPI:
     app.include_router(custom_fields_router.router)
     app.include_router(custom_fields_router.facade_router)
     app.include_router(column_configs_router.router)
+    app.include_router(custom_tables_router.router)
+    app.include_router(custom_tables_router.entity_refs_router)
     app.include_router(relationships_router.router)
     app.include_router(dependencies_router.router)
     app.include_router(diagnostics_router.router)

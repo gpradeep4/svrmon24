@@ -54,16 +54,23 @@ def generate_relationship_id() -> str:
     return f"rel-{uuid.uuid4().hex[:12]}"
 
 
-def _require_component(component_id: str, role: str, *, tenant_id: str) -> dict[str, Any]:
-    from . import components as components_service
+def _require_endpoint(
+    entity_id: str,
+    role: str,
+    *,
+    tenant_id: str,
+    ref_table: str | None = None,
+) -> dict[str, Any]:
+    """Resolve a relationship endpoint as CMDB component or custom record."""
+    from . import custom_tables as custom_tables_service
+    from .custom_tables import CustomTableError
 
-    doc = components_service.get_component(component_id, tenant_id=tenant_id)
-    if doc is None:
-        raise RelationshipError(
-            f"Invalid {role} component_id '{component_id}' — component does not exist",
-            status_code=422,
+    try:
+        return custom_tables_service.resolve_entity_ref(
+            entity_id, ref_table, tenant_id=tenant_id, role=f"{role} endpoint"
         )
-    return doc
+    except CustomTableError as exc:
+        raise RelationshipError(exc.message, status_code=exc.status_code) from exc
 
 
 def _environment_mismatch_warning(
@@ -73,10 +80,15 @@ def _environment_mismatch_warning(
 ) -> dict[str, Any] | None:
     source_env = (source.get("environment") or "").strip()
     target_env = (target.get("environment") or "").strip()
+    # Fall back to nested component env for CMDB endpoints.
+    if not source_env and isinstance(source.get("component"), dict):
+        source_env = (source["component"].get("environment") or "").strip()
+    if not target_env and isinstance(target.get("component"), dict):
+        target_env = (target["component"].get("environment") or "").strip()
     warnings: list[str] = []
     if source_env and target_env and source_env.lower() != target_env.lower():
         warnings.append(
-            f"Environment mismatch between components: source={source_env!r}, "
+            f"Environment mismatch between endpoints: source={source_env!r}, "
             f"target={target_env!r}."
         )
     if relationship_environment:
@@ -85,7 +97,7 @@ def _environment_mismatch_warning(
             if env and rel_env.lower() != env.lower():
                 warnings.append(
                     f"Relationship environment {rel_env!r} differs from {label} "
-                    f"component environment {env!r}."
+                    f"endpoint environment {env!r}."
                 )
     if not warnings:
         return None
@@ -155,8 +167,29 @@ def create_relationship(
     payload: RelationshipCreate, *, tenant_id: str
 ) -> dict[str, Any]:
     tid = require_tenant_id(tenant_id)
-    source = _require_component(payload.source_component_id, "source", tenant_id=tid)
-    target = _require_component(payload.target_component_id, "target", tenant_id=tid)
+    source = _require_endpoint(
+        payload.source_component_id,
+        "source",
+        tenant_id=tid,
+        ref_table=payload.source_table,
+    )
+    target = _require_endpoint(
+        payload.target_component_id,
+        "target",
+        tenant_id=tid,
+        ref_table=payload.target_table,
+    )
+    source_table = source.get("ref_table") if source.get("kind") == "custom" else (
+        payload.source_table or source.get("ref_table")
+    )
+    target_table = target.get("ref_table") if target.get("kind") == "custom" else (
+        payload.target_table or target.get("ref_table")
+    )
+    # Persist null for plain CMDB-only edges when caller omitted table (compat).
+    if source.get("kind") == "component" and not payload.source_table:
+        source_table = None
+    if target.get("kind") == "component" and not payload.target_table:
+        target_table = None
 
     relationship_id = payload.relationship_id or generate_relationship_id()
     now = _now()
@@ -168,11 +201,15 @@ def create_relationship(
         protocol=payload.protocol,
         source_port=payload.source_port,
         target_port=payload.target_port,
+        source_table=source_table,
+        target_table=target_table,
     )
     doc: dict[str, Any] = {
         "relationship_id": relationship_id,
         "source_component_id": payload.source_component_id,
         "target_component_id": payload.target_component_id,
+        "source_table": source_table,
+        "target_table": target_table,
         "relationship_type": rel_type,
         "protocol": payload.protocol,
         "source_port": payload.source_port,
@@ -232,14 +269,26 @@ def update_relationship(
     merged = {**existing, **data}
     source_id = merged["source_component_id"]
     target_id = merged["target_component_id"]
-    if source_id == target_id:
+    source_table = merged.get("source_table")
+    target_table = merged.get("target_table")
+    if source_id == target_id and (source_table or "") == (target_table or ""):
         raise RelationshipError(
-            "source_component_id and target_component_id cannot be the same",
+            "source and target cannot be the same entity (same id and table)",
             status_code=422,
         )
 
-    source = _require_component(source_id, "source", tenant_id=tid)
-    target = _require_component(target_id, "target", tenant_id=tid)
+    source = _require_endpoint(
+        source_id, "source", tenant_id=tid, ref_table=source_table
+    )
+    target = _require_endpoint(
+        target_id, "target", tenant_id=tid, ref_table=target_table
+    )
+    if source.get("kind") == "custom":
+        source_table = source.get("ref_table")
+        data["source_table"] = source_table
+    if target.get("kind") == "custom":
+        target_table = target.get("ref_table")
+        data["target_table"] = target_table
 
     fingerprint = duplicate_fingerprint(
         source_component_id=source_id,
@@ -248,6 +297,8 @@ def update_relationship(
         protocol=merged.get("protocol"),
         source_port=merged.get("source_port"),
         target_port=merged.get("target_port"),
+        source_table=source_table,
+        target_table=target_table,
     )
     data["duplicate_key"] = fingerprint
     data["updated_at"] = _now()

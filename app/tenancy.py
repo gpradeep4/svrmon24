@@ -1,4 +1,4 @@
-"""Shared tenancy constants and helpers (Master Phase 5–8).
+"""Shared tenancy constants and helpers (Master Phase 5–8 + custom entity tables).
 
 Phase 5 makes ``tenant_id`` mandatory on CMDB collections, scopes every
 read/write/aggregate, and denies cross-tenant access. ``component_id`` remains
@@ -12,6 +12,8 @@ Phase 7 adds ``cmdb_field_definitions``; legacy ``custom_field_definitions``
 remains as a migration source until cut over.
 
 Phase 8 adds ``cmdb_column_configurations`` for tenant-scoped grid column settings.
+
+Custom entity tables add ``cmdb_custom_table_definitions`` + ``cmdb_custom_records``.
 """
 
 from __future__ import annotations
@@ -46,6 +48,8 @@ TENANTED_COLLECTIONS: tuple[str, ...] = (
     "cmdb_field_definitions",  # Phase 7 canonical field defs
     "custom_field_definitions",  # legacy field defs — migration source
     "cmdb_column_configurations",  # Phase 8 grid column settings
+    "cmdb_custom_table_definitions",  # Custom entity table schemas
+    "cmdb_custom_records",  # Custom entity rows (table_key partitioned)
     "cmdb_relationships",
     "diagnostic_history",
 )
