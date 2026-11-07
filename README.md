@@ -4,7 +4,7 @@ AI-assisted infrastructure CMDB, dependency mapping, **SIMULATED** diagnostics, 
 
 Stack: **FastAPI + Uvicorn + MongoDB (PyMongo) + provider-neutral OIDC** (HTTP Basic optional via feature flag). Diagnostics never contact remote hosts and never execute shell/SQL/network scans.
 
-## Features (through inventory custom-field columns / 0.19.0)
+## Features (through custom-field edit + wide-table scroll / 0.20.0)
 
 | Area | Capability |
 | --- | --- |
@@ -112,13 +112,15 @@ When Ollama is unavailable, diagnostic analysis uses a deterministic rule-based 
 - Startup / `python scripts/migrate_components_to_typed.py` idempotently copies legacy `components` → typed collections (legacy retained unless `--remove-legacy`)
 - Demo seed writes via the facade into typed collections; wipe clears demo rows from typed + legacy
 
-### Field definitions (Phase 7)
+### Field definitions (Phase 7 + 0.20.0 edit UI)
 
 - Canonical collection: `cmdb_field_definitions` (unique `(tenant_id, field_key)`)
 - Startup / `python scripts/migrate_custom_fields_to_cmdb.py` copies legacy `custom_field_definitions` → `cmdb_field_definitions` and seeds locked built-ins
 - Built-in **OS Family** / **OS Version** and **Product Type** / **Product Version** are separate native fields (`origin=builtin`, `storage=native`) — never collapsed or deleted
 - Custom defs use `origin=custom`, `storage=custom_fields`; values still attach on component `custom_fields`
-- APIs: `/api/field-definitions` (all defs) and `/api/custom-fields` facade (custom-only list for Inventory forms)
+- APIs: `/api/field-definitions` (all defs) and `/api/custom-fields` facade (custom-only list for Inventory forms); **PUT** updates label / type / applies_to / enum / required (`field_key` immutable)
+- Configuration → Custom Fields: **Edit** populates the form (Save via PUT); locked builtins stay non-editable/non-deletable
+- Wide CMDB tables (Inventory and other `.table-wrap` grids): horizontal scrollbar via `overflow-x: auto` so extra custom columns remain reachable
 
 ### Column configurations (Phase 8 + 0.19.0 inventory custom fields)
 

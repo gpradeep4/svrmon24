@@ -12,7 +12,7 @@
     body.is-app .login-gate { display: none !important; }
     #authPanel, .auth-panel-legacy { display: none !important; }
   </style>
-  <link rel="stylesheet" href="/static/css/cmdb.css?v=0.19.0" />
+  <link rel="stylesheet" href="/static/css/cmdb.css?v=0.20.0" />
 </head>
 <body class="is-login">
   <!-- Full-page login (no Operations chrome while signed out) -->
@@ -526,6 +526,7 @@
           <section class="panel">
             <h2>Custom field definitions</h2>
             <form id="customFieldForm" class="form-grid">
+              <p id="cfEditHint" class="hint full hidden">Editing definition — field key is immutable. Cancel to create a new one instead.</p>
               <label>Field key<input id="cfKey" required pattern="^[a-z][a-z0-9_]*$" placeholder="cost_center" /></label>
               <label>Label<input id="cfLabel" required placeholder="Cost Center" /></label>
               <label>Type
@@ -543,7 +544,10 @@
                 <input id="cfEnum" placeholder="gold, silver, bronze" />
               </label>
               <label><span>Required</span><input id="cfRequired" type="checkbox" /></label>
-              <button type="submit">Add definition</button>
+              <div class="form-actions full">
+                <button type="submit" id="cfSubmitBtn">Add definition</button>
+                <button type="button" id="btnCfCancelEdit" class="secondary hidden">Cancel edit</button>
+              </div>
             </form>
           </section>
           <section class="panel">
@@ -966,6 +970,6 @@
     </div>
   </div>
 
-  <script src="/static/js/cmdb.js?v=0.19.0"></script>
+  <script src="/static/js/cmdb.js?v=0.20.0"></script>
 </body>
 </html>

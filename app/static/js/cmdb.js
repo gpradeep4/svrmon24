@@ -77,6 +77,7 @@
     totalPages: 1,
     editingId: null,
     customFields: [],
+    editingCfKey: null,
     deleteTarget: null,
     relPage: 1,
     relTotalPages: 1,
@@ -1199,18 +1200,62 @@
       return;
     }
     for (const item of state.customFields) {
+      const locked = !!item.locked || item.origin === "builtin";
       const tr = document.createElement("tr");
+      const actions = locked
+        ? `<span class="hint">Locked</span>`
+        : `<button type="button" class="secondary" data-cf-edit="${escapeAttr(item.field_key)}">Edit</button>
+          <button type="button" class="danger" data-cf-del="${escapeAttr(item.field_key)}">Delete</button>`;
       tr.innerHTML = `
         <td class="mono">${escapeHtml(item.field_key)}</td>
         <td>${escapeHtml(item.label)}</td>
         <td>${escapeHtml(item.field_type)}</td>
         <td>${escapeHtml((item.applies_to || []).join(", "))}</td>
         <td>${item.required ? "yes" : "no"}</td>
-        <td class="actions">
-          <button type="button" class="danger" data-cf-del="${escapeAttr(item.field_key)}">Delete</button>
-        </td>`;
+        <td class="actions">${actions}</td>`;
       tbody.appendChild(tr);
     }
+  }
+
+  function resetCustomFieldForm() {
+    state.editingCfKey = null;
+    const form = $("#customFieldForm");
+    form?.reset();
+    if ($("#cfApplies")) $("#cfApplies").value = "*";
+    if ($("#cfKey")) {
+      $("#cfKey").disabled = false;
+      $("#cfKey").readOnly = false;
+    }
+    if ($("#cfSubmitBtn")) $("#cfSubmitBtn").textContent = "Add definition";
+    $("#cfEditHint")?.classList.add("hidden");
+    $("#btnCfCancelEdit")?.classList.add("hidden");
+  }
+
+  function beginEditCustomField(fieldKey) {
+    const item = state.customFields.find((f) => f.field_key === fieldKey);
+    if (!item) {
+      toast(`Custom field '${fieldKey}' not found`, true);
+      return;
+    }
+    if (item.locked || item.origin === "builtin") {
+      toast("Built-in OS/product fields cannot be edited here", true);
+      return;
+    }
+    state.editingCfKey = fieldKey;
+    $("#cfKey").value = item.field_key;
+    $("#cfKey").disabled = true;
+    $("#cfKey").readOnly = true;
+    $("#cfLabel").value = item.label || "";
+    $("#cfType").value = item.field_type || "string";
+    const applies = (item.applies_to || ["*"])[0] || "*";
+    $("#cfApplies").value = applies === "*" ? "*" : applies;
+    $("#cfEnum").value = (item.enum_values || []).join(", ");
+    $("#cfRequired").checked = !!item.required;
+    if ($("#cfSubmitBtn")) $("#cfSubmitBtn").textContent = "Save definition";
+    $("#cfEditHint")?.classList.remove("hidden");
+    $("#btnCfCancelEdit")?.classList.remove("hidden");
+    $("#cfLabel")?.focus();
+    $("#customFieldForm")?.scrollIntoView({ behavior: "smooth", block: "nearest" });
   }
 
   function renderCustomInputs(componentType, values) {
@@ -1266,24 +1311,39 @@
   async function saveCustomField(event) {
     event.preventDefault();
     const applies = $("#cfApplies").value;
-    const payload = {
-      field_key: $("#cfKey").value.trim(),
+    const fieldKey = (state.editingCfKey || $("#cfKey").value.trim()).trim();
+    const fieldType = $("#cfType").value;
+    const enumValues =
+      fieldType === "enum"
+        ? $("#cfEnum").value
+            .split(",")
+            .map((s) => s.trim())
+            .filter(Boolean)
+        : [];
+    const shared = {
       label: $("#cfLabel").value.trim(),
-      field_type: $("#cfType").value,
+      field_type: fieldType,
       applies_to: [applies || "*"],
       required: $("#cfRequired").checked,
-      enum_values: $("#cfEnum").value
-        .split(",")
-        .map((s) => s.trim())
-        .filter(Boolean),
+      enum_values: enumValues,
     };
     try {
-      await api("/api/custom-fields", { method: "POST", body: JSON.stringify(payload) });
-      toast("Custom field created");
-      $("#customFieldForm").reset();
-      $("#cfApplies").value = "*";
+      if (state.editingCfKey) {
+        await api(`/api/custom-fields/${encodeURIComponent(state.editingCfKey)}`, {
+          method: "PUT",
+          body: JSON.stringify(shared),
+        });
+        toast(`Custom field '${state.editingCfKey}' updated`);
+      } else {
+        await api("/api/custom-fields", {
+          method: "POST",
+          body: JSON.stringify({ field_key: fieldKey, ...shared }),
+        });
+        toast("Custom field created");
+      }
+      resetCustomFieldForm();
       await loadCustomFields();
-      // New fields become Inventory columns (visible by default) + Column Settings entries.
+      // Field defs drive Inventory columns (visible by default) + Column Settings entries.
       await loadColumnConfigurations();
       if (state.inventoryType || state.activeNav === "inventory") {
         await loadInventory();
@@ -2604,6 +2664,9 @@
     });
     $("#btnConfirmDelete").addEventListener("click", confirmDelete);
     $("#customFieldForm").addEventListener("submit", saveCustomField);
+    $("#btnCfCancelEdit")?.addEventListener("click", () => {
+      resetCustomFieldForm();
+    });
     $("#colGridKey")?.addEventListener("change", async () => {
       try {
         await openColumnSettings($("#colGridKey").value);
@@ -2829,12 +2892,18 @@
       }
     });
     $("#customFieldBody").addEventListener("click", async (e) => {
+      const editKey = e.target.getAttribute("data-cf-edit");
+      if (editKey) {
+        beginEditCustomField(editKey);
+        return;
+      }
       const key = e.target.getAttribute("data-cf-del");
       if (!key) return;
       if (!confirm(`Delete custom field definition '${key}'?`)) return;
       try {
         await api(`/api/custom-fields/${encodeURIComponent(key)}`, { method: "DELETE" });
         toast("Custom field deleted");
+        if (state.editingCfKey === key) resetCustomFieldForm();
         await loadCustomFields();
         await loadColumnConfigurations();
         if (state.inventoryType || state.activeNav === "inventory") {
