@@ -12,7 +12,7 @@
     body.is-app .login-gate { display: none !important; }
     #authPanel, .auth-panel-legacy { display: none !important; }
   </style>
-  <link rel="stylesheet" href="/static/css/cmdb.css?v=0.23.0" />
+  <link rel="stylesheet" href="/static/css/cmdb.css?v=0.24.0" />
 </head>
 <body class="is-login">
   <!-- Full-page login (no Operations chrome while signed out) -->
@@ -128,7 +128,7 @@
         </button>
         <button type="button" class="nav-item" data-tab="plans">
           <span class="nav-ico" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M4 7h16v12H4z"/><path d="M8 7V5a4 4 0 0 1 8 0v2"/><path d="M8 12h8"/></svg></span>
-          Subscription Plans <span class="coming">Soon</span>
+          Subscription Plans <span class="coming">Limits</span>
         </button>
         <button type="button" class="nav-item" data-tab="settings">
           <span class="nav-ico" aria-hidden="true"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M12 3v2.2M12 18.8V21M4.9 6.5l1.6 1.6M17.5 17.9l1.6 1.6M3 12h2.2M18.8 12H21M4.9 17.5l1.6-1.6M17.5 6.1l1.6-1.6"/></svg></span>
@@ -318,6 +318,11 @@
         <section id="tab-relationships" class="tab-panel hidden">
           <section class="panel">
             <h2>Relationship types (direction: source → target)</h2>
+            <p class="hint">
+              Manual edges only. Pick source/target <strong>tables</strong> (typed CMDB or custom),
+              then entity IDs. <strong>Protocol</strong>, <strong>Source Port</strong>, and
+              <strong>Target Port</strong> stay separate columns forever.
+            </p>
             <div id="relTypeDocs" class="hint">Load after Connect.</div>
           </section>
           <section class="panel">
@@ -341,7 +346,9 @@
                   <tr id="relationshipHeadRow">
                     <th data-col="relationship_id">Relationship ID</th>
                     <th data-col="source_component_id">Source</th>
+                    <th data-col="source_table">Source Table</th>
                     <th data-col="target_component_id">Target</th>
+                    <th data-col="target_table">Target Table</th>
                     <th data-col="relationship_type">Type</th>
                     <th data-col="protocol">Protocol</th>
                     <th data-col="source_port">Source Port</th>
@@ -823,11 +830,17 @@
 
         <section id="tab-plans" class="tab-panel hidden">
           <section class="panel">
-            <div class="placeholder-panel">
+            <h2>Subscription Plans</h2>
+            <p class="hint">
+              v1 is <strong>entitlements-only</strong> — plan limits for resources such as
+              relationships. No payment provider, checkout, or billing webhooks are wired.
+            </p>
+            <div id="entitlementsPanel" class="placeholder-panel">
               <div class="ph-ico" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M4 7h16v12H4z"/><path d="M8 7V5a4 4 0 0 1 8 0v2"/></svg></div>
-              <h3>Subscription Plans</h3>
-              <p>Coming soon. Entitlements and plan limits are not implemented in Master Phase 2. No payment provider is wired.</p>
-              <span class="badge-soon">Coming soon</span>
+              <h3 id="entitlementsPlanLabel">Loading entitlements…</h3>
+              <p id="entitlementsNotes" class="hint">Sign in to load tenant plan limits.</p>
+              <div id="entitlementsLimits" class="hint"></div>
+              <span class="badge-soon">Entitlements only · no billing</span>
             </div>
           </section>
         </section>
@@ -837,13 +850,13 @@
             <div class="toolbar" style="grid-template-columns: 1fr;">
               <div>
                 <h2 style="margin:0">Settings</h2>
-                <p class="hint">Appearance and organization preferences for this browser. Tenant isolation is not active yet.</p>
+                <p class="hint">Appearance and organization preferences for this browser. Hard tenant isolation is on.</p>
               </div>
             </div>
 
             <div class="settings-block" id="settingsOrgBlock">
               <h3>Organization</h3>
-              <p class="hint">Single logical organization for this phase. Switcher stays disabled until hard tenant isolation lands.</p>
+              <p class="hint">Shared-DB isolation is enforced. Switcher stays disabled (single logical org UX).</p>
               <div class="tenant-switcher settings-tenant" title="Organization switching is not enabled — single logical tenant">
                 <label for="tenantSwitcher">Organization</label>
                 <select id="tenantSwitcher" disabled aria-disabled="true">
@@ -961,7 +974,7 @@
           </label>
           <label>
             <span class="label-with-help">Source table
-              <button type="button" class="help-balloon" aria-label="Help: source table" data-help="CMDB type or custom table for the source entity. Custom options show display name (table_key). Leave blank only for typed CMDB components.">i</button>
+              <button type="button" class="help-balloon" aria-label="Help: source table" data-help="CMDB type (Server, …) or custom table for the source. Custom options show Label (table_key). Leave blank only for typed CMDB components (null table edge).">i</button>
             </span>
             <select id="relSourceTable">
               <option value="">CMDB component (any)</option>
@@ -969,17 +982,42 @@
           </label>
           <label>
             <span class="label-with-help">Target table
-              <button type="button" class="help-balloon" aria-label="Help: target table" data-help="CMDB type or custom table for the target entity. Custom options show display name (table_key).">i</button>
+              <button type="button" class="help-balloon" aria-label="Help: target table" data-help="CMDB type or custom table for the target. Custom options show Label (table_key). Leave blank only for typed CMDB components.">i</button>
             </span>
             <select id="relTargetTable">
               <option value="">CMDB component (any)</option>
             </select>
           </label>
-          <label>Source entity ID<input id="relSource" required list="entityIdList" placeholder="e.g. srv-1 or svc-billing" /></label>
-          <label>Target entity ID<input id="relTarget" required list="entityIdList" placeholder="e.g. srv-1 or svc-billing" /></label>
-          <label>Protocol<input id="relProtocol" placeholder="TCP / HTTPS / …" /></label>
-          <label>Source Port<input id="relSourcePort" inputmode="numeric" pattern="^([1-9][0-9]{0,3}|[1-5][0-9]{4}|6[0-4][0-9]{3}|65[0-4][0-9]{2}|655[0-2][0-9]|6553[0-5])$" placeholder="blank = unknown" title="1–65535 or blank" /></label>
-          <label>Target Port<input id="relTargetPort" inputmode="numeric" pattern="^([1-9][0-9]{0,3}|[1-5][0-9]{4}|6[0-4][0-9]{3}|65[0-4][0-9]{2}|655[0-2][0-9]|6553[0-5])$" placeholder="blank = unknown" title="1–65535 or blank" /></label>
+          <label>
+            <span class="label-with-help">Source entity ID
+              <button type="button" class="help-balloon" aria-label="Help: source entity" data-help="Pick from the filtered list (entity-refs). Custom records require the matching Source table. Format: component_id or custom record_id.">i</button>
+            </span>
+            <input id="relSource" required list="entityIdListSource" placeholder="e.g. srv-1 or clu-1" autocomplete="off" />
+          </label>
+          <label>
+            <span class="label-with-help">Target entity ID
+              <button type="button" class="help-balloon" aria-label="Help: target entity" data-help="Pick from the filtered list (entity-refs). Custom records require the matching Target table.">i</button>
+            </span>
+            <input id="relTarget" required list="entityIdListTarget" placeholder="e.g. srv-1 or clu-1" autocomplete="off" />
+          </label>
+          <label>
+            <span class="label-with-help">Protocol
+              <button type="button" class="help-balloon" aria-label="Help: protocol" data-help="Transport or app protocol only (TCP, HTTPS, JDBC…). Never combine with ports — Source Port and Target Port are separate fields.">i</button>
+            </span>
+            <input id="relProtocol" placeholder="TCP / HTTPS / …" />
+          </label>
+          <label>
+            <span class="label-with-help">Source Port
+              <button type="button" class="help-balloon" aria-label="Help: source port" data-help="Independent integer 1–65535, or leave blank when unknown. Never combined with Protocol or Target Port.">i</button>
+            </span>
+            <input id="relSourcePort" inputmode="numeric" pattern="^([1-9][0-9]{0,3}|[1-5][0-9]{4}|6[0-4][0-9]{3}|65[0-4][0-9]{2}|655[0-2][0-9]|6553[0-5])$" placeholder="blank = unknown" title="1–65535 or blank" />
+          </label>
+          <label>
+            <span class="label-with-help">Target Port
+              <button type="button" class="help-balloon" aria-label="Help: target port" data-help="Independent integer 1–65535, or leave blank when unknown. Never combined with Protocol or Source Port.">i</button>
+            </span>
+            <input id="relTargetPort" inputmode="numeric" pattern="^([1-9][0-9]{0,3}|[1-5][0-9]{4}|6[0-4][0-9]{3}|65[0-4][0-9]{2}|655[0-2][0-9]|6553[0-5])$" placeholder="blank = unknown" title="1–65535 or blank" />
+          </label>
           <label>URL / path<input id="relUrl" /></label>
           <label>Environment<input id="relEnv" /></label>
           <label>Discovery method
@@ -1006,6 +1044,8 @@
         </div>
         <datalist id="componentIdList"></datalist>
         <datalist id="entityIdList"></datalist>
+        <datalist id="entityIdListSource"></datalist>
+        <datalist id="entityIdListTarget"></datalist>
         <div style="margin-top:14px;display:flex;gap:8px;justify-content:flex-end">
           <button type="submit" id="btnSaveRel">Save</button>
         </div>
@@ -1035,6 +1075,6 @@
     </div>
   </div>
 
-  <script src="/static/js/cmdb.js?v=0.23.0"></script>
+  <script src="/static/js/cmdb.js?v=0.24.0"></script>
 </body>
 </html>

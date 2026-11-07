@@ -26,6 +26,7 @@ from .routers import custom_tables as custom_tables_router
 from .routers import dashboard as dashboard_router
 from .routers import dependencies as dependencies_router
 from .routers import diagnostics as diagnostics_router
+from .routers import entitlements as entitlements_router
 from .routers import relationships as relationships_router
 from .routers import tenants as tenants_router
 from .serialization import serialize_document
@@ -113,6 +114,7 @@ def create_app() -> FastAPI:
     app.include_router(column_configs_router.router)
     app.include_router(custom_tables_router.router)
     app.include_router(custom_tables_router.entity_refs_router)
+    app.include_router(entitlements_router.router)
     app.include_router(relationships_router.router)
     app.include_router(dependencies_router.router)
     app.include_router(diagnostics_router.router)

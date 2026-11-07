@@ -167,6 +167,15 @@ def create_relationship(
     payload: RelationshipCreate, *, tenant_id: str
 ) -> dict[str, Any]:
     tid = require_tenant_id(tenant_id)
+    # Entitlements-only gate (no payment system). Unlimited by default in v1.
+    from . import entitlements as entitlements_service
+    from .entitlements import EntitlementError
+
+    try:
+        entitlements_service.assert_can_create_relationship(tid)
+    except EntitlementError as exc:
+        raise RelationshipError(exc.message, status_code=exc.status_code) from exc
+
     source = _require_endpoint(
         payload.source_component_id,
         "source",

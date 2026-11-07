@@ -4,7 +4,7 @@ AI-assisted infrastructure CMDB, dependency mapping, **SIMULATED** diagnostics, 
 
 Stack: **FastAPI + Uvicorn + MongoDB (PyMongo) + provider-neutral OIDC** (HTTP Basic optional via feature flag). Diagnostics never contact remote hosts and never execute shell/SQL/network scans.
 
-## Features (through custom-tables form layout fix / 0.23.0)
+## Features (through Master Phase 9 Relationships SaaS wrap / 0.24.0)
 
 | Area | Capability |
 | --- | --- |
@@ -12,9 +12,10 @@ Stack: **FastAPI + Uvicorn + MongoDB (PyMongo) + provider-neutral OIDC** (HTTP B
 | Tenancy | Hard `tenant_id` isolation on CMDB/relationships/field-definitions/column-configurations/custom-tables/diagnostics/dashboard; migration tenant **SVRMON24 Legacy** (`tenant-svrmon24-legacy`); Basic scoped to migration tenant (no auth bypass); org switcher still disabled |
 | CMDB | Typed Mongo collections (`cmdb_servers`, `cmdb_network`, `cmdb_middleware`, `cmdb_databases`, `cmdb_applications`) behind stable `/api/components*` facade; OS Family/Version and Product Type/Version stay separate |
 | Field definitions | Tenant-scoped `cmdb_field_definitions` (custom + locked built-in OS/product natives); `/api/custom-fields` facade; values still on component `custom_fields` |
-| Column configurations | Tenant-scoped `cmdb_column_configurations` driving Inventory + Relationships grids (visibility / order / width / pin); Inventory includes toggleable **custom field** columns; locked OS/product and protocol/port columns |
+| Column configurations | Tenant-scoped `cmdb_column_configurations` driving Inventory + Relationships grids (visibility / order / width / pin); Inventory includes toggleable **custom field** columns; locked OS/product and protocol/port columns; Relationships also expose optional Source/Target Table columns |
 | Custom entity tables | Tenant-scoped `cmdb_custom_table_definitions` + `cmdb_custom_records` (`table_key`); typed columns including **reference** fields; relationships can link custom entities via `source_table` / `target_table`; Edit UI for defs/columns; dropdowns show display name + `table_key` (open lists via ink-on-white combo selects); beginner help balloons |
-| Relationships | HOSTED_ON / DEPENDS_ON / CONNECTS_TO / ROUTES_TO (CMDB ↔ CMDB, custom ↔ CMDB, custom ↔ custom) |
+| Relationships | SaaS wrap of the existing engine: tenant-scoped CRUD; HOSTED_ON / DEPENDS_ON / CONNECTS_TO / ROUTES_TO (CMDB ↔ CMDB, custom ↔ CMDB, custom ↔ custom); null-table CMDB edges preserved; UI table selectors + entity-refs pickers; Protocol / Source Port / Target Port never combined |
+| Entitlements | Plan-limit stub (`GET /api/entitlements`); relationship create checks limits; v1 default = unlimited; **no payment provider** |
 | Dependencies | Upstream / downstream traversal, cycle detection, impact (“potentially affected”) |
 | Diagnostics | Approved `basic-health` profile — always `execution_mode=SIMULATED` |
 | AI analysis | Local Ollama (`OLLAMA_URL` / `OLLAMA_MODEL`) with rule-based fallback |
@@ -145,6 +146,15 @@ When Ollama is unavailable, diagnostic analysis uses a deterministic rule-based 
 - Beginner help: sample placeholders + “i” balloon tooltips on create/edit fields (`table_key` snake_case, column types, reference target, enums)
 - Core CMDB builtins (OS/product; protocol/ports) are **not** collapsed
 
+### Relationships SaaS wrap (Master Phase 9 / 0.24.0)
+
+- Engine from Phase 4 reused (types, ports, validation) — **not** rebuilt
+- All list/get/create/update/delete scoped by `tenant_id`; cross-tenant → **404**
+- Endpoint resolution: typed CMDB collections **and** custom tables; CMDB-only edges with null `source_table` / `target_table` remain valid
+- UI: source/target table combo-selects, filtered entity-refs datalists, help tips for tables/ports/protocol; grid column config still drives visibility/order (incl. optional Source/Target Table columns)
+- Entitlements: `GET /api/entitlements` returns plan limits (`billing_enabled=false`); create relationship enforces the relationships ceiling when set (default unlimited)
+- **Stop-and-wait** — do not start Phase 10 (Dependencies SaaS wrap) from this deliverable
+
 ### Important: one browser host only
 
 Session cookies are **host-scoped**. `http://localhost:8200` and `http://127.0.0.1:8200` are **different** sites to the browser.
@@ -234,6 +244,7 @@ pytest -v
 | GET/POST | `/api/custom-tables/{key}/records` | OIDC / Basic* | List / create custom records |
 | GET/PUT/DELETE | `/api/custom-tables/{key}/records/{id}` | OIDC / Basic* | Get / update / delete custom record |
 | GET | `/api/entity-refs` | OIDC / Basic* | Unified CMDB + custom entity picker |
+| GET | `/api/entitlements` | OIDC / Basic* | Tenant plan limits (entitlements-only; no billing) |
 | GET/POST | `/api/relationships` | OIDC / Basic* | List / create relationships |
 | GET/PUT/DELETE | `/api/relationships/{id}` | OIDC / Basic* | Get / update / delete |
 | GET | `/api/relationships/types` | OIDC / Basic* | Type meaning + direction docs |
@@ -253,7 +264,7 @@ Component ID | Hostname/Component Name | Component Type | **OS Family** | **OS V
 
 ### Relationship columns (never combined)
 
-Relationship ID | Source | Target | Type | **Protocol** | **Source Port** | **Target Port** | Environment | Discovery | Verification | Actions
+Relationship ID | Source | Source Table | Target | Target Table | Type | **Protocol** | **Source Port** | **Target Port** | Environment | Discovery | Verification | Actions
 
 ## Safety / limitations
 

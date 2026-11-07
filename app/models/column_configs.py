@@ -85,11 +85,17 @@ def default_inventory_columns() -> list[dict]:
 
 
 def default_relationship_columns() -> list[dict]:
-    """Canonical Relationships columns — protocol/ports stay separate."""
+    """Canonical Relationships columns — protocol/ports stay separate.
+
+    ``source_table`` / ``target_table`` are optional SaaS wrap columns (toggleable)
+    so custom-entity edges are readable without collapsing protocol/ports.
+    """
     specs = [
         ("relationship_id", "Relationship ID", True),
         ("source_component_id", "Source", True),
+        ("source_table", "Source Table", True),
         ("target_component_id", "Target", True),
+        ("target_table", "Target Table", True),
         ("relationship_type", "Type", True),
         ("protocol", "Protocol", True),
         ("source_port", "Source Port", True),
