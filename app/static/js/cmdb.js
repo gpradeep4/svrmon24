@@ -816,13 +816,36 @@
     return params;
   }
 
+  function customFieldAppliesToCurrentType(col) {
+    if (col.source !== "custom_field") return true;
+    const applies = col.applies_to || ["*"];
+    if (applies.includes("*")) return true;
+    // Unfiltered inventory shows every custom column; typed ops pages filter.
+    if (!state.inventoryType) return true;
+    return applies.includes(state.inventoryType);
+  }
+
   function visibleColumns(gridKey) {
     const cfg = state.columnConfigs[gridKey];
     const cols = (cfg && cfg.columns) || [];
     return cols
       .filter((c) => c.visible !== false)
+      .filter((c) => (gridKey === "inventory" ? customFieldAppliesToCurrentType(c) : true))
       .slice()
       .sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
+  }
+
+  function formatCustomFieldCell(value) {
+    if (value === null || value === undefined || value === "") return "—";
+    if (typeof value === "boolean") return value ? "true" : "false";
+    if (typeof value === "object") {
+      try {
+        return JSON.stringify(value);
+      } catch {
+        return String(value);
+      }
+    }
+    return String(value);
   }
 
   function applyHeadRow(headSel, columns) {
@@ -867,8 +890,13 @@
             <button type="button" class="secondary" data-edit="${escapeAttr(row.component_id)}">Edit</button>
             <button type="button" class="danger" data-del="${escapeAttr(row.component_id)}">Delete</button>
           </td>`;
-      default:
-        return `<td></td>`;
+      default: {
+        const cf = (row.custom_fields && row.custom_fields[columnKey] !== undefined)
+          ? row.custom_fields[columnKey]
+          : undefined;
+        const text = formatCustomFieldCell(cf);
+        return `<td class="${text === "—" ? "dash" : ""}">${escapeHtml(text)}</td>`;
+      }
     }
   }
 
@@ -1255,6 +1283,11 @@
       $("#customFieldForm").reset();
       $("#cfApplies").value = "*";
       await loadCustomFields();
+      // New fields become Inventory columns (visible by default) + Column Settings entries.
+      await loadColumnConfigurations();
+      if (state.inventoryType || state.activeNav === "inventory") {
+        await loadInventory();
+      }
     } catch (err) {
       toast(err.message || "Custom field save failed", true);
     }
@@ -2223,17 +2256,20 @@
     state.columnEditor.columns = cols.map((c, idx) => ({ ...c, order: idx }));
     if (meta) {
       const src = state.columnEditor.is_default ? "catalog defaults" : "saved tenant config";
-      meta.textContent = `Editing ${state.columnEditor.grid_key} · ${src}. Locked columns cannot be hidden.`;
+      meta.textContent = `Editing ${state.columnEditor.grid_key} · ${src}. Locked columns cannot be hidden. Custom fields appear as toggleable columns.`;
     }
     tbody.innerHTML = "";
     cols.forEach((col, idx) => {
       const tr = document.createElement("tr");
       const locked = !!col.locked;
+      const customHint = col.source === "custom_field"
+        ? ` · custom${(col.applies_to || []).length ? ` · ${(col.applies_to || []).join(",")}` : ""}`
+        : "";
       tr.innerHTML = `
         <td class="mono">${idx + 1}</td>
         <td>
           ${escapeHtml(col.label || col.column_key)}
-          <div class="hint mono">${escapeHtml(col.column_key)}${locked ? " · locked" : ""}</div>
+          <div class="hint mono">${escapeHtml(col.column_key)}${locked ? " · locked" : ""}${customHint}</div>
         </td>
         <td>
           <input type="checkbox" data-col-vis="${escapeAttr(col.column_key)}"
@@ -2800,6 +2836,10 @@
         await api(`/api/custom-fields/${encodeURIComponent(key)}`, { method: "DELETE" });
         toast("Custom field deleted");
         await loadCustomFields();
+        await loadColumnConfigurations();
+        if (state.inventoryType || state.activeNav === "inventory") {
+          await loadInventory();
+        }
       } catch (err) {
         toast(err.message, true);
       }

@@ -126,6 +126,60 @@ def catalog_keys_for_grid(grid_key: str) -> frozenset[str]:
     return frozenset(c["column_key"] for c in default_columns_for_grid(grid_key))
 
 
+STATIC_INVENTORY_COLUMN_KEYS: frozenset[str] = frozenset(
+    c["column_key"] for c in default_inventory_columns()
+)
+
+
+def custom_field_column_spec(definition: dict, *, order: int) -> dict:
+    """Build an Inventory column entry from a custom field definition."""
+    return {
+        "column_key": definition["field_key"],
+        "label": definition.get("label") or definition["field_key"],
+        "visible": True,
+        "order": order,
+        "width": None,
+        "pinned": None,
+        "locked": False,
+        "source": "custom_field",
+        "applies_to": list(definition.get("applies_to") or ["*"]),
+        "field_type": definition.get("field_type"),
+    }
+
+
+def merge_inventory_custom_field_columns(
+    base_columns: list[dict] | None = None,
+    custom_definitions: list[dict] | None = None,
+) -> list[dict]:
+    """Append active custom-field columns before Actions; skip key collisions."""
+    base = [dict(c) for c in (base_columns or default_inventory_columns())]
+    static_keys = {c["column_key"] for c in base}
+    actions = next((c for c in base if c["column_key"] == "actions"), None)
+    without_actions = [c for c in base if c["column_key"] != "actions"]
+    order = len(without_actions)
+    extras: list[dict] = []
+    for definition in custom_definitions or []:
+        key = definition.get("field_key")
+        if not key or key in static_keys:
+            continue
+        if definition.get("active", True) is False:
+            continue
+        # Built-in native fields already have dedicated locked columns.
+        if definition.get("storage") == "native" or definition.get("origin") == "builtin":
+            continue
+        extras.append(custom_field_column_spec(definition, order=order))
+        static_keys.add(key)
+        order += 1
+    merged = without_actions + extras
+    if actions is not None:
+        actions = dict(actions)
+        actions["order"] = order
+        merged.append(actions)
+    for idx, col in enumerate(merged):
+        col["order"] = idx
+    return merged
+
+
 class ColumnSetting(BaseModel):
     """One column entry inside a grid configuration."""
 

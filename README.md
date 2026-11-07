@@ -4,7 +4,7 @@ AI-assisted infrastructure CMDB, dependency mapping, **SIMULATED** diagnostics, 
 
 Stack: **FastAPI + Uvicorn + MongoDB (PyMongo) + provider-neutral OIDC** (HTTP Basic optional via feature flag). Diagnostics never contact remote hosts and never execute shell/SQL/network scans.
 
-## Features (through custom entity tables / 0.18.0)
+## Features (through inventory custom-field columns / 0.19.0)
 
 | Area | Capability |
 | --- | --- |
@@ -12,7 +12,7 @@ Stack: **FastAPI + Uvicorn + MongoDB (PyMongo) + provider-neutral OIDC** (HTTP B
 | Tenancy | Hard `tenant_id` isolation on CMDB/relationships/field-definitions/column-configurations/custom-tables/diagnostics/dashboard; migration tenant **SVRMON24 Legacy** (`tenant-svrmon24-legacy`); Basic scoped to migration tenant (no auth bypass); org switcher still disabled |
 | CMDB | Typed Mongo collections (`cmdb_servers`, `cmdb_network`, `cmdb_middleware`, `cmdb_databases`, `cmdb_applications`) behind stable `/api/components*` facade; OS Family/Version and Product Type/Version stay separate |
 | Field definitions | Tenant-scoped `cmdb_field_definitions` (custom + locked built-in OS/product natives); `/api/custom-fields` facade; values still on component `custom_fields` |
-| Column configurations | Tenant-scoped `cmdb_column_configurations` driving Inventory + Relationships grids (visibility / order / width / pin); locked OS/product and protocol/port columns |
+| Column configurations | Tenant-scoped `cmdb_column_configurations` driving Inventory + Relationships grids (visibility / order / width / pin); Inventory includes toggleable **custom field** columns; locked OS/product and protocol/port columns |
 | Custom entity tables | Tenant-scoped `cmdb_custom_table_definitions` + `cmdb_custom_records` (`table_key`); typed columns including **reference** fields; relationships can link custom entities via `source_table` / `target_table` |
 | Relationships | HOSTED_ON / DEPENDS_ON / CONNECTS_TO / ROUTES_TO (CMDB ↔ CMDB, custom ↔ CMDB, custom ↔ custom) |
 | Dependencies | Upstream / downstream traversal, cycle detection, impact (“potentially affected”) |
@@ -120,14 +120,17 @@ When Ollama is unavailable, diagnostic analysis uses a deterministic rule-based 
 - Custom defs use `origin=custom`, `storage=custom_fields`; values still attach on component `custom_fields`
 - APIs: `/api/field-definitions` (all defs) and `/api/custom-fields` facade (custom-only list for Inventory forms)
 
-### Column configurations (Phase 8)
+### Column configurations (Phase 8 + 0.19.0 inventory custom fields)
 
 - Collection: `cmdb_column_configurations` (unique `(tenant_id, grid_key)`)
 - Grids: `inventory` and `relationships`
 - Settings: visibility, order, optional width (px), optional pin (`left` / `right`)
 - Locked (always visible, never collapsed): Inventory **OS Family / OS Version / Product Type / Product Version**; Relationships **Protocol / Source Port / Target Port**; plus **Actions**
+- **Custom fields** (active `cmdb_field_definitions` with `storage=custom_fields`) appear as Inventory columns and Column Settings toggles; new fields default to **visible**; typed ops pages (Servers, …) only render columns whose `applies_to` matches the current type (or `*`)
+- Inventory API rows include `custom_fields` so grid cells / View / Edit show values
 - APIs: `GET/PUT/DELETE /api/column-configurations/{grid_key}` (+ list)
 - Column Settings UI replaces the Phase 2/7 “coming soon” placeholder and drives both grids
+- App shell CSS fills the viewport (sidebar + main); content is full-width (no narrow max-width island)
 
 ### Custom entity tables (0.18.0)
 
