@@ -238,6 +238,48 @@ def test_migrate_legacy_custom_field_definitions(clean_db) -> None:
     assert again["migrated"] == 0
 
 
+def test_custom_field_definition_update_preserves_key(
+    client: TestClient, auth_headers: dict[str, str], clean_db
+) -> None:
+    created = client.post(
+        "/api/field-definitions",
+        headers=auth_headers,
+        json={
+            "field_key": "owner_team",
+            "label": "Owner Team",
+            "field_type": "string",
+            "applies_to": ["*"],
+            "required": False,
+        },
+    )
+    assert created.status_code == 201, created.text
+
+    updated = client.put(
+        "/api/field-definitions/owner_team",
+        headers=auth_headers,
+        json={
+            "label": "Owning Team",
+            "applies_to": ["Application", "Server"],
+            "required": True,
+        },
+    )
+    assert updated.status_code == 200, updated.text
+    body = updated.json()
+    assert body["field_key"] == "owner_team"
+    assert body["label"] == "Owning Team"
+    assert body["applies_to"] == ["Application", "Server"]
+    assert body["required"] is True
+    assert body["storage"] == "custom_fields"
+
+    # Built-ins remain non-deletable / non-collapsible after custom updates.
+    blocked = client.put(
+        "/api/field-definitions/product_type",
+        headers=auth_headers,
+        json={"field_type": "enum", "enum_values": ["a"]},
+    )
+    assert blocked.status_code == 400
+
+
 def test_field_definition_applies_to_filter(
     client: TestClient, auth_headers: dict[str, str], clean_db
 ) -> None:

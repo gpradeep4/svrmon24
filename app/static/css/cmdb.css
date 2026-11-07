@@ -728,9 +728,18 @@ body.is-app .app-shell { display: grid; }
 
 #tab-inventory .table-wrap,
 #tab-relationships .table-wrap,
-#tab-custom-records .table-wrap {
+#tab-custom-records .table-wrap,
+#tab-custom .table-wrap,
+#tab-custom-tables .table-wrap,
+#tab-columns .table-wrap {
   flex: 1 1 auto;
   min-height: 220px;
+  min-width: 0;
+  width: 100%;
+  max-width: 100%;
+  overflow-x: auto;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
 }
 
 .auth-oidc-row {
@@ -770,6 +779,8 @@ body.is-app .app-shell { display: grid; }
   box-shadow: var(--shadow);
   padding: 18px;
   margin-bottom: 16px;
+  min-width: 0;
+  max-width: 100%;
 }
 
 .panel h2 {
@@ -859,18 +870,23 @@ button.danger { background: var(--danger); color: #fff; }
 button:disabled { opacity: 0.55; cursor: not-allowed; }
 
 .table-wrap {
-  overflow: auto;
+  overflow-x: auto;
+  overflow-y: auto;
   border: 1px solid var(--line);
   border-radius: 12px;
   background: #FFFFFF;
   position: relative;
   min-height: 72px;
+  min-width: 0;
+  width: 100%;
+  max-width: 100%;
+  -webkit-overflow-scrolling: touch;
 }
 
 table.inventory {
-  width: 100%;
+  width: max-content;
+  min-width: 100%;
   border-collapse: collapse;
-  min-width: 980px;
   font-size: 0.9rem;
   background: #FFFFFF;
 }
@@ -1005,6 +1021,17 @@ table.inventory tr:hover td {
 }
 
 .form-grid .full { grid-column: 1 / -1; }
+
+.form-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: center;
+}
+
+.form-actions button {
+  width: auto;
+}
 
 .hint {
   color: var(--muted);

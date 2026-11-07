@@ -61,6 +61,58 @@ def test_custom_field_crud_and_required_validation(
     assert deleted.status_code == 200
 
 
+def test_custom_field_update_via_put(
+    client: TestClient, auth_headers: dict[str, str], clean_db
+) -> None:
+    created = client.post(
+        "/api/custom-fields",
+        headers=auth_headers,
+        json={
+            "field_key": "demo_cost_center",
+            "label": "Demo Cost Center",
+            "field_type": "string",
+            "applies_to": ["*"],
+            "required": False,
+        },
+    )
+    assert created.status_code == 201, created.text
+
+    updated = client.put(
+        "/api/custom-fields/demo_cost_center",
+        headers=auth_headers,
+        json={
+            "label": "Cost Center (edited)",
+            "field_type": "enum",
+            "applies_to": ["Server"],
+            "required": True,
+            "enum_values": ["IT", "Finance", "Ops"],
+        },
+    )
+    assert updated.status_code == 200, updated.text
+    body = updated.json()
+    assert body["field_key"] == "demo_cost_center"
+    assert body["label"] == "Cost Center (edited)"
+    assert body["field_type"] == "enum"
+    assert body["applies_to"] == ["Server"]
+    assert body["required"] is True
+    assert body["enum_values"] == ["IT", "Finance", "Ops"]
+    assert body["origin"] == "custom"
+    assert body["locked"] is False
+
+    # field_key stays immutable — no rename via PUT body
+    listed = client.get("/api/custom-fields", headers=auth_headers)
+    assert listed.status_code == 200
+    keys = [i["field_key"] for i in listed.json()["items"]]
+    assert keys.count("demo_cost_center") == 1
+
+    missing = client.put(
+        "/api/custom-fields/does_not_exist",
+        headers=auth_headers,
+        json={"label": "Nope"},
+    )
+    assert missing.status_code == 404
+
+
 def test_custom_field_enum_validation(
     client: TestClient, auth_headers: dict[str, str], clean_db
 ) -> None:
