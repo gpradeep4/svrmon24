@@ -12,7 +12,7 @@
     body.is-app .login-gate { display: none !important; }
     #authPanel, .auth-panel-legacy { display: none !important; }
   </style>
-  <link rel="stylesheet" href="/static/css/cmdb.css?v=0.20.0" />
+  <link rel="stylesheet" href="/static/css/cmdb.css?v=0.21.0" />
 </head>
 <body class="is-login">
   <!-- Full-page login (no Operations chrome while signed out) -->
@@ -579,23 +579,66 @@
               <span class="mono">cmdb_custom_records</span> keyed by <span class="mono">table_key</span>.
             </p>
             <form id="customTableForm" class="form-grid">
-              <label>Table key<input id="ctKey" required pattern="^[a-z][a-z0-9_]*$" placeholder="business_services" /></label>
-              <label>Label<input id="ctLabel" required placeholder="Business Services" /></label>
-              <label class="full">Description<input id="ctDesc" placeholder="Optional" /></label>
-              <button type="submit">Create table</button>
+              <p id="ctEditHint" class="hint full hidden">Editing table — table key is immutable. Cancel to create a new one instead.</p>
+              <label>
+                <span class="label-with-help">Table key
+                  <button type="button" class="help-balloon" aria-label="Help: table key" data-help="Stable snake_case id used in APIs and records. Start with a letter; only lowercase a–z, digits, and underscores. Cannot rename after create. Example: business_services">i</button>
+                </span>
+                <input id="ctKey" required pattern="^[a-z][a-z0-9_]*$" placeholder="e.g. business_services" title="snake_case: ^[a-z][a-z0-9_]*$" autocomplete="off" />
+              </label>
+              <label>
+                <span class="label-with-help">Display name
+                  <button type="button" class="help-balloon" aria-label="Help: display name" data-help="Human-readable name shown in sidebars and dropdowns (with the table key). Example: Business Services">i</button>
+                </span>
+                <input id="ctLabel" required placeholder="e.g. Business Services" autocomplete="off" />
+              </label>
+              <label class="full">
+                <span class="label-with-help">Description
+                  <button type="button" class="help-balloon" aria-label="Help: description" data-help="Optional short note for operators about what rows in this table represent.">i</button>
+                </span>
+                <input id="ctDesc" placeholder="e.g. Customer-facing services owned by platform teams" />
+              </label>
+              <label id="ctActiveWrap" class="hidden">
+                <span class="label-with-help">Active
+                  <button type="button" class="help-balloon" aria-label="Help: active" data-help="Inactive tables stay in configuration but are hidden from normal Operations browsing when filtered.">i</button>
+                </span>
+                <input id="ctActive" type="checkbox" checked />
+              </label>
+              <div class="form-actions full">
+                <button type="submit" id="ctSubmitBtn">Create table</button>
+                <button type="button" id="btnCtCancelEdit" class="secondary hidden">Cancel edit</button>
+              </div>
             </form>
           </section>
           <section class="panel">
-            <div class="toolbar" style="grid-template-columns: 1fr auto;">
-              <label>Selected table
+            <div class="toolbar" style="grid-template-columns: 1fr auto auto;">
+              <label>
+                <span class="label-with-help">Selected table
+                  <button type="button" class="help-balloon" aria-label="Help: selected table" data-help="Pick which custom table to manage columns for. Options show display name and table_key.">i</button>
+                </span>
                 <select id="ctSelectedTable"></select>
               </label>
+              <button type="button" id="btnCtEditSelected" class="secondary">Edit table</button>
               <button type="button" id="btnCtDelete" class="danger">Delete table</button>
             </div>
             <form id="customColumnForm" class="form-grid">
-              <label>Column key<input id="ccKey" required pattern="^[a-z][a-z0-9_]*$" placeholder="owner_team" /></label>
-              <label>Label<input id="ccLabel" required placeholder="Owner team" /></label>
-              <label>Type
+              <p id="ccEditHint" class="hint full hidden">Editing column — column key is immutable. Cancel to add a new column instead.</p>
+              <label>
+                <span class="label-with-help">Column key
+                  <button type="button" class="help-balloon" aria-label="Help: column key" data-help="Stable snake_case field id stored on each record. Cannot rename after create. Example: owner_team">i</button>
+                </span>
+                <input id="ccKey" required pattern="^[a-z][a-z0-9_]*$" placeholder="e.g. owner_team" autocomplete="off" />
+              </label>
+              <label>
+                <span class="label-with-help">Display name
+                  <button type="button" class="help-balloon" aria-label="Help: column display name" data-help="Label shown in column headers and record forms.">i</button>
+                </span>
+                <input id="ccLabel" required placeholder="e.g. Owner team" autocomplete="off" />
+              </label>
+              <label>
+                <span class="label-with-help">Type
+                  <button type="button" class="help-balloon" aria-label="Help: column type" data-help="string / number / boolean for simple values; enum for a fixed list; reference to link a CMDB type or another custom table (stores ref_id + ref_table).">i</button>
+                </span>
                 <select id="ccType">
                   <option value="string">string</option>
                   <option value="number">number</option>
@@ -604,16 +647,30 @@
                   <option value="reference">reference</option>
                 </select>
               </label>
-              <label>Reference table
+              <label>
+                <span class="label-with-help">Reference target
+                  <button type="button" class="help-balloon" aria-label="Help: reference target" data-help="Required when type is reference. Choose a CMDB component type (Server, …) or another custom table. Options show display name + key.">i</button>
+                </span>
                 <select id="ccRefTable" disabled>
-                  <option value="">—</option>
+                  <option value="">— select target —</option>
                 </select>
               </label>
-              <label class="full">Enum values (comma-separated)
-                <input id="ccEnum" placeholder="gold, silver, bronze" />
+              <label class="full">
+                <span class="label-with-help">Enum values
+                  <button type="button" class="help-balloon" aria-label="Help: enum values" data-help="Required when type is enum. Comma-separated allowed values, e.g. gold, silver, bronze.">i</button>
+                </span>
+                <input id="ccEnum" placeholder="e.g. gold, silver, bronze" />
               </label>
-              <label><span>Required</span><input id="ccRequired" type="checkbox" /></label>
-              <button type="submit">Add column</button>
+              <label>
+                <span class="label-with-help">Required
+                  <button type="button" class="help-balloon" aria-label="Help: required" data-help="When checked, new and updated records must supply this column.">i</button>
+                </span>
+                <input id="ccRequired" type="checkbox" />
+              </label>
+              <div class="form-actions full">
+                <button type="submit" id="ccSubmitBtn">Add column</button>
+                <button type="button" id="btnCcCancelEdit" class="secondary hidden">Cancel edit</button>
+              </div>
             </form>
             <div class="table-wrap" style="margin-top:12px">
               <table class="inventory">
@@ -641,7 +698,7 @@
                     <th>Label</th>
                     <th>Columns</th>
                     <th>Active</th>
-                    <th>Browse</th>
+                    <th>Actions</th>
                   </tr>
                 </thead>
                 <tbody id="customTableBody"></tbody>
@@ -900,18 +957,24 @@
           <label>Type
             <select id="relType" required></select>
           </label>
-          <label>Source table
+          <label>
+            <span class="label-with-help">Source table
+              <button type="button" class="help-balloon" aria-label="Help: source table" data-help="CMDB type or custom table for the source entity. Custom options show display name (table_key). Leave blank only for typed CMDB components.">i</button>
+            </span>
             <select id="relSourceTable">
               <option value="">CMDB component (any)</option>
             </select>
           </label>
-          <label>Target table
+          <label>
+            <span class="label-with-help">Target table
+              <button type="button" class="help-balloon" aria-label="Help: target table" data-help="CMDB type or custom table for the target entity. Custom options show display name (table_key).">i</button>
+            </span>
             <select id="relTargetTable">
               <option value="">CMDB component (any)</option>
             </select>
           </label>
-          <label>Source entity ID<input id="relSource" required list="entityIdList" placeholder="component_id or record_id" /></label>
-          <label>Target entity ID<input id="relTarget" required list="entityIdList" placeholder="component_id or record_id" /></label>
+          <label>Source entity ID<input id="relSource" required list="entityIdList" placeholder="e.g. srv-1 or svc-billing" /></label>
+          <label>Target entity ID<input id="relTarget" required list="entityIdList" placeholder="e.g. srv-1 or svc-billing" /></label>
           <label>Protocol<input id="relProtocol" placeholder="TCP / HTTPS / …" /></label>
           <label>Source Port<input id="relSourcePort" inputmode="numeric" pattern="^([1-9][0-9]{0,3}|[1-5][0-9]{4}|6[0-4][0-9]{3}|65[0-4][0-9]{2}|655[0-2][0-9]|6553[0-5])$" placeholder="blank = unknown" title="1–65535 or blank" /></label>
           <label>Target Port<input id="relTargetPort" inputmode="numeric" pattern="^([1-9][0-9]{0,3}|[1-5][0-9]{4}|6[0-4][0-9]{3}|65[0-4][0-9]{2}|655[0-2][0-9]|6553[0-5])$" placeholder="blank = unknown" title="1–65535 or blank" /></label>
@@ -970,6 +1033,6 @@
     </div>
   </div>
 
-  <script src="/static/js/cmdb.js?v=0.20.0"></script>
+  <script src="/static/js/cmdb.js?v=0.21.0"></script>
 </body>
 </html>

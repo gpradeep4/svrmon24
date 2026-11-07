@@ -827,6 +827,12 @@ input, select, textarea {
   color: var(--ink);
 }
 
+/* Keep native option text readable (avoid blank/invisible dropdown labels). */
+select option {
+  color: #0f172a;
+  background: #ffffff;
+}
+
 input:focus, select:focus, textarea:focus {
   outline: 2px solid var(--accent-ring);
   border-color: var(--accent);
@@ -1031,6 +1037,93 @@ table.inventory tr:hover td {
 
 .form-actions button {
   width: auto;
+}
+
+.label-with-help {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.help-balloon {
+  position: relative;
+  width: 1.15rem;
+  height: 1.15rem;
+  min-width: 1.15rem;
+  padding: 0;
+  border-radius: 999px;
+  border: 1px solid var(--line);
+  background: #f8fafc;
+  color: var(--muted);
+  font-size: 0.7rem;
+  font-weight: 700;
+  line-height: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: help;
+  flex: 0 0 auto;
+}
+
+.help-balloon:hover,
+.help-balloon:focus-visible {
+  background: var(--accent-soft, #eef2ff);
+  color: var(--accent);
+  border-color: var(--accent);
+  outline: none;
+}
+
+.help-balloon::after {
+  content: attr(data-help);
+  position: absolute;
+  left: 50%;
+  bottom: calc(100% + 8px);
+  transform: translateX(-50%) translateY(4px);
+  width: min(280px, 70vw);
+  padding: 8px 10px;
+  border-radius: 8px;
+  background: #0f172a;
+  color: #f8fafc;
+  font-size: 0.75rem;
+  font-weight: 500;
+  line-height: 1.35;
+  text-align: left;
+  white-space: normal;
+  box-shadow: 0 8px 24px rgba(15, 23, 42, 0.22);
+  opacity: 0;
+  pointer-events: none;
+  visibility: hidden;
+  transition: opacity 0.12s ease, transform 0.12s ease, visibility 0.12s;
+  z-index: 40;
+}
+
+.help-balloon::before {
+  content: "";
+  position: absolute;
+  left: 50%;
+  bottom: calc(100% + 2px);
+  transform: translateX(-50%);
+  border: 6px solid transparent;
+  border-top-color: #0f172a;
+  opacity: 0;
+  pointer-events: none;
+  visibility: hidden;
+  transition: opacity 0.12s ease, visibility 0.12s;
+  z-index: 41;
+}
+
+.help-balloon:hover::after,
+.help-balloon:focus-visible::after,
+.help-balloon:hover::before,
+.help-balloon:focus-visible::before {
+  opacity: 1;
+  visibility: visible;
+  transform: translateX(-50%) translateY(0);
+}
+
+.help-balloon:hover::before,
+.help-balloon:focus-visible::before {
+  transform: translateX(-50%);
 }
 
 .hint {
