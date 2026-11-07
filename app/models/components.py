@@ -283,6 +283,7 @@ class InventoryRow(BaseModel):
     product_version: str
     environment: str
     status: str
+    custom_fields: dict[str, Any] = Field(default_factory=dict)
 
 
 def display_or_dash(value: Any) -> str:
@@ -308,6 +309,9 @@ def to_inventory_row(doc: dict[str, Any]) -> InventoryRow:
     else:
         hostname_or_name = name or display_or_dash(hostname)
 
+    raw_cf = doc.get("custom_fields") or {}
+    custom_fields = dict(raw_cf) if isinstance(raw_cf, dict) else {}
+
     return InventoryRow(
         component_id=str(doc.get("component_id") or ""),
         hostname_or_name=hostname_or_name or "—",
@@ -318,6 +322,7 @@ def to_inventory_row(doc: dict[str, Any]) -> InventoryRow:
         product_version=display_or_dash(doc.get("product_version")),
         environment=display_or_dash(doc.get("environment")),
         status=display_or_dash(doc.get("status")),
+        custom_fields=custom_fields,
     )
 
 

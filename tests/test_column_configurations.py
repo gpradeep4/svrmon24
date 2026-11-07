@@ -285,3 +285,128 @@ def test_column_config_tenant_isolation(
     )
     assert other is not None
     assert other["columns"][0]["width"] == 99
+
+
+def test_inventory_includes_custom_field_columns_and_values(
+    client: TestClient, auth_headers: dict[str, str], clean_db
+) -> None:
+    """Active custom fields become Inventory columns (default visible) + row values."""
+    created = client.post(
+        "/api/custom-fields",
+        headers=auth_headers,
+        json={
+            "field_key": "cost_center",
+            "label": "Cost Center",
+            "field_type": "string",
+            "applies_to": ["Server"],
+            "required": False,
+        },
+    )
+    assert created.status_code == 201, created.text
+
+    # Only Server — should still appear in catalog (Column Settings lists all).
+    mw_only = client.post(
+        "/api/custom-fields",
+        headers=auth_headers,
+        json={
+            "field_key": "mw_tier",
+            "label": "MW Tier",
+            "field_type": "enum",
+            "applies_to": ["Middleware"],
+            "required": False,
+            "enum_values": ["gold", "silver"],
+        },
+    )
+    assert mw_only.status_code == 201, mw_only.text
+
+    cfg = client.get("/api/column-configurations/inventory", headers=auth_headers)
+    assert cfg.status_code == 200, cfg.text
+    body = cfg.json()
+    by_key = {c["column_key"]: c for c in body["columns"]}
+    assert "cost_center" in by_key
+    assert by_key["cost_center"]["visible"] is True
+    assert by_key["cost_center"]["locked"] is False
+    assert by_key["cost_center"]["source"] == "custom_field"
+    assert by_key["cost_center"]["applies_to"] == ["Server"]
+    assert "mw_tier" in by_key
+    assert by_key["mw_tier"]["applies_to"] == ["Middleware"]
+    # Locked OS/product pairs remain separate.
+    assert "os_family" in by_key and "os_version" in by_key
+    assert by_key["os_family"]["locked"] is True
+    assert by_key["actions"]["order"] == max(c["order"] for c in body["columns"])
+
+    # New custom fields also appear when a saved config predates them.
+    baseline = [
+        {
+            "column_key": c["column_key"],
+            "visible": c["visible"],
+            "order": c["order"],
+            "width": None,
+            "pinned": None,
+        }
+        for c in body["columns"]
+        if c["column_key"] not in {"cost_center", "mw_tier"}
+    ]
+    # Hide optional environment, keep locked columns.
+    for entry in baseline:
+        if entry["column_key"] == "environment":
+            entry["visible"] = False
+    saved = client.put(
+        "/api/column-configurations/inventory",
+        headers=auth_headers,
+        json={"columns": baseline},
+    )
+    assert saved.status_code == 200, saved.text
+    saved_keys = {c["column_key"]: c for c in saved.json()["columns"]}
+    assert saved_keys["cost_center"]["visible"] is True
+    assert saved_keys["mw_tier"]["visible"] is True
+    assert saved_keys["environment"]["visible"] is False
+
+    # Toggle off cost_center.
+    toggled = []
+    for c in saved.json()["columns"]:
+        toggled.append(
+            {
+                "column_key": c["column_key"],
+                "visible": False if c["column_key"] == "cost_center" else c["visible"],
+                "order": c["order"],
+                "width": c.get("width"),
+                "pinned": c.get("pinned"),
+            }
+        )
+    again = client.put(
+        "/api/column-configurations/inventory",
+        headers=auth_headers,
+        json={"columns": toggled},
+    )
+    assert again.status_code == 200, again.text
+    assert next(
+        c for c in again.json()["columns"] if c["column_key"] == "cost_center"
+    )["visible"] is False
+
+    # Inventory list exposes custom_fields on rows for grid rendering.
+    srv = client.post(
+        "/api/components",
+        headers=auth_headers,
+        json={
+            "component_id": "srv-cf-1",
+            "component_type": "Server",
+            "name": "cf-web",
+            "hostname": "cf-web",
+            "environment": "prod",
+            "status": "active",
+            "os_family": "RHEL",
+            "os_version": "9.4",
+            "custom_fields": {"cost_center": "IT-OPS"},
+        },
+    )
+    assert srv.status_code == 201, srv.text
+    listed = client.get(
+        "/api/components?component_type=Server&page_size=50", headers=auth_headers
+    )
+    assert listed.status_code == 200, listed.text
+    rows = listed.json()["inventory"]
+    row = next(r for r in rows if r["component_id"] == "srv-cf-1")
+    assert row["custom_fields"]["cost_center"] == "IT-OPS"
+    assert row["os_family"] == "RHEL"
+    assert row["os_version"] == "9.4"

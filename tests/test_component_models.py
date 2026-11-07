@@ -78,12 +78,14 @@ def test_inventory_row_keeps_os_and_product_columns_separate() -> None:
             "product_version": None,
             "environment": "prod",
             "status": "active",
+            "custom_fields": {"cost_center": "IT-OPS"},
         }
     )
     assert row.os_family == "RHEL"
     assert row.os_version == "9.4"
     assert row.product_type == "—"
     assert row.product_version == "—"
+    assert row.custom_fields == {"cost_center": "IT-OPS"}
     # Never combined into a single field
     assert not hasattr(row, "os")
     assert not hasattr(row, "product")

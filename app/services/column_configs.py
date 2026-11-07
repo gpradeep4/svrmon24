@@ -1,6 +1,9 @@
 """CMDB column-configuration persistence (tenant-scoped, Master Phase 8).
 
 Collection: ``cmdb_column_configurations`` — one document per ``(tenant_id, grid_key)``.
+
+Inventory catalogs merge active custom field definitions so new fields appear as
+toggleable columns (visible by default) without collapsing locked OS/product keys.
 """
 
 from __future__ import annotations
@@ -15,12 +18,15 @@ from ..db import require_database
 from ..models.column_configs import (
     GRID_KEYS,
     ColumnConfigurationUpdate,
-    catalog_keys_for_grid,
+    GridKey,
     default_columns_for_grid,
     locked_columns_for_grid,
+    merge_inventory_custom_field_columns,
 )
+from ..models.custom_fields import FieldOrigin
 from ..serialization import serialize_document
 from ..tenancy import require_tenant_id, stamp_tenant_id, tenant_filter
+from . import custom_fields as custom_fields_service
 
 COLLECTION = "cmdb_column_configurations"
 
@@ -47,9 +53,40 @@ def _now() -> datetime:
     return datetime.now(timezone.utc)
 
 
-def _enrich_columns(grid_key: str, columns: list[dict[str, Any]]) -> list[dict[str, Any]]:
+def _custom_field_definitions(*, tenant_id: str) -> list[dict[str, Any]]:
+    """Active custom (non-builtin) field defs for Inventory column catalog."""
+    return custom_fields_service.list_definitions(
+        tenant_id=tenant_id,
+        origin=FieldOrigin.CUSTOM.value,
+        include_inactive=False,
+    )
+
+
+def catalog_columns_for_grid(grid_key: str, *, tenant_id: str) -> list[dict[str, Any]]:
+    """Full column catalog for a grid (Inventory includes custom fields)."""
+    key = validate_grid_key(grid_key)
+    if key == GridKey.INVENTORY.value:
+        return merge_inventory_custom_field_columns(
+            default_columns_for_grid(key),
+            _custom_field_definitions(tenant_id=tenant_id),
+        )
+    return default_columns_for_grid(key)
+
+
+def catalog_keys_for_grid(grid_key: str, *, tenant_id: str) -> frozenset[str]:
+    return frozenset(
+        c["column_key"] for c in catalog_columns_for_grid(grid_key, tenant_id=tenant_id)
+    )
+
+
+def _enrich_columns(
+    grid_key: str,
+    columns: list[dict[str, Any]],
+    *,
+    catalog: list[dict[str, Any]],
+) -> list[dict[str, Any]]:
     """Merge stored settings with catalog defaults; keep locked columns visible."""
-    defaults = {c["column_key"]: c for c in default_columns_for_grid(grid_key)}
+    defaults = {c["column_key"]: c for c in catalog}
     locked = locked_columns_for_grid(grid_key)
     by_key: dict[str, dict[str, Any]] = {}
 
@@ -77,7 +114,7 @@ def _enrich_columns(grid_key: str, columns: list[dict[str, Any]]) -> list[dict[s
             order = int(order)
         except (TypeError, ValueError):
             order = base["order"]
-        by_key[key] = {
+        entry = {
             "column_key": key,
             "label": base["label"],
             "visible": visible,
@@ -86,14 +123,25 @@ def _enrich_columns(grid_key: str, columns: list[dict[str, Any]]) -> list[dict[s
             "pinned": pinned,
             "locked": key in locked,
         }
+        if base.get("source"):
+            entry["source"] = base["source"]
+        if base.get("applies_to") is not None:
+            entry["applies_to"] = list(base["applies_to"])
+        if base.get("field_type") is not None:
+            entry["field_type"] = base["field_type"]
+        by_key[key] = entry
 
-    # Ensure every catalog column exists (new defaults appear after upgrades).
+    # Ensure every catalog column exists (new custom fields appear after create).
     for key, base in defaults.items():
         if key not in by_key:
             by_key[key] = dict(base)
 
     ordered = sorted(by_key.values(), key=lambda c: (c["order"], c["column_key"]))
-    # Normalize order to dense 0..n-1 while preserving relative sort.
+    # Keep Actions last when present.
+    if any(c["column_key"] == "actions" for c in ordered):
+        ordered = [c for c in ordered if c["column_key"] != "actions"] + [
+            next(c for c in ordered if c["column_key"] == "actions")
+        ]
     for idx, col in enumerate(ordered):
         col["order"] = idx
     return ordered
@@ -105,17 +153,20 @@ def _serialize_config(
     grid_key: str,
     tenant_id: str,
 ) -> dict[str, Any]:
+    catalog = catalog_columns_for_grid(grid_key, tenant_id=tenant_id)
     if doc is None:
         return {
             "grid_key": grid_key,
             "tenant_id": tenant_id,
-            "columns": default_columns_for_grid(grid_key),
+            "columns": catalog,
             "is_default": True,
             "created_at": None,
             "updated_at": None,
         }
     serialized = serialize_document(doc) or {}
-    columns = _enrich_columns(grid_key, list(serialized.get("columns") or []))
+    columns = _enrich_columns(
+        grid_key, list(serialized.get("columns") or []), catalog=catalog
+    )
     return {
         "grid_key": grid_key,
         "tenant_id": serialized.get("tenant_id") or tenant_id,
@@ -157,12 +208,13 @@ def upsert_configuration(
 ) -> dict[str, Any]:
     tid = require_tenant_id(tenant_id)
     key = validate_grid_key(grid_key)
-    catalog = catalog_keys_for_grid(key)
+    catalog = catalog_columns_for_grid(key, tenant_id=tid)
+    catalog_keys = frozenset(c["column_key"] for c in catalog)
     locked = locked_columns_for_grid(key)
 
     incoming = [c.model_dump() for c in payload.columns]
     incoming_keys = {c["column_key"] for c in incoming}
-    unknown = incoming_keys - catalog
+    unknown = incoming_keys - catalog_keys
     if unknown:
         raise ColumnConfigError(
             f"Unknown column_key(s) for grid '{key}': {', '.join(sorted(unknown))}"
@@ -196,7 +248,7 @@ def upsert_configuration(
             "Collapsed OS/product or protocol/port column keys are not allowed"
         )
 
-    columns = _enrich_columns(key, incoming)
+    columns = _enrich_columns(key, incoming, catalog=catalog)
     now = _now()
     coll = _collection()
     existing = coll.find_one({"grid_key": key, **tenant_filter(tid)})
