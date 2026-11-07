@@ -373,3 +373,116 @@ def test_core_cmdb_facade_unchanged(
     doc = client.get("/api/components/srv-facade", headers=auth_headers).json()
     assert "os_family" in doc and "os_version" in doc
     assert "os_family_version" not in doc
+
+
+def test_update_custom_table_preserves_key(
+    client: TestClient, auth_headers: dict[str, str], clean_db
+) -> None:
+    created = client.post(
+        "/api/custom-tables",
+        headers=auth_headers,
+        json={
+            "table_key": "business_units",
+            "label": "Business Units",
+            "description": "Initial",
+        },
+    )
+    assert created.status_code == 201, created.text
+
+    updated = client.put(
+        "/api/custom-tables/business_units",
+        headers=auth_headers,
+        json={
+            "label": "Org Units",
+            "description": "Renamed display label",
+            "active": True,
+        },
+    )
+    assert updated.status_code == 200, updated.text
+    body = updated.json()
+    assert body["table_key"] == "business_units"
+    assert body["label"] == "Org Units"
+    assert body["description"] == "Renamed display label"
+    assert body["active"] is True
+    assert body["tenant_id"] == MIGRATION_TENANT_ID
+
+    listed = client.get("/api/custom-tables", headers=auth_headers).json()["items"]
+    match = next(i for i in listed if i["table_key"] == "business_units")
+    assert match["label"] == "Org Units"
+    # Dropdown consumers need both display name and key present (never blank).
+    assert match["label"].strip()
+    assert match["table_key"].strip()
+
+
+def test_update_custom_column_type_and_reference(
+    client: TestClient, auth_headers: dict[str, str], clean_db
+) -> None:
+    assert (
+        client.post(
+            "/api/custom-tables",
+            headers=auth_headers,
+            json={"table_key": "vendors", "label": "Vendors"},
+        ).status_code
+        == 201
+    )
+    added = client.post(
+        "/api/custom-tables/vendors/columns",
+        headers=auth_headers,
+        json={
+            "column_key": "tier",
+            "label": "Tier",
+            "field_type": "string",
+            "required": False,
+        },
+    )
+    assert added.status_code == 201, added.text
+
+    as_enum = client.put(
+        "/api/custom-tables/vendors/columns/tier",
+        headers=auth_headers,
+        json={
+            "label": "Service tier",
+            "field_type": "enum",
+            "enum_values": ["gold", "silver"],
+            "required": True,
+            "reference_table": None,
+        },
+    )
+    assert as_enum.status_code == 200, as_enum.text
+    col = next(c for c in as_enum.json()["columns"] if c["column_key"] == "tier")
+    assert col["label"] == "Service tier"
+    assert col["field_type"] == "enum"
+    assert col["enum_values"] == ["gold", "silver"]
+    assert col["required"] is True
+    assert col["column_key"] == "tier"
+
+    as_ref = client.put(
+        "/api/custom-tables/vendors/columns/tier",
+        headers=auth_headers,
+        json={
+            "label": "Primary server",
+            "field_type": "reference",
+            "enum_values": [],
+            "reference_table": "Server",
+            "required": False,
+        },
+    )
+    assert as_ref.status_code == 200, as_ref.text
+    col2 = next(c for c in as_ref.json()["columns"] if c["column_key"] == "tier")
+    assert col2["field_type"] == "reference"
+    assert col2["reference_table"] == "Server"
+    assert col2["enum_values"] == []
+
+
+def test_custom_tables_ui_includes_edit_and_help(
+    client: TestClient, auth_headers: dict[str, str]
+) -> None:
+    html = client.get("/", headers=auth_headers).text
+    assert 'id="ctSubmitBtn"' in html
+    assert 'id="btnCtCancelEdit"' in html
+    assert 'id="ccSubmitBtn"' in html
+    assert 'id="btnCcCancelEdit"' in html
+    assert 'id="btnCtEditSelected"' in html
+    assert "help-balloon" in html
+    assert "e.g. business_services" in html
+    assert "cmdb.js?v=" in html and "0.21.0" in html

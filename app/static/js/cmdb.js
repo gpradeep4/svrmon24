@@ -100,6 +100,8 @@
     },
     customTables: [],
     selectedCustomTableKey: null,
+    editingCtKey: null,
+    editingCcKey: null,
     customRecordPage: 1,
     customRecordTotalPages: 1,
     editingCustomRecordId: null,
@@ -1368,10 +1370,13 @@
     btn.classList.add("active");
     state.activeNav = name;
     applyInventoryTypeLock(inventoryType);
+    const customTableMeta = customTableKey
+      ? (state.customTables || []).find((t) => t.table_key === customTableKey)
+      : null;
     const meta = PAGE_META[name] ||
       (customTableKey
         ? {
-            title: customTableKey,
+            title: formatTableChoiceLabel(customTableMeta || customTableKey),
             subtitle: `Custom table records (${customTableKey})`,
           }
         : { title: name, subtitle: "" });
@@ -1822,6 +1827,28 @@
     ) || null;
   }
 
+  /** Visible select/nav text: always include display name + table_key (never blank). */
+  function formatTableChoiceLabel(tableOrKey, { prefix = "" } = {}) {
+    let key = "";
+    let label = "";
+    if (typeof tableOrKey === "string") {
+      key = tableOrKey;
+      const found = (state.customTables || []).find((t) => t.table_key === key);
+      label = (found && found.label) || "";
+    } else if (tableOrKey && typeof tableOrKey === "object") {
+      key = String(tableOrKey.table_key || "").trim();
+      label = String(tableOrKey.label || "").trim();
+    }
+    const display = label || key || "(unnamed table)";
+    const text =
+      key && display !== key ? `${display} (${key})` : display || key || "(unnamed table)";
+    return prefix ? `${prefix}${text}` : text;
+  }
+
+  function formatBuiltinTableChoiceLabel(typeName) {
+    return `CMDB: ${typeName} (${typeName})`;
+  }
+
   function renderCustomTablesNav() {
     const wrap = $("#navCustomTables");
     const section = $("#navCustomTablesSection");
@@ -1831,9 +1858,11 @@
     wrap.innerHTML = tables
       .map(
         (t) => `
-      <button type="button" class="nav-item" data-tab="ct:${escapeAttr(t.table_key)}">
+      <button type="button" class="nav-item" data-tab="ct:${escapeAttr(t.table_key)}" title="${escapeAttr(
+          formatTableChoiceLabel(t)
+        )}">
         <span class="nav-ico" aria-hidden="true"><svg viewBox="0 0 24 24"><rect x="4" y="4" width="16" height="16" rx="2"/><path d="M8 8h8M8 12h8M8 16h5"/></svg></span>
-        ${escapeHtml(t.label || t.table_key)}
+        ${escapeHtml(formatTableChoiceLabel(t))}
       </button>`
       )
       .join("");
@@ -1846,14 +1875,19 @@
     const sel = $("#ctSelectedTable");
     if (sel) {
       const prev = sel.value || state.selectedCustomTableKey || "";
-      sel.innerHTML = (state.customTables || [])
-        .map(
-          (t) =>
-            `<option value="${escapeAttr(t.table_key)}">${escapeHtml(
-              t.label || t.table_key
-            )}</option>`
-        )
-        .join("");
+      const tables = state.customTables || [];
+      if (!tables.length) {
+        sel.innerHTML = `<option value="">— no custom tables yet —</option>`;
+      } else {
+        sel.innerHTML = tables
+          .map(
+            (t) =>
+              `<option value="${escapeAttr(t.table_key)}">${escapeHtml(
+                formatTableChoiceLabel(t)
+              )}</option>`
+          )
+          .join("");
+      }
       if (prev && [...sel.options].some((o) => o.value === prev)) {
         sel.value = prev;
       }
@@ -1866,21 +1900,30 @@
   function populateRefTableSelect() {
     const sel = $("#ccRefTable");
     if (!sel) return;
+    const prev = sel.value;
     const builtins = ["Server", "Network", "Middleware", "Database", "Application"];
-    const customs = (state.customTables || [])
-      .map((t) => t.table_key)
-      .filter((k) => k !== state.selectedCustomTableKey);
+    const customs = (state.customTables || []).filter(
+      (t) => t.table_key !== state.selectedCustomTableKey
+    );
     sel.innerHTML =
-      `<option value="">—</option>` +
+      `<option value="">— select target —</option>` +
       builtins
-        .map((t) => `<option value="${escapeAttr(t)}">CMDB: ${escapeHtml(t)}</option>`)
+        .map(
+          (t) =>
+            `<option value="${escapeAttr(t)}">${escapeHtml(
+              formatBuiltinTableChoiceLabel(t)
+            )}</option>`
+        )
         .join("") +
       customs
         .map(
           (t) =>
-            `<option value="${escapeAttr(t)}">Custom: ${escapeHtml(t)}</option>`
+            `<option value="${escapeAttr(t.table_key)}">${escapeHtml(
+              formatTableChoiceLabel(t, { prefix: "Custom: " })
+            )}</option>`
         )
         .join("");
+    if (prev && [...sel.options].some((o) => o.value === prev)) sel.value = prev;
   }
 
   function populateRelTableSelects() {
@@ -1892,13 +1935,18 @@
       sel.innerHTML =
         `<option value="">CMDB component (any)</option>` +
         builtins
-          .map((t) => `<option value="${escapeAttr(t)}">CMDB: ${escapeHtml(t)}</option>`)
+          .map(
+            (t) =>
+              `<option value="${escapeAttr(t)}">${escapeHtml(
+                formatBuiltinTableChoiceLabel(t)
+              )}</option>`
+          )
           .join("") +
         (state.customTables || [])
           .map(
             (t) =>
-              `<option value="${escapeAttr(t.table_key)}">Custom: ${escapeHtml(
-                t.label || t.table_key
+              `<option value="${escapeAttr(t.table_key)}">${escapeHtml(
+                formatTableChoiceLabel(t, { prefix: "Custom: " })
               )}</option>`
           )
           .join("");
@@ -1917,9 +1965,14 @@
         <td>${escapeHtml(t.label || "")}</td>
         <td>${(t.columns || []).length}</td>
         <td>${t.active === false ? "no" : "yes"}</td>
-        <td><button type="button" class="secondary" data-ct-browse="${escapeAttr(
-          t.table_key
-        )}">Open</button></td>`;
+        <td class="actions">
+          <button type="button" class="secondary" data-ct-edit="${escapeAttr(
+            t.table_key
+          )}">Edit</button>
+          <button type="button" class="secondary" data-ct-browse="${escapeAttr(
+            t.table_key
+          )}">Open</button>
+        </td>`;
       tbody.appendChild(tr);
     }
   }
@@ -1938,11 +1991,100 @@
         <td>${escapeHtml(col.field_type || "")}</td>
         <td class="mono">${escapeHtml(col.reference_table || "—")}</td>
         <td>${col.required ? "yes" : "no"}</td>
-        <td><button type="button" class="danger" data-cc-del="${escapeAttr(
-          col.column_key
-        )}">Delete</button></td>`;
+        <td class="actions">
+          <button type="button" class="secondary" data-cc-edit="${escapeAttr(
+            col.column_key
+          )}">Edit</button>
+          <button type="button" class="danger" data-cc-del="${escapeAttr(
+            col.column_key
+          )}">Delete</button>
+        </td>`;
       tbody.appendChild(tr);
     }
+  }
+
+  function resetCustomTableForm() {
+    state.editingCtKey = null;
+    const form = $("#customTableForm");
+    form?.reset();
+    if ($("#ctKey")) {
+      $("#ctKey").disabled = false;
+      $("#ctKey").readOnly = false;
+    }
+    if ($("#ctActive")) $("#ctActive").checked = true;
+    $("#ctActiveWrap")?.classList.add("hidden");
+    if ($("#ctSubmitBtn")) $("#ctSubmitBtn").textContent = "Create table";
+    $("#ctEditHint")?.classList.add("hidden");
+    $("#btnCtCancelEdit")?.classList.add("hidden");
+  }
+
+  function beginEditCustomTable(tableKey) {
+    const item = (state.customTables || []).find((t) => t.table_key === tableKey);
+    if (!item) {
+      toast(`Custom table '${tableKey}' not found`, true);
+      return;
+    }
+    state.editingCtKey = tableKey;
+    state.selectedCustomTableKey = tableKey;
+    if ($("#ctSelectedTable")) $("#ctSelectedTable").value = tableKey;
+    $("#ctKey").value = item.table_key;
+    $("#ctKey").disabled = true;
+    $("#ctKey").readOnly = true;
+    $("#ctLabel").value = item.label || "";
+    $("#ctDesc").value = item.description || "";
+    if ($("#ctActive")) $("#ctActive").checked = item.active !== false;
+    $("#ctActiveWrap")?.classList.remove("hidden");
+    if ($("#ctSubmitBtn")) $("#ctSubmitBtn").textContent = "Save table";
+    $("#ctEditHint")?.classList.remove("hidden");
+    $("#btnCtCancelEdit")?.classList.remove("hidden");
+    $("#ctLabel")?.focus();
+    $("#customTableForm")?.scrollIntoView({ behavior: "smooth", block: "nearest" });
+    populateRefTableSelect();
+    renderCustomColumns();
+  }
+
+  function resetCustomColumnForm() {
+    state.editingCcKey = null;
+    const form = $("#customColumnForm");
+    form?.reset();
+    if ($("#ccKey")) {
+      $("#ccKey").disabled = false;
+      $("#ccKey").readOnly = false;
+    }
+    if ($("#ccType")) $("#ccType").value = "string";
+    if ($("#ccRefTable")) {
+      $("#ccRefTable").disabled = true;
+      $("#ccRefTable").value = "";
+    }
+    if ($("#ccSubmitBtn")) $("#ccSubmitBtn").textContent = "Add column";
+    $("#ccEditHint")?.classList.add("hidden");
+    $("#btnCcCancelEdit")?.classList.add("hidden");
+  }
+
+  function beginEditCustomColumn(columnKey) {
+    const table = selectedCustomTable();
+    const col = (table?.columns || []).find((c) => c.column_key === columnKey);
+    if (!col) {
+      toast(`Column '${columnKey}' not found`, true);
+      return;
+    }
+    state.editingCcKey = columnKey;
+    $("#ccKey").value = col.column_key;
+    $("#ccKey").disabled = true;
+    $("#ccKey").readOnly = true;
+    $("#ccLabel").value = col.label || "";
+    $("#ccType").value = col.field_type || "string";
+    $("#ccEnum").value = (col.enum_values || []).join(", ");
+    $("#ccRequired").checked = !!col.required;
+    const isRef = col.field_type === "reference";
+    $("#ccRefTable").disabled = !isRef;
+    populateRefTableSelect();
+    if (isRef) $("#ccRefTable").value = col.reference_table || "";
+    if ($("#ccSubmitBtn")) $("#ccSubmitBtn").textContent = "Save column";
+    $("#ccEditHint")?.classList.remove("hidden");
+    $("#btnCcCancelEdit")?.classList.remove("hidden");
+    $("#ccLabel")?.focus();
+    $("#customColumnForm")?.scrollIntoView({ behavior: "smooth", block: "nearest" });
   }
 
   async function loadCustomTables() {
@@ -1963,29 +2105,43 @@
     renderCustomColumns();
   }
 
-  async function createCustomTable(event) {
+  async function saveCustomTable(event) {
     event.preventDefault();
-    const payload = {
-      table_key: $("#ctKey").value.trim(),
-      label: $("#ctLabel").value.trim(),
-      description: $("#ctDesc").value.trim() || null,
-      columns: [],
-    };
+    const tableKey = (state.editingCtKey || $("#ctKey").value.trim()).trim();
+    const label = $("#ctLabel").value.trim();
+    const description = $("#ctDesc").value.trim() || null;
     try {
-      await api("/api/custom-tables", {
-        method: "POST",
-        body: JSON.stringify(payload),
-      });
-      toast("Custom table created");
-      $("#customTableForm").reset();
-      state.selectedCustomTableKey = payload.table_key;
+      if (state.editingCtKey) {
+        await api(`/api/custom-tables/${encodeURIComponent(state.editingCtKey)}`, {
+          method: "PUT",
+          body: JSON.stringify({
+            label,
+            description,
+            active: $("#ctActive")?.checked !== false,
+          }),
+        });
+        toast(`Custom table '${state.editingCtKey}' updated`);
+      } else {
+        await api("/api/custom-tables", {
+          method: "POST",
+          body: JSON.stringify({
+            table_key: tableKey,
+            label,
+            description,
+            columns: [],
+          }),
+        });
+        toast("Custom table created");
+        state.selectedCustomTableKey = tableKey;
+      }
+      resetCustomTableForm();
       await loadCustomTables();
     } catch (err) {
-      toast(err.message || "Create table failed", true);
+      toast(err.message || "Save table failed", true);
     }
   }
 
-  async function addCustomColumn(event) {
+  async function saveCustomColumn(event) {
     event.preventDefault();
     const tableKey = $("#ctSelectedTable")?.value || state.selectedCustomTableKey;
     if (!tableKey) {
@@ -1993,8 +2149,8 @@
       return;
     }
     const field_type = $("#ccType").value;
+    const columnKey = (state.editingCcKey || $("#ccKey").value.trim()).trim();
     const payload = {
-      column_key: $("#ccKey").value.trim(),
       label: $("#ccLabel").value.trim(),
       field_type,
       required: $("#ccRequired").checked,
@@ -2008,17 +2164,28 @@
       reference_table: field_type === "reference" ? $("#ccRefTable").value || null : null,
     };
     try {
-      await api(`/api/custom-tables/${encodeURIComponent(tableKey)}/columns`, {
-        method: "POST",
-        body: JSON.stringify(payload),
-      });
-      toast("Column added");
-      $("#customColumnForm").reset();
-      $("#ccType").value = "string";
-      $("#ccRefTable").disabled = true;
+      if (state.editingCcKey) {
+        await api(
+          `/api/custom-tables/${encodeURIComponent(tableKey)}/columns/${encodeURIComponent(
+            state.editingCcKey
+          )}`,
+          {
+            method: "PUT",
+            body: JSON.stringify(payload),
+          }
+        );
+        toast(`Column '${state.editingCcKey}' updated`);
+      } else {
+        await api(`/api/custom-tables/${encodeURIComponent(tableKey)}/columns`, {
+          method: "POST",
+          body: JSON.stringify({ column_key: columnKey, ...payload }),
+        });
+        toast("Column added");
+      }
+      resetCustomColumnForm();
       await loadCustomTables();
     } catch (err) {
-      toast(err.message || "Add column failed", true);
+      toast(err.message || "Save column failed", true);
     }
   }
 
@@ -2031,7 +2198,7 @@
       $("#customRecordBody").innerHTML = "";
       return;
     }
-    $("#customRecordsTitle").textContent = table.label || tableKey;
+    $("#customRecordsTitle").textContent = formatTableChoiceLabel(table);
     $("#customRecordsHint").textContent = `table_key=${tableKey} · records in cmdb_custom_records`;
     const params = new URLSearchParams({
       page: String(state.customRecordPage),
@@ -2601,6 +2768,14 @@
   }
 
   function wireEvents() {
+    // Keep help “i” balloons from toggling parent <label> controls.
+    document.addEventListener("click", (e) => {
+      const tip = e.target.closest?.(".help-balloon");
+      if (!tip) return;
+      e.preventDefault();
+      e.stopPropagation();
+      tip.focus();
+    });
     $("#btnConnect")?.addEventListener("click", connect);
     $("#btnOidcLogin")?.addEventListener("click", () => {
       if (!authConfig.oidc_enabled) {
@@ -2739,10 +2914,21 @@
         toast(err.message, true);
       }
     });
-    $("#customTableForm")?.addEventListener("submit", createCustomTable);
-    $("#customColumnForm")?.addEventListener("submit", addCustomColumn);
+    $("#customTableForm")?.addEventListener("submit", saveCustomTable);
+    $("#customColumnForm")?.addEventListener("submit", saveCustomColumn);
+    $("#btnCtCancelEdit")?.addEventListener("click", () => resetCustomTableForm());
+    $("#btnCcCancelEdit")?.addEventListener("click", () => resetCustomColumnForm());
+    $("#btnCtEditSelected")?.addEventListener("click", () => {
+      const key = $("#ctSelectedTable")?.value || state.selectedCustomTableKey;
+      if (!key) {
+        toast("Select a table first", true);
+        return;
+      }
+      beginEditCustomTable(key);
+    });
     $("#ctSelectedTable")?.addEventListener("change", () => {
       state.selectedCustomTableKey = $("#ctSelectedTable").value;
+      if (state.editingCcKey) resetCustomColumnForm();
       populateRefTableSelect();
       renderCustomColumns();
     });
@@ -2759,12 +2945,19 @@
         await api(`/api/custom-tables/${encodeURIComponent(key)}`, { method: "DELETE" });
         toast(`Deleted table ${key}`);
         state.selectedCustomTableKey = null;
+        if (state.editingCtKey === key) resetCustomTableForm();
+        resetCustomColumnForm();
         await loadCustomTables();
       } catch (err) {
         toast(err.message, true);
       }
     });
     $("#customColumnBody")?.addEventListener("click", async (e) => {
+      const editKey = e.target.getAttribute("data-cc-edit");
+      if (editKey) {
+        beginEditCustomColumn(editKey);
+        return;
+      }
       const key = e.target.getAttribute("data-cc-del");
       if (!key) return;
       const tableKey = $("#ctSelectedTable")?.value || state.selectedCustomTableKey;
@@ -2776,12 +2969,18 @@
           { method: "DELETE" }
         );
         toast("Column deleted");
+        if (state.editingCcKey === key) resetCustomColumnForm();
         await loadCustomTables();
       } catch (err) {
         toast(err.message, true);
       }
     });
     $("#customTableBody")?.addEventListener("click", (e) => {
+      const editKey = e.target.getAttribute("data-ct-edit");
+      if (editKey) {
+        beginEditCustomTable(editKey);
+        return;
+      }
       const key = e.target.getAttribute("data-ct-browse");
       if (key) showTab(`ct:${key}`);
     });
