@@ -132,6 +132,16 @@ def start_diagnostic(
 ) -> dict[str, Any]:
     """Validate and run an approved profile in SIMULATED mode; persist history."""
     tid = require_tenant_id(tenant_id)
+
+    # Entitlements-only gate (no payment system). Unlimited by default in v1.
+    from . import entitlements as entitlements_service
+    from .entitlements import EntitlementError
+
+    try:
+        entitlements_service.assert_can_run_diagnostic(tid)
+    except EntitlementError as exc:
+        raise DiagnosticError(exc.message, status_code=exc.status_code) from exc
+
     component = components_service.get_component(payload.component_id, tenant_id=tid)
     if component is None:
         raise DiagnosticError(

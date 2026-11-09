@@ -485,7 +485,7 @@ def test_custom_tables_ui_includes_edit_and_help(
     assert 'id="btnCtEditSelected"' in html
     assert "help-balloon" in html
     assert "e.g. business_services" in html
-    assert "cmdb.js?v=" in html and "0.25.0" in html
+    assert "cmdb.js?v=" in html and "0.26.0" in html
     assert 'class="check-field"' in html
     assert 'id="ccRequired"' in html
 
@@ -512,7 +512,7 @@ def test_custom_tables_dropdown_css_avoids_blank_options(
     assert 'id="ccRefTable"' in html
     assert 'id="relSourceTable"' in html
     assert 'id="relTargetTable"' in html
-    assert "0.25.0" in html
+    assert "0.26.0" in html
 
 
 def test_custom_tables_form_layout_and_combo_collapse_css(

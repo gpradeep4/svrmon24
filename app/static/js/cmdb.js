@@ -289,6 +289,7 @@
       const t = current.tenant || {};
       tenantName = t.display_name || tenantName;
       tenantId = t.tenant_id || tenantId;
+      state.tenantId = tenantId;
       setTenantBanner(true, tenantName, tenantId);
       if (switcher) {
         switcher.innerHTML = "";
@@ -1414,6 +1415,7 @@
         refreshComponentIdList(),
         loadDiagnosticProfiles(),
         loadDiagnosticHistory(),
+        refreshDiagEntitlementHint(),
         refreshOllamaStatus(),
       ]).catch((err) => toast(err.message, true));
     }
@@ -1445,6 +1447,20 @@
       opt.value = profile.profile_name;
       opt.textContent = `${profile.display_name || profile.profile_name} [${profile.execution_mode}]`;
       sel.appendChild(opt);
+    }
+  }
+
+  async function refreshDiagEntitlementHint() {
+    const el = $("#diagEntitlementHint");
+    if (!el) return;
+    try {
+      const data = state.entitlements || (await api("/api/entitlements"));
+      state.entitlements = data;
+      const lim = data.limits?.max_diagnostic_runs;
+      const shown = lim == null ? "unlimited" : String(lim);
+      el.textContent = `Entitlements: max_diagnostic_runs = ${shown} (Plans). SIMULATED only — no live probes.`;
+    } catch (err) {
+      el.textContent = `Entitlements unavailable (${err.message || "error"}).`;
     }
   }
 
@@ -1496,6 +1512,7 @@
     }
     state.currentDiagnosticId = doc.diagnostic_id;
     const c = doc.component || {};
+    const tid = doc.tenant_id || state.tenantId || "—";
     $("#diagLatest").innerHTML = `
       <div class="demo-banner">${escapeHtml(doc.labels?.banner || "SIMULATED / SYNTHETIC_DEMO — not live telemetry")}</div>
       <div style="margin-top:8px">
@@ -1504,10 +1521,12 @@
         · profile ${escapeHtml(doc.profile_name)}
         · component <span class="mono">${escapeHtml(doc.component_id)}</span>
         (${escapeHtml(c.component_type || "")} / ${escapeHtml(c.name || "")})
+        · tenant <span class="mono">${escapeHtml(tid)}</span>
         · ${escapeHtml(doc.timestamp || "")}
       </div>
       <div class="hint">Upstream deps: ${escapeHtml((doc.dependency_context?.upstream_direct || []).length)}
-        · Downstream deps: ${escapeHtml((doc.dependency_context?.downstream_direct || []).length)}</div>`;
+        · Downstream deps: ${escapeHtml((doc.dependency_context?.downstream_direct || []).length)}
+        · safety: remote=${escapeHtml(String(!!doc.safety?.remote_execution))} shell=${escapeHtml(String(!!doc.safety?.shell))} sql=${escapeHtml(String(!!doc.safety?.sql))} scan=${escapeHtml(String(!!doc.safety?.network_scan))}</div>`;
 
     const tbody = $("#diagChecksBody");
     tbody.innerHTML = "";
@@ -1569,6 +1588,13 @@
 
   async function loadDiagnosticHistory() {
     const data = await api("/api/diagnostics?page=1&page_size=25");
+    const meta = $("#diagHistoryMeta");
+    if (meta) {
+      const tid = data.tenant_id || state.tenantId || "—";
+      meta.textContent = `Tenant-scoped history · tenant_id ${tid} · mode ${
+        data.execution_mode || "SIMULATED"
+      } · ${data.total || 0} run(s)`;
+    }
     const tbody = $("#diagHistoryBody");
     tbody.innerHTML = "";
     const items = data.items || [];
