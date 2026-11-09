@@ -8,6 +8,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 
 from ..auth import require_user
 from ..models.relationships import RelationshipCreate, RelationshipUpdate
+from ..permissions import PERM_RELATIONSHIPS_WRITE, require_permission
 from ..services import audit as audit_service
 from ..services import relationships as relationships_service
 from ..services.relationships import RelationshipError
@@ -62,7 +63,7 @@ def list_relationships(
 @router.post("", status_code=201)
 def create_relationship(
     payload: RelationshipCreate,
-    tenant: TenantContext = Depends(require_tenant),
+    tenant: TenantContext = Depends(require_permission(PERM_RELATIONSHIPS_WRITE)),
 ) -> dict[str, Any]:
     try:
         doc = relationships_service.create_relationship(
@@ -106,7 +107,7 @@ def get_relationship(
 def update_relationship(
     relationship_id: str,
     payload: RelationshipUpdate,
-    tenant: TenantContext = Depends(require_tenant),
+    tenant: TenantContext = Depends(require_permission(PERM_RELATIONSHIPS_WRITE)),
 ) -> dict[str, Any]:
     try:
         doc = relationships_service.update_relationship(
@@ -129,7 +130,7 @@ def update_relationship(
 @router.delete("/{relationship_id}")
 def delete_relationship(
     relationship_id: str,
-    tenant: TenantContext = Depends(require_tenant),
+    tenant: TenantContext = Depends(require_permission(PERM_RELATIONSHIPS_WRITE)),
 ) -> dict[str, Any]:
     try:
         result = relationships_service.delete_relationship(

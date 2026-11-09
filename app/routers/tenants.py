@@ -1,4 +1,4 @@
-"""Tenant + membership APIs (Master Phase 5 isolation + Phase 13 org switcher).
+"""Tenant + membership APIs (Phase 5 isolation + Phase 13 switcher + RBAC).
 
 Org switcher is enabled for multi-membership OIDC users. HTTP Basic remains
 scoped to the migration tenant and cannot switch orgs (no tenant-auth bypass).
@@ -13,6 +13,17 @@ from pydantic import BaseModel, Field, field_validator
 
 from ..auth import AuthUser, require_user
 from ..config import Settings, get_settings
+from ..permissions import (
+    PERM_ORG_ADMIN,
+    PERM_PLANS_ADMIN,
+    PERM_USERS_ADMIN,
+    PERM_USERS_READ,
+    can_assign_role,
+    describe_for_tenant,
+    has_permission,
+    permissions_for_tenant,
+    require_permission,
+)
 from ..services import audit as audit_service
 from ..services import entitlements as entitlements_service
 from ..services import memberships as memberships_service
@@ -22,7 +33,7 @@ from ..services.memberships import MembershipError
 from ..services.tenants import TenantError
 from ..tenancy import (
     ISOLATION_ENFORCED,
-    MEMBERSHIP_ROLE_ADMIN,
+    MEMBERSHIP_ROLE_OWNER,
     MIGRATION_TENANT_ID,
     ORG_SWITCHER_ENABLED,
     require_tenant_id,
@@ -49,7 +60,7 @@ class TenantCreateRequest(BaseModel):
     notes: str | None = None
     admin_user_id: str | None = Field(
         default=None,
-        description="Optional local user_id to grant tenant admin membership",
+        description="Optional local user_id to grant tenant owner membership",
     )
 
 
@@ -60,6 +71,10 @@ class TenantPlanRequest(BaseModel):
 class MembershipCreateRequest(BaseModel):
     user_id: str = Field(..., min_length=1)
     role: str = Field(default="member")
+
+
+class MembershipRoleUpdateRequest(BaseModel):
+    role: str = Field(..., min_length=1)
 
 
 def _resolve_local_user(user: AuthUser, settings: Settings) -> dict[str, Any] | None:
@@ -83,17 +98,6 @@ def _require_platform_admin(tenant_ctx: TenantContext) -> None:
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Platform admin required (CLI bootstrap only)",
         )
-
-
-def _require_tenant_admin(tenant_ctx: TenantContext) -> None:
-    if tenant_ctx.is_platform_admin:
-        return
-    if tenant_ctx.membership_role == MEMBERSHIP_ROLE_ADMIN:
-        return
-    raise HTTPException(
-        status_code=status.HTTP_403_FORBIDDEN,
-        detail="Tenant admin or platform admin required",
-    )
 
 
 def _enrich_tenant(tenant: dict[str, Any] | None) -> dict[str, Any] | None:
@@ -124,12 +128,21 @@ def get_current_tenant(
         "membership_role": tenant_ctx.membership_role,
         "is_platform_admin": tenant_ctx.is_platform_admin,
         "auth_method": tenant_ctx.auth_user.auth_method,
+        "permissions": sorted(permissions_for_tenant(tenant_ctx)),
         "notes": (
-            "Master Phase 13: hard tenant isolation remains enforced. "
-            "Organization switching is available for OIDC users with multiple "
-            "memberships. HTTP Basic stays on the migration tenant only."
+            "Hard tenant isolation remains enforced. Organization switching is "
+            "available for OIDC users with multiple memberships. HTTP Basic stays "
+            "on the migration tenant only. Permissions are tenant-role scoped."
         ),
     }
+
+
+@router.get("/api/permissions")
+def get_permissions(
+    tenant_ctx: TenantContext = Depends(require_tenant),
+) -> dict[str, Any]:
+    """Return the RBAC catalog, matrix, and the caller's current permissions."""
+    return describe_for_tenant(tenant_ctx)
 
 
 @router.get("/api/tenants")
@@ -282,10 +295,22 @@ def switch_tenant(
         request_method="POST",
         request_path="/api/tenants/switch",
     )
+    # Rebuild context-ish permission set for the switched membership role.
+    switched = TenantContext(
+        tenant_id=target,
+        auth_user=tenant_ctx.auth_user,
+        user_id=tenant_ctx.user_id,
+        membership_role=str(membership.get("role") or "") or None,
+        is_platform_admin=tenant_ctx.is_platform_admin,
+        tenant_display_name=str(
+            (enriched or {}).get("display_name") or target
+        ),
+    )
     return {
         "ok": True,
         "tenant": enriched,
         "membership_role": membership.get("role"),
+        "permissions": sorted(permissions_for_tenant(switched)),
         "previous_tenant_id": tenant_ctx.tenant_id,
         "org_switcher_enabled": ORG_SWITCHER_ENABLED,
         "isolation_enforced": ISOLATION_ENFORCED,
@@ -318,7 +343,7 @@ def create_tenant(
             membership = memberships_service.ensure_membership(
                 user_id=body.admin_user_id.strip(),
                 tenant_id=tenant["tenant_id"],
-                role=MEMBERSHIP_ROLE_ADMIN,
+                role=MEMBERSHIP_ROLE_OWNER,
                 upgrade_role=True,
             )
         except MembershipError as exc:
@@ -388,7 +413,7 @@ def get_tenant(
 def set_tenant_plan(
     tenant_id: str,
     body: TenantPlanRequest,
-    tenant_ctx: TenantContext = Depends(require_tenant),
+    tenant_ctx: TenantContext = Depends(require_permission(PERM_PLANS_ADMIN)),
 ) -> dict[str, Any]:
     """Assign entitlements plan_code (platform admin only; no payment provider)."""
     _require_platform_admin(tenant_ctx)
@@ -464,17 +489,15 @@ def list_my_memberships(
 @router.get("/api/tenants/{tenant_id}/members")
 def list_tenant_members(
     tenant_id: str,
-    tenant_ctx: TenantContext = Depends(require_tenant),
+    tenant_ctx: TenantContext = Depends(require_permission(PERM_USERS_READ)),
 ) -> dict[str, Any]:
-    """List members of a tenant (tenant admin of current org, or platform admin)."""
+    """List members of a tenant (users:read — admin/owner or platform admin)."""
     tid = require_tenant_id(tenant_id)
     if tid != tenant_ctx.tenant_id and not tenant_ctx.is_platform_admin:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND, detail="Tenant not found"
         )
-    if tid == tenant_ctx.tenant_id:
-        _require_tenant_admin(tenant_ctx)
-    else:
+    if tid != tenant_ctx.tenant_id:
         _require_platform_admin(tenant_ctx)
 
     items = memberships_service.list_memberships_for_tenant(tid)
@@ -493,25 +516,32 @@ def list_tenant_members(
 def add_tenant_member(
     tenant_id: str,
     body: MembershipCreateRequest,
-    tenant_ctx: TenantContext = Depends(require_tenant),
+    tenant_ctx: TenantContext = Depends(require_permission(PERM_USERS_ADMIN)),
 ) -> dict[str, Any]:
-    """Add a membership (tenant admin of current org, or platform admin)."""
+    """Add a membership (users:admin; owner role requires org:admin)."""
     tid = require_tenant_id(tenant_id)
     if tid != tenant_ctx.tenant_id and not tenant_ctx.is_platform_admin:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND, detail="Tenant not found"
         )
-    if tid == tenant_ctx.tenant_id:
-        _require_tenant_admin(tenant_ctx)
-    else:
+    if tid != tenant_ctx.tenant_id:
         _require_platform_admin(tenant_ctx)
+
+    if not can_assign_role(actor=tenant_ctx, target_role=body.role):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail=(
+                f"Cannot assign role '{body.role}' "
+                f"(org:admin required for owner; users:admin for other roles)"
+            ),
+        )
 
     try:
         membership = memberships_service.ensure_membership(
             user_id=body.user_id.strip(),
             tenant_id=tid,
             role=body.role,
-            upgrade_role=(body.role == MEMBERSHIP_ROLE_ADMIN),
+            upgrade_role=True,
         )
     except MembershipError as exc:
         raise HTTPException(status_code=exc.status_code, detail=exc.message) from exc
@@ -524,5 +554,83 @@ def add_tenant_member(
         target_tenant_id=tid,
         request_method="POST",
         request_path=f"/api/tenants/{tid}/members",
+    )
+    return {"membership": membership, "tenant_id": tid}
+
+
+@router.put("/api/tenants/{tenant_id}/members/{membership_id}")
+def update_tenant_member_role(
+    tenant_id: str,
+    membership_id: str,
+    body: MembershipRoleUpdateRequest,
+    tenant_ctx: TenantContext = Depends(require_permission(PERM_USERS_ADMIN)),
+) -> dict[str, Any]:
+    """Update a membership role (users:admin; owner requires org:admin)."""
+    tid = require_tenant_id(tenant_id)
+    if tid != tenant_ctx.tenant_id and not tenant_ctx.is_platform_admin:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Tenant not found"
+        )
+    if tid != tenant_ctx.tenant_id:
+        _require_platform_admin(tenant_ctx)
+
+    if not can_assign_role(actor=tenant_ctx, target_role=body.role):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail=f"Cannot assign role '{body.role}'",
+        )
+
+    existing = memberships_service.get_membership(membership_id)
+    if existing is None or str(existing.get("tenant_id")) != tid:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Membership not found"
+        )
+
+    # Changing an existing owner requires org:admin (or platform admin).
+    if (
+        existing.get("role") == MEMBERSHIP_ROLE_OWNER
+        and body.role != MEMBERSHIP_ROLE_OWNER
+        and not tenant_ctx.is_platform_admin
+        and not has_permission(tenant_ctx, PERM_ORG_ADMIN)
+    ):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="org:admin required to demote an owner",
+        )
+
+    # Prevent removing the last owner (platform admin may still recover).
+    if (
+        existing.get("role") == MEMBERSHIP_ROLE_OWNER
+        and body.role != MEMBERSHIP_ROLE_OWNER
+        and memberships_service.count_owners(tid) <= 1
+        and not tenant_ctx.is_platform_admin
+    ):
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Cannot demote the last owner of this organization",
+        )
+
+    try:
+        membership = memberships_service.update_membership_role(
+            membership_id=membership_id,
+            role=body.role,
+        )
+    except MembershipError as exc:
+        raise HTTPException(status_code=exc.status_code, detail=exc.message) from exc
+
+    audit_service.record_from_tenant(
+        tenant_ctx,
+        action="membership.role_update",
+        resource_type="membership",
+        resource_id=membership_id,
+        details={
+            "user_id": existing.get("user_id"),
+            "previous_role": existing.get("role"),
+            "role": body.role,
+            "tenant_id": tid,
+        },
+        target_tenant_id=tid,
+        request_method="PUT",
+        request_path=f"/api/tenants/{tid}/members/{membership_id}",
     )
     return {"membership": membership, "tenant_id": tid}

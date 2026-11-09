@@ -3,8 +3,9 @@
 
 Platform admin is **never** granted automatically on first public OIDC login.
 Use this script (operator-only) to create or upgrade a local user with
-``is_platform_admin=True`` and optionally a tenant ``admin`` membership on the
-migration tenant ``SVRMON24 Legacy``.
+``is_platform_admin=True`` and optionally a tenant membership
+(``viewer``|``member``|``admin``|``owner``) on the migration tenant
+``SVRMON24 Legacy``.
 
 Examples::
 
@@ -40,8 +41,8 @@ from app.services import users as users_service
 from app.services.bootstrap import ensure_tenancy_ready
 from app.services.users import UserError
 from app.tenancy import (
-    MEMBERSHIP_ROLE_ADMIN,
-    MEMBERSHIP_ROLE_MEMBER,
+    MEMBERSHIP_ROLE_OWNER,
+    MEMBERSHIP_ROLES,
     MIGRATION_TENANT_ID,
 )
 
@@ -61,9 +62,9 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--user-id", default=None, help="Existing user_id to upgrade")
     parser.add_argument(
         "--tenant-role",
-        choices=[MEMBERSHIP_ROLE_MEMBER, MEMBERSHIP_ROLE_ADMIN],
-        default=MEMBERSHIP_ROLE_ADMIN,
-        help="Membership role on migration tenant (default: admin)",
+        choices=sorted(MEMBERSHIP_ROLES),
+        default=MEMBERSHIP_ROLE_OWNER,
+        help="Membership role on migration tenant (default: owner)",
     )
     parser.add_argument(
         "--skip-membership",
@@ -109,7 +110,7 @@ def main(argv: list[str] | None = None) -> int:
             user_id=user["user_id"],
             tenant_id=MIGRATION_TENANT_ID,
             role=args.tenant_role,
-            upgrade_role=(args.tenant_role == MEMBERSHIP_ROLE_ADMIN),
+            upgrade_role=True,
         )
 
     print("platform admin ready")

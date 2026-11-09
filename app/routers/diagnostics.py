@@ -10,6 +10,7 @@ from pydantic import BaseModel, Field
 
 from ..auth import require_user
 from ..models.diagnostics import DiagnosticStartRequest
+from ..permissions import PERM_DIAGNOSTICS_RUN, require_permission
 from ..services import ai_analysis as ai_analysis_service
 from ..services import diagnostics as diagnostics_service
 from ..services.ai_analysis import AnalysisError
@@ -50,7 +51,7 @@ def ollama_status(
 @router.post("", status_code=201)
 def start_diagnostic(
     payload: DiagnosticStartRequest,
-    tenant: TenantContext = Depends(require_tenant),
+    tenant: TenantContext = Depends(require_permission(PERM_DIAGNOSTICS_RUN)),
 ) -> dict[str, Any]:
     try:
         return diagnostics_service.start_diagnostic(
@@ -82,7 +83,7 @@ def list_history(
 def analyze_diagnostic(
     diagnostic_id: str,
     payload: AnalyzeRequest | None = None,
-    tenant: TenantContext = Depends(require_tenant),
+    tenant: TenantContext = Depends(require_permission(PERM_DIAGNOSTICS_RUN)),
 ) -> dict[str, Any]:
     """Run AI analysis (Ollama) with rule-based fallback; store on the diagnostic."""
     try:

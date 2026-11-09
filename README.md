@@ -4,11 +4,12 @@ AI-assisted infrastructure CMDB, dependency mapping, **SIMULATED** diagnostics, 
 
 Stack: **FastAPI + Uvicorn + MongoDB (PyMongo) + provider-neutral OIDC** (HTTP Basic optional via feature flag). Diagnostics never contact remote hosts and never execute shell/SQL/network scans.
 
-## Features (through Master Phase 14 Audit / hardening / release / 0.29.0)
+## Features (through Roles & Permissions RBAC / 0.30.0)
 
 | Area | Capability |
 | --- | --- |
 | Auth / ops | OIDC (Auth Code + PKCE), feature-flagged HTTP Basic (still present — cutover documented, not silently removed), `/health`, `/api/status`, structured logging |
+| Roles / RBAC | Tenant roles `viewer` / `member` / `admin` / `owner` with a permission matrix (CMDB, relationships, diagnostics, config, users/org, audit, plans); mutating APIs enforce permissions; UI hides/disables denied actions; platform admin remains CLI-bootstrap only |
 | Tenancy | Hard `tenant_id` isolation on CMDB/relationships/field-definitions/column-configurations/custom-tables/diagnostics/dashboard; migration tenant **SVRMON24 Legacy** (`tenant-svrmon24-legacy`); Basic scoped to migration tenant (no auth bypass); **org switcher enabled** for multi-membership OIDC users |
 | CMDB | Typed Mongo collections (`cmdb_servers`, `cmdb_network`, `cmdb_middleware`, `cmdb_databases`, `cmdb_applications`) behind stable `/api/components*` facade; OS Family/Version and Product Type/Version stay separate |
 | Field definitions | Tenant-scoped `cmdb_field_definitions` (custom + locked built-in OS/product natives); `/api/custom-fields` facade; values still on component `custom_fields` |
@@ -211,6 +212,16 @@ Ollama runs as a **shared local** process (one host / GPU / CPU pool). Concurren
 - Release checklist + **Basic removal path** (flag off in prod; code removal is a future explicit PR): [`docs/release-hardening.md`](docs/release-hardening.md)
 - **Basic is not silently removed** — still feature-flagged for migration coexistence after OIDC+migration verification
 
+### Roles and permissions (RBAC / 0.30.0)
+
+- Tenant-scoped roles: **`viewer`** (read), **`member`** (CMDB / relationships / diagnostics write), **`admin`** (+ config, users, audit), **`owner`** (+ `org:admin` / grant owner)
+- Permission catalog: `cmdb:*`, `relationships:*`, `diagnostics:*`, `config:*`, `users:*`, `org:admin`, `audit:read`, `plans:*`
+- `GET /api/permissions` returns roles, matrix, and the caller's effective permissions; `/api/tenants/current` includes `permissions`
+- Mutating/sensitive routes enforce permissions (403); UI Roles panel shows the matrix; mutate buttons are hidden/disabled when denied
+- Platform admin stays **CLI bootstrap only** and receives all permissions including `plans:admin`; HTTP Basic uses an effective **admin** role on the migration tenant only
+- Membership role update: `PUT /api/tenants/{id}/members/{membership_id}`; last-owner demotion blocked (except platform admin recovery)
+- New functional tests only: `pytest tests/test_roles_permissions.py -q`
+
 ### Release checklist (short)
 
 1. Configure OIDC; set `BASIC_AUTH_ENABLED=false` for shared/prod  
@@ -290,7 +301,8 @@ pytest -v
 | GET | `/api/status` | OIDC / Basic* | App + MongoDB status |
 | GET | `/api/me` | OIDC / Basic* | Principal (+ tenant/membership when OIDC-linked) |
 | GET | `/api/tenants` | OIDC / Basic* | List tenants (migration tenant only) |
-| GET | `/api/tenants/current` | OIDC / Basic* | Current / migration tenant |
+| GET | `/api/tenants/current` | OIDC / Basic* | Current / migration tenant (+ permissions) |
+| GET | `/api/permissions` | OIDC / Basic* | RBAC catalog, matrix, caller permissions |
 | GET | `/api/memberships` | OIDC / Basic* | Memberships for current OIDC user |
 | GET | `/api/dashboard/summary` | OIDC / Basic* | Live dashboard widgets |
 | GET/POST | `/api/components` | OIDC / Basic* | List / create components |

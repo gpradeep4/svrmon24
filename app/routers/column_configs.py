@@ -11,6 +11,7 @@ from fastapi import APIRouter, Depends, HTTPException
 
 from ..auth import require_user
 from ..models.column_configs import ColumnConfigurationUpdate
+from ..permissions import PERM_CONFIG_WRITE, require_permission
 from ..services import audit as audit_service
 from ..services import column_configs as column_configs_service
 from ..services.column_configs import ColumnConfigError
@@ -58,7 +59,7 @@ def get_column_configuration(
 def put_column_configuration(
     grid_key: str,
     payload: ColumnConfigurationUpdate,
-    tenant: TenantContext = Depends(require_tenant),
+    tenant: TenantContext = Depends(require_permission(PERM_CONFIG_WRITE)),
 ) -> dict[str, Any]:
     try:
         doc = column_configs_service.upsert_configuration(
@@ -81,7 +82,7 @@ def put_column_configuration(
 @router.delete("/{grid_key}")
 def delete_column_configuration(
     grid_key: str,
-    tenant: TenantContext = Depends(require_tenant),
+    tenant: TenantContext = Depends(require_permission(PERM_CONFIG_WRITE)),
 ) -> dict[str, Any]:
     try:
         result = column_configs_service.reset_configuration(
