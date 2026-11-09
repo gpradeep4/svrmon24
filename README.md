@@ -4,11 +4,11 @@ AI-assisted infrastructure CMDB, dependency mapping, **SIMULATED** diagnostics, 
 
 Stack: **FastAPI + Uvicorn + MongoDB (PyMongo) + provider-neutral OIDC** (HTTP Basic optional via feature flag). Diagnostics never contact remote hosts and never execute shell/SQL/network scans.
 
-## Features (through Master Phase 13 Admin / plans / org UX / 0.28.0)
+## Features (through Master Phase 14 Audit / hardening / release / 0.29.0)
 
 | Area | Capability |
 | --- | --- |
-| Auth / ops | OIDC (Auth Code + PKCE), feature-flagged HTTP Basic, `/health`, `/api/status`, structured logging |
+| Auth / ops | OIDC (Auth Code + PKCE), feature-flagged HTTP Basic (still present — cutover documented, not silently removed), `/health`, `/api/status`, structured logging |
 | Tenancy | Hard `tenant_id` isolation on CMDB/relationships/field-definitions/column-configurations/custom-tables/diagnostics/dashboard; migration tenant **SVRMON24 Legacy** (`tenant-svrmon24-legacy`); Basic scoped to migration tenant (no auth bypass); **org switcher enabled** for multi-membership OIDC users |
 | CMDB | Typed Mongo collections (`cmdb_servers`, `cmdb_network`, `cmdb_middleware`, `cmdb_databases`, `cmdb_applications`) behind stable `/api/components*` facade; OS Family/Version and Product Type/Version stay separate |
 | Field definitions | Tenant-scoped `cmdb_field_definitions` (custom + locked built-in OS/product natives); `/api/custom-fields` facade; values still on component `custom_fields` |
@@ -17,10 +17,12 @@ Stack: **FastAPI + Uvicorn + MongoDB (PyMongo) + provider-neutral OIDC** (HTTP B
 | Relationships | SaaS wrap of the existing engine: tenant-scoped CRUD; HOSTED_ON / DEPENDS_ON / CONNECTS_TO / ROUTES_TO (CMDB ↔ CMDB, custom ↔ CMDB, custom ↔ custom); null-table CMDB edges preserved; UI table selectors + entity-refs pickers; Protocol / Source Port / Target Port never combined |
 | Entitlements | Plan catalog (`legacy_unlimited` / `starter` / `standard`); tenant `plan_code`; `GET /api/entitlements` + `/plans`; relationship / depth / diagnostic / Ollama checks; **no payment provider** |
 | Admin / org UX | CLI platform-admin bootstrap (never auto-admin first registrant); create-tenant + assign-plan CLIs; Settings org switcher; Users memberships + tenant members |
+| Audit | Tenant-scoped `audit_events` for mutating admin/tenant/CMDB actions; `GET /api/audit-events`; Audit Logs UI |
 | Dependencies | SaaS wrap of the existing graph engine: tenant-scoped upstream / downstream / impact; typed CMDB **and** custom-table relationship edges; protocol/ports preserved; “potentially affected” disclaimer |
 | Diagnostics | SaaS wrap of the **existing** SIMULATED engine: tenant-scoped run/list/get history; `basic-health` only; no live/remote probes; `max_diagnostic_runs` entitlement |
 | AI analysis | Local Ollama only (`OLLAMA_ENABLED` off by default; `OLLAMA_URL` / `OLLAMA_MODEL`); tenant `max_ollama_analyses`; rule-based fallback; shared-local contention documented |
 | Dashboard | Live aggregates from MongoDB (no hardcoded counts) |
+| Release | Migration dry-run script/docs; release hardening checklist; Basic removal path documented after OIDC+migration |
 
 ## Requirements
 
@@ -198,7 +200,24 @@ Ollama runs as a **shared local** process (one host / GPU / CPU pool). Concurren
 - Org switcher is **real** for multi-membership OIDC users (`POST /api/tenants/switch`); Basic stays on migration tenant only
 - Users panel lists my memberships + current-org members (tenant admin / platform admin); Settings hosts the working switcher
 - Operator create-org CLI: `scripts/create_tenant.py`
-- **Stop-and-wait** — do not start Phase 14 from this deliverable
+
+### Audit, hardening, release (Master Phase 14 / 0.29.0) — roadmap complete
+
+- Collection **`audit_events`**: records mutating admin / tenant / CMDB actions (components, relationships, field defs, column configs, custom tables/records, tenant create/plan/switch, memberships)
+- APIs: `GET /api/audit-events`, `GET /api/audit-events/{audit_id}` (tenant-scoped; tenant admin / platform admin / Basic migration session)
+- Audit Logs UI under Administration (replaces Coming soon)
+- Targeted SaaS security tests: cross-tenant denial fuzz + OIDC negative paths (`tests/test_phase14_audit_security.py`)
+- Migration dry-run: `python scripts/migration_dry_run.py` + [`docs/migration-dry-run.md`](docs/migration-dry-run.md)
+- Release checklist + **Basic removal path** (flag off in prod; code removal is a future explicit PR): [`docs/release-hardening.md`](docs/release-hardening.md)
+- **Basic is not silently removed** — still feature-flagged for migration coexistence after OIDC+migration verification
+
+### Release checklist (short)
+
+1. Configure OIDC; set `BASIC_AUTH_ENABLED=false` for shared/prod  
+2. `python scripts/migration_dry_run.py` → then backfill / typed / field migrations as needed  
+3. Bootstrap platform admin via CLI; verify org switch + cross-tenant 404s  
+4. Confirm Audit Logs show mutating actions; run `pytest tests/test_phase14_audit_security.py -q`  
+5. Keep Basic code until Stage C in `docs/release-hardening.md` is signed off  
 
 ### Important: one browser host only
 
@@ -290,6 +309,8 @@ pytest -v
 | GET/PUT/DELETE | `/api/custom-tables/{key}/records/{id}` | OIDC / Basic* | Get / update / delete custom record |
 | GET | `/api/entity-refs` | OIDC / Basic* | Unified CMDB + custom entity picker |
 | GET | `/api/entitlements` | OIDC / Basic* | Tenant plan limits (entitlements-only; no billing) |
+| GET | `/api/audit-events` | OIDC / Basic* | Tenant-scoped audit log (admin / Basic) |
+| GET | `/api/audit-events/{id}` | OIDC / Basic* | Single audit event (404 cross-tenant) |
 | GET/POST | `/api/relationships` | OIDC / Basic* | List / create relationships |
 | GET/PUT/DELETE | `/api/relationships/{id}` | OIDC / Basic* | Get / update / delete |
 | GET | `/api/relationships/types` | OIDC / Basic* | Type meaning + direction docs |
@@ -334,8 +355,9 @@ svrmon24/
     oidc.py            # Discovery / PKCE / token validation
     tenancy.py         # Migration tenant constants + scoping helpers
     tenant_context.py  # Resolve current tenant from membership / Basic
-  scripts/             # Demo seed, tenant backfill, platform-admin CLI
-  tests/               # Pytest suite (incl. cross-tenant denial)
+  scripts/             # Demo seed, tenant backfill, platform-admin CLI, migration dry-run
+  docs/                # Migration dry-run + release hardening
+  tests/               # Pytest suite (incl. Phase 14 audit/security)
   requirements.txt
   .env.example         # Placeholders only
   README.md

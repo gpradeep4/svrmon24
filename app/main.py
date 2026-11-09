@@ -18,6 +18,7 @@ from .config import Settings, get_settings
 from .db import close_client, ping_database
 from .exceptions import register_exception_handlers
 from .logging_config import configure_logging
+from .routers import audit as audit_router
 from .routers import auth_routes
 from .routers import column_configs as column_configs_router
 from .routers import components as components_router
@@ -86,8 +87,9 @@ def create_app() -> FastAPI:
             "SVRMON24: FastAPI + MongoDB CMDB, relationships, dependency/impact "
             "analysis, SIMULATED diagnostics, AI analysis, and dashboard with "
             "provider-neutral OIDC auth (HTTP Basic optional via feature flag). "
-            "Hard tenant isolation on shared MongoDB; single-tenant UX "
-            "(org switcher disabled). Diagnostics are demo-only; no remote execution."
+            "Hard tenant isolation on shared MongoDB; org switcher for "
+            "multi-membership OIDC users. Diagnostics are demo-only; no remote execution. "
+            "Audit events collected for sensitive mutating SaaS actions."
         ),
         lifespan=lifespan,
     )
@@ -108,6 +110,7 @@ def create_app() -> FastAPI:
 
     app.include_router(auth_routes.router)
     app.include_router(tenants_router.router)
+    app.include_router(audit_router.router)
     app.include_router(components_router.router)
     app.include_router(custom_fields_router.router)
     app.include_router(custom_fields_router.facade_router)

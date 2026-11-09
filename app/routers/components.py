@@ -8,6 +8,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 
 from ..auth import require_user
 from ..models.components import COMPONENT_TYPES, ComponentCreate, ComponentUpdate
+from ..services import audit as audit_service
 from ..services import components as components_service
 from ..services.components import ComponentError
 from ..tenant_context import TenantContext, require_tenant
@@ -65,7 +66,7 @@ def create_component(
     tenant: TenantContext = Depends(require_tenant),
 ) -> dict[str, Any]:
     try:
-        return components_service.create_component(payload, tenant_id=tenant.tenant_id)
+        doc = components_service.create_component(payload, tenant_id=tenant.tenant_id)
     except ComponentError as exc:
         _raise(exc)
         raise  # pragma: no cover
@@ -75,6 +76,19 @@ def create_component(
         if isinstance(exc, CustomFieldError):
             raise HTTPException(status_code=exc.status_code, detail=exc.message) from exc
         raise
+    audit_service.record_from_tenant(
+        tenant,
+        action="component.create",
+        resource_type="component",
+        resource_id=doc.get("component_id"),
+        details={
+            "component_type": doc.get("component_type"),
+            "name": doc.get("name"),
+        },
+        request_method="POST",
+        request_path="/api/components",
+    )
+    return doc
 
 
 @router.get("/{component_id}")
@@ -95,7 +109,7 @@ def update_component(
     tenant: TenantContext = Depends(require_tenant),
 ) -> dict[str, Any]:
     try:
-        return components_service.update_component(
+        doc = components_service.update_component(
             component_id, payload, tenant_id=tenant.tenant_id
         )
     except ComponentError as exc:
@@ -107,6 +121,16 @@ def update_component(
         if isinstance(exc, CustomFieldError):
             raise HTTPException(status_code=exc.status_code, detail=exc.message) from exc
         raise
+    audit_service.record_from_tenant(
+        tenant,
+        action="component.update",
+        resource_type="component",
+        resource_id=component_id,
+        details={"component_type": doc.get("component_type")},
+        request_method="PUT",
+        request_path=f"/api/components/{component_id}",
+    )
+    return doc
 
 
 @router.get("/{component_id}/delete-preview")
@@ -130,9 +154,19 @@ def delete_component(
     tenant: TenantContext = Depends(require_tenant),
 ) -> dict[str, Any]:
     try:
-        return components_service.delete_component(
+        result = components_service.delete_component(
             component_id, confirmed=confirmed, tenant_id=tenant.tenant_id
         )
     except ComponentError as exc:
         _raise(exc)
         raise  # pragma: no cover
+    if confirmed:
+        audit_service.record_from_tenant(
+            tenant,
+            action="component.delete",
+            resource_type="component",
+            resource_id=component_id,
+            request_method="DELETE",
+            request_path=f"/api/components/{component_id}",
+        )
+    return result

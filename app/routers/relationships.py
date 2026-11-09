@@ -8,6 +8,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 
 from ..auth import require_user
 from ..models.relationships import RelationshipCreate, RelationshipUpdate
+from ..services import audit as audit_service
 from ..services import relationships as relationships_service
 from ..services.relationships import RelationshipError
 from ..tenant_context import TenantContext, require_tenant
@@ -64,12 +65,26 @@ def create_relationship(
     tenant: TenantContext = Depends(require_tenant),
 ) -> dict[str, Any]:
     try:
-        return relationships_service.create_relationship(
+        doc = relationships_service.create_relationship(
             payload, tenant_id=tenant.tenant_id
         )
     except RelationshipError as exc:
         _raise(exc)
         raise  # pragma: no cover
+    audit_service.record_from_tenant(
+        tenant,
+        action="relationship.create",
+        resource_type="relationship",
+        resource_id=doc.get("relationship_id"),
+        details={
+            "relationship_type": doc.get("relationship_type"),
+            "source_component_id": doc.get("source_component_id"),
+            "target_component_id": doc.get("target_component_id"),
+        },
+        request_method="POST",
+        request_path="/api/relationships",
+    )
+    return doc
 
 
 @router.get("/{relationship_id}")
@@ -94,12 +109,21 @@ def update_relationship(
     tenant: TenantContext = Depends(require_tenant),
 ) -> dict[str, Any]:
     try:
-        return relationships_service.update_relationship(
+        doc = relationships_service.update_relationship(
             relationship_id, payload, tenant_id=tenant.tenant_id
         )
     except RelationshipError as exc:
         _raise(exc)
         raise  # pragma: no cover
+    audit_service.record_from_tenant(
+        tenant,
+        action="relationship.update",
+        resource_type="relationship",
+        resource_id=relationship_id,
+        request_method="PUT",
+        request_path=f"/api/relationships/{relationship_id}",
+    )
+    return doc
 
 
 @router.delete("/{relationship_id}")
@@ -108,9 +132,18 @@ def delete_relationship(
     tenant: TenantContext = Depends(require_tenant),
 ) -> dict[str, Any]:
     try:
-        return relationships_service.delete_relationship(
+        result = relationships_service.delete_relationship(
             relationship_id, tenant_id=tenant.tenant_id
         )
     except RelationshipError as exc:
         _raise(exc)
         raise  # pragma: no cover
+    audit_service.record_from_tenant(
+        tenant,
+        action="relationship.delete",
+        resource_type="relationship",
+        resource_id=relationship_id,
+        request_method="DELETE",
+        request_path=f"/api/relationships/{relationship_id}",
+    )
+    return result

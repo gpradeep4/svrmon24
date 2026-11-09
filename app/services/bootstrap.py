@@ -7,6 +7,7 @@ from typing import Any
 
 from ..db import DatabaseUnavailableError, get_database, ping_database
 from ..tenancy import ISOLATION_ENFORCED, MIGRATION_TENANT_ID
+from . import audit as audit_service
 from . import cmdb_migrate
 from . import field_defs_migrate
 from . import memberships as memberships_service
@@ -35,6 +36,7 @@ def ensure_tenancy_ready() -> dict[str, Any]:
         tenants_service.ensure_indexes()
         users_service.ensure_indexes()
         memberships_service.ensure_indexes()
+        audit_indexes = audit_service.ensure_indexes()
         tenant_idx = tenant_indexes.ensure_tenant_id_indexes(db)
         tenant = tenants_service.ensure_migration_tenant()
         backfill = tenant_indexes.backfill_null_tenant_ids(
@@ -51,6 +53,7 @@ def ensure_tenancy_ready() -> dict[str, Any]:
             "migration_tenant_id": tenant.get("tenant_id"),
             "migration_tenant_display_name": tenant.get("display_name"),
             "tenant_id_indexes": tenant_idx,
+            "audit_indexes": audit_indexes,
             "backfill": backfill,
             "typed_cmdb_migrate": typed_migrate,
             "field_defs_migrate": field_migrate,

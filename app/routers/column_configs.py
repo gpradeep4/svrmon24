@@ -11,6 +11,7 @@ from fastapi import APIRouter, Depends, HTTPException
 
 from ..auth import require_user
 from ..models.column_configs import ColumnConfigurationUpdate
+from ..services import audit as audit_service
 from ..services import column_configs as column_configs_service
 from ..services.column_configs import ColumnConfigError
 from ..tenant_context import TenantContext, require_tenant
@@ -60,12 +61,21 @@ def put_column_configuration(
     tenant: TenantContext = Depends(require_tenant),
 ) -> dict[str, Any]:
     try:
-        return column_configs_service.upsert_configuration(
+        doc = column_configs_service.upsert_configuration(
             grid_key, payload, tenant_id=tenant.tenant_id
         )
     except ColumnConfigError as exc:
         _raise(exc)
         raise  # pragma: no cover
+    audit_service.record_from_tenant(
+        tenant,
+        action="column_configuration.upsert",
+        resource_type="column_configuration",
+        resource_id=grid_key,
+        request_method="PUT",
+        request_path=f"/api/column-configurations/{grid_key}",
+    )
+    return doc
 
 
 @router.delete("/{grid_key}")
@@ -74,9 +84,18 @@ def delete_column_configuration(
     tenant: TenantContext = Depends(require_tenant),
 ) -> dict[str, Any]:
     try:
-        return column_configs_service.reset_configuration(
+        result = column_configs_service.reset_configuration(
             grid_key, tenant_id=tenant.tenant_id
         )
     except ColumnConfigError as exc:
         _raise(exc)
         raise  # pragma: no cover
+    audit_service.record_from_tenant(
+        tenant,
+        action="column_configuration.reset",
+        resource_type="column_configuration",
+        resource_id=grid_key,
+        request_method="DELETE",
+        request_path=f"/api/column-configurations/{grid_key}",
+    )
+    return result

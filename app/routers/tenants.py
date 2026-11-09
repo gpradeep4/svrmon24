@@ -13,6 +13,7 @@ from pydantic import BaseModel, Field, field_validator
 
 from ..auth import AuthUser, require_user
 from ..config import Settings, get_settings
+from ..services import audit as audit_service
 from ..services import entitlements as entitlements_service
 from ..services import memberships as memberships_service
 from ..services import tenants as tenants_service
@@ -271,6 +272,16 @@ def switch_tenant(
     request.session[SESSION_CURRENT_TENANT] = target
     enriched = _enrich_tenant(tenant)
     assert enriched is not None
+    audit_service.record_from_tenant(
+        tenant_ctx,
+        action="tenant.switch",
+        resource_type="tenant",
+        resource_id=target,
+        details={"previous_tenant_id": tenant_ctx.tenant_id},
+        target_tenant_id=target,
+        request_method="POST",
+        request_path="/api/tenants/switch",
+    )
     return {
         "ok": True,
         "tenant": enriched,
@@ -315,6 +326,20 @@ def create_tenant(
                 status_code=exc.status_code, detail=exc.message
             ) from exc
 
+    audit_service.record_from_tenant(
+        tenant_ctx,
+        action="tenant.create",
+        resource_type="tenant",
+        resource_id=tenant.get("tenant_id"),
+        details={
+            "display_name": tenant.get("display_name"),
+            "plan_code": tenant.get("plan_code"),
+            "admin_user_id": body.admin_user_id,
+        },
+        target_tenant_id=tenant.get("tenant_id"),
+        request_method="POST",
+        request_path="/api/tenants",
+    )
     return {
         "tenant": _enrich_tenant(tenant),
         "membership": membership,
@@ -374,6 +399,16 @@ def set_tenant_plan(
     except EntitlementError as exc:
         raise HTTPException(status_code=exc.status_code, detail=exc.message) from exc
     plan = entitlements_service.get_plan(tenant["plan_code"])
+    audit_service.record_from_tenant(
+        tenant_ctx,
+        action="tenant.plan_set",
+        resource_type="tenant",
+        resource_id=tenant_id,
+        details={"plan_code": tenant.get("plan_code")},
+        target_tenant_id=tenant_id,
+        request_method="PUT",
+        request_path=f"/api/tenants/{tenant_id}/plan",
+    )
     return {
         "tenant": _enrich_tenant(tenant),
         "plan": plan,
@@ -480,4 +515,14 @@ def add_tenant_member(
         )
     except MembershipError as exc:
         raise HTTPException(status_code=exc.status_code, detail=exc.message) from exc
+    audit_service.record_from_tenant(
+        tenant_ctx,
+        action="membership.create",
+        resource_type="membership",
+        resource_id=membership.get("membership_id") if isinstance(membership, dict) else None,
+        details={"user_id": body.user_id.strip(), "role": body.role, "tenant_id": tid},
+        target_tenant_id=tid,
+        request_method="POST",
+        request_path=f"/api/tenants/{tid}/members",
+    )
     return {"membership": membership, "tenant_id": tid}

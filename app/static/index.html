@@ -12,7 +12,7 @@
     body.is-app .login-gate { display: none !important; }
     #authPanel, .auth-panel-legacy { display: none !important; }
   </style>
-  <link rel="stylesheet" href="/static/css/cmdb.css?v=0.28.0" />
+  <link rel="stylesheet" href="/static/css/cmdb.css?v=0.29.0" />
 </head>
 <body class="is-login">
   <!-- Full-page login (no Operations chrome while signed out) -->
@@ -136,7 +136,7 @@
         </button>
         <button type="button" class="nav-item" data-tab="audit">
           <span class="nav-ico" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M7 4h10a2 2 0 0 1 2 2v14l-3-2-3 2-3-2-3 2V6a2 2 0 0 1 2-2z"/><path d="M9 9h6M9 13h6"/></svg></span>
-          Audit Logs <span class="coming">Soon</span>
+          Audit Logs
         </button>
       </nav>
       <div class="sidebar-foot">
@@ -1031,11 +1031,38 @@
 
         <section id="tab-audit" class="tab-panel hidden">
           <section class="panel">
-            <div class="placeholder-panel">
-              <div class="ph-ico" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M7 4h10a2 2 0 0 1 2 2v14l-3-2-3 2-3-2-3 2V6a2 2 0 0 1 2-2z"/></svg></div>
-              <h3>Audit Logs</h3>
-              <p>Coming soon. Audit log storage and UI are not implemented. No audit collection exists yet.</p>
-              <span class="badge-soon">Coming soon</span>
+            <div class="panel-head">
+              <div>
+                <h3>Audit Logs</h3>
+                <p class="hint" id="auditHint">
+                  Tenant-scoped mutating admin / CMDB actions (collection
+                  <code>audit_events</code>). Tenant admin, platform admin, or Basic migration session.
+                </p>
+              </div>
+              <div class="toolbar-row">
+                <label class="inline-filter">
+                  Action
+                  <input id="auditActionFilter" type="search" placeholder="e.g. component.create" />
+                </label>
+                <button type="button" id="btnRefreshAudit" class="ghost">Refresh</button>
+              </div>
+            </div>
+            <div class="table-wrap">
+              <table class="data-table" id="auditTable">
+                <thead>
+                  <tr>
+                    <th>When</th>
+                    <th>Action</th>
+                    <th>Resource</th>
+                    <th>Actor</th>
+                    <th>Outcome</th>
+                    <th>Id</th>
+                  </tr>
+                </thead>
+                <tbody id="auditBody">
+                  <tr><td colspan="6" class="hint">Sign in to load audit events.</td></tr>
+                </tbody>
+              </table>
             </div>
           </section>
         </section>
@@ -1208,6 +1235,6 @@
     </div>
   </div>
 
-  <script src="/static/js/cmdb.js?v=0.28.0"></script>
+  <script src="/static/js/cmdb.js?v=0.29.0"></script>
 </body>
 </html>
