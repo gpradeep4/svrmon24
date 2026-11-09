@@ -1411,6 +1411,61 @@ button[data-rbac-disabled="true"] {
   cursor: not-allowed;
 }
 
+.nav-item.rbac-nav-denied {
+  opacity: 0.55;
+}
+
+.rbac-signin-cta {
+  margin: 12px 0 18px;
+  padding: 16px 18px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--accent-soft) 55%, white);
+}
+
+.rbac-signin-lead {
+  margin: 0 0 12px;
+  color: var(--ink);
+  font-weight: 600;
+}
+
+.rbac-signin-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-bottom: 8px;
+}
+
+.audit-denied {
+  margin: 12px 0 16px;
+  padding: 16px 18px;
+  border: 1px solid color-mix(in srgb, #b91c1c 35%, var(--border));
+  border-radius: 12px;
+  background: color-mix(in srgb, #fef2f2 88%, white);
+  color: var(--ink);
+}
+
+.audit-denied h4 {
+  margin: 0 0 8px;
+  font-size: 1.05rem;
+}
+
+.audit-denied p {
+  margin: 0 0 8px;
+  line-height: 1.5;
+}
+
+.member-role-edit {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+}
+
+.member-role-edit .member-role-select {
+  min-width: 7.5rem;
+}
+
 .column-settings-table input[type="number"] {
   width: 6.5rem;
   max-width: 100%;

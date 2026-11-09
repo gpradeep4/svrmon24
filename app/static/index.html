@@ -871,7 +871,7 @@
             </div>
             <div class="settings-block" id="tenantMembersBlock">
               <h3>Current organization members</h3>
-              <p class="hint" id="tenantMembersHint">Requires users:read (admin / owner / platform admin) to list members.</p>
+              <p class="hint" id="tenantMembersHint">Requires users:read (admin / owner / platform admin) to list members. Role changes require users:admin (owner to grant owner).</p>
               <div class="table-wrap">
                 <table class="data-table" id="tenantMembersTable">
                   <thead>
@@ -880,10 +880,11 @@
                       <th>Email</th>
                       <th>Role</th>
                       <th>Platform admin</th>
+                      <th>Change role</th>
                     </tr>
                   </thead>
                   <tbody id="tenantMembersBody">
-                    <tr><td colspan="4" class="hint">Sign in as tenant admin to load.</td></tr>
+                    <tr><td colspan="5" class="hint">Sign in as tenant admin to load.</td></tr>
                   </tbody>
                 </table>
               </div>
@@ -903,14 +904,22 @@
                 </p>
               </div>
             </div>
+            <div id="rbacSignInCta" class="rbac-signin-cta hidden" data-rbac-signin-cta="1">
+              <p class="rbac-signin-lead">Sign in to load your role, permissions, and the permission matrix from the live RBAC APIs.</p>
+              <div class="rbac-signin-actions">
+                <button type="button" class="primary" id="btnRbacOidcLogin">Sign in with SSO (OIDC)</button>
+                <button type="button" class="ghost" id="btnRbacBasicFocus">Use HTTP Basic</button>
+              </div>
+              <p class="hint" id="rbacSignInHint">OIDC and/or Basic availability follows server auth configuration.</p>
+            </div>
             <div id="rbacCurrentSummary" class="membership-summary hint">Sign in to load your role and permissions.</div>
-            <div class="settings-block">
+            <div class="settings-block" id="rbacPermsBlock">
               <h3>Your permissions</h3>
               <ul id="rbacCurrentPerms" class="rbac-perm-list">
                 <li class="hint">Sign in to load.</li>
               </ul>
             </div>
-            <div class="settings-block">
+            <div class="settings-block" id="rbacMatrixBlock">
               <h3>Permission matrix</h3>
               <div class="table-wrap">
                 <table class="data-table rbac-matrix" id="rbacMatrixTable">
@@ -1060,10 +1069,11 @@
                 <h3>Audit Logs</h3>
                 <p class="hint" id="auditHint">
                   Tenant-scoped mutating admin / CMDB actions (collection
-                  <code>audit_events</code>). Tenant admin, platform admin, or Basic migration session.
+                  <code>audit_events</code>). Requires <code>audit:read</code>
+                  (admin / owner / platform admin; Basic migration session is effective admin).
                 </p>
               </div>
-              <div class="toolbar-row">
+              <div class="toolbar-row" id="auditToolbar">
                 <label class="inline-filter">
                   Action
                   <input id="auditActionFilter" type="search" placeholder="e.g. component.create" />
@@ -1071,7 +1081,17 @@
                 <button type="button" id="btnRefreshAudit" class="ghost">Refresh</button>
               </div>
             </div>
-            <div class="table-wrap">
+            <div id="auditDenied" class="audit-denied hidden" data-audit-denied="1" role="status">
+              <h4>Audit Logs require admin access</h4>
+              <p>
+                Your current role cannot read audit events
+                (<code>audit:read</code> is required). Promote the membership to
+                <strong>admin</strong> or <strong>owner</strong> (Users panel role change,
+                or <code>scripts/set_membership_role.py</code>), then refresh.
+              </p>
+              <p class="hint" id="auditDeniedDetail"></p>
+            </div>
+            <div class="table-wrap" id="auditTableWrap">
               <table class="data-table" id="auditTable">
                 <thead>
                   <tr>

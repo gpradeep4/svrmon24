@@ -212,7 +212,7 @@ Ollama runs as a **shared local** process (one host / GPU / CPU pool). Concurren
 - Release checklist + **Basic removal path** (flag off in prod; code removal is a future explicit PR): [`docs/release-hardening.md`](docs/release-hardening.md)
 - **Basic is not silently removed** — still feature-flagged for migration coexistence after OIDC+migration verification
 
-### Roles and permissions (RBAC / 0.30.0)
+### Roles and permissions (RBAC / 0.30.0 → 0.30.1)
 
 - Tenant-scoped roles: **`viewer`** (read), **`member`** (CMDB / relationships / diagnostics write), **`admin`** (+ config, users, audit), **`owner`** (+ `org:admin` / grant owner)
 - Permission catalog: `cmdb:*`, `relationships:*`, `diagnostics:*`, `config:*`, `users:*`, `org:admin`, `audit:read`, `plans:*`
@@ -220,7 +220,8 @@ Ollama runs as a **shared local** process (one host / GPU / CPU pool). Concurren
 - Mutating/sensitive routes enforce permissions (403); UI Roles panel shows the matrix; mutate buttons are hidden/disabled when denied
 - Platform admin stays **CLI bootstrap only** and receives all permissions including `plans:admin`; HTTP Basic uses an effective **admin** role on the migration tenant only
 - Membership role update: `PUT /api/tenants/{id}/members/{membership_id}`; last-owner demotion blocked (except platform admin recovery)
-- New functional tests only: `pytest tests/test_roles_permissions.py -q`
+- **0.30.1 UX:** Roles page drops stale “Coming soon” copy; signed-out state shows OIDC/Basic CTA; Audit Logs shows an in-page `audit:read` denial (admin/owner) instead of toast-only 403; Users panel can change membership roles; operator CLI `scripts/set_membership_role.py`
+- New functional tests only: `pytest tests/test_roles_permissions.py tests/test_rbac_roles_page_fix.py -q`
 
 ### Release checklist (short)
 

@@ -111,6 +111,7 @@
     switchableForUser: false,
     isPlatformAdmin: false,
     membershipRole: null,
+    effectiveRole: null,
     permissions: [],
     permissionCatalog: [],
     permissionMatrix: {},
@@ -201,8 +202,11 @@
 
     const auditNav = $(`.nav-item[data-tab="audit"]`);
     if (auditNav) {
-      auditNav.classList.toggle("rbac-nav-denied", !readAudit);
-      auditNav.title = readAudit
+      // Dim / mark Audit for viewers/members without audit:read (still openable → in-page explanation).
+      const showAudit = !!readAudit;
+      auditNav.classList.toggle("rbac-nav-denied", !showAudit);
+      auditNav.setAttribute("aria-disabled", showAudit ? "false" : "true");
+      auditNav.title = showAudit
         ? ""
         : "Requires audit:read (admin / owner / platform admin)";
     }
@@ -213,12 +217,101 @@
     }
   }
 
+  function renderRolesSignedOut() {
+    const cta = $("#rbacSignInCta");
+    const summary = $("#rbacCurrentSummary");
+    const list = $("#rbacCurrentPerms");
+    const head = $("#rbacMatrixHead");
+    const body = $("#rbacMatrixBody");
+    const permsBlock = $("#rbacPermsBlock");
+    const matrixBlock = $("#rbacMatrixBlock");
+    if (cta) cta.classList.remove("hidden");
+    if (summary) {
+      summary.classList.add("hidden");
+      summary.textContent = "Sign in to load your role and permissions.";
+    }
+    if (permsBlock) permsBlock.classList.add("hidden");
+    if (matrixBlock) matrixBlock.classList.add("hidden");
+    if (list) list.innerHTML = `<li class="hint">Sign in to load.</li>`;
+    if (head) head.innerHTML = `<tr><th>Permission</th></tr>`;
+    if (body) {
+      body.innerHTML =
+        `<tr><td class="hint">Sign in to load the matrix.</td></tr>`;
+    }
+    const oidcBtn = $("#btnRbacOidcLogin");
+    const basicBtn = $("#btnRbacBasicFocus");
+    const hint = $("#rbacSignInHint");
+    if (oidcBtn) {
+      oidcBtn.classList.toggle("hidden", !authConfig.oidc_enabled);
+      oidcBtn.disabled = !authConfig.oidc_enabled;
+    }
+    if (basicBtn) {
+      basicBtn.classList.toggle("hidden", !authConfig.basic_auth_enabled);
+      basicBtn.disabled = !authConfig.basic_auth_enabled;
+    }
+    if (hint) {
+      if (authConfig.oidc_enabled && authConfig.basic_auth_enabled) {
+        hint.textContent =
+          "Use SSO (OIDC) or HTTP Basic (feature-flagged) from the sign-in screen.";
+      } else if (authConfig.oidc_enabled) {
+        hint.textContent = "Sign in with SSO (OIDC). HTTP Basic is disabled.";
+      } else if (authConfig.basic_auth_enabled) {
+        hint.textContent =
+          "Sign in with HTTP Basic on the login screen (OIDC is disabled).";
+      } else {
+        hint.textContent =
+          "No auth method is enabled on the server. Configure OIDC or Basic.";
+      }
+    }
+  }
+
+  function renderRolesSignedInShell() {
+    $("#rbacSignInCta")?.classList.add("hidden");
+    $("#rbacCurrentSummary")?.classList.remove("hidden");
+    $("#rbacPermsBlock")?.classList.remove("hidden");
+    $("#rbacMatrixBlock")?.classList.remove("hidden");
+  }
+
+  function showAuditDenied(detail) {
+    const denied = $("#auditDenied");
+    const detailEl = $("#auditDeniedDetail");
+    const wrap = $("#auditTableWrap");
+    const toolbar = $("#auditToolbar");
+    const hint = $("#auditHint");
+    if (denied) denied.classList.remove("hidden");
+    if (wrap) wrap.classList.add("hidden");
+    if (toolbar) toolbar.classList.add("hidden");
+    if (detailEl) {
+      const role =
+        state.membershipRole || state.effectiveRole || "unknown";
+      detailEl.textContent =
+        detail ||
+        `Current role=${role}; platform_admin=${!!state.isPlatformAdmin}. ` +
+          "audit:read is granted to admin, owner, and platform admin.";
+    }
+    if (hint) {
+      hint.textContent =
+        "Audit Logs are restricted. Promote to admin/owner to view tenant audit events.";
+    }
+  }
+
+  function showAuditAllowed() {
+    $("#auditDenied")?.classList.add("hidden");
+    $("#auditTableWrap")?.classList.remove("hidden");
+    $("#auditToolbar")?.classList.remove("hidden");
+  }
+
   async function loadRolesPanel() {
     const summary = $("#rbacCurrentSummary");
     const list = $("#rbacCurrentPerms");
     const head = $("#rbacMatrixHead");
     const body = $("#rbacMatrixBody");
     if (!summary || !list || !head || !body) return;
+    if (!state.authenticated) {
+      renderRolesSignedOut();
+      return;
+    }
+    renderRolesSignedInShell();
     try {
       const data = await api("/api/permissions");
       state.permissionCatalog = data.permissions || [];
@@ -226,6 +319,8 @@
       const current = data.current || {};
       state.permissions = current.permissions || state.permissions || [];
       state.membershipRole = current.membership_role || state.membershipRole;
+      state.effectiveRole =
+        current.effective_role || current.membership_role || state.effectiveRole;
       state.isPlatformAdmin = !!current.is_platform_admin || state.isPlatformAdmin;
       const roleLabel =
         current.effective_role || current.membership_role || "none";
@@ -282,6 +377,10 @@
         .join("");
       applyPermissionGates();
     } catch (err) {
+      if (err.status === 401) {
+        renderRolesSignedOut();
+        return;
+      }
       summary.textContent = err.message || "Failed to load permissions";
       list.innerHTML = `<li class="hint">Unavailable</li>`;
       body.innerHTML = `<tr><td class="hint">${escapeHtml(
@@ -360,7 +459,7 @@
     users: { title: "Users", subtitle: "OIDC memberships + current-org members (no auto platform-admin)" },
     roles: {
       title: "Roles and Permissions",
-      subtitle: "Tenant-scoped RBAC matrix (viewer / member / admin / owner)",
+      subtitle: "Live RBAC role, permissions, and matrix (viewer / member / admin / owner)",
     },
     organizations: { title: "Organizations", subtitle: "Membership orgs + isolation; switcher in Settings" },
     plans: { title: "Subscription Plans", subtitle: "Entitlements-only plan catalog (no payment provider)" },
@@ -465,6 +564,19 @@
     const body = $("#auditBody");
     const hint = $("#auditHint");
     if (!body) return;
+    if (!state.authenticated) {
+      showAuditDenied("Sign in first. Audit Logs require audit:read.");
+      body.innerHTML =
+        `<tr><td colspan="6" class="hint">Sign in to load audit events.</td></tr>`;
+      return { denied: true };
+    }
+    if (!can("audit:read")) {
+      showAuditDenied();
+      body.innerHTML =
+        `<tr><td colspan="6" class="hint">Permission audit:read required (admin / owner).</td></tr>`;
+      return { denied: true };
+    }
+    showAuditAllowed();
     const action = ($("#auditActionFilter")?.value || "").trim();
     const qs = new URLSearchParams({ page: "1", page_size: "50" });
     if (action) qs.set("action", action);
@@ -473,13 +585,13 @@
       if (hint) {
         hint.textContent =
           `${data.total || 0} event(s) for ${data.tenant_id || state.tenantId} ` +
-          `(collection ${data.collection || "audit_events"}). Tenant admin / platform admin / Basic.`;
+          `(collection ${data.collection || "audit_events"}). Requires audit:read.`;
       }
       const items = data.items || [];
       if (!items.length) {
         body.innerHTML =
           `<tr><td colspan="6" class="hint">No audit events yet for this tenant.</td></tr>`;
-        return;
+        return data;
       }
       body.innerHTML = items
         .map((ev) => {
@@ -504,7 +616,14 @@
           </tr>`;
         })
         .join("");
+      return data;
     } catch (err) {
+      if (err.status === 403) {
+        showAuditDenied(err.message || "Permission audit:read required");
+        body.innerHTML =
+          `<tr><td colspan="6" class="hint">Permission audit:read required (admin / owner).</td></tr>`;
+        return { denied: true, error: err.message };
+      }
       body.innerHTML = `<tr><td colspan="6" class="hint">${escapeHtml(
         err.message || "Failed to load audit events"
       )}</td></tr>`;
@@ -522,7 +641,7 @@
           "HTTP Basic sessions cannot list org members (no tenant-admin context). Use OIDC.";
       }
       body.innerHTML =
-        `<tr><td colspan="4" class="hint">OIDC tenant-admin / platform-admin session required.</td></tr>`;
+        `<tr><td colspan="5" class="hint">OIDC tenant-admin / platform-admin session required.</td></tr>`;
       return;
     }
     const canList = can("users:read");
@@ -532,39 +651,87 @@
           "Requires users:read (admin / owner / platform admin) to list members of the current organization.";
       }
       body.innerHTML =
-        `<tr><td colspan="4" class="hint">Insufficient role to list members.</td></tr>`;
+        `<tr><td colspan="5" class="hint">Insufficient role to list members.</td></tr>`;
       return;
     }
+    const canAdmin = can("users:admin") || state.isPlatformAdmin;
     try {
       const data = await api(
         `/api/tenants/${encodeURIComponent(state.tenantId)}/members`
       );
       if (hint) {
-        hint.textContent = `${data.count || 0} member(s) in ${state.tenantId}`;
+        hint.textContent =
+          `${data.count || 0} member(s) in ${state.tenantId}` +
+          (canAdmin
+            ? " · Change role below to grant audit:read (admin/owner)."
+            : " · Role changes require users:admin.");
       }
       const items = data.items || [];
       if (!items.length) {
         body.innerHTML =
-          `<tr><td colspan="4" class="hint">No members yet.</td></tr>`;
+          `<tr><td colspan="5" class="hint">No members yet.</td></tr>`;
         return;
       }
       body.innerHTML = items
         .map((m) => {
           const label =
             m.display_name || m.username || m.user_id || "unknown";
+          const mid = m.membership_id || "";
+          let changeCell = `<span class="hint">—</span>`;
+          if (canAdmin && mid) {
+            const roles = ["viewer", "member", "admin", "owner"];
+            changeCell = `<div class="member-role-edit">
+              <select class="member-role-select" data-membership-id="${escapeHtml(
+                mid
+              )}" aria-label="Role for ${escapeHtml(label)}">
+                ${roles
+                  .map(
+                    (r) =>
+                      `<option value="${r}"${
+                        r === m.role ? " selected" : ""
+                      }>${r}</option>`
+                  )
+                  .join("")}
+              </select>
+              <button type="button" class="ghost btn-member-role-save" data-membership-id="${escapeHtml(
+                mid
+              )}">Save</button>
+            </div>`;
+          } else if (!canAdmin) {
+            changeCell = `<span class="hint">Requires users:admin</span>`;
+          }
           return `<tr>
             <td>${escapeHtml(label)}</td>
             <td>${escapeHtml(m.email || "—")}</td>
-            <td>${escapeHtml(m.role || "")}</td>
+            <td><code>${escapeHtml(m.role || "")}</code></td>
             <td>${m.is_platform_admin ? "yes" : "no"}</td>
+            <td>${changeCell}</td>
           </tr>`;
         })
         .join("");
     } catch (err) {
       if (hint) hint.textContent = err.message || "Could not load members";
-      body.innerHTML = `<tr><td colspan="4" class="hint">${escapeHtml(
+      body.innerHTML = `<tr><td colspan="5" class="hint">${escapeHtml(
         err.message || "Could not load members"
       )}</td></tr>`;
+    }
+  }
+
+  async function saveMemberRole(membershipId, role) {
+    if (!membershipId || !role) return;
+    await api(
+      `/api/tenants/${encodeURIComponent(
+        state.tenantId
+      )}/members/${encodeURIComponent(membershipId)}`,
+      { method: "PUT", body: JSON.stringify({ role }) }
+    );
+    toast(`Membership role updated to ${role}`);
+    await loadTenantMembersPanel();
+    // Refresh gates if the actor changed their own role.
+    try {
+      await loadRolesPanel();
+    } catch (_) {
+      /* roles panel optional here */
     }
   }
 
@@ -1897,8 +2064,12 @@
         .then(() => loadTenantMembersPanel())
         .catch((err) => toast(err.message, true));
     }
-    if (name === "roles" && state.authenticated) {
-      loadRolesPanel().catch((err) => toast(err.message, true));
+    if (name === "roles") {
+      if (state.authenticated) {
+        loadRolesPanel().catch((err) => toast(err.message, true));
+      } else {
+        renderRolesSignedOut();
+      }
     }
     if (name === "organizations" && state.authenticated) {
       loadTenancyContext().catch((err) => toast(err.message, true));
@@ -1906,8 +2077,12 @@
     if (name === "settings" && state.authenticated) {
       loadTenancyContext().catch((err) => toast(err.message, true));
     }
-    if (name === "audit" && state.authenticated) {
-      loadAuditEvents().catch((err) => toast(err.message, true));
+    if (name === "audit") {
+      loadAuditEvents()
+        .then((result) => {
+          if (result && result.denied) return;
+        })
+        .catch((err) => toast(err.message, true));
     }
     if (customTableKey && state.authenticated) {
       state.selectedCustomTableKey = customTableKey;
@@ -3721,16 +3896,46 @@
         return;
       }
       try {
-        await loadAuditEvents();
+        const result = await loadAuditEvents();
+        if (result && result.denied) return;
         toast("Audit log refreshed");
       } catch (err) {
         toast(err.message || "Audit refresh failed", true);
       }
     });
+    $("#btnRbacOidcLogin")?.addEventListener("click", () => {
+      $("#btnOidcLogin")?.click();
+    });
+    $("#btnRbacBasicFocus")?.addEventListener("click", () => {
+      showLoginShell();
+      $("#authUser")?.focus();
+    });
+    $("#tenantMembersBody")?.addEventListener("click", async (e) => {
+      const btn = e.target?.closest?.(".btn-member-role-save");
+      if (!btn) return;
+      const mid = btn.getAttribute("data-membership-id");
+      const select = $(
+        `.member-role-select[data-membership-id="${CSS.escape(mid)}"]`
+      );
+      const role = select?.value;
+      if (!mid || !role) return;
+      btn.disabled = true;
+      try {
+        await saveMemberRole(mid, role);
+      } catch (err) {
+        toast(err.message || "Role update failed", true);
+      } finally {
+        btn.disabled = false;
+      }
+    });
     $("#auditActionFilter")?.addEventListener("keydown", (e) => {
       if (e.key === "Enter") {
         e.preventDefault();
-        loadAuditEvents().catch((err) => toast(err.message, true));
+        loadAuditEvents()
+          .then((result) => {
+            if (result && result.denied) return;
+          })
+          .catch((err) => toast(err.message, true));
       }
     });
     $("#btnSearch").addEventListener("click", async () => {
