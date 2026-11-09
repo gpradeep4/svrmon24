@@ -14,7 +14,6 @@ from ..services import ai_analysis as ai_analysis_service
 from ..services import diagnostics as diagnostics_service
 from ..services.ai_analysis import AnalysisError
 from ..services.diagnostics import DiagnosticError
-from ..services.ollama_client import OllamaClient
 from ..tenant_context import TenantContext, require_tenant
 
 router = APIRouter(
@@ -41,9 +40,11 @@ def get_profiles() -> dict[str, Any]:
 
 
 @router.get("/ollama/status")
-def ollama_status() -> dict[str, Any]:
-    """Probe configured local Ollama endpoint (does not run analysis)."""
-    return OllamaClient.from_settings().is_available()
+def ollama_status(
+    tenant: TenantContext = Depends(require_tenant),
+) -> dict[str, Any]:
+    """Ollama enable/entitlement status (+ probe when enabled). Does not analyze."""
+    return ai_analysis_service.ollama_runtime_status(tenant_id=tenant.tenant_id)
 
 
 @router.post("", status_code=201)

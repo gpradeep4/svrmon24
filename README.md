@@ -4,7 +4,7 @@ AI-assisted infrastructure CMDB, dependency mapping, **SIMULATED** diagnostics, 
 
 Stack: **FastAPI + Uvicorn + MongoDB (PyMongo) + provider-neutral OIDC** (HTTP Basic optional via feature flag). Diagnostics never contact remote hosts and never execute shell/SQL/network scans.
 
-## Features (through Master Phase 11 Diagnostics SaaS tenancy / 0.26.0)
+## Features (through Master Phase 12 Ollama AI entitlements / 0.27.0)
 
 | Area | Capability |
 | --- | --- |
@@ -15,10 +15,10 @@ Stack: **FastAPI + Uvicorn + MongoDB (PyMongo) + provider-neutral OIDC** (HTTP B
 | Column configurations | Tenant-scoped `cmdb_column_configurations` driving Inventory + Relationships grids (visibility / order / width / pin); Inventory includes toggleable **custom field** columns; locked OS/product and protocol/port columns; Relationships also expose optional Source/Target Table columns |
 | Custom entity tables | Tenant-scoped `cmdb_custom_table_definitions` + `cmdb_custom_records` (`table_key`); typed columns including **reference** fields; relationships can link custom entities via `source_table` / `target_table`; Edit UI for defs/columns; dropdowns show display name + `table_key` (open lists via ink-on-white combo selects); beginner help balloons |
 | Relationships | SaaS wrap of the existing engine: tenant-scoped CRUD; HOSTED_ON / DEPENDS_ON / CONNECTS_TO / ROUTES_TO (CMDB ↔ CMDB, custom ↔ CMDB, custom ↔ custom); null-table CMDB edges preserved; UI table selectors + entity-refs pickers; Protocol / Source Port / Target Port never combined |
-| Entitlements | Plan-limit stub (`GET /api/entitlements`); relationship create + `max_dependency_depth` + `max_diagnostic_runs` checks; v1 default = unlimited; **no payment provider** |
+| Entitlements | Plan-limit stub (`GET /api/entitlements`); relationship create + `max_dependency_depth` + `max_diagnostic_runs` + `max_ollama_analyses` checks; v1 default = unlimited; **no payment provider** |
 | Dependencies | SaaS wrap of the existing graph engine: tenant-scoped upstream / downstream / impact; typed CMDB **and** custom-table relationship edges; protocol/ports preserved; “potentially affected” disclaimer |
 | Diagnostics | SaaS wrap of the **existing** SIMULATED engine: tenant-scoped run/list/get history; `basic-health` only; no live/remote probes; `max_diagnostic_runs` entitlement |
-| AI analysis | Local Ollama (`OLLAMA_URL` / `OLLAMA_MODEL`) with rule-based fallback |
+| AI analysis | Local Ollama only (`OLLAMA_ENABLED` off by default; `OLLAMA_URL` / `OLLAMA_MODEL`); tenant `max_ollama_analyses`; rule-based fallback; shared-local contention documented |
 | Dashboard | Live aggregates from MongoDB (no hardcoded counts) |
 
 ## Requirements
@@ -81,9 +81,14 @@ Copy `.env.example` → `.env` (never commit `.env`). Placeholders only in the e
 | `BASIC_AUTH_USERNAME` / `BASIC_AUTH_PASSWORD` | Shared Basic credentials (only when flag on) | placeholders |
 | `MONGODB_URI` / `MONGODB_DB` | MongoDB connection | local defaults |
 | `APP_HOST` / `APP_PORT` | Bind address | `0.0.0.0:8200` |
-| `OLLAMA_URL` / `OLLAMA_MODEL` / `OLLAMA_TIMEOUT_SECONDS` | Local Ollama for AI analysis | localhost |
+| `OLLAMA_ENABLED` | Explicit enable for local Ollama AI | **`false`** (disabled unless set) |
+| `OLLAMA_URL` / `OLLAMA_MODEL` / `OLLAMA_TIMEOUT_SECONDS` | Local Ollama endpoint + model | localhost |
 
-When Ollama is unavailable, diagnostic analysis uses a deterministic rule-based fallback. Analysis derived from simulated diagnostics is clearly labeled.
+When Ollama is **disabled**, **entitlement-limited**, or **unavailable**, diagnostic analysis uses a deterministic rule-based fallback. Analysis derived from simulated diagnostics is clearly labeled. **No external/cloud model providers** are wired.
+
+### Shared-local Ollama contention
+
+Ollama runs as a **shared local** process (one host / GPU / CPU pool). Concurrent tenant analyze requests contend for the same model capacity — expect queueing, timeouts, or slower responses under load. v1 has **no per-tenant model isolation**. Operators can leave `OLLAMA_ENABLED=false`, or assign a numeric `max_ollama_analyses` plan limit, if contention hurts other workloads.
 
 ## Auth
 
@@ -173,6 +178,16 @@ When Ollama is unavailable, diagnostic analysis uses a deterministic rule-based 
 - UI: Diagnostics SaaS intro, help tips, tenant-scoped history meta, entitlements hint for `max_diagnostic_runs`
 - Entitlements: `max_diagnostic_runs` (default unlimited); additional runs → **403** when a numeric ceiling is assigned
 - **Stop-and-wait** — do not start Phase 12 from this deliverable
+
+### Ollama AI entitlements (Master Phase 12 / 0.27.0)
+
+- Existing local Ollama client + rule fallback reused — **not** rebuilt; **no** external model providers
+- `OLLAMA_ENABLED` defaults to **false**; analyze uses rule-based fallback until explicitly enabled
+- Entitlements: `max_ollama_analyses` (default unlimited); when a numeric ceiling is reached, analyze falls back to rules (status reports limited)
+- `GET /api/diagnostics/ollama/status` returns enable flag, entitlement usage, probe (when enabled), and shared-local contention note
+- UI: Diagnostics shows disabled/limited Ollama status + contention hint; Plans lists `max_ollama_analyses`
+- Diagnostics remain **SIMULATED** — AI analysis never invents live telemetry
+- **Stop-and-wait** — do not start Phase 13 from this deliverable
 
 ### Important: one browser host only
 
@@ -273,7 +288,7 @@ pytest -v
 | GET | `/api/diagnostics` | OIDC / Basic* | Diagnostic history |
 | GET | `/api/diagnostics/{id}` | OIDC / Basic* | Diagnostic detail |
 | POST | `/api/diagnostics/{id}/analyze` | OIDC / Basic* | Ollama / fallback AI analysis |
-| GET | `/api/diagnostics/ollama/status` | OIDC / Basic* | Local Ollama probe |
+| GET | `/api/diagnostics/ollama/status` | OIDC / Basic* | Ollama enable + entitlements + local probe |
 
 \*Basic only when `BASIC_AUTH_ENABLED=true`.
 
