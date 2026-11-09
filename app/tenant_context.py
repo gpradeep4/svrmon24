@@ -38,6 +38,8 @@ class TenantContext:
     tenant_display_name: str = MIGRATION_TENANT_DISPLAY_NAME
 
     def as_dict(self) -> dict[str, Any]:
+        from .permissions import permissions_for_tenant
+
         return {
             "tenant_id": self.tenant_id,
             "tenant_display_name": self.tenant_display_name,
@@ -47,6 +49,7 @@ class TenantContext:
             "auth_method": self.auth_user.auth_method,
             "isolation_enforced": ISOLATION_ENFORCED,
             "org_switcher_enabled": ORG_SWITCHER_ENABLED,
+            "permissions": sorted(permissions_for_tenant(self)),
         }
 
 

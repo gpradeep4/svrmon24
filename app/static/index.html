@@ -120,7 +120,7 @@
         </button>
         <button type="button" class="nav-item" data-tab="roles">
           <span class="nav-ico" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M12 3l8 4v5c0 4.5-3.2 7.8-8 9-4.8-1.2-8-4.5-8-9V7l8-4z"/><path d="M9.5 12l1.8 1.8L15 10"/></svg></span>
-          Roles and Permissions <span class="coming">Soon</span>
+          Roles and Permissions
         </button>
         <button type="button" class="nav-item" data-tab="organizations">
           <span class="nav-ico" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M3 20h18"/><path d="M5 20V9l7-5 7 5v11"/><path d="M9 20v-6h6v6"/></svg></span>
@@ -871,7 +871,7 @@
             </div>
             <div class="settings-block" id="tenantMembersBlock">
               <h3>Current organization members</h3>
-              <p class="hint" id="tenantMembersHint">Tenant admin or platform admin required to list members.</p>
+              <p class="hint" id="tenantMembersHint">Requires users:read (admin / owner / platform admin) to list members.</p>
               <div class="table-wrap">
                 <table class="data-table" id="tenantMembersTable">
                   <thead>
@@ -893,11 +893,35 @@
 
         <section id="tab-roles" class="tab-panel hidden">
           <section class="panel">
-            <div class="placeholder-panel">
-              <div class="ph-ico" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M12 3l8 4v5c0 4.5-3.2 7.8-8 9-4.8-1.2-8-4.5-8-9V7l8-4z"/></svg></div>
-              <h3>Roles and Permissions</h3>
-              <p>Coming soon. Role-based access control is not implemented. Access is via OIDC session (or feature-flagged Basic for migration).</p>
-              <span class="badge-soon">Coming soon</span>
+            <div class="toolbar" style="grid-template-columns: 1fr;">
+              <div>
+                <h2 style="margin:0">Roles and Permissions</h2>
+                <p class="hint">
+                  Tenant-scoped RBAC: <code>viewer</code>, <code>member</code>, <code>admin</code>, <code>owner</code>.
+                  Platform admin is CLI-bootstrap only and can act across tenants.
+                  Mutating APIs enforce permissions; the UI hides or disables actions you cannot perform.
+                </p>
+              </div>
+            </div>
+            <div id="rbacCurrentSummary" class="membership-summary hint">Sign in to load your role and permissions.</div>
+            <div class="settings-block">
+              <h3>Your permissions</h3>
+              <ul id="rbacCurrentPerms" class="rbac-perm-list">
+                <li class="hint">Sign in to load.</li>
+              </ul>
+            </div>
+            <div class="settings-block">
+              <h3>Permission matrix</h3>
+              <div class="table-wrap">
+                <table class="data-table rbac-matrix" id="rbacMatrixTable">
+                  <thead id="rbacMatrixHead">
+                    <tr><th>Permission</th></tr>
+                  </thead>
+                  <tbody id="rbacMatrixBody">
+                    <tr><td class="hint">Sign in to load the matrix.</td></tr>
+                  </tbody>
+                </table>
+              </div>
             </div>
           </section>
         </section>

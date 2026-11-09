@@ -11,6 +11,8 @@ from pydantic import BaseModel, ConfigDict, Field, field_validator
 from ..tenancy import (
     MEMBERSHIP_ROLE_ADMIN,
     MEMBERSHIP_ROLE_MEMBER,
+    MEMBERSHIP_ROLE_OWNER,
+    MEMBERSHIP_ROLE_VIEWER,
     MIGRATION_TENANT_DISPLAY_NAME,
     MIGRATION_TENANT_ID,
     MIGRATION_TENANT_SLUG,
@@ -23,8 +25,10 @@ class TenantStatus(str, Enum):
 
 
 class MembershipRole(str, Enum):
+    VIEWER = MEMBERSHIP_ROLE_VIEWER
     MEMBER = MEMBERSHIP_ROLE_MEMBER
     ADMIN = MEMBERSHIP_ROLE_ADMIN
+    OWNER = MEMBERSHIP_ROLE_OWNER
 
 
 class TenantView(BaseModel):
@@ -102,4 +106,4 @@ def migration_tenant_defaults() -> dict[str, Any]:
     }
 
 
-TenantRoleLiteral = Literal["member", "admin"]
+TenantRoleLiteral = Literal["viewer", "member", "admin", "owner"]

@@ -13,6 +13,7 @@ from typing import Any
 from fastapi import APIRouter, Depends, HTTPException, Query
 
 from ..auth import require_user
+from ..permissions import PERM_CMDB_WRITE, PERM_CONFIG_WRITE, require_permission
 from ..models.custom_tables import (
     CustomColumnCreate,
     CustomColumnUpdate,
@@ -62,7 +63,7 @@ def list_custom_tables(
 @router.post("", status_code=201)
 def create_custom_table(
     payload: CustomTableCreate,
-    tenant: TenantContext = Depends(require_tenant),
+    tenant: TenantContext = Depends(require_permission(PERM_CONFIG_WRITE)),
 ) -> dict[str, Any]:
     try:
         doc = custom_tables_service.create_table(
@@ -100,7 +101,7 @@ def get_custom_table(
 def update_custom_table(
     table_key: str,
     payload: CustomTableUpdate,
-    tenant: TenantContext = Depends(require_tenant),
+    tenant: TenantContext = Depends(require_permission(PERM_CONFIG_WRITE)),
 ) -> dict[str, Any]:
     try:
         doc = custom_tables_service.update_table(
@@ -123,7 +124,7 @@ def update_custom_table(
 @router.delete("/{table_key}")
 def delete_custom_table(
     table_key: str,
-    tenant: TenantContext = Depends(require_tenant),
+    tenant: TenantContext = Depends(require_permission(PERM_CONFIG_WRITE)),
 ) -> dict[str, Any]:
     try:
         result = custom_tables_service.delete_table(
@@ -147,7 +148,7 @@ def delete_custom_table(
 def add_custom_column(
     table_key: str,
     payload: CustomColumnCreate,
-    tenant: TenantContext = Depends(require_tenant),
+    tenant: TenantContext = Depends(require_permission(PERM_CONFIG_WRITE)),
 ) -> dict[str, Any]:
     try:
         doc = custom_tables_service.add_column(
@@ -173,7 +174,7 @@ def update_custom_column(
     table_key: str,
     column_key: str,
     payload: CustomColumnUpdate,
-    tenant: TenantContext = Depends(require_tenant),
+    tenant: TenantContext = Depends(require_permission(PERM_CONFIG_WRITE)),
 ) -> dict[str, Any]:
     try:
         doc = custom_tables_service.update_column(
@@ -197,7 +198,7 @@ def update_custom_column(
 def delete_custom_column(
     table_key: str,
     column_key: str,
-    tenant: TenantContext = Depends(require_tenant),
+    tenant: TenantContext = Depends(require_permission(PERM_CONFIG_WRITE)),
 ) -> dict[str, Any]:
     try:
         result = custom_tables_service.delete_column(
@@ -242,7 +243,7 @@ def list_custom_records(
 def create_custom_record(
     table_key: str,
     payload: CustomRecordCreate,
-    tenant: TenantContext = Depends(require_tenant),
+    tenant: TenantContext = Depends(require_permission(PERM_CMDB_WRITE)),
 ) -> dict[str, Any]:
     try:
         doc = custom_tables_service.create_record(
@@ -285,7 +286,7 @@ def update_custom_record(
     table_key: str,
     record_id: str,
     payload: CustomRecordUpdate,
-    tenant: TenantContext = Depends(require_tenant),
+    tenant: TenantContext = Depends(require_permission(PERM_CMDB_WRITE)),
 ) -> dict[str, Any]:
     try:
         doc = custom_tables_service.update_record(
@@ -310,7 +311,7 @@ def update_custom_record(
 def delete_custom_record(
     table_key: str,
     record_id: str,
-    tenant: TenantContext = Depends(require_tenant),
+    tenant: TenantContext = Depends(require_permission(PERM_CMDB_WRITE)),
 ) -> dict[str, Any]:
     try:
         result = custom_tables_service.delete_record(

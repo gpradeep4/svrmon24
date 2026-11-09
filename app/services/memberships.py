@@ -1,7 +1,8 @@
-"""Tenant membership persistence (Master Phase 4).
+"""Tenant membership persistence (Master Phase 4 + RBAC).
 
-Roles: ``member`` | ``admin`` (tenant-scoped). Platform admin is a separate
-user flag set only via CLI bootstrap — never via membership create from login.
+Roles: ``viewer`` | ``member`` | ``admin`` | ``owner`` (tenant-scoped).
+Platform admin is a separate user flag set only via CLI bootstrap — never via
+membership create from login.
 """
 
 from __future__ import annotations
@@ -15,10 +16,11 @@ from pymongo.collection import Collection
 from pymongo.errors import DuplicateKeyError
 
 from ..db import require_database
+from ..permissions import ROLE_RANK
 from ..serialization import serialize_document
 from ..tenancy import (
-    MEMBERSHIP_ROLE_ADMIN,
     MEMBERSHIP_ROLE_MEMBER,
+    MEMBERSHIP_ROLE_OWNER,
     MEMBERSHIP_ROLES,
     MIGRATION_TENANT_ID,
 )
@@ -64,10 +66,15 @@ def _normalize_role(role: str) -> str:
     value = (role or "").strip().lower()
     if value not in MEMBERSHIP_ROLES:
         raise MembershipError(
-            f"Invalid membership role '{role}' (expected member|admin)",
+            f"Invalid membership role '{role}' "
+            f"(expected viewer|member|admin|owner)",
             status_code=422,
         )
     return value
+
+
+def _role_rank(role: str) -> int:
+    return ROLE_RANK.get(_normalize_role(role), 0)
 
 
 def get_membership(membership_id: str) -> dict[str, Any] | None:
@@ -175,21 +182,52 @@ def ensure_membership(
     """Idempotently ensure a membership exists.
 
     On OIDC login, call with ``role=member`` and ``upgrade_role=False`` so an
-    existing admin membership is never demoted and a first login never becomes
-    platform admin (platform admin is not a membership role).
+    existing admin/owner membership is never demoted and a first login never
+    becomes platform admin (platform admin is not a membership role).
     """
     role_norm = _normalize_role(role)
     tenants_service.ensure_migration_tenant()
     existing = get_membership_for_user_tenant(user_id, tenant_id)
     if existing is not None:
-        if upgrade_role and role_norm == MEMBERSHIP_ROLE_ADMIN:
-            if existing.get("role") != MEMBERSHIP_ROLE_ADMIN:
-                _collection().update_one(
-                    {"membership_id": existing["membership_id"]},
-                    {"$set": {"role": MEMBERSHIP_ROLE_ADMIN, "updated_at": _now()}},
-                )
-                refreshed = get_membership(existing["membership_id"])
-                assert refreshed is not None
-                return refreshed
+        if upgrade_role and _role_rank(role_norm) > _role_rank(
+            str(existing.get("role") or MEMBERSHIP_ROLE_MEMBER)
+        ):
+            return update_membership_role(
+                membership_id=str(existing["membership_id"]),
+                role=role_norm,
+            )
         return existing
     return create_membership(user_id=user_id, tenant_id=tenant_id, role=role_norm)
+
+
+def update_membership_role(
+    *,
+    membership_id: str,
+    role: str,
+) -> dict[str, Any]:
+    """Update the role on an existing membership."""
+    role_norm = _normalize_role(role)
+    mid = (membership_id or "").strip()
+    if not mid:
+        raise MembershipError("membership_id is required", status_code=422)
+    existing = get_membership(mid)
+    if existing is None:
+        raise MembershipError(f"Membership '{mid}' not found", status_code=404)
+    _collection().update_one(
+        {"membership_id": mid},
+        {"$set": {"role": role_norm, "updated_at": _now()}},
+    )
+    refreshed = get_membership(mid)
+    assert refreshed is not None
+    return refreshed
+
+
+def count_owners(tenant_id: str) -> int:
+    tid = (tenant_id or "").strip()
+    if not tid:
+        return 0
+    return int(
+        _collection().count_documents(
+            {"tenant_id": tid, "role": MEMBERSHIP_ROLE_OWNER}
+        )
+    )

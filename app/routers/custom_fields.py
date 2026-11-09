@@ -13,6 +13,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 
 from ..auth import require_user
 from ..models.custom_fields import CustomFieldCreate, CustomFieldUpdate, FieldOrigin
+from ..permissions import PERM_CONFIG_WRITE, require_permission
 from ..services import audit as audit_service
 from ..services import custom_fields as custom_fields_service
 from ..services.custom_fields import CustomFieldError
@@ -116,7 +117,7 @@ def _create_impl(payload: CustomFieldCreate, tenant: TenantContext) -> dict[str,
 @router.post("", status_code=201)
 def create_field_definition(
     payload: CustomFieldCreate,
-    tenant: TenantContext = Depends(require_tenant),
+    tenant: TenantContext = Depends(require_permission(PERM_CONFIG_WRITE)),
 ) -> dict[str, Any]:
     return _create_impl(payload, tenant)
 
@@ -124,7 +125,7 @@ def create_field_definition(
 @facade_router.post("", status_code=201)
 def create_custom_field(
     payload: CustomFieldCreate,
-    tenant: TenantContext = Depends(require_tenant),
+    tenant: TenantContext = Depends(require_permission(PERM_CONFIG_WRITE)),
 ) -> dict[str, Any]:
     return _create_impl(payload, tenant)
 
@@ -177,7 +178,7 @@ def _update_impl(
 def update_field_definition(
     field_key: str,
     payload: CustomFieldUpdate,
-    tenant: TenantContext = Depends(require_tenant),
+    tenant: TenantContext = Depends(require_permission(PERM_CONFIG_WRITE)),
 ) -> dict[str, Any]:
     return _update_impl(field_key, payload, tenant)
 
@@ -186,7 +187,7 @@ def update_field_definition(
 def update_custom_field(
     field_key: str,
     payload: CustomFieldUpdate,
-    tenant: TenantContext = Depends(require_tenant),
+    tenant: TenantContext = Depends(require_permission(PERM_CONFIG_WRITE)),
 ) -> dict[str, Any]:
     return _update_impl(field_key, payload, tenant)
 
@@ -213,7 +214,7 @@ def _delete_impl(field_key: str, tenant: TenantContext) -> dict[str, str]:
 @router.delete("/{field_key}")
 def delete_field_definition(
     field_key: str,
-    tenant: TenantContext = Depends(require_tenant),
+    tenant: TenantContext = Depends(require_permission(PERM_CONFIG_WRITE)),
 ) -> dict[str, str]:
     return _delete_impl(field_key, tenant)
 
@@ -221,6 +222,6 @@ def delete_field_definition(
 @facade_router.delete("/{field_key}")
 def delete_custom_field(
     field_key: str,
-    tenant: TenantContext = Depends(require_tenant),
+    tenant: TenantContext = Depends(require_permission(PERM_CONFIG_WRITE)),
 ) -> dict[str, str]:
     return _delete_impl(field_key, tenant)

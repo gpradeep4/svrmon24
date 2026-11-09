@@ -26,10 +26,18 @@ MIGRATION_TENANT_DISPLAY_NAME = "SVRMON24 Legacy"
 MIGRATION_TENANT_SLUG = "svrmon24-legacy"
 
 # Tenant-scoped membership roles (platform admin is a separate user flag).
+# SaaS defaults: viewer < member < admin < owner. Legacy member|admin retained.
+MEMBERSHIP_ROLE_VIEWER = "viewer"
 MEMBERSHIP_ROLE_MEMBER = "member"
 MEMBERSHIP_ROLE_ADMIN = "admin"
+MEMBERSHIP_ROLE_OWNER = "owner"
 MEMBERSHIP_ROLES: frozenset[str] = frozenset(
-    {MEMBERSHIP_ROLE_MEMBER, MEMBERSHIP_ROLE_ADMIN}
+    {
+        MEMBERSHIP_ROLE_VIEWER,
+        MEMBERSHIP_ROLE_MEMBER,
+        MEMBERSHIP_ROLE_ADMIN,
+        MEMBERSHIP_ROLE_OWNER,
+    }
 )
 
 # Typed CMDB collections (Master Phase 6) + legacy polymorphic source.

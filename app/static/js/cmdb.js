@@ -111,6 +111,9 @@
     switchableForUser: false,
     isPlatformAdmin: false,
     membershipRole: null,
+    permissions: [],
+    permissionCatalog: [],
+    permissionMatrix: {},
     memberships: [],
     entitlements: null,
   };
@@ -133,6 +136,158 @@
     el.classList.add("show");
     clearTimeout(toast._t);
     toast._t = setTimeout(() => el.classList.remove("show"), 4200);
+  }
+
+  function can(permission) {
+    if (state.isPlatformAdmin) return true;
+    return (state.permissions || []).includes(permission);
+  }
+
+  function setRbacControl(el, allowed, { titleWhenDenied } = {}) {
+    if (!el) return;
+    if (allowed) {
+      el.disabled = false;
+      el.removeAttribute("data-rbac-disabled");
+      if (el.dataset.rbacTitleRestore) {
+        el.title = el.dataset.rbacTitleRestore;
+        delete el.dataset.rbacTitleRestore;
+      }
+    } else {
+      if (!el.dataset.rbacTitleRestore) {
+        el.dataset.rbacTitleRestore = el.title || "";
+      }
+      el.disabled = true;
+      el.setAttribute("data-rbac-disabled", "true");
+      el.title = titleWhenDenied || "Your role cannot perform this action";
+    }
+  }
+
+  function applyPermissionGates() {
+    const writeCmdb = can("cmdb:write");
+    const writeRel = can("relationships:write");
+    const runDiag = can("diagnostics:run");
+    const writeConfig = can("config:write");
+    const readAudit = can("audit:read");
+    const readUsers = can("users:read");
+
+    setRbacControl($("#btnAdd"), writeCmdb, {
+      titleWhenDenied: "Requires cmdb:write (member+)",
+    });
+    setRbacControl($("#btnSaveComponent"), writeCmdb);
+    setRbacControl($("#btnConfirmDelete"), writeCmdb);
+    setRbacControl($("#btnAddRel"), writeRel, {
+      titleWhenDenied: "Requires relationships:write (member+)",
+    });
+    setRbacControl($("#btnSaveRel"), writeRel);
+    setRbacControl($("#btnAddCustomRecord"), writeCmdb);
+    setRbacControl($("#btnSaveCustomRecord"), writeCmdb);
+    setRbacControl($("#btnRunDiag"), runDiag, {
+      titleWhenDenied: "Requires diagnostics:run (member+)",
+    });
+    setRbacControl($("#btnAnalyzeDiag"), runDiag);
+    setRbacControl($("#btnAnalyzeFallback"), runDiag);
+    setRbacControl($("#btnColSave"), writeConfig, {
+      titleWhenDenied: "Requires config:write (admin+)",
+    });
+    setRbacControl($("#btnColReset"), writeConfig);
+    setRbacControl($("#cfSubmitBtn"), writeConfig, {
+      titleWhenDenied: "Requires config:write (admin+)",
+    });
+    setRbacControl($("#ctSubmitBtn"), writeConfig);
+    setRbacControl($("#ccSubmitBtn"), writeConfig);
+    setRbacControl($("#btnCtEditSelected"), writeConfig);
+    setRbacControl($("#btnCtDelete"), writeConfig);
+    setRbacControl($("#btnRefreshAudit"), readAudit);
+
+    const auditNav = $(`.nav-item[data-tab="audit"]`);
+    if (auditNav) {
+      auditNav.classList.toggle("rbac-nav-denied", !readAudit);
+      auditNav.title = readAudit
+        ? ""
+        : "Requires audit:read (admin / owner / platform admin)";
+    }
+    const usersNav = $(`.nav-item[data-tab="users"]`);
+    if (usersNav && !readUsers && !state.isPlatformAdmin) {
+      // Users page still shows "my memberships"; keep reachable.
+      usersNav.title = "Member list requires users:read";
+    }
+  }
+
+  async function loadRolesPanel() {
+    const summary = $("#rbacCurrentSummary");
+    const list = $("#rbacCurrentPerms");
+    const head = $("#rbacMatrixHead");
+    const body = $("#rbacMatrixBody");
+    if (!summary || !list || !head || !body) return;
+    try {
+      const data = await api("/api/permissions");
+      state.permissionCatalog = data.permissions || [];
+      state.permissionMatrix = data.matrix || {};
+      const current = data.current || {};
+      state.permissions = current.permissions || state.permissions || [];
+      state.membershipRole = current.membership_role || state.membershipRole;
+      state.isPlatformAdmin = !!current.is_platform_admin || state.isPlatformAdmin;
+      const roleLabel =
+        current.effective_role || current.membership_role || "none";
+      summary.textContent =
+        `Effective role: ${roleLabel}` +
+        (current.membership_role && current.membership_role !== current.effective_role
+          ? ` (membership=${current.membership_role})`
+          : "") +
+        ` · platform_admin=${!!current.is_platform_admin}` +
+        ` · auth=${current.auth_method || state.authMethod || "—"}` +
+        ` · tenant=${current.tenant_id || state.tenantId}`;
+      const perms = current.permissions || [];
+      if (!perms.length) {
+        list.innerHTML = `<li class="hint">No permissions in this tenant context.</li>`;
+      } else {
+        const labels = Object.fromEntries(
+          (data.permissions || []).map((p) => [p.permission, p.description])
+        );
+        list.innerHTML = perms
+          .map(
+            (p) =>
+              `<li><code>${escapeHtml(p)}</code> — ${escapeHtml(
+                labels[p] || p
+              )}</li>`
+          )
+          .join("");
+      }
+      const roles = data.roles || Object.keys(data.matrix || {});
+      head.innerHTML = `<tr><th>Permission</th>${roles
+        .map((r) => {
+          const cls =
+            r === (current.effective_role || current.membership_role)
+              ? ' class="rbac-role-current"'
+              : "";
+          return `<th${cls}>${escapeHtml(r)}</th>`;
+        })
+        .join("")}</tr>`;
+      const catalog = data.permissions || [];
+      body.innerHTML = catalog
+        .map((entry) => {
+          const key = entry.permission;
+          const cells = roles
+            .map((role) => {
+              const yes = (data.matrix[role] || []).includes(key);
+              return `<td class="${yes ? "rbac-yes" : "rbac-no"}">${
+                yes ? "✓" : "—"
+              }</td>`;
+            })
+            .join("");
+          return `<tr><td><code>${escapeHtml(key)}</code><div class="hint">${escapeHtml(
+            entry.description || ""
+          )}</div></td>${cells}</tr>`;
+        })
+        .join("");
+      applyPermissionGates();
+    } catch (err) {
+      summary.textContent = err.message || "Failed to load permissions";
+      list.innerHTML = `<li class="hint">Unavailable</li>`;
+      body.innerHTML = `<tr><td class="hint">${escapeHtml(
+        err.message || "Failed"
+      )}</td></tr>`;
+    }
   }
 
   function normalizeAccent(value) {
@@ -203,7 +358,10 @@
     },
     columns: { title: "Column Settings", subtitle: "Tenant-scoped grid visibility, order, width, and pin" },
     users: { title: "Users", subtitle: "OIDC memberships + current-org members (no auto platform-admin)" },
-    roles: { title: "Roles and Permissions", subtitle: "Coming soon — RBAC not implemented" },
+    roles: {
+      title: "Roles and Permissions",
+      subtitle: "Tenant-scoped RBAC matrix (viewer / member / admin / owner)",
+    },
     organizations: { title: "Organizations", subtitle: "Membership orgs + isolation; switcher in Settings" },
     plans: { title: "Subscription Plans", subtitle: "Entitlements-only plan catalog (no payment provider)" },
     settings: { title: "Settings", subtitle: "Organization switcher and accent colour" },
@@ -367,12 +525,11 @@
         `<tr><td colspan="4" class="hint">OIDC tenant-admin / platform-admin session required.</td></tr>`;
       return;
     }
-    const canList =
-      state.isPlatformAdmin || state.membershipRole === "admin";
+    const canList = can("users:read");
     if (!canList) {
       if (hint) {
         hint.textContent =
-          "Tenant admin or platform admin required to list members of the current organization.";
+          "Requires users:read (admin / owner / platform admin) to list members of the current organization.";
       }
       body.innerHTML =
         `<tr><td colspan="4" class="hint">Insufficient role to list members.</td></tr>`;
@@ -507,6 +664,10 @@
       const t = result.tenant || {};
       state.tenantId = t.tenant_id || tenantId;
       state.membershipRole = result.membership_role || null;
+      if (Array.isArray(result.permissions)) {
+        state.permissions = result.permissions;
+        applyPermissionGates();
+      }
       setTenantBanner(
         true,
         t.display_name || state.tenantId,
@@ -549,7 +710,11 @@
       state.tenantId = tenantId;
       state.membershipRole = current.membership_role || null;
       state.isPlatformAdmin = !!current.is_platform_admin;
+      state.permissions = Array.isArray(current.permissions)
+        ? current.permissions
+        : state.permissions;
       state.orgSwitcherEnabled = !!current.org_switcher_enabled;
+      applyPermissionGates();
       setTenantBanner(true, tenantName, tenantId);
       if (orgEl) {
         const plan = t.plan_code || "legacy_unlimited";
@@ -1176,12 +1341,18 @@
         return `<td>${escapeHtml(row.environment)}</td>`;
       case "status":
         return `<td><span class="status-pill ${statusClass(row.status)}">${escapeHtml(row.status)}</span></td>`;
-      case "actions":
+      case "actions": {
+        const write = can("cmdb:write");
         return `<td class="actions">
             <button type="button" class="ghost" data-view="${escapeAttr(row.component_id)}">View</button>
-            <button type="button" class="secondary" data-edit="${escapeAttr(row.component_id)}">Edit</button>
-            <button type="button" class="danger" data-del="${escapeAttr(row.component_id)}">Delete</button>
+            ${
+              write
+                ? `<button type="button" class="secondary" data-edit="${escapeAttr(row.component_id)}">Edit</button>
+            <button type="button" class="danger" data-del="${escapeAttr(row.component_id)}">Delete</button>`
+                : ""
+            }
           </td>`;
+      }
       default: {
         const cf = (row.custom_fields && row.custom_fields[columnKey] !== undefined)
           ? row.custom_fields[columnKey]
@@ -1219,6 +1390,9 @@
       case "verification_status":
         return `<td>${escapeHtml(row.verification_status)}</td>`;
       case "actions":
+        if (!can("relationships:write")) {
+          return `<td class="actions"><span class="hint">Read-only</span></td>`;
+        }
         return `<td class="actions">
           <button type="button" class="secondary" data-rel-edit="${escapeAttr(row.relationship_id)}">Edit</button>
           <button type="button" class="danger" data-rel-del="${escapeAttr(row.relationship_id)}">Delete</button>
@@ -1499,8 +1673,10 @@
       const tr = document.createElement("tr");
       const actions = locked
         ? `<span class="hint">Locked</span>`
-        : `<button type="button" class="secondary" data-cf-edit="${escapeAttr(item.field_key)}">Edit</button>
-          <button type="button" class="danger" data-cf-del="${escapeAttr(item.field_key)}">Delete</button>`;
+        : can("config:write")
+          ? `<button type="button" class="secondary" data-cf-edit="${escapeAttr(item.field_key)}">Edit</button>
+          <button type="button" class="danger" data-cf-del="${escapeAttr(item.field_key)}">Delete</button>`
+          : `<span class="hint">Read-only</span>`;
       tr.innerHTML = `
         <td class="mono">${escapeHtml(item.field_key)}</td>
         <td>${escapeHtml(item.label)}</td>
@@ -1720,6 +1896,9 @@
       loadTenancyContext()
         .then(() => loadTenantMembersPanel())
         .catch((err) => toast(err.message, true));
+    }
+    if (name === "roles" && state.authenticated) {
+      loadRolesPanel().catch((err) => toast(err.message, true));
     }
     if (name === "organizations" && state.authenticated) {
       loadTenancyContext().catch((err) => toast(err.message, true));
@@ -2646,9 +2825,13 @@
         <td>${(t.columns || []).length}</td>
         <td>${t.active === false ? "no" : "yes"}</td>
         <td class="actions">
-          <button type="button" class="secondary" data-ct-edit="${escapeAttr(
-            t.table_key
-          )}">Edit</button>
+          ${
+            can("config:write")
+              ? `<button type="button" class="secondary" data-ct-edit="${escapeAttr(
+                  t.table_key
+                )}">Edit</button>`
+              : ""
+          }
           <button type="button" class="secondary" data-ct-browse="${escapeAttr(
             t.table_key
           )}">Open</button>
@@ -2672,12 +2855,16 @@
         <td class="mono">${escapeHtml(col.reference_table || "—")}</td>
         <td>${col.required ? "yes" : "no"}</td>
         <td class="actions">
-          <button type="button" class="secondary" data-cc-edit="${escapeAttr(
-            col.column_key
-          )}">Edit</button>
+          ${
+            can("config:write")
+              ? `<button type="button" class="secondary" data-cc-edit="${escapeAttr(
+                  col.column_key
+                )}">Edit</button>
           <button type="button" class="danger" data-cc-del="${escapeAttr(
             col.column_key
-          )}">Delete</button>
+          )}">Delete</button>`
+              : `<span class="hint">Read-only</span>`
+          }
         </td>`;
       tbody.appendChild(tr);
     }
@@ -2935,12 +3122,16 @@
         <td>${escapeHtml(row.display_name || "")}</td>
         ${fieldCells}
         <td>
-          <button type="button" class="secondary" data-cr-edit="${escapeAttr(
-            row.record_id
-          )}">Edit</button>
+          ${
+            can("cmdb:write")
+              ? `<button type="button" class="secondary" data-cr-edit="${escapeAttr(
+                  row.record_id
+                )}">Edit</button>
           <button type="button" class="danger" data-cr-del="${escapeAttr(
             row.record_id
-          )}">Delete</button>
+          )}">Delete</button>`
+              : `<span class="hint">Read-only</span>`
+          }
         </td>`;
       tbody.appendChild(tr);
     }

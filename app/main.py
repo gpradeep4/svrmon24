@@ -88,7 +88,8 @@ def create_app() -> FastAPI:
             "analysis, SIMULATED diagnostics, AI analysis, and dashboard with "
             "provider-neutral OIDC auth (HTTP Basic optional via feature flag). "
             "Hard tenant isolation on shared MongoDB; org switcher for "
-            "multi-membership OIDC users. Diagnostics are demo-only; no remote execution. "
+            "multi-membership OIDC users. Tenant RBAC (viewer/member/admin/owner) "
+            "enforced on mutating APIs. Diagnostics are demo-only; no remote execution. "
             "Audit events collected for sensitive mutating SaaS actions."
         ),
         lifespan=lifespan,

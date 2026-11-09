@@ -8,6 +8,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 
 from ..auth import require_user
 from ..models.components import COMPONENT_TYPES, ComponentCreate, ComponentUpdate
+from ..permissions import PERM_CMDB_WRITE, require_permission
 from ..services import audit as audit_service
 from ..services import components as components_service
 from ..services.components import ComponentError
@@ -63,7 +64,7 @@ def list_components(
 @router.post("", status_code=201)
 def create_component(
     payload: ComponentCreate,
-    tenant: TenantContext = Depends(require_tenant),
+    tenant: TenantContext = Depends(require_permission(PERM_CMDB_WRITE)),
 ) -> dict[str, Any]:
     try:
         doc = components_service.create_component(payload, tenant_id=tenant.tenant_id)
@@ -106,7 +107,7 @@ def get_component(
 def update_component(
     component_id: str,
     payload: ComponentUpdate,
-    tenant: TenantContext = Depends(require_tenant),
+    tenant: TenantContext = Depends(require_permission(PERM_CMDB_WRITE)),
 ) -> dict[str, Any]:
     try:
         doc = components_service.update_component(
@@ -136,7 +137,7 @@ def update_component(
 @router.get("/{component_id}/delete-preview")
 def delete_preview(
     component_id: str,
-    tenant: TenantContext = Depends(require_tenant),
+    tenant: TenantContext = Depends(require_permission(PERM_CMDB_WRITE)),
 ) -> dict[str, Any]:
     try:
         return components_service.delete_preview(
@@ -151,7 +152,7 @@ def delete_preview(
 def delete_component(
     component_id: str,
     confirmed: bool = Query(default=False, description="Must be true to delete"),
-    tenant: TenantContext = Depends(require_tenant),
+    tenant: TenantContext = Depends(require_permission(PERM_CMDB_WRITE)),
 ) -> dict[str, Any]:
     try:
         result = components_service.delete_component(

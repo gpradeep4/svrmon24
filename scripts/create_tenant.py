@@ -32,7 +32,7 @@ from app.services.bootstrap import ensure_tenancy_ready
 from app.services.entitlements import EntitlementError
 from app.services.memberships import MembershipError
 from app.services.tenants import TenantError
-from app.tenancy import MEMBERSHIP_ROLE_ADMIN
+from app.tenancy import MEMBERSHIP_ROLE_OWNER
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -103,7 +103,7 @@ def main(argv: list[str] | None = None) -> int:
             membership = memberships_service.ensure_membership(
                 user_id=admin_user_id,
                 tenant_id=tenant["tenant_id"],
-                role=MEMBERSHIP_ROLE_ADMIN,
+                role=MEMBERSHIP_ROLE_OWNER,
                 upgrade_role=True,
             )
         except MembershipError as exc:
