@@ -91,10 +91,13 @@ def migration_tenant_defaults() -> dict[str, Any]:
         "slug": MIGRATION_TENANT_SLUG,
         "status": TenantStatus.ACTIVE.value,
         "is_migration_tenant": True,
-        "switchable": False,
+        # Phase 13: switcher is membership-driven; migration org remains eligible.
+        "switchable": True,
+        "plan_code": "legacy_unlimited",
         "notes": (
-            "Single logical organization for pre-isolation UX. "
-            "Hard cross-tenant denial arrives in Master Phase 5."
+            "Locked migration organization (SVRMON24 Legacy). "
+            "Hard tenant isolation is enforced; org switcher works for users "
+            "with multiple memberships (Master Phase 13)."
         ),
     }
 

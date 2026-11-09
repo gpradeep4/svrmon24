@@ -1,13 +1,13 @@
-"""Tenant entitlements (plan limits only — Master Phase 9).
+"""Tenant entitlements (plan limits only — Master Phase 9 / 13).
 
 v1 is entitlements-only: no payment provider, no billing webhooks, no Stripe.
-Plans describe soft/hard resource ceilings that services may enforce. The
-migration / default plan is unlimited so existing tenants keep working until
-operators assign a limited plan later.
+Plans are an in-memory catalog keyed by ``plan_code``; each tenant document may
+store ``plan_code`` (default ``legacy_unlimited``). Services enforce ceilings.
 """
 
 from __future__ import annotations
 
+from copy import deepcopy
 from typing import Any
 
 from ..tenancy import require_tenant_id
@@ -25,9 +25,13 @@ RESOURCE_MAX_DIAGNOSTIC_RUNS = "max_diagnostic_runs"
 RESOURCE_MAX_OLLAMA_ANALYSES = "max_ollama_analyses"
 
 PLAN_LEGACY_UNLIMITED = "legacy_unlimited"
+PLAN_STARTER = "starter"
+PLAN_STANDARD = "standard"
 
-# In-memory plan catalog (no payment system). Operators can later replace this
-# with tenant document fields without inventing checkout/billing.
+DEFAULT_PLAN_CODE = PLAN_LEGACY_UNLIMITED
+
+# In-memory plan catalog (no payment system). Operators assign plan_code on
+# tenants via CLI/API; there is no checkout or billing webhook.
 _PLAN_CATALOG: dict[str, dict[str, Any]] = {
     PLAN_LEGACY_UNLIMITED: {
         "plan_code": PLAN_LEGACY_UNLIMITED,
@@ -42,10 +46,44 @@ _PLAN_CATALOG: dict[str, dict[str, Any]] = {
             RESOURCE_MAX_OLLAMA_ANALYSES: None,
         },
         "notes": (
-            "Default entitlements for all tenants in v1. "
-            "No payment provider is wired; limits are advisory until assigned. "
+            "Default entitlements for migration / unlimited tenants. "
+            "No payment provider is wired. "
             "Ollama AI also requires OLLAMA_ENABLED=true; shared-local contention "
             "applies when multiple tenants hit one Ollama host."
+        ),
+    },
+    PLAN_STARTER: {
+        "plan_code": PLAN_STARTER,
+        "plan_label": "Starter",
+        "limits": {
+            RESOURCE_RELATIONSHIPS: 50,
+            RESOURCE_COMPONENTS: 100,
+            RESOURCE_CUSTOM_TABLES: 5,
+            RESOURCE_CUSTOM_RECORDS: 500,
+            RESOURCE_MAX_DEPENDENCY_DEPTH: 5,
+            RESOURCE_MAX_DIAGNOSTIC_RUNS: 20,
+            RESOURCE_MAX_OLLAMA_ANALYSES: 5,
+        },
+        "notes": (
+            "Entitlements-only starter ceiling for small orgs. "
+            "No payment provider — assign via platform-admin CLI/API."
+        ),
+    },
+    PLAN_STANDARD: {
+        "plan_code": PLAN_STANDARD,
+        "plan_label": "Standard",
+        "limits": {
+            RESOURCE_RELATIONSHIPS: 500,
+            RESOURCE_COMPONENTS: 1000,
+            RESOURCE_CUSTOM_TABLES: 25,
+            RESOURCE_CUSTOM_RECORDS: 5000,
+            RESOURCE_MAX_DEPENDENCY_DEPTH: 15,
+            RESOURCE_MAX_DIAGNOSTIC_RUNS: 200,
+            RESOURCE_MAX_OLLAMA_ANALYSES: 50,
+        },
+        "notes": (
+            "Entitlements-only standard ceiling. "
+            "No payment provider — assign via platform-admin CLI/API."
         ),
     },
 }
@@ -58,9 +96,40 @@ class EntitlementError(Exception):
         self.status_code = status_code
 
 
-def _plan_for_tenant(_tenant_id: str) -> dict[str, Any]:
-    """Resolve plan for a tenant. v1: always legacy unlimited."""
-    return dict(_PLAN_CATALOG[PLAN_LEGACY_UNLIMITED])
+def list_plans() -> list[dict[str, Any]]:
+    """Return the entitlements plan catalog (no billing fields)."""
+    return [deepcopy(plan) for plan in _PLAN_CATALOG.values()]
+
+
+def get_plan(plan_code: str) -> dict[str, Any] | None:
+    code = (plan_code or "").strip()
+    plan = _PLAN_CATALOG.get(code)
+    return deepcopy(plan) if plan else None
+
+
+def normalize_plan_code(plan_code: str | None) -> str:
+    code = (plan_code or DEFAULT_PLAN_CODE).strip() or DEFAULT_PLAN_CODE
+    if code not in _PLAN_CATALOG:
+        raise EntitlementError(
+            f"Unknown plan_code '{plan_code}' "
+            f"(expected one of: {', '.join(sorted(_PLAN_CATALOG))})",
+            status_code=422,
+        )
+    return code
+
+
+def _plan_for_tenant(tenant_id: str) -> dict[str, Any]:
+    """Resolve plan for a tenant from its ``plan_code`` (default unlimited)."""
+    from . import tenants as tenants_service
+
+    tid = require_tenant_id(tenant_id)
+    tenant = tenants_service.get_tenant(tid)
+    code = DEFAULT_PLAN_CODE
+    if tenant and tenant.get("plan_code"):
+        candidate = str(tenant["plan_code"]).strip()
+        if candidate in _PLAN_CATALOG:
+            code = candidate
+    return deepcopy(_PLAN_CATALOG[code])
 
 
 def get_tenant_entitlements(tenant_id: str) -> dict[str, Any]:
@@ -75,6 +144,7 @@ def get_tenant_entitlements(tenant_id: str) -> dict[str, Any]:
         "billing_enabled": False,
         "limits": dict(plan["limits"]),
         "notes": plan["notes"],
+        "catalog_size": len(_PLAN_CATALOG),
     }
 
 

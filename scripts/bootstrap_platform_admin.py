@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""One-time CLI bootstrap for a platform admin operator (Master Phase 4).
+"""One-time CLI bootstrap for a platform admin operator (Master Phase 4 / 13).
 
 Platform admin is **never** granted automatically on first public OIDC login.
 Use this script (operator-only) to create or upgrade a local user with
@@ -16,6 +16,11 @@ Examples::
         --oidc-issuer http://localhost:8080/realms/svrmon24 \\
         --oidc-subject abc-123 \\
         --tenant-role admin
+
+Related Phase 13 operator CLIs::
+
+    python scripts/create_tenant.py --display-name "Acme" --plan-code starter
+    python scripts/assign_tenant_plan.py --tenant-id tenant-acme --plan-code standard
 """
 
 from __future__ import annotations

@@ -1,9 +1,9 @@
-"""Shared tenancy constants and helpers (Master Phase 5–8 + custom entity tables).
+"""Shared tenancy constants and helpers (Master Phase 5–8 + custom entity tables + Phase 13).
 
 Phase 5 makes ``tenant_id`` mandatory on CMDB collections, scopes every
 read/write/aggregate, and denies cross-tenant access. ``component_id`` remains
-**globally** unique. Organization switching stays disabled until multi-org UX
-is explicitly enabled with isolation tests green.
+**globally** unique. Master Phase 13 enables the org switcher for users with
+multiple memberships (session selection); Basic stays migration-tenant only.
 
 Phase 6 adds typed ``cmdb_*`` collections; legacy ``components`` remains in the
 tenanted set as a migration source / transitional fallback.
@@ -56,7 +56,8 @@ TENANTED_COLLECTIONS: tuple[str, ...] = (
 
 # Master Phase 5: hard isolation is on.
 ISOLATION_ENFORCED = True
-ORG_SWITCHER_ENABLED = False
+# Master Phase 13: org switcher is real for multi-membership OIDC users.
+ORG_SWITCHER_ENABLED = True
 
 # Match documents missing or empty tenant_id (pre-Phase-5 rows).
 MISSING_TENANT_ID_FILTER: dict[str, Any] = {
