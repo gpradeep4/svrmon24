@@ -19,6 +19,8 @@ RESOURCE_CUSTOM_TABLES = "custom_tables"
 RESOURCE_CUSTOM_RECORDS = "custom_records"
 # Max depth for dependency / impact traversal (API hard-caps at 50).
 RESOURCE_MAX_DEPENDENCY_DEPTH = "max_dependency_depth"
+# Max SIMULATED diagnostic history rows a tenant may retain / create.
+RESOURCE_MAX_DIAGNOSTIC_RUNS = "max_diagnostic_runs"
 
 PLAN_LEGACY_UNLIMITED = "legacy_unlimited"
 
@@ -34,6 +36,7 @@ _PLAN_CATALOG: dict[str, dict[str, Any]] = {
             RESOURCE_CUSTOM_TABLES: None,
             RESOURCE_CUSTOM_RECORDS: None,
             RESOURCE_MAX_DEPENDENCY_DEPTH: None,
+            RESOURCE_MAX_DIAGNOSTIC_RUNS: None,
         },
         "notes": (
             "Default entitlements for all tenants in v1. "
@@ -128,5 +131,41 @@ def assert_dependency_depth_allowed(tenant_id: str, depth: int) -> None:
             f"Dependency depth {depth} exceeds tenant entitlement "
             f"(max_dependency_depth={limit}). Upgrade entitlements for deeper "
             "traversal.",
+            status_code=403,
+        )
+
+
+def diagnostic_run_limit(tenant_id: str) -> int | None:
+    """Max SIMULATED diagnostic runs allowed for tenant, or None when unlimited."""
+    entitlements = get_tenant_entitlements(tenant_id)
+    limit = entitlements["limits"].get(RESOURCE_MAX_DIAGNOSTIC_RUNS)
+    if limit is None:
+        return None
+    return int(limit)
+
+
+def assert_can_run_diagnostic(tenant_id: str) -> None:
+    """Enforce diagnostic start against tenant entitlements.
+
+    Unlimited (None) always passes. When a numeric limit is set, count current
+    tenant diagnostic_history rows and raise EntitlementError (403) at/over the
+    ceiling. Live/remote probes remain disabled regardless of plan.
+    """
+    tid = require_tenant_id(tenant_id)
+    limit = diagnostic_run_limit(tid)
+    if limit is None:
+        return
+
+    from . import diagnostics as diagnostics_service
+
+    listed = diagnostics_service.list_diagnostics(
+        tenant_id=tid, page=1, page_size=1
+    )
+    total = int(listed.get("total") or 0)
+    if total >= limit:
+        raise EntitlementError(
+            f"Diagnostic run limit reached for this tenant "
+            f"({total}/{limit}). Upgrade entitlements to run more "
+            "SIMULATED diagnostics.",
             status_code=403,
         )

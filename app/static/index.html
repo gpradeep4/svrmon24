@@ -12,7 +12,7 @@
     body.is-app .login-gate { display: none !important; }
     #authPanel, .auth-panel-legacy { display: none !important; }
   </style>
-  <link rel="stylesheet" href="/static/css/cmdb.css?v=0.25.0" />
+  <link rel="stylesheet" href="/static/css/cmdb.css?v=0.26.0" />
 </head>
 <body class="is-login">
   <!-- Full-page login (no Operations chrome while signed out) -->
@@ -489,25 +489,42 @@
         <section id="tab-diagnostics" class="tab-panel hidden">
           <section class="panel">
             <h2>Diagnostics (DEMO / SIMULATED)</h2>
+            <p class="hint" id="diagSaasIntro">
+              Tenant-scoped SIMULATED diagnostics wrap the existing demo engine.
+              History is filtered by your current <code>tenant_id</code>;
+              <code>component_id</code> stays globally unique. Live / remote probes
+              remain disabled for SaaS v1.
+              <button type="button" class="help-balloon" aria-label="Help: diagnostics SaaS" data-help="Run, list, and get always use the session tenant. Cross-tenant history returns 404 / empty. Entitlements may cap max_diagnostic_runs. No shell, SQL, SSH, or network scans.">i</button>
+            </p>
             <div class="demo-banner" id="diagBanner">
               All diagnostic output is <strong>SIMULATED / SYNTHETIC_DEMO</strong>.
               execution_mode is always SIMULATED. No servers are contacted; shell/SQL/network scans are blocked.
             </div>
             <div class="toolbar" style="grid-template-columns: 1.2fr 1.2fr 1fr auto auto;">
-              <label>Component ID<input id="diagComponentId" list="componentIdList" /></label>
+              <label>Component ID
+                <button type="button" class="help-balloon" aria-label="Help: diagnostic component" data-help="Must be a CMDB component_id visible in your tenant. Other-tenant ids return 404 on run.">i</button>
+                <input id="diagComponentId" list="componentIdList" placeholder="e.g. srv-1" />
+              </label>
               <label>Profile
+                <button type="button" class="help-balloon" aria-label="Help: diagnostic profile" data-help="Only approved SIMULATED profiles (basic-health). Profiles never carry remote probe commands.">i</button>
                 <select id="diagProfile"></select>
               </label>
-              <label>Notes<input id="diagNotes" placeholder="optional" /></label>
+              <label>Notes
+                <button type="button" class="help-balloon" aria-label="Help: diagnostic notes" data-help="Optional operator note stored on the history row. Forbidden keys (command, shell, sql, probe, live…) are rejected by the API.">i</button>
+                <input id="diagNotes" placeholder="optional" />
+              </label>
               <button type="button" id="btnRunDiag">Run simulated diagnostic</button>
               <button type="button" id="btnRefreshDiagHistory" class="secondary">Refresh history</button>
             </div>
             <p class="hint" id="diagProfileNotice"></p>
+            <p class="hint" id="diagEntitlementHint">Entitlements: max_diagnostic_runs = unlimited (Plans).</p>
             <p class="hint" id="ollamaStatusHint">Ollama status: not checked.</p>
           </section>
 
           <section class="panel">
-            <h2>Latest result</h2>
+            <h2>Latest result
+              <button type="button" class="help-balloon" aria-label="Help: latest diagnostic" data-help="Every check is labeled SYNTHETIC_DEMO. Banners say SIMULATED — never treat values as live telemetry.">i</button>
+            </h2>
             <div id="diagLatest" class="hint">No diagnostic run yet.</div>
             <div style="margin-top:10px;display:flex;gap:8px;flex-wrap:wrap">
               <button type="button" id="btnAnalyzeDiag" class="secondary">Analyze with Ollama (fallback if unavailable)</button>
@@ -533,7 +550,10 @@
           </section>
 
           <section class="panel">
-            <h2>Diagnostic history</h2>
+            <h2>Diagnostic history
+              <button type="button" class="help-balloon" aria-label="Help: diagnostic history" data-help="Lists only this tenant’s SIMULATED runs. Cross-tenant diagnostic_id lookups return 404.">i</button>
+            </h2>
+            <p class="hint" id="diagHistoryMeta">Tenant-scoped history · mode SIMULATED</p>
             <div class="table-wrap">
               <table class="inventory">
                 <thead>
@@ -1099,6 +1119,6 @@
     </div>
   </div>
 
-  <script src="/static/js/cmdb.js?v=0.25.0"></script>
+  <script src="/static/js/cmdb.js?v=0.26.0"></script>
 </body>
 </html>

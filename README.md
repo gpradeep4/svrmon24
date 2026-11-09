@@ -4,7 +4,7 @@ AI-assisted infrastructure CMDB, dependency mapping, **SIMULATED** diagnostics, 
 
 Stack: **FastAPI + Uvicorn + MongoDB (PyMongo) + provider-neutral OIDC** (HTTP Basic optional via feature flag). Diagnostics never contact remote hosts and never execute shell/SQL/network scans.
 
-## Features (through Master Phase 10 Dependencies SaaS wrap / 0.25.0)
+## Features (through Master Phase 11 Diagnostics SaaS tenancy / 0.26.0)
 
 | Area | Capability |
 | --- | --- |
@@ -15,9 +15,9 @@ Stack: **FastAPI + Uvicorn + MongoDB (PyMongo) + provider-neutral OIDC** (HTTP B
 | Column configurations | Tenant-scoped `cmdb_column_configurations` driving Inventory + Relationships grids (visibility / order / width / pin); Inventory includes toggleable **custom field** columns; locked OS/product and protocol/port columns; Relationships also expose optional Source/Target Table columns |
 | Custom entity tables | Tenant-scoped `cmdb_custom_table_definitions` + `cmdb_custom_records` (`table_key`); typed columns including **reference** fields; relationships can link custom entities via `source_table` / `target_table`; Edit UI for defs/columns; dropdowns show display name + `table_key` (open lists via ink-on-white combo selects); beginner help balloons |
 | Relationships | SaaS wrap of the existing engine: tenant-scoped CRUD; HOSTED_ON / DEPENDS_ON / CONNECTS_TO / ROUTES_TO (CMDB ↔ CMDB, custom ↔ CMDB, custom ↔ custom); null-table CMDB edges preserved; UI table selectors + entity-refs pickers; Protocol / Source Port / Target Port never combined |
-| Entitlements | Plan-limit stub (`GET /api/entitlements`); relationship create + `max_dependency_depth` checks; v1 default = unlimited; **no payment provider** |
+| Entitlements | Plan-limit stub (`GET /api/entitlements`); relationship create + `max_dependency_depth` + `max_diagnostic_runs` checks; v1 default = unlimited; **no payment provider** |
 | Dependencies | SaaS wrap of the existing graph engine: tenant-scoped upstream / downstream / impact; typed CMDB **and** custom-table relationship edges; protocol/ports preserved; “potentially affected” disclaimer |
-| Diagnostics | Approved `basic-health` profile — always `execution_mode=SIMULATED` |
+| Diagnostics | SaaS wrap of the **existing** SIMULATED engine: tenant-scoped run/list/get history; `basic-health` only; no live/remote probes; `max_diagnostic_runs` entitlement |
 | AI analysis | Local Ollama (`OLLAMA_URL` / `OLLAMA_MODEL`) with rule-based fallback |
 | Dashboard | Live aggregates from MongoDB (no hardcoded counts) |
 
@@ -164,6 +164,15 @@ When Ollama is unavailable, diagnostic analysis uses a deterministic rule-based 
 - UI: Dependencies panel entity-refs + optional table, Source/Target Table columns, help tips, entitlements-aware depth note
 - Entitlements: `max_dependency_depth` (default unlimited); deeper requests → **403** when a numeric ceiling is assigned
 - **Stop-and-wait** — do not start Phase 11 (Diagnostics SaaS tenancy) from this deliverable
+
+### Diagnostics SaaS tenancy (Master Phase 11 / 0.26.0)
+
+- SIMULATED diagnostic engine + history from Phase 6 reused — **not** rebuilt; no live/remote probes
+- All run / list / get history routes stay tenant-scoped (`require_tenant`); cross-tenant diagnostic or component → **404** / empty list
+- SIMULATED / SYNTHETIC_DEMO banners and safety flags preserved; forbidden execution payload keys still rejected
+- UI: Diagnostics SaaS intro, help tips, tenant-scoped history meta, entitlements hint for `max_diagnostic_runs`
+- Entitlements: `max_diagnostic_runs` (default unlimited); additional runs → **403** when a numeric ceiling is assigned
+- **Stop-and-wait** — do not start Phase 12 from this deliverable
 
 ### Important: one browser host only
 

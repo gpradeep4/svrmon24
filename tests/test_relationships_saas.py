@@ -404,7 +404,7 @@ def test_relationships_grid_includes_table_columns_and_ui_markers(
     assert 'id="relProtocol"' in html
     assert 'id="relSourcePort"' in html
     assert 'id="relTargetPort"' in html
-    assert "0.25.0" in html
+    assert "0.26.0" in html
     assert 'id="entitlementsPanel"' in html
     js = client.get("/static/js/cmdb.js", headers=auth_headers).text
     assert "syncRelEntityDatalists" in js
