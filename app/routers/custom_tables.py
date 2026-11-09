@@ -21,6 +21,7 @@ from ..models.custom_tables import (
     CustomTableCreate,
     CustomTableUpdate,
 )
+from ..services import audit as audit_service
 from ..services import custom_tables as custom_tables_service
 from ..services.custom_tables import CustomTableError
 from ..tenant_context import TenantContext, require_tenant
@@ -64,12 +65,22 @@ def create_custom_table(
     tenant: TenantContext = Depends(require_tenant),
 ) -> dict[str, Any]:
     try:
-        return custom_tables_service.create_table(
+        doc = custom_tables_service.create_table(
             payload, tenant_id=tenant.tenant_id
         )
     except CustomTableError as exc:
         _raise(exc)
         raise  # pragma: no cover
+    audit_service.record_from_tenant(
+        tenant,
+        action="custom_table.create",
+        resource_type="custom_table",
+        resource_id=doc.get("table_key"),
+        details={"display_name": doc.get("display_name")},
+        request_method="POST",
+        request_path="/api/custom-tables",
+    )
+    return doc
 
 
 @router.get("/{table_key}")
@@ -92,12 +103,21 @@ def update_custom_table(
     tenant: TenantContext = Depends(require_tenant),
 ) -> dict[str, Any]:
     try:
-        return custom_tables_service.update_table(
+        doc = custom_tables_service.update_table(
             table_key, payload, tenant_id=tenant.tenant_id
         )
     except CustomTableError as exc:
         _raise(exc)
         raise  # pragma: no cover
+    audit_service.record_from_tenant(
+        tenant,
+        action="custom_table.update",
+        resource_type="custom_table",
+        resource_id=table_key,
+        request_method="PUT",
+        request_path=f"/api/custom-tables/{table_key}",
+    )
+    return doc
 
 
 @router.delete("/{table_key}")
@@ -106,12 +126,21 @@ def delete_custom_table(
     tenant: TenantContext = Depends(require_tenant),
 ) -> dict[str, Any]:
     try:
-        return custom_tables_service.delete_table(
+        result = custom_tables_service.delete_table(
             table_key, tenant_id=tenant.tenant_id
         )
     except CustomTableError as exc:
         _raise(exc)
         raise  # pragma: no cover
+    audit_service.record_from_tenant(
+        tenant,
+        action="custom_table.delete",
+        resource_type="custom_table",
+        resource_id=table_key,
+        request_method="DELETE",
+        request_path=f"/api/custom-tables/{table_key}",
+    )
+    return result
 
 
 @router.post("/{table_key}/columns", status_code=201)
@@ -121,12 +150,22 @@ def add_custom_column(
     tenant: TenantContext = Depends(require_tenant),
 ) -> dict[str, Any]:
     try:
-        return custom_tables_service.add_column(
+        doc = custom_tables_service.add_column(
             table_key, payload, tenant_id=tenant.tenant_id
         )
     except CustomTableError as exc:
         _raise(exc)
         raise  # pragma: no cover
+    audit_service.record_from_tenant(
+        tenant,
+        action="custom_table.column_add",
+        resource_type="custom_table_column",
+        resource_id=f"{table_key}:{payload.column_key}",
+        details={"table_key": table_key, "column_key": payload.column_key},
+        request_method="POST",
+        request_path=f"/api/custom-tables/{table_key}/columns",
+    )
+    return doc
 
 
 @router.put("/{table_key}/columns/{column_key}")
@@ -137,12 +176,21 @@ def update_custom_column(
     tenant: TenantContext = Depends(require_tenant),
 ) -> dict[str, Any]:
     try:
-        return custom_tables_service.update_column(
+        doc = custom_tables_service.update_column(
             table_key, column_key, payload, tenant_id=tenant.tenant_id
         )
     except CustomTableError as exc:
         _raise(exc)
         raise  # pragma: no cover
+    audit_service.record_from_tenant(
+        tenant,
+        action="custom_table.column_update",
+        resource_type="custom_table_column",
+        resource_id=f"{table_key}:{column_key}",
+        request_method="PUT",
+        request_path=f"/api/custom-tables/{table_key}/columns/{column_key}",
+    )
+    return doc
 
 
 @router.delete("/{table_key}/columns/{column_key}")
@@ -152,12 +200,21 @@ def delete_custom_column(
     tenant: TenantContext = Depends(require_tenant),
 ) -> dict[str, Any]:
     try:
-        return custom_tables_service.delete_column(
+        result = custom_tables_service.delete_column(
             table_key, column_key, tenant_id=tenant.tenant_id
         )
     except CustomTableError as exc:
         _raise(exc)
         raise  # pragma: no cover
+    audit_service.record_from_tenant(
+        tenant,
+        action="custom_table.column_delete",
+        resource_type="custom_table_column",
+        resource_id=f"{table_key}:{column_key}",
+        request_method="DELETE",
+        request_path=f"/api/custom-tables/{table_key}/columns/{column_key}",
+    )
+    return result
 
 
 @router.get("/{table_key}/records")
@@ -188,12 +245,22 @@ def create_custom_record(
     tenant: TenantContext = Depends(require_tenant),
 ) -> dict[str, Any]:
     try:
-        return custom_tables_service.create_record(
+        doc = custom_tables_service.create_record(
             table_key, payload, tenant_id=tenant.tenant_id
         )
     except CustomTableError as exc:
         _raise(exc)
         raise  # pragma: no cover
+    audit_service.record_from_tenant(
+        tenant,
+        action="custom_record.create",
+        resource_type="custom_record",
+        resource_id=doc.get("record_id"),
+        details={"table_key": table_key},
+        request_method="POST",
+        request_path=f"/api/custom-tables/{table_key}/records",
+    )
+    return doc
 
 
 @router.get("/{table_key}/records/{record_id}")
@@ -221,12 +288,22 @@ def update_custom_record(
     tenant: TenantContext = Depends(require_tenant),
 ) -> dict[str, Any]:
     try:
-        return custom_tables_service.update_record(
+        doc = custom_tables_service.update_record(
             table_key, record_id, payload, tenant_id=tenant.tenant_id
         )
     except CustomTableError as exc:
         _raise(exc)
         raise  # pragma: no cover
+    audit_service.record_from_tenant(
+        tenant,
+        action="custom_record.update",
+        resource_type="custom_record",
+        resource_id=record_id,
+        details={"table_key": table_key},
+        request_method="PUT",
+        request_path=f"/api/custom-tables/{table_key}/records/{record_id}",
+    )
+    return doc
 
 
 @router.delete("/{table_key}/records/{record_id}")
@@ -236,12 +313,22 @@ def delete_custom_record(
     tenant: TenantContext = Depends(require_tenant),
 ) -> dict[str, Any]:
     try:
-        return custom_tables_service.delete_record(
+        result = custom_tables_service.delete_record(
             table_key, record_id, tenant_id=tenant.tenant_id
         )
     except CustomTableError as exc:
         _raise(exc)
         raise  # pragma: no cover
+    audit_service.record_from_tenant(
+        tenant,
+        action="custom_record.delete",
+        resource_type="custom_record",
+        resource_id=record_id,
+        details={"table_key": table_key},
+        request_method="DELETE",
+        request_path=f"/api/custom-tables/{table_key}/records/{record_id}",
+    )
+    return result
 
 
 @entity_refs_router.get("")

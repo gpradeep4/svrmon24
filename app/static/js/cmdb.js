@@ -207,7 +207,10 @@
     organizations: { title: "Organizations", subtitle: "Membership orgs + isolation; switcher in Settings" },
     plans: { title: "Subscription Plans", subtitle: "Entitlements-only plan catalog (no payment provider)" },
     settings: { title: "Settings", subtitle: "Organization switcher and accent colour" },
-    audit: { title: "Audit Logs", subtitle: "Coming soon — audit collection not implemented" },
+    audit: {
+      title: "Audit Logs",
+      subtitle: "Tenant-scoped audit_events for mutating admin / CMDB actions",
+    },
   };
 
   function setTenantBanner(connected, tenantName = "", tenantId = "") {
@@ -297,6 +300,57 @@
           })
           .join("");
       }
+    }
+  }
+
+  async function loadAuditEvents() {
+    const body = $("#auditBody");
+    const hint = $("#auditHint");
+    if (!body) return;
+    const action = ($("#auditActionFilter")?.value || "").trim();
+    const qs = new URLSearchParams({ page: "1", page_size: "50" });
+    if (action) qs.set("action", action);
+    try {
+      const data = await api(`/api/audit-events?${qs.toString()}`);
+      if (hint) {
+        hint.textContent =
+          `${data.total || 0} event(s) for ${data.tenant_id || state.tenantId} ` +
+          `(collection ${data.collection || "audit_events"}). Tenant admin / platform admin / Basic.`;
+      }
+      const items = data.items || [];
+      if (!items.length) {
+        body.innerHTML =
+          `<tr><td colspan="6" class="hint">No audit events yet for this tenant.</td></tr>`;
+        return;
+      }
+      body.innerHTML = items
+        .map((ev) => {
+          const actor = ev.actor || {};
+          const actorLabel =
+            actor.username || actor.user_id || actor.email || "—";
+          const when = ev.timestamp
+            ? String(ev.timestamp).replace("T", " ").replace(/\.\d+.*/, "")
+            : "—";
+          const resource = ev.resource_id
+            ? `${ev.resource_type || ""}:${ev.resource_id}`
+            : ev.resource_type || "—";
+          return `<tr>
+            <td>${escapeHtml(when)}</td>
+            <td><code>${escapeHtml(ev.action || "")}</code></td>
+            <td>${escapeHtml(resource)}</td>
+            <td>${escapeHtml(actorLabel)} <span class="hint">(${escapeHtml(
+              actor.auth_method || ""
+            )})</span></td>
+            <td>${escapeHtml(ev.outcome || "")}</td>
+            <td><code>${escapeHtml(ev.audit_id || "")}</code></td>
+          </tr>`;
+        })
+        .join("");
+    } catch (err) {
+      body.innerHTML = `<tr><td colspan="6" class="hint">${escapeHtml(
+        err.message || "Failed to load audit events"
+      )}</td></tr>`;
+      throw err;
     }
   }
 
@@ -1672,6 +1726,9 @@
     }
     if (name === "settings" && state.authenticated) {
       loadTenancyContext().catch((err) => toast(err.message, true));
+    }
+    if (name === "audit" && state.authenticated) {
+      loadAuditEvents().catch((err) => toast(err.message, true));
     }
     if (customTableKey && state.authenticated) {
       state.selectedCustomTableKey = customTableKey;
@@ -3465,6 +3522,24 @@
         toast(err.message || "Dashboard refresh failed", true);
       } finally {
         setGlobalLoading(false);
+      }
+    });
+    $("#btnRefreshAudit")?.addEventListener("click", async () => {
+      if (!state.authenticated) {
+        toast("Connect first", true);
+        return;
+      }
+      try {
+        await loadAuditEvents();
+        toast("Audit log refreshed");
+      } catch (err) {
+        toast(err.message || "Audit refresh failed", true);
+      }
+    });
+    $("#auditActionFilter")?.addEventListener("keydown", (e) => {
+      if (e.key === "Enter") {
+        e.preventDefault();
+        loadAuditEvents().catch((err) => toast(err.message, true));
       }
     });
     $("#btnSearch").addEventListener("click", async () => {

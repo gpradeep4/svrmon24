@@ -13,6 +13,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 
 from ..auth import require_user
 from ..models.custom_fields import CustomFieldCreate, CustomFieldUpdate, FieldOrigin
+from ..services import audit as audit_service
 from ..services import custom_fields as custom_fields_service
 from ..services.custom_fields import CustomFieldError
 from ..tenant_context import TenantContext, require_tenant
@@ -94,12 +95,22 @@ def list_custom_fields(
 
 def _create_impl(payload: CustomFieldCreate, tenant: TenantContext) -> dict[str, Any]:
     try:
-        return custom_fields_service.create_definition(
+        doc = custom_fields_service.create_definition(
             payload, tenant_id=tenant.tenant_id
         )
     except CustomFieldError as exc:
         _raise(exc)
         raise  # pragma: no cover
+    audit_service.record_from_tenant(
+        tenant,
+        action="field_definition.create",
+        resource_type="field_definition",
+        resource_id=doc.get("field_key"),
+        details={"label": doc.get("label"), "field_type": doc.get("field_type")},
+        request_method="POST",
+        request_path="/api/field-definitions",
+    )
+    return doc
 
 
 @router.post("", status_code=201)
@@ -145,12 +156,21 @@ def _update_impl(
     field_key: str, payload: CustomFieldUpdate, tenant: TenantContext
 ) -> dict[str, Any]:
     try:
-        return custom_fields_service.update_definition(
+        doc = custom_fields_service.update_definition(
             field_key, payload, tenant_id=tenant.tenant_id
         )
     except CustomFieldError as exc:
         _raise(exc)
         raise  # pragma: no cover
+    audit_service.record_from_tenant(
+        tenant,
+        action="field_definition.update",
+        resource_type="field_definition",
+        resource_id=field_key,
+        request_method="PUT",
+        request_path=f"/api/field-definitions/{field_key}",
+    )
+    return doc
 
 
 @router.put("/{field_key}")
@@ -179,6 +199,14 @@ def _delete_impl(field_key: str, tenant: TenantContext) -> dict[str, str]:
     except CustomFieldError as exc:
         _raise(exc)
         raise  # pragma: no cover
+    audit_service.record_from_tenant(
+        tenant,
+        action="field_definition.delete",
+        resource_type="field_definition",
+        resource_id=field_key,
+        request_method="DELETE",
+        request_path=f"/api/field-definitions/{field_key}",
+    )
     return {"deleted": field_key}
 
 
