@@ -106,6 +106,13 @@
     customRecordTotalPages: 1,
     editingCustomRecordId: null,
     entityRefs: [],
+    tenantId: "tenant-svrmon24-legacy",
+    orgSwitcherEnabled: false,
+    switchableForUser: false,
+    isPlatformAdmin: false,
+    membershipRole: null,
+    memberships: [],
+    entitlements: null,
   };
 
   const INVENTORY_TABS = {
@@ -195,11 +202,11 @@
       subtitle: "Browse and edit rows for a custom entity table",
     },
     columns: { title: "Column Settings", subtitle: "Tenant-scoped grid visibility, order, width, and pin" },
-    users: { title: "Users", subtitle: "OIDC-linked memberships (no auto platform-admin)" },
+    users: { title: "Users", subtitle: "OIDC memberships + current-org members (no auto platform-admin)" },
     roles: { title: "Roles and Permissions", subtitle: "Coming soon — RBAC not implemented" },
-    organizations: { title: "Organizations", subtitle: "SVRMON24 Legacy — single logical org" },
-    plans: { title: "Subscription Plans", subtitle: "Entitlements-only plan limits (no payment provider)" },
-    settings: { title: "Settings", subtitle: "Organization (non-switchable) and accent colour" },
+    organizations: { title: "Organizations", subtitle: "Membership orgs + isolation; switcher in Settings" },
+    plans: { title: "Subscription Plans", subtitle: "Entitlements-only plan catalog (no payment provider)" },
+    settings: { title: "Settings", subtitle: "Organization switcher and accent colour" },
     audit: { title: "Audit Logs", subtitle: "Coming soon — audit collection not implemented" },
   };
 
@@ -265,68 +272,293 @@
     setTenantBanner(connected, connected ? tenantName : "", connected ? tenantId : "");
   }
 
-  async function loadTenancyContext(me) {
+  function renderMembershipTables(mem) {
+    const body = $("#myMembershipsBody");
+    if (body) {
+      const items = (mem && mem.items) || [];
+      if (!items.length) {
+        body.innerHTML =
+          `<tr><td colspan="4" class="hint">${escapeHtml(
+            (mem && mem.notes) || "No memberships for this session."
+          )}</td></tr>`;
+      } else {
+        body.innerHTML = items
+          .map((m) => {
+            const current =
+              m.tenant_id === state.tenantId
+                ? ' <span class="badge-soon">current</span>'
+                : "";
+            return `<tr>
+              <td>${escapeHtml(m.tenant_display_name || m.tenant_id || "")}${current}</td>
+              <td><code>${escapeHtml(m.tenant_id || "")}</code></td>
+              <td>${escapeHtml(m.role || "")}</td>
+              <td>${escapeHtml(m.plan_code || "—")}</td>
+            </tr>`;
+          })
+          .join("");
+      }
+    }
+  }
+
+  async function loadTenantMembersPanel() {
+    const body = $("#tenantMembersBody");
+    const hint = $("#tenantMembersHint");
+    if (!body) return;
+    if (state.authMethod === "basic") {
+      if (hint) {
+        hint.textContent =
+          "HTTP Basic sessions cannot list org members (no tenant-admin context). Use OIDC.";
+      }
+      body.innerHTML =
+        `<tr><td colspan="4" class="hint">OIDC tenant-admin / platform-admin session required.</td></tr>`;
+      return;
+    }
+    const canList =
+      state.isPlatformAdmin || state.membershipRole === "admin";
+    if (!canList) {
+      if (hint) {
+        hint.textContent =
+          "Tenant admin or platform admin required to list members of the current organization.";
+      }
+      body.innerHTML =
+        `<tr><td colspan="4" class="hint">Insufficient role to list members.</td></tr>`;
+      return;
+    }
+    try {
+      const data = await api(
+        `/api/tenants/${encodeURIComponent(state.tenantId)}/members`
+      );
+      if (hint) {
+        hint.textContent = `${data.count || 0} member(s) in ${state.tenantId}`;
+      }
+      const items = data.items || [];
+      if (!items.length) {
+        body.innerHTML =
+          `<tr><td colspan="4" class="hint">No members yet.</td></tr>`;
+        return;
+      }
+      body.innerHTML = items
+        .map((m) => {
+          const label =
+            m.display_name || m.username || m.user_id || "unknown";
+          return `<tr>
+            <td>${escapeHtml(label)}</td>
+            <td>${escapeHtml(m.email || "—")}</td>
+            <td>${escapeHtml(m.role || "")}</td>
+            <td>${m.is_platform_admin ? "yes" : "no"}</td>
+          </tr>`;
+        })
+        .join("");
+    } catch (err) {
+      if (hint) hint.textContent = err.message || "Could not load members";
+      body.innerHTML = `<tr><td colspan="4" class="hint">${escapeHtml(
+        err.message || "Could not load members"
+      )}</td></tr>`;
+    }
+  }
+
+  function renderOrgList(tenantsPayload) {
+    const body = $("#orgListBody");
+    if (!body) return;
+    const catalog =
+      (tenantsPayload &&
+        tenantsPayload.catalog_items &&
+        tenantsPayload.catalog_items.length &&
+        tenantsPayload.catalog_items) ||
+      (tenantsPayload && tenantsPayload.items) ||
+      [];
+    if (!catalog.length) {
+      body.innerHTML =
+        `<tr><td colspan="5" class="hint">No organizations visible.</td></tr>`;
+      return;
+    }
+    body.innerHTML = catalog
+      .map((t) => {
+        const isCurrent = t.tenant_id === state.tenantId || t.is_current;
+        return `<tr>
+          <td>${escapeHtml(t.display_name || t.tenant_id || "")}</td>
+          <td><code>${escapeHtml(t.tenant_id || "")}</code></td>
+          <td>${escapeHtml(t.plan_code || "—")}</td>
+          <td>${escapeHtml(t.membership_role || "—")}</td>
+          <td>${isCurrent ? "yes" : "no"}</td>
+        </tr>`;
+      })
+      .join("");
+  }
+
+  function populateTenantSwitcher(tenantsPayload, currentTenantId) {
     const switcher = $("#tenantSwitcher");
+    const note = $("#tenantSwitcherNote");
+    if (!switcher) return;
+    const items = (tenantsPayload && tenantsPayload.items) || [];
+    const orgEnabled = !!(
+      tenantsPayload && tenantsPayload.org_switcher_enabled
+    );
+    const switchable = !!(
+      tenantsPayload && tenantsPayload.switchable_for_user
+    );
+    state.orgSwitcherEnabled = orgEnabled;
+    state.switchableForUser = switchable;
+
+    switcher.innerHTML = "";
+    if (!items.length) {
+      const opt = document.createElement("option");
+      opt.value = currentTenantId || "tenant-svrmon24-legacy";
+      opt.textContent = "SVRMON24 Legacy";
+      opt.selected = true;
+      switcher.appendChild(opt);
+    } else {
+      for (const t of items) {
+        const opt = document.createElement("option");
+        opt.value = t.tenant_id;
+        const role = t.membership_role ? ` · ${t.membership_role}` : "";
+        opt.textContent = `${t.display_name || t.tenant_id}${role}`;
+        if (t.tenant_id === currentTenantId) opt.selected = true;
+        switcher.appendChild(opt);
+      }
+    }
+
+    const canSwitch = orgEnabled && switchable;
+    switcher.disabled = !canSwitch;
+    switcher.setAttribute("aria-disabled", canSwitch ? "false" : "true");
+    if (note) {
+      if (!orgEnabled) {
+        note.textContent = "Organization switcher disabled by server.";
+      } else if (state.authMethod === "basic") {
+        note.textContent =
+          "HTTP Basic cannot switch orgs — migration tenant only.";
+      } else if (!switchable) {
+        note.textContent =
+          items.length <= 1
+            ? "Only one membership — add another org to switch."
+            : "Switcher unavailable for this session.";
+      } else {
+        note.textContent = `Switchable · ${items.length} organization(s)`;
+      }
+    }
+  }
+
+  async function switchOrganization(tenantId) {
+    if (!tenantId || tenantId === state.tenantId) return;
+    if (!state.orgSwitcherEnabled || !state.switchableForUser) {
+      toast("Organization switching is not available for this session", true);
+      return;
+    }
+    setGlobalLoading(true, "Switching organization…");
+    try {
+      const result = await api("/api/tenants/switch", {
+        method: "POST",
+        body: JSON.stringify({ tenant_id: tenantId }),
+      });
+      const t = result.tenant || {};
+      state.tenantId = t.tenant_id || tenantId;
+      state.membershipRole = result.membership_role || null;
+      setTenantBanner(
+        true,
+        t.display_name || state.tenantId,
+        state.tenantId
+      );
+      toast(`Switched to ${t.display_name || state.tenantId}`);
+      await loadTenancyContext({
+        current_tenant_id: state.tenantId,
+        current_tenant_display_name: t.display_name,
+      });
+      // Refresh active tab data under the new tenant scope.
+      if (state.activeNav) showTab(state.activeNav);
+    } catch (err) {
+      toast(err.message || "Organization switch failed", true);
+      await loadTenancyContext();
+    } finally {
+      setGlobalLoading(false);
+    }
+  }
+
+  async function loadTenancyContext(me) {
     const memEl = $("#membershipSummary");
     const orgEl = $("#orgTenantSummary");
+    const platformEl = $("#platformAdminStatus");
     let tenantName =
       (me && me.current_tenant_display_name) || "SVRMON24 Legacy";
     let tenantId =
-      (me && me.current_tenant_id) || "tenant-svrmon24-legacy";
-    setTenantBanner(true, tenantName, tenantId);
-    if (switcher) {
-      switcher.innerHTML = "";
-      const opt = document.createElement("option");
-      opt.value = tenantId;
-      opt.textContent = tenantName;
-      opt.selected = true;
-      switcher.appendChild(opt);
-      switcher.disabled = true;
-      switcher.setAttribute("aria-disabled", "true");
+      (me && me.current_tenant_id) || state.tenantId || "tenant-svrmon24-legacy";
+    if (me) {
+      state.isPlatformAdmin = !!me.is_platform_admin;
+      if (me.auth_method) state.authMethod = me.auth_method;
     }
+    setTenantBanner(true, tenantName, tenantId);
+    let tenantsPayload = null;
     try {
       const current = await api("/api/tenants/current");
       const t = current.tenant || {};
       tenantName = t.display_name || tenantName;
       tenantId = t.tenant_id || tenantId;
       state.tenantId = tenantId;
+      state.membershipRole = current.membership_role || null;
+      state.isPlatformAdmin = !!current.is_platform_admin;
+      state.orgSwitcherEnabled = !!current.org_switcher_enabled;
       setTenantBanner(true, tenantName, tenantId);
-      if (switcher) {
-        switcher.innerHTML = "";
-        const opt = document.createElement("option");
-        opt.value = tenantId;
-        opt.textContent = tenantName;
-        opt.selected = true;
-        switcher.appendChild(opt);
-        switcher.disabled = true;
-        switcher.setAttribute("aria-disabled", "true");
-      }
       if (orgEl) {
+        const plan = t.plan_code || "legacy_unlimited";
         orgEl.textContent =
-          `${tenantName} (${tenantId}) — ` +
-          "not switchable; isolation_enforced=true";
+          `${tenantName} (${tenantId}) · plan=${plan} · ` +
+          `role=${state.membershipRole || "—"} · isolation_enforced=true · ` +
+          `org_switcher_enabled=${!!current.org_switcher_enabled}`;
       }
     } catch (err) {
       if (orgEl) orgEl.textContent = err.message || "Could not load tenant";
     }
     try {
+      tenantsPayload = await api("/api/tenants");
+      populateTenantSwitcher(tenantsPayload, state.tenantId);
+      renderOrgList(tenantsPayload);
+    } catch (err) {
+      populateTenantSwitcher(
+        {
+          items: [
+            {
+              tenant_id: state.tenantId,
+              display_name: tenantName,
+            },
+          ],
+          org_switcher_enabled: state.orgSwitcherEnabled,
+          switchable_for_user: false,
+        },
+        state.tenantId
+      );
+      if (orgEl && !orgEl.textContent) {
+        orgEl.textContent = err.message || "Could not list tenants";
+      }
+    }
+    try {
       const mem = await api("/api/memberships");
+      state.memberships = mem.items || [];
+      state.isPlatformAdmin = !!mem.is_platform_admin || state.isPlatformAdmin;
       if (memEl) {
         if (!mem.user_id) {
           memEl.textContent =
             mem.notes ||
             "No local user identity (Basic sessions do not create memberships).";
         } else {
-          const roles = (mem.items || [])
-            .map((m) => `${m.tenant_display_name || m.tenant_id}: ${m.role}`)
-            .join("; ") || "none";
+          const roles =
+            (mem.items || [])
+              .map((m) => `${m.tenant_display_name || m.tenant_id}: ${m.role}`)
+              .join("; ") || "none";
           memEl.textContent =
             `user_id=${mem.user_id}; platform_admin=${!!mem.is_platform_admin}; ` +
-            `memberships=[${roles}]`;
+            `memberships=[${roles}]; switchable_for_user=${!!mem.switchable_for_user}`;
         }
+      }
+      renderMembershipTables(mem);
+      if (platformEl) {
+        platformEl.textContent = state.isPlatformAdmin
+          ? "You are a platform admin (CLI bootstrap). You can create orgs and assign plans."
+          : "You are not a platform admin. Operators bootstrap with scripts/bootstrap_platform_admin.py.";
       }
     } catch (err) {
       if (memEl) memEl.textContent = err.message || "Could not load memberships";
+      if (platformEl) {
+        platformEl.textContent = err.message || "Could not load platform status";
+      }
     }
   }
 
@@ -1430,6 +1662,17 @@
     if (name === "plans" && state.authenticated) {
       loadEntitlements().catch((err) => toast(err.message, true));
     }
+    if (name === "users" && state.authenticated) {
+      loadTenancyContext()
+        .then(() => loadTenantMembersPanel())
+        .catch((err) => toast(err.message, true));
+    }
+    if (name === "organizations" && state.authenticated) {
+      loadTenancyContext().catch((err) => toast(err.message, true));
+    }
+    if (name === "settings" && state.authenticated) {
+      loadTenancyContext().catch((err) => toast(err.message, true));
+    }
     if (customTableKey && state.authenticated) {
       state.selectedCustomTableKey = customTableKey;
       state.customRecordPage = 1;
@@ -1978,6 +2221,41 @@
     syncDepPickers();
   }
 
+  async function loadPlansCatalog() {
+    const body = $("#plansCatalogBody");
+    if (!body) return;
+    try {
+      const data = await api("/api/entitlements/plans");
+      const items = data.items || [];
+      if (!items.length) {
+        body.innerHTML =
+          `<tr><td colspan="3" class="hint">No plans in catalog.</td></tr>`;
+        return;
+      }
+      body.innerHTML = items
+        .map((plan) => {
+          const limits = plan.limits || {};
+          const summary = Object.keys(limits)
+            .sort()
+            .map((k) => {
+              const v = limits[k];
+              return `${k}=${v == null ? "unlimited" : v}`;
+            })
+            .join(", ");
+          return `<tr>
+            <td><code>${escapeHtml(plan.plan_code || "")}</code></td>
+            <td>${escapeHtml(plan.plan_label || "")}</td>
+            <td class="hint">${escapeHtml(summary)}</td>
+          </tr>`;
+        })
+        .join("");
+    } catch (err) {
+      body.innerHTML = `<tr><td colspan="3" class="hint">${escapeHtml(
+        err.message || "Could not load plan catalog"
+      )}</td></tr>`;
+    }
+  }
+
   async function loadEntitlements() {
     const label = $("#entitlementsPlanLabel");
     const notes = $("#entitlementsNotes");
@@ -2004,12 +2282,15 @@
           .join("");
         limitsEl.innerHTML =
           rows +
-          `<div class="hint" style="margin-top:8px">billing_enabled=${escapeHtml(
+          `<div class="hint" style="margin-top:8px">tenant_id=${escapeHtml(
+            String(data.tenant_id || state.tenantId || "")
+          )} · billing_enabled=${escapeHtml(
             String(!!data.billing_enabled)
           )} · payment_provider=${escapeHtml(
             data.payment_provider == null ? "none" : String(data.payment_provider)
           )}</div>`;
       }
+      await loadPlansCatalog();
     } catch (err) {
       label.textContent = "Entitlements unavailable";
       if (notes) notes.textContent = err.message || "Could not load entitlements";
@@ -3156,8 +3437,20 @@
     $("#btnMobileNav")?.addEventListener("click", () => {
       $("#sidebar")?.classList.toggle("open");
     });
-    $("#tenantSwitcher")?.addEventListener("click", () => {
-      toast("SVRMON24 Legacy is the only org — switching disabled until isolation (Phase 5)", true);
+    $("#tenantSwitcher")?.addEventListener("change", async (e) => {
+      const next = e.target?.value;
+      if (!next) return;
+      if (!state.switchableForUser) {
+        toast(
+          state.authMethod === "basic"
+            ? "HTTP Basic cannot switch organizations"
+            : "Organization switching requires multiple memberships",
+          true
+        );
+        e.target.value = state.tenantId;
+        return;
+      }
+      await switchOrganization(next);
     });
     $("#btnRefreshDash")?.addEventListener("click", async () => {
       if (!state.authenticated) {

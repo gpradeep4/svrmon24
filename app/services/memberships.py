@@ -93,7 +93,37 @@ def list_memberships_for_user(user_id: str) -> list[dict[str, Any]]:
         tenant = tenants_service.get_tenant(row["tenant_id"])
         if tenant:
             row["tenant_display_name"] = tenant.get("display_name")
-            row["tenant_switchable"] = bool(tenant.get("switchable"))
+            row["tenant_switchable"] = bool(tenant.get("switchable", True))
+            row["plan_code"] = tenant.get("plan_code")
+        out.append(row)
+    return out
+
+
+def list_memberships_for_tenant(tenant_id: str) -> list[dict[str, Any]]:
+    """List memberships for one tenant (Users panel / tenant admin)."""
+    from . import users as users_service
+
+    tid = (tenant_id or "").strip()
+    if not tid:
+        raise MembershipError("tenant_id is required", status_code=422)
+    docs = list(
+        _collection().find({"tenant_id": tid}).sort("created_at", ASCENDING)
+    )
+    out: list[dict[str, Any]] = []
+    for doc in docs:
+        row = serialize_document(doc)
+        assert row is not None
+        user = users_service.get_user(row["user_id"])
+        if user:
+            row["username"] = user.get("username")
+            row["email"] = user.get("email")
+            row["display_name"] = user.get("display_name")
+            row["is_platform_admin"] = bool(user.get("is_platform_admin"))
+        else:
+            row["username"] = None
+            row["email"] = None
+            row["display_name"] = None
+            row["is_platform_admin"] = False
         out.append(row)
     return out
 

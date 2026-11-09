@@ -1,8 +1,8 @@
-"""Resolve the current tenant for an authenticated request (Master Phase 5).
+"""Resolve the current tenant for an authenticated request (Master Phase 5 / 13).
 
-OIDC sessions pick a tenant from membership (session override when valid).
-HTTP Basic is scoped to the migration tenant only — it must never bypass
-tenant authorization.
+OIDC sessions pick a tenant from membership (session override when valid;
+``POST /api/tenants/switch`` updates the session). HTTP Basic is scoped to the
+migration tenant only — it must never bypass tenant authorization.
 """
 
 from __future__ import annotations

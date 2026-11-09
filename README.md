@@ -4,18 +4,19 @@ AI-assisted infrastructure CMDB, dependency mapping, **SIMULATED** diagnostics, 
 
 Stack: **FastAPI + Uvicorn + MongoDB (PyMongo) + provider-neutral OIDC** (HTTP Basic optional via feature flag). Diagnostics never contact remote hosts and never execute shell/SQL/network scans.
 
-## Features (through Master Phase 12 Ollama AI entitlements / 0.27.0)
+## Features (through Master Phase 13 Admin / plans / org UX / 0.28.0)
 
 | Area | Capability |
 | --- | --- |
 | Auth / ops | OIDC (Auth Code + PKCE), feature-flagged HTTP Basic, `/health`, `/api/status`, structured logging |
-| Tenancy | Hard `tenant_id` isolation on CMDB/relationships/field-definitions/column-configurations/custom-tables/diagnostics/dashboard; migration tenant **SVRMON24 Legacy** (`tenant-svrmon24-legacy`); Basic scoped to migration tenant (no auth bypass); org switcher still disabled |
+| Tenancy | Hard `tenant_id` isolation on CMDB/relationships/field-definitions/column-configurations/custom-tables/diagnostics/dashboard; migration tenant **SVRMON24 Legacy** (`tenant-svrmon24-legacy`); Basic scoped to migration tenant (no auth bypass); **org switcher enabled** for multi-membership OIDC users |
 | CMDB | Typed Mongo collections (`cmdb_servers`, `cmdb_network`, `cmdb_middleware`, `cmdb_databases`, `cmdb_applications`) behind stable `/api/components*` facade; OS Family/Version and Product Type/Version stay separate |
 | Field definitions | Tenant-scoped `cmdb_field_definitions` (custom + locked built-in OS/product natives); `/api/custom-fields` facade; values still on component `custom_fields` |
 | Column configurations | Tenant-scoped `cmdb_column_configurations` driving Inventory + Relationships grids (visibility / order / width / pin); Inventory includes toggleable **custom field** columns; locked OS/product and protocol/port columns; Relationships also expose optional Source/Target Table columns |
 | Custom entity tables | Tenant-scoped `cmdb_custom_table_definitions` + `cmdb_custom_records` (`table_key`); typed columns including **reference** fields; relationships can link custom entities via `source_table` / `target_table`; Edit UI for defs/columns; dropdowns show display name + `table_key` (open lists via ink-on-white combo selects); beginner help balloons |
 | Relationships | SaaS wrap of the existing engine: tenant-scoped CRUD; HOSTED_ON / DEPENDS_ON / CONNECTS_TO / ROUTES_TO (CMDB ↔ CMDB, custom ↔ CMDB, custom ↔ custom); null-table CMDB edges preserved; UI table selectors + entity-refs pickers; Protocol / Source Port / Target Port never combined |
-| Entitlements | Plan-limit stub (`GET /api/entitlements`); relationship create + `max_dependency_depth` + `max_diagnostic_runs` + `max_ollama_analyses` checks; v1 default = unlimited; **no payment provider** |
+| Entitlements | Plan catalog (`legacy_unlimited` / `starter` / `standard`); tenant `plan_code`; `GET /api/entitlements` + `/plans`; relationship / depth / diagnostic / Ollama checks; **no payment provider** |
+| Admin / org UX | CLI platform-admin bootstrap (never auto-admin first registrant); create-tenant + assign-plan CLIs; Settings org switcher; Users memberships + tenant members |
 | Dependencies | SaaS wrap of the existing graph engine: tenant-scoped upstream / downstream / impact; typed CMDB **and** custom-table relationship edges; protocol/ports preserved; “potentially affected” disclaimer |
 | Diagnostics | SaaS wrap of the **existing** SIMULATED engine: tenant-scoped run/list/get history; `basic-health` only; no live/remote probes; `max_diagnostic_runs` entitlement |
 | AI analysis | Local Ollama only (`OLLAMA_ENABLED` off by default; `OLLAMA_URL` / `OLLAMA_MODEL`); tenant `max_ollama_analyses`; rule-based fallback; shared-local contention documented |
@@ -96,10 +97,11 @@ Ollama runs as a **shared local** process (one host / GPU / CPU pool). Concurren
 - Protected: `/api/*` (OIDC session cookie and/or HTTP Basic when `BASIC_AUTH_ENABLED=true`)
 - Browser login uses **Authorization Code + PKCE**; state/PKCE live in the signed session cookie **and** a short-lived pending cookie
 - Unauthenticated users see a **dedicated full-page login** (no Operations sidebar/header chrome). After SSO/Basic, the app shell loads on Dashboard
-- Authenticated top banner shows the current tenant (**SVRMON24 Legacy** + `tenant-svrmon24-legacy`); Organization switcher + Accent picker stay under **Settings** (switcher disabled / non-switchable)
-- **Basic auth is disabled by default** for production-oriented deployments. Enable only for migration/testing. Basic is always scoped to the migration tenant and **must not** bypass tenant isolation.
-- OIDC login links a local user + **member** membership on the migration tenant — **never** auto-admin the first public registrant. Current tenant is resolved from membership.
+- Authenticated top banner shows the current tenant; Organization switcher + Accent picker live under **Settings** (switcher works when the OIDC user has multiple memberships)
+- **Basic auth is disabled by default** for production-oriented deployments. Enable only for migration/testing. Basic is always scoped to the migration tenant and **must not** bypass tenant isolation (cannot switch orgs).
+- OIDC login links a local user + **member** membership on the migration tenant — **never** auto-admin the first public registrant. Current tenant is resolved from membership (+ session switch).
 - Platform admin is **CLI/operator bootstrap only**: `python scripts/bootstrap_platform_admin.py --username operator --email ops@example.com`
+- Create orgs / assign entitlements plans (operator): `python scripts/create_tenant.py --display-name "Acme" --plan-code starter --admin-username operator` and `python scripts/assign_tenant_plan.py --tenant-id tenant-acme --plan-code standard`
 
 ### Tenancy (Phase 5 — hard isolation)
 
@@ -108,7 +110,7 @@ Ollama runs as a **shared local** process (one host / GPU / CPU pool). Concurren
 - Every list/get/update/delete/dashboard/deps/diag query is scoped to the current tenant; cross-tenant access returns **404**
 - Writes require `tenant_id` (stamped from the session tenant)
 - `component_id` remains **globally** unique; compound indexes include `tenant_id` for scoped lists
-- APIs: `GET /api/tenants`, `GET /api/tenants/current`, `GET /api/tenants/{id}`, `GET /api/memberships` — org switcher remains **disabled**; `isolation_enforced=true`
+- APIs: `GET /api/tenants`, `GET /api/tenants/current`, `POST /api/tenants/switch`, `GET /api/tenants/{id}`, `GET /api/memberships`, tenant members + plan assignment for admins — `org_switcher_enabled=true`; `isolation_enforced=true`
 - `/api/me` includes `current_tenant_id` + `current_tenant_display_name` for the header banner
 
 ### Typed CMDB (Phase 6)
@@ -187,7 +189,16 @@ Ollama runs as a **shared local** process (one host / GPU / CPU pool). Concurren
 - `GET /api/diagnostics/ollama/status` returns enable flag, entitlement usage, probe (when enabled), and shared-local contention note
 - UI: Diagnostics shows disabled/limited Ollama status + contention hint; Plans lists `max_ollama_analyses`
 - Diagnostics remain **SIMULATED** — AI analysis never invents live telemetry
-- **Stop-and-wait** — do not start Phase 13 from this deliverable
+- **Stop-and-wait** — do not start Phase 13 from that deliverable
+
+### Admin / plans / org UX (Master Phase 13 / 0.28.0)
+
+- Platform admin remains **CLI bootstrap only** (`scripts/bootstrap_platform_admin.py`) — first public OIDC registrant is never auto-promoted
+- Plans are **entitlements configuration** (`legacy_unlimited`, `starter`, `standard`) with no payment provider; assign via `scripts/assign_tenant_plan.py` or `PUT /api/tenants/{id}/plan` (platform admin)
+- Org switcher is **real** for multi-membership OIDC users (`POST /api/tenants/switch`); Basic stays on migration tenant only
+- Users panel lists my memberships + current-org members (tenant admin / platform admin); Settings hosts the working switcher
+- Operator create-org CLI: `scripts/create_tenant.py`
+- **Stop-and-wait** — do not start Phase 14 from this deliverable
 
 ### Important: one browser host only
 
@@ -307,7 +318,7 @@ Relationship ID | Source | Source Table | Target | Target Table | Type | **Proto
 - AI analysis never auto-executes remediation and must not invent telemetry.
 - Impact results list **potentially affected** applications only — not confirmed outages.
 - Default Basic auth is **disabled**; placeholders (`change-me`) must be replaced if the flag is enabled for shared use.
-- Shared-DB hard tenant isolation is **on** (`isolation_enforced=true`). UX remains single logical org (**SVRMON24 Legacy**); org switcher is still disabled.
+- Shared-DB hard tenant isolation is **on** (`isolation_enforced=true`). Org switcher works for multi-membership OIDC users; Basic cannot switch.
 
 ## Project layout
 

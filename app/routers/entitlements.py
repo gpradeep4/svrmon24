@@ -23,3 +23,19 @@ def get_entitlements(
 ) -> dict[str, Any]:
     """Current tenant plan limits (entitlements-only; billing_enabled=false)."""
     return entitlements_service.get_tenant_entitlements(tenant.tenant_id)
+
+
+@router.get("/plans")
+def list_plans() -> dict[str, Any]:
+    """Entitlements plan catalog (no payment / checkout fields)."""
+    plans = entitlements_service.list_plans()
+    return {
+        "items": plans,
+        "count": len(plans),
+        "billing_enabled": False,
+        "payment_provider": None,
+        "notes": (
+            "Plans are entitlements configuration only. Assign plan_code on a "
+            "tenant via platform-admin CLI/API. No payment provider is wired."
+        ),
+    }

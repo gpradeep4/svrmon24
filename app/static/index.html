@@ -12,7 +12,7 @@
     body.is-app .login-gate { display: none !important; }
     #authPanel, .auth-panel-legacy { display: none !important; }
   </style>
-  <link rel="stylesheet" href="/static/css/cmdb.css?v=0.27.0" />
+  <link rel="stylesheet" href="/static/css/cmdb.css?v=0.28.0" />
 </head>
 <body class="is-login">
   <!-- Full-page login (no Operations chrome while signed out) -->
@@ -43,7 +43,7 @@
         <p class="hint">Migration/testing only — requires <code>BASIC_AUTH_ENABLED=true</code>. Disabled by default for production.</p>
       </div>
       <p class="hint hidden" id="authMisconfigured">No authentication method is enabled. Set <code>OIDC_ENABLED=true</code> or temporarily enable <code>BASIC_AUTH_ENABLED</code>.</p>
-      <p class="login-foot hint">Diagnostics remain <strong>SIMULATED</strong>. Single organization: <strong>SVRMON24 Legacy</strong> — switching and hard tenant isolation are not active yet.</p>
+      <p class="login-foot hint">Diagnostics remain <strong>SIMULATED</strong>. Hard tenant isolation is on; org switcher works after OIDC for multi-membership users. HTTP Basic stays on <strong>SVRMON24 Legacy</strong> only.</p>
     </div>
   </div>
 
@@ -124,11 +124,11 @@
         </button>
         <button type="button" class="nav-item" data-tab="organizations">
           <span class="nav-ico" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M3 20h18"/><path d="M5 20V9l7-5 7 5v11"/><path d="M9 20v-6h6v6"/></svg></span>
-          Organizations <span class="coming">Soon</span>
+          Organizations
         </button>
         <button type="button" class="nav-item" data-tab="plans">
           <span class="nav-ico" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M4 7h16v12H4z"/><path d="M8 7V5a4 4 0 0 1 8 0v2"/><path d="M8 12h8"/></svg></span>
-          Subscription Plans <span class="coming">Limits</span>
+          Subscription Plans <span class="coming">Entitlements</span>
         </button>
         <button type="button" class="nav-item" data-tab="settings">
           <span class="nav-ico" aria-hidden="true"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M12 3v2.2M12 18.8V21M4.9 6.5l1.6 1.6M17.5 17.9l1.6 1.6M3 12h2.2M18.8 12H21M4.9 17.5l1.6-1.6M17.5 6.1l1.6-1.6"/></svg></span>
@@ -840,12 +840,53 @@
 
         <section id="tab-users" class="tab-panel hidden">
           <section class="panel">
-            <div class="placeholder-panel">
-              <div class="ph-ico" aria-hidden="true"><svg viewBox="0 0 24 24"><circle cx="9" cy="8" r="3.2"/><path d="M3.5 19c.8-3 2.9-4.5 5.5-4.5S13.7 16 14.5 19"/></svg></div>
-              <h3>Users &amp; memberships</h3>
-              <p>OIDC login links a local user and a <strong>member</strong> membership on <strong>SVRMON24 Legacy</strong>. First public registrant is <strong>never</strong> auto-promoted to platform admin (CLI bootstrap only). Role enforcement / invites arrive later.</p>
-              <div id="membershipSummary" class="membership-summary hint">Sign in to load memberships.</div>
-              <span class="badge-soon">Phase 4 models</span>
+            <div class="toolbar" style="grid-template-columns: 1fr;">
+              <div>
+                <h2 style="margin:0">Users &amp; memberships</h2>
+                <p class="hint">
+                  OIDC links a local user + <strong>member</strong> on <strong>SVRMON24 Legacy</strong>.
+                  Platform admin is <strong>CLI bootstrap only</strong> — never auto-granted on first public login.
+                  Tenant admins can list members of the current organization.
+                </p>
+              </div>
+            </div>
+            <div id="membershipSummary" class="membership-summary hint">Sign in to load memberships.</div>
+            <div class="settings-block" id="myMembershipsBlock">
+              <h3>My memberships</h3>
+              <div class="table-wrap">
+                <table class="data-table" id="myMembershipsTable">
+                  <thead>
+                    <tr>
+                      <th>Organization</th>
+                      <th>Tenant ID</th>
+                      <th>Role</th>
+                      <th>Plan</th>
+                    </tr>
+                  </thead>
+                  <tbody id="myMembershipsBody">
+                    <tr><td colspan="4" class="hint">Sign in to load.</td></tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+            <div class="settings-block" id="tenantMembersBlock">
+              <h3>Current organization members</h3>
+              <p class="hint" id="tenantMembersHint">Tenant admin or platform admin required to list members.</p>
+              <div class="table-wrap">
+                <table class="data-table" id="tenantMembersTable">
+                  <thead>
+                    <tr>
+                      <th>User</th>
+                      <th>Email</th>
+                      <th>Role</th>
+                      <th>Platform admin</th>
+                    </tr>
+                  </thead>
+                  <tbody id="tenantMembersBody">
+                    <tr><td colspan="4" class="hint">Sign in as tenant admin to load.</td></tr>
+                  </tbody>
+                </table>
+              </div>
             </div>
           </section>
         </section>
@@ -863,12 +904,31 @@
 
         <section id="tab-organizations" class="tab-panel hidden">
           <section class="panel">
-            <div class="placeholder-panel">
-              <div class="ph-ico" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M3 20h18"/><path d="M5 20V9l7-5 7 5v11"/></svg></div>
-              <h3>Organizations</h3>
-              <p>Migration tenant <strong>SVRMON24 Legacy</strong> (<code>tenant-svrmon24-legacy</code>) is seeded. Multi-org switching and hard isolation are <strong>not</strong> active (Phase 5+). The Settings selector stays disabled.</p>
-              <div id="orgTenantSummary" class="membership-summary hint">Sign in to load the current tenant.</div>
-              <span class="badge-soon">Single logical org</span>
+            <div class="toolbar" style="grid-template-columns: 1fr;">
+              <div>
+                <h2 style="margin:0">Organizations</h2>
+                <p class="hint">
+                  Migration tenant <strong>SVRMON24 Legacy</strong> (<code>tenant-svrmon24-legacy</code>) is always seeded.
+                  Additional orgs are created by platform-admin CLI/API. Switch via Settings when you have multiple memberships.
+                </p>
+              </div>
+            </div>
+            <div id="orgTenantSummary" class="membership-summary hint">Sign in to load the current tenant.</div>
+            <div class="table-wrap" style="margin-top:12px">
+              <table class="data-table" id="orgListTable">
+                <thead>
+                  <tr>
+                    <th>Organization</th>
+                    <th>Tenant ID</th>
+                    <th>Plan</th>
+                    <th>Role</th>
+                    <th>Current</th>
+                  </tr>
+                </thead>
+                <tbody id="orgListBody">
+                  <tr><td colspan="5" class="hint">Sign in to load organizations.</td></tr>
+                </tbody>
+              </table>
             </div>
           </section>
         </section>
@@ -881,6 +941,8 @@
               relationships, <code>max_dependency_depth</code>, <code>max_diagnostic_runs</code>,
               and <code>max_ollama_analyses</code>. Ollama also requires
               <code>OLLAMA_ENABLED=true</code>. No payment provider, checkout, or billing webhooks are wired.
+              Operators assign <code>plan_code</code> with
+              <code>python scripts/assign_tenant_plan.py</code>.
             </p>
             <div id="entitlementsPanel" class="placeholder-panel">
               <div class="ph-ico" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M4 7h16v12H4z"/><path d="M8 7V5a4 4 0 0 1 8 0v2"/></svg></div>
@@ -888,6 +950,24 @@
               <p id="entitlementsNotes" class="hint">Sign in to load tenant plan limits.</p>
               <div id="entitlementsLimits" class="hint"></div>
               <span class="badge-soon">Entitlements only · no billing</span>
+            </div>
+            <div class="settings-block" id="plansCatalogBlock">
+              <h3>Plan catalog</h3>
+              <p class="hint">Shared entitlements configuration (not a storefront).</p>
+              <div class="table-wrap">
+                <table class="data-table" id="plansCatalogTable">
+                  <thead>
+                    <tr>
+                      <th>Code</th>
+                      <th>Label</th>
+                      <th>Key limits</th>
+                    </tr>
+                  </thead>
+                  <tbody id="plansCatalogBody">
+                    <tr><td colspan="3" class="hint">Sign in to load catalog.</td></tr>
+                  </tbody>
+                </table>
+              </div>
             </div>
           </section>
         </section>
@@ -903,13 +983,15 @@
 
             <div class="settings-block" id="settingsOrgBlock">
               <h3>Organization</h3>
-              <p class="hint">Shared-DB isolation is enforced. Switcher stays disabled (single logical org UX).</p>
-              <div class="tenant-switcher settings-tenant" title="Organization switching is not enabled — single logical tenant">
+              <p class="hint" id="tenantSwitcherHint">
+                Switch among organizations you belong to (OIDC). HTTP Basic cannot switch and stays on the migration tenant.
+              </p>
+              <div class="tenant-switcher settings-tenant" id="tenantSwitcherWrap" title="Select organization">
                 <label for="tenantSwitcher">Organization</label>
-                <select id="tenantSwitcher" disabled aria-disabled="true">
+                <select id="tenantSwitcher" aria-disabled="false">
                   <option selected value="tenant-svrmon24-legacy">SVRMON24 Legacy</option>
                 </select>
-                <span class="placeholder-note">Not switchable — no tenant isolation yet</span>
+                <span class="placeholder-note" id="tenantSwitcherNote">Loading memberships…</span>
               </div>
             </div>
 
@@ -935,10 +1017,14 @@
               </div>
             </div>
 
-            <div class="settings-block">
+            <div class="settings-block" id="settingsPlatformBlock">
               <h3>Platform</h3>
-              <p class="hint">Tenant settings and platform admin CLI bootstrap arrive in later phases. First public OIDC registrant is never auto-promoted to platform admin.</p>
-              <span class="badge-soon">More settings soon</span>
+              <p class="hint" id="platformAdminHint">
+                Platform admin is one-time CLI bootstrap only:
+                <code>python scripts/bootstrap_platform_admin.py --username operator --email ops@example.com</code>.
+                First public OIDC registrant is never auto-promoted.
+              </p>
+              <div id="platformAdminStatus" class="membership-summary hint">Sign in to see platform-admin status.</div>
             </div>
           </section>
         </section>
@@ -1122,6 +1208,6 @@
     </div>
   </div>
 
-  <script src="/static/js/cmdb.js?v=0.27.0"></script>
+  <script src="/static/js/cmdb.js?v=0.28.0"></script>
 </body>
 </html>
