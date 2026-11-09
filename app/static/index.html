@@ -12,7 +12,7 @@
     body.is-app .login-gate { display: none !important; }
     #authPanel, .auth-panel-legacy { display: none !important; }
   </style>
-  <link rel="stylesheet" href="/static/css/cmdb.css?v=0.26.0" />
+  <link rel="stylesheet" href="/static/css/cmdb.css?v=0.27.0" />
 </head>
 <body class="is-login">
   <!-- Full-page login (no Operations chrome while signed out) -->
@@ -517,8 +517,9 @@
               <button type="button" id="btnRefreshDiagHistory" class="secondary">Refresh history</button>
             </div>
             <p class="hint" id="diagProfileNotice"></p>
-            <p class="hint" id="diagEntitlementHint">Entitlements: max_diagnostic_runs = unlimited (Plans).</p>
+            <p class="hint" id="diagEntitlementHint">Entitlements: max_diagnostic_runs = unlimited · max_ollama_analyses = unlimited (Plans).</p>
             <p class="hint" id="ollamaStatusHint">Ollama status: not checked.</p>
+            <p class="hint" id="ollamaContentionHint">Shared-local Ollama: concurrent tenants share one local model host (contention possible). No external model providers.</p>
           </section>
 
           <section class="panel">
@@ -527,7 +528,7 @@
             </h2>
             <div id="diagLatest" class="hint">No diagnostic run yet.</div>
             <div style="margin-top:10px;display:flex;gap:8px;flex-wrap:wrap">
-              <button type="button" id="btnAnalyzeDiag" class="secondary">Analyze with Ollama (fallback if unavailable)</button>
+              <button type="button" id="btnAnalyzeDiag" class="secondary">Analyze with Ollama (fallback if disabled/limited/unavailable)</button>
               <button type="button" id="btnAnalyzeFallback" class="ghost">Force rule-based fallback</button>
             </div>
             <div id="diagAnalysis" class="hint" style="margin-top:12px">No AI analysis yet.</div>
@@ -877,7 +878,9 @@
             <h2>Subscription Plans</h2>
             <p class="hint">
               v1 is <strong>entitlements-only</strong> — plan limits for resources such as
-              relationships and <code>max_dependency_depth</code>. No payment provider, checkout, or billing webhooks are wired.
+              relationships, <code>max_dependency_depth</code>, <code>max_diagnostic_runs</code>,
+              and <code>max_ollama_analyses</code>. Ollama also requires
+              <code>OLLAMA_ENABLED=true</code>. No payment provider, checkout, or billing webhooks are wired.
             </p>
             <div id="entitlementsPanel" class="placeholder-panel">
               <div class="ph-ico" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M4 7h16v12H4z"/><path d="M8 7V5a4 4 0 0 1 8 0v2"/></svg></div>
@@ -1119,6 +1122,6 @@
     </div>
   </div>
 
-  <script src="/static/js/cmdb.js?v=0.26.0"></script>
+  <script src="/static/js/cmdb.js?v=0.27.0"></script>
 </body>
 </html>

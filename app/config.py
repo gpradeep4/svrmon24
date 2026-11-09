@@ -55,8 +55,10 @@ class Settings(BaseSettings):
         default=3000, alias="MONGODB_SERVER_SELECTION_TIMEOUT_MS"
     )
 
-    # Local Ollama (Phase 7 AI analysis). Prefer OLLAMA_URL; OLLAMA_HOST is accepted as alias.
-    # Later phase may add an explicit disable-by-default flag; leave room without overhauling.
+    # Local Ollama (Phase 7 + Master Phase 12 entitlements). Prefer OLLAMA_URL;
+    # OLLAMA_HOST is accepted as alias. Disabled unless explicitly enabled —
+    # no external model providers; rule-based fallback always remains available.
+    ollama_enabled: bool = Field(default=False, alias="OLLAMA_ENABLED")
     ollama_url: str = Field(default="http://localhost:11434", alias="OLLAMA_URL")
     ollama_model: str = Field(default="llama3.2:3b", alias="OLLAMA_MODEL")
     ollama_timeout_seconds: float = Field(default=60.0, alias="OLLAMA_TIMEOUT_SECONDS")

@@ -1456,9 +1456,13 @@
     try {
       const data = state.entitlements || (await api("/api/entitlements"));
       state.entitlements = data;
-      const lim = data.limits?.max_diagnostic_runs;
-      const shown = lim == null ? "unlimited" : String(lim);
-      el.textContent = `Entitlements: max_diagnostic_runs = ${shown} (Plans). SIMULATED only — no live probes.`;
+      const diagLimit = data.limits?.max_diagnostic_runs;
+      const ollamaLimit = data.limits?.max_ollama_analyses;
+      const diagShown = diagLimit == null ? "unlimited" : String(diagLimit);
+      const ollamaShown = ollamaLimit == null ? "unlimited" : String(ollamaLimit);
+      el.textContent =
+        `Entitlements: max_diagnostic_runs = ${diagShown} · max_ollama_analyses = ${ollamaShown} (Plans). ` +
+        `SIMULATED only — no live probes. Ollama also needs OLLAMA_ENABLED=true.`;
     } catch (err) {
       el.textContent = `Entitlements unavailable (${err.message || "error"}).`;
     }
@@ -1551,17 +1555,66 @@
   }
 
   async function refreshOllamaStatus() {
+    const hint = $("#ollamaStatusHint");
+    const contention = $("#ollamaContentionHint");
+    const analyzeBtn = $("#btnAnalyzeDiag");
     try {
       const status = await api("/api/diagnostics/ollama/status");
+      const ent = status.entitlement || {};
+      const lim =
+        ent.limit == null ? "unlimited" : `${ent.used || 0}/${ent.limit}`;
+      if (contention && status.shared_local_contention) {
+        contention.textContent = status.shared_local_contention;
+      }
+      if (!status.enabled) {
+        if (hint) {
+          hint.textContent =
+            `Ollama disabled (OLLAMA_ENABLED=false). Analyze uses rule-based fallback. ` +
+            `Entitlement max_ollama_analyses=${lim}.`;
+        }
+        if (analyzeBtn) {
+          analyzeBtn.textContent = "Analyze (Ollama disabled — rule fallback)";
+          analyzeBtn.disabled = false;
+        }
+        return;
+      }
+      if (ent.limited) {
+        if (hint) {
+          hint.textContent =
+            `Ollama limited by entitlements (${lim}). Analyze uses rule-based fallback. ` +
+            `Model=${status.configured_model || "—"}.`;
+        }
+        if (analyzeBtn) {
+          analyzeBtn.textContent = "Analyze (Ollama limited — rule fallback)";
+          analyzeBtn.disabled = false;
+        }
+        return;
+      }
       if (status.ok) {
-        $("#ollamaStatusHint").textContent =
-          `Ollama reachable at configured URL. Model=${status.configured_model}; present=${status.model_present}.`;
+        if (hint) {
+          hint.textContent =
+            `Ollama enabled and reachable. Model=${status.configured_model}; ` +
+            `present=${status.model_present}; entitlement=${lim}.`;
+        }
+        if (analyzeBtn) {
+          analyzeBtn.textContent =
+            "Analyze with Ollama (fallback if unavailable)";
+        }
       } else {
-        $("#ollamaStatusHint").textContent =
-          `Ollama unavailable (${status.error || "error"}). Analysis will use rule-based fallback.`;
+        if (hint) {
+          hint.textContent =
+            `Ollama enabled but unavailable (${status.error || "error"}). ` +
+            `Analysis will use rule-based fallback. Entitlement=${lim}.`;
+        }
+        if (analyzeBtn) {
+          analyzeBtn.textContent =
+            "Analyze with Ollama (fallback if unavailable)";
+        }
       }
     } catch (err) {
-      $("#ollamaStatusHint").textContent = `Ollama status check failed: ${err.message}`;
+      if (hint) {
+        hint.textContent = `Ollama status check failed: ${err.message}`;
+      }
     }
   }
 
@@ -1584,6 +1637,7 @@
     );
     renderDiagnosticResult(doc);
     await loadDiagnosticHistory();
+    await refreshOllamaStatus();
   }
 
   async function loadDiagnosticHistory() {

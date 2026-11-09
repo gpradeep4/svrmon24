@@ -21,6 +21,8 @@ os.environ.setdefault("MONGODB_DB", "svrmon24_test")
 os.environ.setdefault("MONGODB_CONNECT_TIMEOUT_MS", "2000")
 os.environ.setdefault("MONGODB_SERVER_SELECTION_TIMEOUT_MS", "2000")
 os.environ.setdefault("LOG_LEVEL", "WARNING")
+# Existing AI analysis tests expect Ollama attempts; production default is off.
+os.environ.setdefault("OLLAMA_ENABLED", "true")
 
 
 @pytest.fixture()
