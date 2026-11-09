@@ -15,7 +15,11 @@ from collections import defaultdict, deque
 from typing import Any, Literal
 
 from . import components as components_service
+from . import custom_tables as custom_tables_service
+from . import entitlements as entitlements_service
 from . import relationships as relationships_service
+from .custom_tables import BUILTIN_REF_TABLES
+from .entitlements import EntitlementError
 
 Direction = Literal["upstream", "downstream"]
 
@@ -62,26 +66,93 @@ def _index_edges(
     return outgoing, incoming
 
 
+def _normalize_ref_table(ref_table: str | None) -> str | None:
+    table = (ref_table or "").strip() or None
+    return table
+
+
+def _resolve_entity_doc(
+    entity_id: str,
+    *,
+    tenant_id: str,
+    ref_table: str | None = None,
+) -> dict[str, Any] | None:
+    """Resolve a typed CMDB component or custom-table record for the graph.
+
+    Uses ``source_table`` / ``target_table`` when present on edges. When the
+    table is omitted, tries CMDB then a tenant-scoped custom ``record_id``.
+    """
+    eid = (entity_id or "").strip()
+    if not eid:
+        return None
+    table = _normalize_ref_table(ref_table)
+
+    if table and table not in BUILTIN_REF_TABLES and table != "components":
+        doc = custom_tables_service.get_record(table, eid, tenant_id=tenant_id)
+        if doc is None:
+            return None
+        fields = doc.get("fields") or {}
+        return {
+            "component_id": doc.get("record_id"),
+            "name": doc.get("display_name") or doc.get("record_id"),
+            "component_type": doc.get("table_key"),
+            "environment": fields.get("environment"),
+            "status": fields.get("status") or "active",
+            "ref_table": doc.get("table_key"),
+            "kind": "custom",
+        }
+
+    doc = components_service.get_component(eid, tenant_id=tenant_id)
+    if doc is not None:
+        ctype = doc.get("component_type")
+        if table and table in BUILTIN_REF_TABLES and ctype != table:
+            return None
+        return {
+            "component_id": doc.get("component_id"),
+            "name": doc.get("name") or doc.get("hostname"),
+            "component_type": ctype,
+            "environment": doc.get("environment"),
+            "status": doc.get("status"),
+            "ref_table": ctype,
+            "kind": "component",
+        }
+
+    # No explicit CMDB hit — allow starting from / walking to a custom record
+    # when table was omitted (record_id is unique per tenant).
+    if table is None or table == "components":
+        custom = custom_tables_service.find_record_by_id(eid, tenant_id=tenant_id)
+        if custom is not None:
+            fields = custom.get("fields") or {}
+            return {
+                "component_id": custom.get("record_id"),
+                "name": custom.get("display_name") or custom.get("record_id"),
+                "component_type": custom.get("table_key"),
+                "environment": fields.get("environment"),
+                "status": fields.get("status") or "active",
+                "ref_table": custom.get("table_key"),
+                "kind": "custom",
+            }
+    return None
+
+
 def _component_summary(
     component_id: str,
     cache: dict[str, dict[str, Any] | None],
     *,
     tenant_id: str,
+    ref_table: str | None = None,
 ) -> dict[str, Any] | None:
+    # Cache by entity id (globally unique per tenant across CMDB + custom).
     if component_id not in cache:
-        cache[component_id] = components_service.get_component(
-            component_id, tenant_id=tenant_id
+        cache[component_id] = _resolve_entity_doc(
+            component_id, tenant_id=tenant_id, ref_table=ref_table
         )
-    doc = cache[component_id]
-    if doc is None:
-        return None
-    return {
-        "component_id": doc.get("component_id"),
-        "name": doc.get("name"),
-        "component_type": doc.get("component_type"),
-        "environment": doc.get("environment"),
-        "status": doc.get("status"),
-    }
+    elif cache[component_id] is None and ref_table:
+        # Retry with an edge-provided table if a prior blind miss occurred.
+        cache[component_id] = _resolve_entity_doc(
+            component_id, tenant_id=tenant_id, ref_table=ref_table
+        )
+    return cache[component_id]
 
 
 def _passes_filters(
@@ -104,6 +175,8 @@ def _edge_view(rel: dict[str, Any], *, depth: int, direct: bool) -> dict[str, An
         "relationship_id": rel.get("relationship_id"),
         "source_component_id": rel.get("source_component_id"),
         "target_component_id": rel.get("target_component_id"),
+        "source_table": rel.get("source_table"),
+        "target_table": rel.get("target_table"),
         "relationship_type": rel.get("relationship_type"),
         "protocol": rel.get("protocol"),
         "source_port": rel.get("source_port"),
@@ -118,6 +191,13 @@ def _edge_view(rel: dict[str, Any], *, depth: int, direct: bool) -> dict[str, An
     }
 
 
+def _neighbor_ref_table(rel: dict[str, Any], *, direction: Direction) -> str | None:
+    """Table hint for the neighbor endpoint on this edge."""
+    if direction == "upstream":
+        return _normalize_ref_table(rel.get("target_table"))
+    return _normalize_ref_table(rel.get("source_table"))
+
+
 def _row_from_node_edge(
     node: dict[str, Any],
     edge: dict[str, Any] | None,
@@ -127,15 +207,21 @@ def _row_from_node_edge(
     protocol = edge.get("protocol") if edge else None
     source_port = edge.get("source_port") if edge else None
     target_port = edge.get("target_port") if edge else None
+    source_table = (edge or {}).get("source_table")
+    target_table = (edge or {}).get("target_table")
     return {
         "component_id": node.get("component_id"),
         "name": node.get("name") or "—",
         "component_type": node.get("component_type") or "—",
+        "ref_table": node.get("ref_table") or node.get("component_type") or "—",
+        "kind": node.get("kind") or "component",
         "environment": node.get("environment") or "—",
         "status": node.get("status") or "—",
         "depth": node.get("depth"),
         "direct_or_indirect": "direct" if node.get("direct") else "indirect",
         "relationship_type": (edge or {}).get("relationship_type") or "—",
+        "source_table": source_table if source_table not in (None, "") else "—",
+        "target_table": target_table if target_table not in (None, "") else "—",
         "protocol": protocol if protocol not in (None, "") else "—",
         "source_port": "—" if source_port is None else str(source_port),
         "target_port": "—" if target_port is None else str(target_port),
@@ -155,16 +241,30 @@ def traverse(
     environment: str | None = None,
     status: str | None = None,
     include_selected: bool = True,
+    table: str | None = None,
 ) -> dict[str, Any]:
-    """Traverse upstream or downstream dependencies from ``component_id``."""
+    """Traverse upstream or downstream dependencies from ``component_id``.
+
+    ``component_id`` may be a typed CMDB id or a custom-table ``record_id``.
+    Optional ``table`` disambiguates / hints the starting endpoint's table.
+    """
     if depth < 0:
         raise DependencyError("depth must be >= 0", status_code=422)
     if depth > 50:
         raise DependencyError("depth must be <= 50", status_code=422)
 
-    selected = components_service.get_component(component_id, tenant_id=tenant_id)
+    try:
+        entitlements_service.assert_dependency_depth_allowed(tenant_id, depth)
+    except EntitlementError as exc:
+        raise DependencyError(exc.message, status_code=exc.status_code) from exc
+
+    selected = _resolve_entity_doc(
+        component_id, tenant_id=tenant_id, ref_table=table
+    )
     if selected is None:
-        raise DependencyError(f"Component '{component_id}' not found", status_code=404)
+        raise DependencyError(
+            f"Component '{component_id}' not found", status_code=404
+        )
 
     relationships = _all_relationships(tenant_id=tenant_id)
     outgoing, incoming = _index_edges(relationships)
@@ -180,7 +280,9 @@ def traverse(
     expanded: set[str] = set()
 
     if include_selected:
-        summary = _component_summary(component_id, cache, tenant_id=tenant_id)
+        summary = _component_summary(
+            component_id, cache, tenant_id=tenant_id, ref_table=table
+        )
         assert summary is not None
         nodes_by_id[component_id] = {
             **summary,
@@ -226,7 +328,13 @@ def traverse(
                     edges_by_id[rel_id] = _edge_view(rel, depth=next_depth, direct=direct)
                 continue
 
-            summary = _component_summary(neighbor, cache, tenant_id=tenant_id)
+            neighbor_table = _neighbor_ref_table(rel, direction=direction)
+            summary = _component_summary(
+                neighbor,
+                cache,
+                tenant_id=tenant_id,
+                ref_table=neighbor_table,
+            )
             if summary is None:
                 missing.add(neighbor)
                 if rel_id and rel_id not in edges_by_id:
@@ -325,10 +433,16 @@ def traverse(
         rows.append(_row_from_node_edge(node, edge, direction=direction))
 
     return {
-        "selected": _component_summary(component_id, cache, tenant_id=tenant_id),
+        "selected": _component_summary(
+            component_id, cache, tenant_id=tenant_id, ref_table=table
+        ),
         "direction": direction,
         "depth": depth,
-        "filters": {"environment": environment, "status": status},
+        "filters": {
+            "environment": environment,
+            "status": status,
+            "table": table,
+        },
         "nodes": nodes,
         "edges": edges,
         "rows": rows,
@@ -336,6 +450,7 @@ def traverse(
         "cycles_detected": unique_cycles,
         "missing_components": sorted(missing),
         "tenant_id": tenant_id,
+        "disclaimer": IMPACT_DISCLAIMER,
         "counts": {
             "nodes": len(nodes),
             "edges": len(edges),
@@ -390,7 +505,13 @@ def _capture_additional_paths(
                     edges_by_id[rel_id] = _edge_view(rel, depth=next_depth, direct=direct)
                 continue
 
-            summary = _component_summary(neighbor, cache, tenant_id=tenant_id)
+            neighbor_table = _neighbor_ref_table(rel, direction=direction)
+            summary = _component_summary(
+                neighbor,
+                cache,
+                tenant_id=tenant_id,
+                ref_table=neighbor_table,
+            )
             if summary is None:
                 missing.add(neighbor)
                 if rel_id and rel_id not in edges_by_id:
@@ -440,6 +561,7 @@ def get_upstream(
     depth: int = 5,
     environment: str | None = None,
     status: str | None = None,
+    table: str | None = None,
 ) -> dict[str, Any]:
     return traverse(
         component_id,
@@ -448,6 +570,7 @@ def get_upstream(
         depth=depth,
         environment=environment,
         status=status,
+        table=table,
     )
 
 
@@ -458,6 +581,7 @@ def get_downstream(
     depth: int = 5,
     environment: str | None = None,
     status: str | None = None,
+    table: str | None = None,
 ) -> dict[str, Any]:
     return traverse(
         component_id,
@@ -466,6 +590,7 @@ def get_downstream(
         depth=depth,
         environment=environment,
         status=status,
+        table=table,
     )
 
 
@@ -484,6 +609,7 @@ def analyze_impact(
     depth: int = 10,
     environment: str | None = None,
     status: str | None = None,
+    table: str | None = None,
 ) -> dict[str, Any]:
     """Identify potentially affected applications via downstream traversal."""
     downstream = get_downstream(
@@ -492,6 +618,7 @@ def analyze_impact(
         depth=depth,
         environment=environment,
         status=status,
+        table=table,
     )
     apps: list[dict[str, Any]] = []
     for node in downstream["nodes"]:
@@ -549,6 +676,7 @@ def dependency_bundle(
     depth: int = 5,
     environment: str | None = None,
     status: str | None = None,
+    table: str | None = None,
 ) -> dict[str, Any]:
     """Combined upstream + downstream + impact for UI."""
     upstream = get_upstream(
@@ -557,6 +685,7 @@ def dependency_bundle(
         depth=depth,
         environment=environment,
         status=status,
+        table=table,
     )
     impact = analyze_impact(
         component_id,
@@ -564,11 +693,16 @@ def dependency_bundle(
         depth=depth,
         environment=environment,
         status=status,
+        table=table,
     )
     return {
         "selected": upstream["selected"],
         "depth": depth,
-        "filters": {"environment": environment, "status": status},
+        "filters": {
+            "environment": environment,
+            "status": status,
+            "table": table,
+        },
         "upstream": upstream,
         "downstream": impact["downstream"],
         "impact": {
@@ -592,6 +726,7 @@ def dependency_bundle(
         ),
         "graph": _build_graph(upstream, impact["downstream"]),
         "disclaimer": IMPACT_DISCLAIMER,
+        "tenant_id": tenant_id,
     }
 
 
