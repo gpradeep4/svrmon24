@@ -290,7 +290,7 @@ def test_me_and_tenants_report_isolation_on(
     me = client.get("/api/me", headers=auth_headers)
     assert me.status_code == 200
     assert me.json()["isolation_enforced"] is True
-    assert me.json()["org_switcher_enabled"] is False
+    assert me.json()["org_switcher_enabled"] is True
     assert me.json()["current_tenant_id"] == MIGRATION_TENANT_ID
 
     current = client.get("/api/tenants/current", headers=auth_headers)

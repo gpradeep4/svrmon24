@@ -359,9 +359,14 @@ def test_basic_auth_cannot_switch(
 def test_set_plan_api_requires_platform_admin(
     oidc_client: TestClient, monkeypatch, clean_db
 ) -> None:
-    from scripts.bootstrap_platform_admin import main as bootstrap_main
+    _complete_oidc_login(
+        oidc_client, monkeypatch, sub="user-123", username="alice"
+    )
 
-    _complete_oidc_login(oidc_client, monkeypatch)
+    oidc_client.get("/auth/logout", follow_redirects=False)
+    _complete_oidc_login(
+        oidc_client, monkeypatch, sub="user-456", username="bob", email="bob@example.com"
+    )
 
     # Regular member cannot assign plans
     denied = oidc_client.put(
@@ -370,24 +375,11 @@ def test_set_plan_api_requires_platform_admin(
     )
     assert denied.status_code == 403
 
-    assert (
-        bootstrap_main(
-            [
-                "--username",
-                "alice",
-                "--email",
-                "alice@example.com",
-                "--oidc-issuer",
-                ISSUER,
-                "--oidc-subject",
-                "user-123",
-            ]
-        )
-        == 0
+    oidc_client.get("/auth/logout", follow_redirects=False)
+    _complete_oidc_login(
+        oidc_client, monkeypatch, sub="user-123", username="alice"
     )
 
-    # Re-login so session picks up platform admin (bootstrap updates DB;
-    # /api/me refreshes from local user).
     me = oidc_client.get("/api/me")
     assert me.json()["is_platform_admin"] is True
 
