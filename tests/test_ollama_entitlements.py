@@ -285,7 +285,9 @@ def test_ui_markers_and_version(
     assert 'id="ollamaContentionHint"' in html
     assert "max_ollama_analyses" in html
     assert "OLLAMA_ENABLED" in html
-    assert "0.27.0" in html
+    from app import __version__
+
+    assert __version__ in html
     assert "disabled/limited/unavailable" in html
     js = client.get("/static/js/cmdb.js", headers=auth_headers).text
     assert "max_ollama_analyses" in js

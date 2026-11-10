@@ -262,24 +262,244 @@ body { padding: 0; }
   background: transparent;
 }
 
-/* Dedicated full-page login (signed-out) */
-.login-gate {
+/* Dedicated full-page login — split portal + form (signed-out) */
+.login-gate-split {
   min-height: 100vh;
+  min-height: 100dvh;
   display: grid;
-  place-items: center;
-  padding: 28px 16px;
+  grid-template-columns: minmax(0, 1.08fr) minmax(0, 0.92fr);
+  grid-template-areas: "portal form";
+  align-items: stretch;
+  padding: 0;
+  overflow: hidden;
+  background: var(--surface);
+}
+
+.login-portal {
+  grid-area: portal;
   position: relative;
+  display: flex;
+  align-items: stretch;
+  min-height: 100%;
+  color: var(--sidebar-ink);
   overflow: hidden;
 }
 
-.login-atmosphere {
+.login-portal-bg {
   position: absolute;
   inset: 0;
   background:
-    radial-gradient(900px 480px at 12% -10%, rgba(79, 70, 229, 0.10), transparent 55%),
-    radial-gradient(700px 420px at 92% 8%, rgba(37, 99, 235, 0.08), transparent 50%),
-    linear-gradient(165deg, #EEF1F4 0%, #F7F8FA 45%, #E8EDF4 100%);
+    radial-gradient(900px 560px at 18% -8%, color-mix(in srgb, var(--accent) 42%, transparent), transparent 58%),
+    radial-gradient(680px 420px at 92% 92%, rgba(99, 102, 241, 0.22), transparent 55%),
+  linear-gradient(155deg, var(--sidebar-bg) 0%, #1a1640 42%, var(--sidebar-bg-2) 100%);
   pointer-events: none;
+}
+
+.login-portal-bg::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  opacity: 0.35;
+  background-image:
+    linear-gradient(rgba(148, 163, 184, 0.07) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(148, 163, 184, 0.07) 1px, transparent 1px);
+  background-size: 36px 36px;
+  mask-image: linear-gradient(180deg, black 20%, transparent 95%);
+}
+
+.login-portal-inner {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 28px;
+  width: 100%;
+  max-width: 520px;
+  margin: 0 auto;
+  padding: clamp(32px, 6vw, 56px) clamp(24px, 5vw, 48px);
+  animation: login-rise 480ms ease-out both;
+}
+
+.login-portal-brand {
+  display: flex;
+  align-items: flex-start;
+  gap: 16px;
+}
+
+.login-portal-brand .logo {
+  width: 52px;
+  height: 52px;
+  border-radius: 14px;
+  display: grid;
+  place-items: center;
+  background: color-mix(in srgb, var(--accent) 88%, #0f172a);
+  color: #E2E8F0;
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.28);
+  flex-shrink: 0;
+}
+
+.login-portal-brand .logo svg {
+  width: 26px;
+  height: 26px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.7;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.login-portal-kicker {
+  margin: 0 0 4px;
+  font-size: 0.72rem;
+  font-weight: 650;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--sidebar-muted);
+}
+
+.login-portal-brand h1 {
+  margin: 0;
+  font-family: var(--display);
+  font-size: clamp(1.65rem, 3.2vw, 2.1rem);
+  letter-spacing: -0.03em;
+  line-height: 1.1;
+}
+
+.login-portal-lede {
+  margin: 10px 0 0;
+  font-size: 0.95rem;
+  line-height: 1.55;
+  color: color-mix(in srgb, var(--sidebar-ink) 88%, var(--sidebar-muted));
+  max-width: 44ch;
+}
+
+.login-portal-highlights {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.login-portal-highlights li {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 14px;
+  align-items: flex-start;
+  padding: 12px 14px;
+  border-radius: var(--radius);
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(148, 163, 184, 0.14);
+}
+
+.login-portal-ico {
+  width: 36px;
+  height: 36px;
+  border-radius: 10px;
+  display: grid;
+  place-items: center;
+  background: color-mix(in srgb, var(--accent) 24%, transparent);
+  color: #C7D2FE;
+}
+
+.login-portal-ico svg {
+  width: 18px;
+  height: 18px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.6;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.login-portal-highlights strong {
+  display: block;
+  font-size: 0.92rem;
+  margin-bottom: 3px;
+}
+
+.login-portal-highlights span {
+  display: block;
+  font-size: 0.82rem;
+  line-height: 1.45;
+  color: var(--sidebar-muted);
+}
+
+.login-portal-highlights code {
+  font-family: var(--mono);
+  font-size: 0.78rem;
+  color: #C7D2FE;
+}
+
+.login-portal-badges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.login-pill {
+  font-size: 0.72rem;
+  font-weight: 650;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  padding: 6px 10px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(148, 163, 184, 0.22);
+  color: #E2E8F0;
+}
+
+.login-pill.sim {
+  background: color-mix(in srgb, var(--warn) 22%, transparent);
+  border-color: color-mix(in srgb, var(--warn) 45%, transparent);
+  color: #FDE68A;
+}
+
+.login-form-pane {
+  grid-area: form;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  padding: clamp(24px, 5vw, 48px) clamp(20px, 4vw, 40px);
+  background:
+    radial-gradient(800px 400px at 100% 0%, color-mix(in srgb, var(--accent) 6%, transparent), transparent 55%),
+    linear-gradient(180deg, var(--bg1), var(--surface));
+}
+
+.login-portal-toggle {
+  display: none;
+  width: 100%;
+  max-width: 440px;
+  margin-bottom: 12px;
+  padding: 10px 14px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--line);
+  background: var(--surface);
+  color: var(--ink);
+  font: inherit;
+  font-weight: 650;
+  font-size: 0.88rem;
+  cursor: pointer;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  box-shadow: var(--shadow-sm);
+}
+
+.login-portal-toggle-chevron {
+  width: 8px;
+  height: 8px;
+  border-right: 2px solid var(--muted);
+  border-bottom: 2px solid var(--muted);
+  transform: rotate(45deg);
+  transition: transform 0.2s ease;
+}
+
+.login-gate-split.portal-open .login-portal-toggle-chevron {
+  transform: rotate(-135deg);
 }
 
 .login-card {
@@ -289,54 +509,12 @@ body { padding: 0; }
   padding: 28px 28px 22px;
   border: 1px solid var(--line);
   box-shadow: var(--shadow);
-  animation: login-rise 420ms ease-out both;
+  animation: login-rise 420ms ease-out 80ms both;
 }
 
 @keyframes login-rise {
   from { opacity: 0; transform: translateY(10px); }
   to { opacity: 1; transform: translateY(0); }
-}
-
-.login-brand {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  margin-bottom: 18px;
-}
-
-.login-brand .logo {
-  width: 40px;
-  height: 40px;
-  border-radius: 10px;
-  display: grid;
-  place-items: center;
-  background: #0F172A;
-  color: #E2E8F0;
-  flex-shrink: 0;
-}
-
-.login-brand .logo svg {
-  width: 22px;
-  height: 22px;
-  fill: none;
-  stroke: currentColor;
-  stroke-width: 1.7;
-  stroke-linecap: round;
-  stroke-linejoin: round;
-}
-
-.login-brand h1 {
-  margin: 0;
-  font-family: var(--display);
-  font-size: 1.35rem;
-  letter-spacing: -0.02em;
-  color: var(--ink);
-}
-
-.login-brand .tagline {
-  margin: 2px 0 0;
-  font-size: 0.78rem;
-  color: var(--muted);
 }
 
 .login-card > h2 {
@@ -1798,4 +1976,36 @@ button[data-rbac-disabled="true"] {
   .tenant-banner-kicker { display: none; }
   .user-menu .meta { display: none; }
   .header-chip span:not(.chip-label):not(.chip-ico) { display: none; }
+}
+
+@media (max-width: 900px) {
+  .login-gate-split {
+    grid-template-columns: 1fr;
+    grid-template-areas:
+      "form"
+      "portal";
+    overflow: auto;
+  }
+  .login-form-pane {
+    padding-top: 28px;
+    padding-bottom: 12px;
+  }
+  .login-portal-toggle {
+    display: flex;
+  }
+  .login-portal {
+    max-height: 0;
+    opacity: 0;
+    overflow: hidden;
+    transition: max-height 0.35s ease, opacity 0.25s ease;
+  }
+  .login-gate-split.portal-open .login-portal {
+    max-height: 2400px;
+    opacity: 1;
+  }
+  .login-portal-inner {
+    justify-content: flex-start;
+    padding-top: 8px;
+    padding-bottom: 36px;
+  }
 }

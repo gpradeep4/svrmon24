@@ -58,4 +58,4 @@ def test_set_membership_role_cli_exists() -> None:
 
 
 def test_version_patch_for_rbac_ux_followup() -> None:
-    assert __version__ == "0.30.1"
+    assert __version__ == "0.31.1"

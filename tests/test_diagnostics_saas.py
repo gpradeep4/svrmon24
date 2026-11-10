@@ -259,7 +259,9 @@ def test_diagnostics_ui_markers_and_version(
     assert 'id="diagHistoryMeta"' in html
     assert "max_diagnostic_runs" in html
     assert "SIMULATED" in html
-    assert "0.26.0" in html
+    from app import __version__
+
+    assert __version__ in html
     js = client.get("/static/js/cmdb.js", headers=auth_headers).text
     assert "refreshDiagEntitlementHint" in js
     assert "max_diagnostic_runs" in js

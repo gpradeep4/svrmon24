@@ -3,8 +3,8 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <meta name="svrmon24-ui" content="login-gate-v2" />
-  <meta name="svrmon24-version" content="0.31.0" />
+  <meta name="svrmon24-ui" content="login-gate-split-v1" />
+  <meta name="svrmon24-version" content="0.31.1" />
   <title>SVRMON24</title>
   <!-- Critical gate CSS: never paint login + app chrome together (before cmdb.css). -->
   <style>
@@ -13,38 +13,72 @@
     body.is-app .login-gate { display: none !important; }
     #authPanel, .auth-panel-legacy { display: none !important; }
   </style>
-  <link rel="stylesheet" href="/static/css/cmdb.css?v=0.31.0" />
+  <link rel="stylesheet" href="/static/css/cmdb.css?v=0.31.1" />
 </head>
 <body class="is-login">
-  <!-- Full-page login (no Operations chrome while signed out) -->
-  <div id="loginGate" class="login-gate" role="main" data-auth-view="login">
-    <div class="login-atmosphere" aria-hidden="true"></div>
-    <div class="login-card panel">
-      <div class="login-brand">
-        <span class="logo" aria-hidden="true">
-          <svg viewBox="0 0 24 24"><path d="M4 7h16M4 12h10M4 17h14"/><circle cx="18" cy="12" r="2.2"/></svg>
-        </span>
-        <div>
-          <h1>SVRMON24</h1>
-          <p class="tagline">Enterprise CMDB · dependencies · SIMULATED diagnostics</p>
+  <!-- Split login: portal story (left) + sign-in form (right); stacks on small viewports -->
+  <div id="loginGate" class="login-gate login-gate-split" role="main" data-auth-view="login">
+    <aside class="login-portal" id="loginPortal" aria-label="SVRMON24 platform overview">
+      <div class="login-portal-bg" aria-hidden="true"></div>
+      <div class="login-portal-inner">
+        <div class="login-portal-brand">
+          <span class="logo" aria-hidden="true">
+            <svg viewBox="0 0 24 24"><path d="M4 7h16M4 12h10M4 17h14"/><circle cx="18" cy="12" r="2.2"/></svg>
+          </span>
+          <div>
+            <p class="login-portal-kicker">Enterprise operations platform</p>
+            <h1>SVRMON24</h1>
+            <p class="login-portal-lede">Configuration management, dependency intelligence, and operator diagnostics — built for multi-tenant SaaS from day one.</p>
+          </div>
+        </div>
+        <ul class="login-portal-highlights">
+          <li>
+            <span class="login-portal-ico" aria-hidden="true"><svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="6" rx="1.5"/><rect x="3" y="14" width="18" height="6" rx="1.5"/></svg></span>
+            <div><strong>Enterprise CMDB</strong><span>Typed Server / Network / Application inventory, custom tables, and tenant-scoped column layouts.</span></div>
+          </li>
+          <li>
+            <span class="login-portal-ico" aria-hidden="true"><svg viewBox="0 0 24 24"><circle cx="6" cy="12" r="3"/><circle cx="18" cy="6" r="3"/><circle cx="18" cy="18" r="3"/><path d="M8.7 10.2L15.3 7.2M8.7 13.8l6.6 3"/></svg></span>
+            <div><strong>Dependencies &amp; impact</strong><span>Graph traversal across CMDB and custom records — protocol, source port, and target port stay separate.</span></div>
+          </li>
+          <li>
+            <span class="login-portal-ico" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M9 18h6M10 21h4"/><path d="M8 14a6 6 0 1 1 8 0"/><path d="M12 3v2"/></svg></span>
+            <div><strong>SIMULATED diagnostics</strong><span>Synthetic demo engine only until live probes are explicitly approved — no remote execution in SaaS v1.</span></div>
+          </li>
+          <li>
+            <span class="login-portal-ico" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M12 3l8 4v5c0 4.5-3.2 7.8-8 9-4.8-1.2-8-4.5-8-9V7l8-4z"/></svg></span>
+            <div><strong>Multi-tenant SaaS</strong><span>Hard <code>tenant_id</code> isolation, RBAC, org switcher for OIDC memberships, and plan entitlements (no billing in v1).</span></div>
+          </li>
+        </ul>
+        <div class="login-portal-badges">
+          <span class="login-pill">Provider-neutral OIDC</span>
+          <span class="login-pill sim">DEMO / SIMULATED</span>
+          <span class="login-pill">SVRMON24 Legacy tenant</span>
         </div>
       </div>
-      <h2>Sign in</h2>
-      <p class="hint" id="authHint">Loading authentication options…</p>
-      <div id="authErrorBanner" class="auth-error-banner hidden" role="alert"></div>
-      <div id="hostMismatchBanner" class="auth-warn-banner hidden" role="status"></div>
-      <div class="auth-row auth-oidc-row hidden" id="oidcAuthRow">
-        <button type="button" id="btnOidcLogin" class="primary">Sign in with SSO (OIDC)</button>
-        <p class="hint">Authorization Code + PKCE (Keycloak / Entra ID). Use the same browser host as <code>OIDC_REDIRECT_URI</code> (<code>localhost</code> or <code>127.0.0.1</code>, not both).</p>
+    </aside>
+    <div class="login-form-pane">
+      <button type="button" class="login-portal-toggle" id="btnLoginPortalToggle" aria-expanded="false" aria-controls="loginPortal">
+        <span class="login-portal-toggle-label">About SVRMON24</span>
+        <span class="login-portal-toggle-chevron" aria-hidden="true"></span>
+      </button>
+      <div class="login-card panel">
+        <h2>Sign in</h2>
+        <p class="hint" id="authHint">Loading authentication options…</p>
+        <div id="authErrorBanner" class="auth-error-banner hidden" role="alert"></div>
+        <div id="hostMismatchBanner" class="auth-warn-banner hidden" role="status"></div>
+        <div class="auth-row auth-oidc-row hidden" id="oidcAuthRow">
+          <button type="button" id="btnOidcLogin" class="primary">Sign in with SSO (OIDC)</button>
+          <p class="hint">Authorization Code + PKCE (Keycloak / Entra ID). Use the same browser host as <code>OIDC_REDIRECT_URI</code> (<code>localhost</code> or <code>127.0.0.1</code>, not both).</p>
+        </div>
+        <div class="auth-row auth-basic-row hidden" id="basicAuthRow">
+          <label>Username<input id="authUser" autocomplete="username" /></label>
+          <label>Password<input id="authPass" type="password" autocomplete="current-password" /></label>
+          <button type="button" id="btnConnect">Connect with Basic</button>
+          <p class="hint">Migration/testing only — requires <code>BASIC_AUTH_ENABLED=true</code>. Disabled by default for production.</p>
+        </div>
+        <p class="hint hidden" id="authMisconfigured">No authentication method is enabled. Set <code>OIDC_ENABLED=true</code> or temporarily enable <code>BASIC_AUTH_ENABLED</code>.</p>
+        <p class="login-foot hint">Diagnostics remain <strong>SIMULATED</strong>. Hard tenant isolation is on; org switcher works after OIDC for multi-membership users. HTTP Basic stays on <strong>SVRMON24 Legacy</strong> only.</p>
       </div>
-      <div class="auth-row auth-basic-row hidden" id="basicAuthRow">
-        <label>Username<input id="authUser" autocomplete="username" /></label>
-        <label>Password<input id="authPass" type="password" autocomplete="current-password" /></label>
-        <button type="button" id="btnConnect">Connect with Basic</button>
-        <p class="hint">Migration/testing only — requires <code>BASIC_AUTH_ENABLED=true</code>. Disabled by default for production.</p>
-      </div>
-      <p class="hint hidden" id="authMisconfigured">No authentication method is enabled. Set <code>OIDC_ENABLED=true</code> or temporarily enable <code>BASIC_AUTH_ENABLED</code>.</p>
-      <p class="login-foot hint">Diagnostics remain <strong>SIMULATED</strong>. Hard tenant isolation is on; org switcher works after OIDC for multi-membership users. HTTP Basic stays on <strong>SVRMON24 Legacy</strong> only.</p>
     </div>
   </div>
 
@@ -1354,6 +1388,6 @@
     </div>
   </div>
 
-  <script src="/static/js/cmdb.js?v=0.31.0"></script>
+  <script src="/static/js/cmdb.js?v=0.31.1"></script>
 </body>
 </html>
