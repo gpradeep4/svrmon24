@@ -23,6 +23,7 @@ def _now() -> datetime:
 
 def ensure_indexes() -> None:
     # MongoDB collections already have a unique _id index; no extra spec needed.
+    return
 
 
 def count_platform_admins() -> int:
