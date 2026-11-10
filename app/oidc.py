@@ -26,8 +26,13 @@ from itsdangerous import BadSignature, SignatureExpired, URLSafeTimedSerializer
 from jwt import PyJWKClient
 
 from .config import Settings
+from .services.platform_oidc import OidcRuntime, resolve_oidc_runtime
 
 logger = logging.getLogger(__name__)
+
+
+def _runtime(settings: Settings) -> OidcRuntime:
+    return resolve_oidc_runtime(settings)
 
 SESSION_OIDC_STATE = "oidc_state"
 SESSION_OIDC_VERIFIER = "oidc_code_verifier"
@@ -52,14 +57,14 @@ class OidcError(Exception):
 
 def redirect_origin(settings: Settings) -> str:
     """Return ``scheme://host[:port]`` from ``OIDC_REDIRECT_URI``."""
-    parsed = urlparse(settings.oidc_redirect_uri or "")
+    parsed = urlparse(_runtime(settings).redirect_uri or "")
     if parsed.scheme and parsed.netloc:
         return f"{parsed.scheme}://{parsed.netloc}"
     return f"http://localhost:{settings.app_port}"
 
 
 def redirect_hostname(settings: Settings) -> str:
-    return (urlparse(settings.oidc_redirect_uri or "").hostname or "").lower()
+    return (urlparse(_runtime(settings).redirect_uri or "").hostname or "").lower()
 
 
 def request_hostname(request_url_hostname: str | None) -> str:
@@ -134,10 +139,11 @@ def clear_discovery_cache() -> None:
 
 
 def fetch_discovery(settings: Settings) -> dict[str, Any]:
-    if not settings.oidc_issuer:
+    issuer = _runtime(settings).issuer
+    if not issuer:
         raise OidcError("OIDC_ISSUER is not configured")
     try:
-        return _cached_discovery(settings.oidc_issuer.rstrip("/"))
+        return _cached_discovery(issuer.rstrip("/"))
     except httpx.HTTPError as exc:
         raise OidcError(f"OIDC discovery failed: {exc}") from exc
 
@@ -149,12 +155,13 @@ def build_authorization_url(
     nonce: str,
     code_challenge: str,
 ) -> str:
+    runtime = _runtime(settings)
     discovery = fetch_discovery(settings)
     params = {
         "response_type": "code",
-        "client_id": settings.oidc_client_id,
-        "redirect_uri": settings.oidc_redirect_uri,
-        "scope": settings.oidc_scopes,
+        "client_id": runtime.client_id,
+        "redirect_uri": runtime.redirect_uri,
+        "scope": runtime.scopes,
         "state": state,
         "nonce": nonce,
         "code_challenge": code_challenge,
@@ -164,18 +171,19 @@ def build_authorization_url(
 
 
 def exchange_code_for_tokens(settings: Settings, *, code: str, code_verifier: str) -> dict[str, Any]:
+    runtime = _runtime(settings)
     discovery = fetch_discovery(settings)
     data = {
         "grant_type": "authorization_code",
         "code": code,
-        "redirect_uri": settings.oidc_redirect_uri,
-        "client_id": settings.oidc_client_id,
+        "redirect_uri": runtime.redirect_uri,
+        "client_id": runtime.client_id,
         "code_verifier": code_verifier,
     }
     # Confidential clients (Entra / many Keycloak setups) also send the secret.
     auth = None
-    if settings.oidc_client_secret:
-        auth = (settings.oidc_client_id, settings.oidc_client_secret)
+    if runtime.client_secret:
+        auth = (runtime.client_id, runtime.client_secret)
     try:
         with httpx.Client(timeout=15.0) as client:
             response = client.post(discovery["token_endpoint"], data=data, auth=auth)
@@ -200,9 +208,10 @@ def validate_id_token(
     if not jwks_uri:
         raise OidcError("OIDC discovery missing jwks_uri")
 
-    issuer = settings.oidc_issuer.rstrip("/")
+    runtime = _runtime(settings)
+    issuer = runtime.issuer.rstrip("/")
     # Some IdPs append a trailing slash inconsistently; accept both.
-    audience = settings.oidc_client_id
+    audience = runtime.client_id
     try:
         jwks_client = PyJWKClient(jwks_uri, cache_keys=True)
         signing_key = jwks_client.get_signing_key_from_jwt(id_token)
@@ -264,6 +273,7 @@ def end_session_url(
     params: dict[str, str] = {"post_logout_redirect_uri": post_logout_redirect_uri}
     if id_token:
         params["id_token_hint"] = id_token
-    if settings.oidc_client_id:
-        params["client_id"] = settings.oidc_client_id
+    runtime = _runtime(settings)
+    if runtime.client_id:
+        params["client_id"] = runtime.client_id
     return endpoint + "?" + urlencode(params)

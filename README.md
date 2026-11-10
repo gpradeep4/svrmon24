@@ -4,12 +4,12 @@ AI-assisted infrastructure CMDB, dependency mapping, **SIMULATED** diagnostics, 
 
 Stack: **FastAPI + Uvicorn + MongoDB (PyMongo) + provider-neutral OIDC** (HTTP Basic optional via feature flag). Diagnostics never contact remote hosts and never execute shell/SQL/network scans.
 
-## Features (through Roles & Permissions RBAC / 0.30.0)
+## Features (through Auth Admin / 0.31.0)
 
 | Area | Capability |
 | --- | --- |
 | Auth / ops | OIDC (Auth Code + PKCE), feature-flagged HTTP Basic (still present — cutover documented, not silently removed), `/health`, `/api/status`, structured logging |
-| Roles / RBAC | Tenant roles `viewer` / `member` / `admin` / `owner` with a permission matrix (CMDB, relationships, diagnostics, config, users/org, audit, plans); mutating APIs enforce permissions; UI hides/disables denied actions; platform admin remains CLI-bootstrap only |
+| Roles / RBAC | Built-in roles `viewer` / `member` / `admin` / `owner` plus tenant **custom roles** (`custom:<role_key>`); permission matrix enforced on APIs/UI; platform admin via CLI **or** first OIDC user when no admin exists |
 | Tenancy | Hard `tenant_id` isolation on CMDB/relationships/field-definitions/column-configurations/custom-tables/diagnostics/dashboard; migration tenant **SVRMON24 Legacy** (`tenant-svrmon24-legacy`); Basic scoped to migration tenant (no auth bypass); **org switcher enabled** for multi-membership OIDC users |
 | CMDB | Typed Mongo collections (`cmdb_servers`, `cmdb_network`, `cmdb_middleware`, `cmdb_databases`, `cmdb_applications`) behind stable `/api/components*` facade; OS Family/Version and Product Type/Version stay separate |
 | Field definitions | Tenant-scoped `cmdb_field_definitions` (custom + locked built-in OS/product natives); `/api/custom-fields` facade; values still on component `custom_fields` |
@@ -17,7 +17,7 @@ Stack: **FastAPI + Uvicorn + MongoDB (PyMongo) + provider-neutral OIDC** (HTTP B
 | Custom entity tables | Tenant-scoped `cmdb_custom_table_definitions` + `cmdb_custom_records` (`table_key`); typed columns including **reference** fields; relationships can link custom entities via `source_table` / `target_table`; Edit UI for defs/columns; dropdowns show display name + `table_key` (open lists via ink-on-white combo selects); beginner help balloons |
 | Relationships | SaaS wrap of the existing engine: tenant-scoped CRUD; HOSTED_ON / DEPENDS_ON / CONNECTS_TO / ROUTES_TO (CMDB ↔ CMDB, custom ↔ CMDB, custom ↔ custom); null-table CMDB edges preserved; UI table selectors + entity-refs pickers; Protocol / Source Port / Target Port never combined |
 | Entitlements | Plan catalog (`legacy_unlimited` / `starter` / `standard`); tenant `plan_code`; `GET /api/entitlements` + `/plans`; relationship / depth / diagnostic / Ollama checks; **no payment provider** |
-| Admin / org UX | CLI platform-admin bootstrap (never auto-admin first registrant); create-tenant + assign-plan CLIs; Settings org switcher; Users memberships + tenant members |
+| Admin / org UX | Org **invites** (email/username), SSO IdP operator settings (secret env ref only), custom roles UI; CLI platform-admin bootstrap; Settings org switcher; Users memberships + members |
 | Audit | Tenant-scoped `audit_events` for mutating admin/tenant/CMDB actions; `GET /api/audit-events`; Audit Logs UI |
 | Dependencies | SaaS wrap of the existing graph engine: tenant-scoped upstream / downstream / impact; typed CMDB **and** custom-table relationship edges; protocol/ports preserved; “potentially affected” disclaimer |
 | Diagnostics | SaaS wrap of the **existing** SIMULATED engine: tenant-scoped run/list/get history; `basic-health` only; no live/remote probes; `max_diagnostic_runs` entitlement |
@@ -196,7 +196,10 @@ Ollama runs as a **shared local** process (one host / GPU / CPU pool). Concurren
 
 ### Admin / plans / org UX (Master Phase 13 / 0.28.0)
 
-- Platform admin remains **CLI bootstrap only** (`scripts/bootstrap_platform_admin.py`) — first public OIDC registrant is never auto-promoted
+- Platform admin: **CLI bootstrap** (`scripts/bootstrap_platform_admin.py`) **or** first successful OIDC user when zero platform admins (race-safe singleton claim)
+- Org invites: `POST/GET/DELETE /api/tenants/{id}/invites`, `POST /api/invites/accept`
+- Custom roles: `GET/POST/PUT/DELETE /api/tenants/{id}/custom-roles`; assign `custom:<role_key>` on memberships
+- SSO operator config: `GET/PUT /api/platform/oidc-settings` (platform admin; secrets via env ref only)
 - Plans are **entitlements configuration** (`legacy_unlimited`, `starter`, `standard`) with no payment provider; assign via `scripts/assign_tenant_plan.py` or `PUT /api/tenants/{id}/plan` (platform admin)
 - Org switcher is **real** for multi-membership OIDC users (`POST /api/tenants/switch`); Basic stays on migration tenant only
 - Users panel lists my memberships + current-org members (tenant admin / platform admin); Settings hosts the working switcher
@@ -218,7 +221,7 @@ Ollama runs as a **shared local** process (one host / GPU / CPU pool). Concurren
 - Permission catalog: `cmdb:*`, `relationships:*`, `diagnostics:*`, `config:*`, `users:*`, `org:admin`, `audit:read`, `plans:*`
 - `GET /api/permissions` returns roles, matrix, and the caller's effective permissions; `/api/tenants/current` includes `permissions`
 - Mutating/sensitive routes enforce permissions (403); UI Roles panel shows the matrix; mutate buttons are hidden/disabled when denied
-- Platform admin stays **CLI bootstrap only** and receives all permissions including `plans:admin`; HTTP Basic uses an effective **admin** role on the migration tenant only
+- Platform admin (CLI or first OIDC user) receives all permissions including `plans:admin`; HTTP Basic uses an effective **admin** role on the migration tenant only
 - Membership role update: `PUT /api/tenants/{id}/members/{membership_id}`; last-owner demotion blocked (except platform admin recovery)
 - **0.30.1 UX:** Roles page drops stale “Coming soon” copy; signed-out state shows OIDC/Basic CTA; Audit Logs shows an in-page `audit:read` denial (admin/owner) instead of toast-only 403; Users panel can change membership roles; operator CLI `scripts/set_membership_role.py`
 - New functional tests only: `pytest tests/test_roles_permissions.py tests/test_rbac_roles_page_fix.py -q`
@@ -279,14 +282,18 @@ Entra ID works the same way with issuer `https://login.microsoftonline.com/<tena
 
 ## Tests
 
+**CI / release gate:** every PR and `main` push runs the **full** pytest suite (MongoDB required). Phase work may use targeted files locally; see [`docs/ci-release-gate.md`](docs/ci-release-gate.md).
+
 ```powershell
-# Windows
+# Windows — full suite (release gate)
 .\.venv\Scripts\python.exe -m pytest -v
 ```
 
 ```bash
-# Linux
-pytest -v
+# Linux — full suite (release gate)
+make test
+# or: python -m pytest -v
+# or: ./scripts/run_full_tests.sh
 ```
 
 ## API overview
