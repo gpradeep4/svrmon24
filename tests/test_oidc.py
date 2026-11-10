@@ -238,8 +238,13 @@ def test_ui_exposes_oidc_login_controls() -> None:
     assert 'id="loginGate"' in html
     assert "is-login" in html
     assert 'id="authPanel"' not in html  # embedded sign-in removed
-    assert "login-gate-split-v1" in html
+    assert "login-enterprise-v1" in html
     assert "login-gate-split" in html
+    assert "login-gate-enterprise" in html
+    assert "Welcome Back" in html
+    assert "Faster Resolutions" in html
+    assert 'id="btnAuthPassToggle"' in html
+    assert 'id="authOrDivider"' in html
     assert 'id="btnLoginPortalToggle"' in html
     assert "cmdb.js?v=" in html and "cmdb.css?v=" in html
     assert "/api/auth/config" in js

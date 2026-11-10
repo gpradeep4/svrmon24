@@ -1335,18 +1335,41 @@
       toast("Enter username and password", true);
       return false;
     }
-    sessionStorage.setItem(STORAGE_KEY, JSON.stringify({ username, password }));
+    const remember = $("#authRemember")?.checked !== false;
+    if (remember) {
+      sessionStorage.setItem(STORAGE_KEY, JSON.stringify({ username, password }));
+    } else {
+      sessionStorage.removeItem(STORAGE_KEY);
+    }
     return true;
   }
 
   function loadAuthIntoForm() {
     const raw = sessionStorage.getItem(STORAGE_KEY);
-    if (!raw) return;
+    const remember = $("#authRemember");
+    if (!raw) {
+      if (remember) remember.checked = false;
+      return;
+    }
     try {
       const { username, password } = JSON.parse(raw);
       $("#authUser").value = username || "";
       $("#authPass").value = password || "";
+      if (remember) remember.checked = true;
     } catch { /* ignore */ }
+  }
+
+  function toggleAuthPasswordVisibility() {
+    const input = $("#authPass");
+    const btn = $("#btnAuthPassToggle");
+    if (!input || !btn) return;
+    const show = input.type === "password";
+    input.type = show ? "text" : "password";
+    btn.setAttribute("aria-pressed", show ? "true" : "false");
+    btn.setAttribute("aria-label", show ? "Hide password" : "Show password");
+    btn.setAttribute("title", show ? "Hide password" : "Show password");
+    btn.querySelector(".ico-show")?.classList.toggle("hidden", show);
+    btn.querySelector(".ico-hide")?.classList.toggle("hidden", !show);
   }
 
   async function afterAuthenticated(me, { toastMessage = "Connected" } = {}) {
@@ -1458,25 +1481,29 @@
     const hint = $("#authHint");
     const oidcRow = $("#oidcAuthRow");
     const basicRow = $("#basicAuthRow");
+    const orDivider = $("#authOrDivider");
     const misconfigured = $("#authMisconfigured");
     const hostBanner = $("#hostMismatchBanner");
 
     if (hint) {
       if (cfg.oidc_enabled && cfg.basic_auth_enabled) {
         hint.textContent =
-          "Sign in with SSO (OIDC) or use feature-flagged HTTP Basic for migration/testing.";
+          "Sign in with your credentials or continue with Keycloak SSO.";
       } else if (cfg.oidc_enabled) {
         hint.textContent =
-          "Sign in with your identity provider (OIDC). HTTP Basic is disabled.";
+          "Continue with your organization’s Keycloak identity provider.";
       } else if (cfg.basic_auth_enabled) {
         hint.textContent =
-          "OIDC is disabled. Using feature-flagged HTTP Basic (migration/testing). Production-oriented default is BASIC_AUTH_ENABLED=false.";
+          "Migration HTTP Basic only — OIDC is disabled on this server.";
       } else {
         hint.textContent = "No authentication method is currently enabled.";
       }
     }
     oidcRow?.classList.toggle("hidden", !cfg.oidc_enabled);
+    oidcRow?.classList.toggle("oidc-only", !!(cfg.oidc_enabled && !cfg.basic_auth_enabled));
     basicRow?.classList.toggle("hidden", !cfg.basic_auth_enabled);
+    const both = !!(cfg.oidc_enabled && cfg.basic_auth_enabled);
+    orDivider?.classList.toggle("hidden", !both);
     misconfigured?.classList.toggle("hidden", !!(cfg.oidc_enabled || cfg.basic_auth_enabled));
 
     if (hostBanner) {
@@ -3973,6 +4000,14 @@
       if (e.key === "Escape") closeAllComboSelects();
     });
     $("#btnConnect")?.addEventListener("click", connect);
+    $("#loginBasicForm")?.addEventListener("submit", (e) => {
+      e.preventDefault();
+      connect();
+    });
+    $("#btnAuthPassToggle")?.addEventListener("click", toggleAuthPasswordVisibility);
+    $("#authRemember")?.addEventListener("change", (e) => {
+      if (!e.target?.checked) sessionStorage.removeItem(STORAGE_KEY);
+    });
     $("#btnLoginPortalToggle")?.addEventListener("click", () => {
       const gate = $("#loginGate");
       const btn = $("#btnLoginPortalToggle");
