@@ -3843,6 +3843,13 @@
       if (e.key === "Escape") closeAllComboSelects();
     });
     $("#btnConnect")?.addEventListener("click", connect);
+    $("#btnLoginPortalToggle")?.addEventListener("click", () => {
+      const gate = $("#loginGate");
+      const btn = $("#btnLoginPortalToggle");
+      if (!gate || !btn) return;
+      const open = gate.classList.toggle("portal-open");
+      btn.setAttribute("aria-expanded", open ? "true" : "false");
+    });
     $("#btnOidcLogin")?.addEventListener("click", () => {
       if (!authConfig.oidc_enabled) {
         toast("OIDC is disabled", true);
