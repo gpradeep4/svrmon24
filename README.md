@@ -279,14 +279,18 @@ Entra ID works the same way with issuer `https://login.microsoftonline.com/<tena
 
 ## Tests
 
+**CI / release gate:** every PR and `main` push runs the **full** pytest suite (MongoDB required). Phase work may use targeted files locally; see [`docs/ci-release-gate.md`](docs/ci-release-gate.md).
+
 ```powershell
-# Windows
+# Windows — full suite (release gate)
 .\.venv\Scripts\python.exe -m pytest -v
 ```
 
 ```bash
-# Linux
-pytest -v
+# Linux — full suite (release gate)
+make test
+# or: python -m pytest -v
+# or: ./scripts/run_full_tests.sh
 ```
 
 ## API overview

@@ -19,7 +19,8 @@ SVRMON24 **0.29.0** closes the 14-phase master roadmap. This note is the operato
 - [ ] Audit Logs UI / `GET /api/audit-events` shows mutating actions for the current tenant
 - [ ] Diagnostics remain **SIMULATED**; `OLLAMA_ENABLED=false` unless intentionally on
 - [ ] Plans are entitlements-only (`billing_enabled=false`); no payment provider
-- [ ] Targeted Phase 14 security tests pass (`pytest tests/test_phase14_audit_security.py -q`)
+- [ ] **Full pytest suite** green locally or via CI (`make test` or `python -m pytest -v`) — see [`docs/ci-release-gate.md`](ci-release-gate.md)
+- [ ] Targeted Phase 14 security tests pass (`pytest tests/test_phase14_audit_security.py -q`) — fast operator spot-check; CI still runs everything
 - [ ] Version banner / `/health` report `0.29.0`
 
 ## Basic auth removal path (document, do not silent-delete)

@@ -1,0 +1,64 @@
+# Full release gate — runs the entire pytest suite (not phase-targeted subsets).
+# Phase work may use targeted tests locally; PRs and main must pass this workflow.
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  full-suite:
+    name: Full pytest suite
+    runs-on: ubuntu-latest
+
+    services:
+      mongodb:
+        image: mongo:7
+        ports:
+          - 27017:27017
+        options: >-
+          --health-cmd "mongosh --quiet --eval 'db.runCommand({ ping: 1 }).ok'"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+          --health-start-period 20s
+
+    env:
+      APP_ENV: test
+      BASIC_AUTH_ENABLED: "true"
+      BASIC_AUTH_USERNAME: testuser
+      BASIC_AUTH_PASSWORD: testpass
+      OIDC_ENABLED: "false"
+      SESSION_SECRET: ci-session-secret
+      MONGODB_URI: mongodb://localhost:27017
+      MONGODB_DB: svrmon24_test_ci
+      MONGODB_CONNECT_TIMEOUT_MS: "5000"
+      MONGODB_SERVER_SELECTION_TIMEOUT_MS: "5000"
+      LOG_LEVEL: WARNING
+      OLLAMA_ENABLED: "true"
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: requirements.txt
+
+      - name: Install dependencies
+        run: python -m pip install --upgrade pip && pip install -r requirements.txt
+
+      - name: Byte-compile application package
+        run: python -m compileall -q app
+
+      - name: Run full pytest suite
+        run: python -m pytest -v --tb=short
