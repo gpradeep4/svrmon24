@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 """One-time CLI bootstrap for a platform admin operator (Master Phase 4 / 13).
 
-Platform admin is **never** granted automatically on first public OIDC login.
-Use this script (operator-only) to create or upgrade a local user with
+When no platform admin exists, the **first OIDC user** is auto-promoted (race-safe).
+Use this script (operator-only) to pre-bootstrap or upgrade a local user with
 ``is_platform_admin=True`` and optionally a tenant membership
 (``viewer``|``member``|``admin``|``owner``) on the migration tenant
 ``SVRMON24 Legacy``.
@@ -50,8 +50,8 @@ from app.tenancy import (
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(
         description=(
-            "Bootstrap a platform admin (CLI/operator only). "
-            "Never auto-admin first public OIDC registrant."
+            "Bootstrap a platform admin (CLI/operator). "
+            "First OIDC user auto-promotes when no admin exists."
         )
     )
     parser.add_argument("--username", required=True, help="Local username")

@@ -80,6 +80,10 @@ def clean_db(client: TestClient) -> Generator[None, None, None]:
         "users",
         "memberships",
         "audit_events",
+        "org_invites",
+        "custom_roles",
+        "platform_settings",
+        "platform_admin_claim",
     )
     for name in collections:
         db[name].delete_many({})

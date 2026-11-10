@@ -56,8 +56,11 @@ class TenantContext:
 def _resolve_local_user(user: AuthUser, settings: Settings) -> dict[str, Any] | None:
     from .services import users as users_service
 
-    if user.auth_method == "oidc" and user.subject and settings.oidc_issuer:
-        found = users_service.get_user_by_oidc(settings.oidc_issuer, user.subject)
+    from .services.platform_oidc import resolve_oidc_runtime
+
+    runtime = resolve_oidc_runtime(settings)
+    if user.auth_method == "oidc" and user.subject and runtime.issuer:
+        found = users_service.get_user_by_oidc(runtime.issuer, user.subject)
         if found:
             return found
     if user.email:

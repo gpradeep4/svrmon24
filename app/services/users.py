@@ -1,7 +1,8 @@
 """Local user / identity persistence linked to OIDC (Master Phase 4).
 
-Platform admin is **never** granted on first public OIDC login. Only the
-operator CLI bootstrap path may set ``is_platform_admin=True``.
+Platform admin is set via **CLI bootstrap** or **first successful OIDC user**
+when no platform admin exists (race-safe singleton claim). Subsequent users
+never auto-promote.
 """
 
 from __future__ import annotations
@@ -92,8 +93,9 @@ def ensure_user_from_oidc(
 ) -> dict[str, Any]:
     """Upsert a local user from an OIDC login.
 
-    **Never** sets ``is_platform_admin``. New users default to ``False``.
-    Existing platform-admin flag is preserved (CLI bootstrap only).
+    New users default to non-admin. The first user in an empty deployment may be
+    promoted when no platform admin exists (see ``maybe_promote_first_platform_admin``).
+    Existing platform-admin flag is preserved.
     """
     if not issuer or not subject:
         raise UserError("OIDC issuer and subject are required", status_code=422)
@@ -140,6 +142,26 @@ def ensure_user_from_oidc(
         if existing is None:
             raise UserError("Failed to create user identity", status_code=409) from exc
         return serialize_document(existing)  # type: ignore[return-value]
+    doc = maybe_promote_first_platform_admin(str(doc["user_id"]))
+    return doc  # type: ignore[return-value]
+
+
+def count_platform_admins() -> int:
+    return int(_collection().count_documents({"is_platform_admin": True}))
+
+
+def maybe_promote_first_platform_admin(user_id: str) -> dict[str, Any]:
+    """Promote user when zero platform admins exist; return refreshed user doc."""
+    from . import platform_claim as platform_claim_service
+
+    platform_claim_service.ensure_indexes()
+    if count_platform_admins() > 0:
+        doc = _collection().find_one({"user_id": user_id})
+        return serialize_document(doc)  # type: ignore[return-value]
+    if platform_claim_service.try_claim_first_platform_admin(user_id=user_id):
+        doc = _collection().find_one({"user_id": user_id})
+        return serialize_document(doc)  # type: ignore[return-value]
+    doc = _collection().find_one({"user_id": user_id})
     return serialize_document(doc)  # type: ignore[return-value]
 
 

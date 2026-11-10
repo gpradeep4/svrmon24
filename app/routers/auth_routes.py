@@ -54,11 +54,13 @@ def _link_oidc_user(settings: Settings, auth_payload: dict[str, Any]) -> dict[st
     from ..services import memberships as memberships_service
     from ..services import tenants as tenants_service
     from ..services import users as users_service
+    from ..services.platform_oidc import resolve_oidc_runtime
     from ..tenancy import MEMBERSHIP_ROLE_MEMBER, MIGRATION_TENANT_ID
 
+    runtime = resolve_oidc_runtime(settings)
     subject = auth_payload.get("subject")
     username = auth_payload.get("username")
-    if not subject or not username or not settings.oidc_issuer:
+    if not subject or not username or not runtime.issuer:
         return None
     db_status = ping_database(settings)
     if not db_status.get("ok"):
@@ -67,13 +69,12 @@ def _link_oidc_user(settings: Settings, auth_payload: dict[str, Any]) -> dict[st
     try:
         tenants_service.ensure_migration_tenant()
         user = users_service.ensure_user_from_oidc(
-            issuer=settings.oidc_issuer,
+            issuer=runtime.issuer,
             subject=str(subject),
             username=str(username),
             email=auth_payload.get("email"),
             display_name=auth_payload.get("name"),
         )
-        # First (and subsequent) public logins get member only — never admin/platform-admin.
         memberships_service.ensure_membership(
             user_id=user["user_id"],
             tenant_id=MIGRATION_TENANT_ID,
@@ -89,7 +90,7 @@ def _link_oidc_user(settings: Settings, auth_payload: dict[str, Any]) -> dict[st
             logger.info(
                 "oidc_user_linked user_id=%s platform_admin=%s",
                 user.get("user_id"),
-                False,
+                bool(user.get("is_platform_admin")),
             )
         return user
     except DatabaseUnavailableError as exc:
@@ -157,22 +158,26 @@ def _read_pending(
 @router.get("/api/auth/config")
 def auth_config(request: Request, settings: Settings = Depends(get_settings)) -> dict[str, Any]:
     """Public auth feature flags for the vanilla UI (no secrets)."""
+    from ..services.platform_oidc import resolve_oidc_runtime
+
+    runtime = resolve_oidc_runtime(settings)
     origin = redirect_origin(settings)
     match = hosts_match(settings, request.url.hostname)
     return {
         "basic_auth_enabled": settings.basic_auth_enabled,
-        "oidc_enabled": settings.oidc_enabled,
+        "oidc_enabled": runtime.enabled,
         "login_path": "/auth/login",
         "logout_path": "/auth/logout",
         "callback_path": "/auth/callback",
-        "redirect_uri": settings.oidc_redirect_uri,
+        "redirect_uri": runtime.redirect_uri,
         "expected_origin": origin,
         "request_host": request.url.hostname,
         "host_matches_redirect": match,
         "host_hint": HOST_MISMATCH_HINT,
-        # Hint only — never auto-admin first public registrant (later phase).
+        "first_user_platform_admin": True,
         "notes": (
             "OIDC is provider-neutral (Entra ID / Keycloak). "
+            "When no platform admin exists, the first OIDC user is promoted. "
             "HTTP Basic is migration-only and disabled by default. "
             "Use one browser host consistently (localhost OR 127.0.0.1)."
         ),
@@ -182,12 +187,15 @@ def auth_config(request: Request, settings: Settings = Depends(get_settings)) ->
 @router.get("/auth/login")
 def oidc_login(request: Request, settings: Settings = Depends(get_settings)) -> RedirectResponse:
     """Start Authorization Code + PKCE against the configured IdP."""
-    if not settings.oidc_enabled:
+    from ..services.platform_oidc import resolve_oidc_runtime
+
+    runtime = resolve_oidc_runtime(settings)
+    if not runtime.enabled:
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
             detail="OIDC is disabled (set OIDC_ENABLED=true)",
         )
-    if not settings.oidc_issuer or not settings.oidc_client_id:
+    if not runtime.issuer or not runtime.client_id:
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
             detail="OIDC_ISSUER and OIDC_CLIENT_ID are required",
@@ -242,7 +250,10 @@ def oidc_callback(
     settings: Settings = Depends(get_settings),
 ) -> RedirectResponse:
     """Complete OIDC login: exchange code, validate ID token, set session."""
-    if not settings.oidc_enabled:
+    from ..services.platform_oidc import resolve_oidc_runtime
+
+    runtime = resolve_oidc_runtime(settings)
+    if not runtime.enabled:
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
             detail="OIDC is disabled",
@@ -324,8 +335,11 @@ def oidc_logout(
     id_token = request.session.get(SESSION_ID_TOKEN)
     request.session.clear()
 
+    from ..services.platform_oidc import resolve_oidc_runtime
+
     redirect_home = _post_logout_redirect(settings)
-    if settings.oidc_enabled and id_token:
+    runtime = resolve_oidc_runtime(settings)
+    if runtime.enabled and id_token:
         idp_logout = end_session_url(
             settings,
             id_token=str(id_token),
@@ -395,9 +409,12 @@ def whoami(
 
     try:
         local = None
-        if user.subject and settings.oidc_issuer:
-            local = users_service.get_user_by_oidc(settings.oidc_issuer, user.subject)
-        if local is None and user.subject and settings.oidc_issuer:
+        from ..services.platform_oidc import resolve_oidc_runtime
+
+        runtime = resolve_oidc_runtime(settings)
+        if user.subject and runtime.issuer:
+            local = users_service.get_user_by_oidc(runtime.issuer, user.subject)
+        if local is None and user.subject and runtime.issuer:
             # Lazy link if callback could not reach Mongo at login time.
             local = _link_oidc_user(
                 settings,

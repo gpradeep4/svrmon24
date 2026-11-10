@@ -167,7 +167,7 @@ def test_plan_catalog_and_assign(
     )
 
 
-def test_platform_admin_bootstrap_never_auto_on_oidc(
+def test_platform_admin_bootstrap_with_first_oidc_user(
     oidc_client: TestClient, monkeypatch, clean_db
 ) -> None:
     from app.services import users as users_service
@@ -176,7 +176,7 @@ def test_platform_admin_bootstrap_never_auto_on_oidc(
     _complete_oidc_login(oidc_client, monkeypatch)
     me = oidc_client.get("/api/me")
     assert me.status_code == 200
-    assert me.json()["is_platform_admin"] is False
+    assert me.json()["is_platform_admin"] is True
     assert me.json()["org_switcher_enabled"] is True
 
     rc = bootstrap_main(

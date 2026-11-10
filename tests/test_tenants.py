@@ -1,4 +1,4 @@
-"""Master Phase 4 — tenant seed, memberships, dual-write, no auto platform-admin."""
+"""Master Phase 4 — tenant seed, memberships, dual-write, first-user platform admin."""
 
 from __future__ import annotations
 
@@ -194,7 +194,7 @@ def test_membership_crud_link_and_list(clean_db) -> None:
     assert listed[0]["tenant_id"] == MIGRATION_TENANT_ID
 
 
-def test_oidc_login_links_user_never_auto_platform_admin(
+def test_oidc_login_links_user_first_becomes_platform_admin(
     oidc_client: TestClient, monkeypatch, clean_db
 ) -> None:
     from app.db import get_database
@@ -207,18 +207,17 @@ def test_oidc_login_links_user_never_auto_platform_admin(
     assert body["auth_method"] == "oidc"
     assert body["username"] == "alice"
     assert body["user_id"]
-    assert body["is_platform_admin"] is False
+    assert body["is_platform_admin"] is True
     assert body["current_tenant_id"] == MIGRATION_TENANT_ID
     assert body["current_tenant_display_name"] == MIGRATION_TENANT_DISPLAY_NAME
     assert body["org_switcher_enabled"] is False
     assert body["isolation_enforced"] is True
     assert any(m["role"] == "member" for m in body.get("memberships") or [])
 
-    # Direct DB proof: no accidental platform admin
     db = get_database()
     doc = db["users"].find_one({"user_id": body["user_id"]})
     assert doc is not None
-    assert doc.get("is_platform_admin") is False
+    assert doc.get("is_platform_admin") is True
 
     tenants = oidc_client.get("/api/tenants/current")
     assert tenants.status_code == 200
@@ -228,21 +227,20 @@ def test_oidc_login_links_user_never_auto_platform_admin(
     mem = oidc_client.get("/api/memberships")
     assert mem.status_code == 200
     assert mem.json()["count"] >= 1
-    assert mem.json()["is_platform_admin"] is False
+    assert mem.json()["is_platform_admin"] is True
 
 
 def test_platform_admin_cli_bootstrap_only(clean_db) -> None:
     from app.services import users as users_service
     from scripts.bootstrap_platform_admin import main as bootstrap_main
 
-    # Public OIDC-style upsert stays non-admin
     user = users_service.ensure_user_from_oidc(
         issuer=ISSUER,
         subject="ops-sub",
         username="operator",
         email="ops@example.com",
     )
-    assert user["is_platform_admin"] is False
+    assert user["is_platform_admin"] is True
 
     rc = bootstrap_main(
         [

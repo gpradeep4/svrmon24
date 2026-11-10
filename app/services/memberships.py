@@ -16,7 +16,7 @@ from pymongo.collection import Collection
 from pymongo.errors import DuplicateKeyError
 
 from ..db import require_database
-from ..permissions import ROLE_RANK
+from ..permissions import ROLE_RANK, normalize_membership_role
 from ..serialization import serialize_document
 from ..tenancy import (
     MEMBERSHIP_ROLE_MEMBER,
@@ -62,19 +62,21 @@ def generate_membership_id() -> str:
     return f"mem-{uuid.uuid4().hex[:12]}"
 
 
-def _normalize_role(role: str) -> str:
-    value = (role or "").strip().lower()
-    if value not in MEMBERSHIP_ROLES:
-        raise MembershipError(
-            f"Invalid membership role '{role}' "
-            f"(expected viewer|member|admin|owner)",
-            status_code=422,
-        )
-    return value
+def _normalize_role(role: str, *, tenant_id: str | None = None) -> str:
+    try:
+        return normalize_membership_role(role, tenant_id=tenant_id)
+    except ValueError as exc:
+        raise MembershipError(str(exc), status_code=422) from exc
 
 
-def _role_rank(role: str) -> int:
-    return ROLE_RANK.get(_normalize_role(role), 0)
+def _role_rank(role: str, *, tenant_id: str | None = None) -> int:
+    from ..permissions import _role_rank as perm_rank
+
+    try:
+        norm = normalize_membership_role(role, tenant_id=tenant_id)
+    except ValueError:
+        return 0
+    return perm_rank(norm, tenant_id=tenant_id)
 
 
 def get_membership(membership_id: str) -> dict[str, Any] | None:
@@ -144,7 +146,7 @@ def create_membership(
     """Create a membership. Raises 409 if (tenant_id, user_id) already exists."""
     if not user_id:
         raise MembershipError("user_id is required", status_code=422)
-    role_norm = _normalize_role(role)
+    role_norm = _normalize_role(role, tenant_id=tenant_id)
     tenant = tenants_service.get_tenant(tenant_id)
     if tenant is None:
         raise MembershipError(f"Tenant '{tenant_id}' not found", status_code=404)
@@ -185,12 +187,13 @@ def ensure_membership(
     existing admin/owner membership is never demoted and a first login never
     becomes platform admin (platform admin is not a membership role).
     """
-    role_norm = _normalize_role(role)
+    role_norm = _normalize_role(role, tenant_id=tenant_id)
     tenants_service.ensure_migration_tenant()
     existing = get_membership_for_user_tenant(user_id, tenant_id)
     if existing is not None:
-        if upgrade_role and _role_rank(role_norm) > _role_rank(
-            str(existing.get("role") or MEMBERSHIP_ROLE_MEMBER)
+        if upgrade_role and _role_rank(role_norm, tenant_id=tenant_id) > _role_rank(
+            str(existing.get("role") or MEMBERSHIP_ROLE_MEMBER),
+            tenant_id=tenant_id,
         ):
             return update_membership_role(
                 membership_id=str(existing["membership_id"]),
@@ -206,13 +209,13 @@ def update_membership_role(
     role: str,
 ) -> dict[str, Any]:
     """Update the role on an existing membership."""
-    role_norm = _normalize_role(role)
     mid = (membership_id or "").strip()
     if not mid:
         raise MembershipError("membership_id is required", status_code=422)
     existing = get_membership(mid)
     if existing is None:
         raise MembershipError(f"Membership '{mid}' not found", status_code=404)
+    role_norm = _normalize_role(role, tenant_id=str(existing.get("tenant_id") or ""))
     _collection().update_one(
         {"membership_id": mid},
         {"$set": {"role": role_norm, "updated_at": _now()}},

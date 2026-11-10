@@ -4,6 +4,7 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <meta name="svrmon24-ui" content="login-gate-v2" />
+  <meta name="svrmon24-version" content="0.31.0" />
   <title>SVRMON24</title>
   <!-- Critical gate CSS: never paint login + app chrome together (before cmdb.css). -->
   <style>
@@ -12,7 +13,7 @@
     body.is-app .login-gate { display: none !important; }
     #authPanel, .auth-panel-legacy { display: none !important; }
   </style>
-  <link rel="stylesheet" href="/static/css/cmdb.css?v=0.29.0" />
+  <link rel="stylesheet" href="/static/css/cmdb.css?v=0.31.0" />
 </head>
 <body class="is-login">
   <!-- Full-page login (no Operations chrome while signed out) -->
@@ -869,6 +870,39 @@
                 </table>
               </div>
             </div>
+            <div class="settings-block" id="orgInvitesBlock">
+              <h3>Organization invites</h3>
+              <p class="hint" id="orgInvitesHint">Requires users:admin. Invite by email and/or username; share the token for accept via Settings.</p>
+              <form id="orgInviteForm" class="inline-filter-row" style="margin-bottom:10px">
+                <label>Email <input id="inviteEmail" type="email" placeholder="user@example.com" /></label>
+                <label>Username <input id="inviteUsername" type="text" placeholder="jdoe" /></label>
+                <label>Role
+                  <select id="inviteRole">
+                    <option value="viewer">viewer</option>
+                    <option value="member" selected>member</option>
+                    <option value="admin">admin</option>
+                    <option value="owner">owner</option>
+                  </select>
+                </label>
+                <button type="submit" class="primary" id="btnCreateInvite">Create invite</button>
+              </form>
+              <div class="table-wrap">
+                <table class="data-table" id="orgInvitesTable">
+                  <thead>
+                    <tr>
+                      <th>Invitee</th>
+                      <th>Role</th>
+                      <th>Status</th>
+                      <th>Token</th>
+                      <th></th>
+                    </tr>
+                  </thead>
+                  <tbody id="orgInvitesBody">
+                    <tr><td colspan="5" class="hint">Requires users:admin to manage invites.</td></tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
             <div class="settings-block" id="tenantMembersBlock">
               <h3>Current organization members</h3>
               <p class="hint" id="tenantMembersHint">Requires users:read (admin / owner / platform admin) to list members. Role changes require users:admin (owner to grant owner).</p>
@@ -899,7 +933,7 @@
                 <h2 style="margin:0">Roles and Permissions</h2>
                 <p class="hint">
                   Tenant-scoped RBAC: <code>viewer</code>, <code>member</code>, <code>admin</code>, <code>owner</code>.
-                  Platform admin is CLI-bootstrap only and can act across tenants.
+                  Platform admin is CLI bootstrap or first OIDC user when no admin exists.
                   Mutating APIs enforce permissions; the UI hides or disables actions you cannot perform.
                 </p>
               </div>
@@ -918,6 +952,26 @@
               <ul id="rbacCurrentPerms" class="rbac-perm-list">
                 <li class="hint">Sign in to load.</li>
               </ul>
+            </div>
+            <div class="settings-block" id="rbacCustomRolesBlock">
+              <h3>Custom roles</h3>
+              <p class="hint" id="customRolesHint">Requires users:admin. Assign on memberships as <code>custom:&lt;role_key&gt;</code>.</p>
+              <form id="customRoleForm" class="inline-filter-row" style="margin-bottom:10px">
+                <label>Key <input id="customRoleKey" pattern="[a-z][a-z0-9_-]+" placeholder="cmdb_editor" required /></label>
+                <label>Label <input id="customRoleLabel" placeholder="CMDB Editor" required /></label>
+                <label>Permissions <input id="customRolePerms" placeholder="cmdb:read,cmdb:write" style="min-width:220px" /></label>
+                <button type="submit" class="primary">Create custom role</button>
+              </form>
+              <div class="table-wrap">
+                <table class="data-table" id="customRolesTable">
+                  <thead>
+                    <tr><th>Role</th><th>Label</th><th>Permissions</th><th></th></tr>
+                  </thead>
+                  <tbody id="customRolesBody">
+                    <tr><td colspan="4" class="hint">Sign in to load custom roles.</td></tr>
+                  </tbody>
+                </table>
+              </div>
             </div>
             <div class="settings-block" id="rbacMatrixBlock">
               <h3>Permission matrix</h3>
@@ -1050,12 +1104,33 @@
               </div>
             </div>
 
+            <div class="settings-block" id="settingsInviteAcceptBlock">
+              <h3>Accept organization invite</h3>
+              <p class="hint">Paste the invite token from your operator (OIDC session required).</p>
+              <form id="inviteAcceptForm" class="inline-filter-row">
+                <label>Token <input id="inviteAcceptToken" type="text" placeholder="invite token" autocomplete="off" /></label>
+                <button type="submit" class="primary">Accept invite</button>
+              </form>
+            </div>
+            <div class="settings-block" id="settingsOidcBlock">
+              <h3>SSO / OIDC (platform operator)</h3>
+              <p class="hint" id="oidcSettingsHint">Platform admin only. Client secret stays in env; set <code>client_secret_env_ref</code> (e.g. OIDC_CLIENT_SECRET).</p>
+              <form id="oidcSettingsForm" class="settings-form-grid">
+                <label><input type="checkbox" id="oidcDbActive" /> Use DB operator config</label>
+                <label><input type="checkbox" id="oidcDbEnabled" /> OIDC enabled</label>
+                <label>Issuer <input id="oidcDbIssuer" type="url" placeholder="https://idp/realms/acme" /></label>
+                <label>Client ID <input id="oidcDbClientId" type="text" /></label>
+                <label>Redirect URI <input id="oidcDbRedirect" type="url" /></label>
+                <label>Scopes <input id="oidcDbScopes" type="text" value="openid profile email" /></label>
+                <label>Secret env ref <input id="oidcDbSecretRef" type="text" placeholder="OIDC_CLIENT_SECRET" /></label>
+                <button type="submit" class="primary">Save OIDC settings</button>
+              </form>
+              <div id="oidcSettingsStatus" class="membership-summary hint">Sign in as platform admin to edit.</div>
+            </div>
             <div class="settings-block" id="settingsPlatformBlock">
               <h3>Platform</h3>
               <p class="hint" id="platformAdminHint">
-                Platform admin is one-time CLI bootstrap only:
-                <code>python scripts/bootstrap_platform_admin.py --username operator --email ops@example.com</code>.
-                First public OIDC registrant is never auto-promoted.
+                Platform admin: CLI <code>scripts/bootstrap_platform_admin.py</code> or first OIDC user when no admin exists.
               </p>
               <div id="platformAdminStatus" class="membership-summary hint">Sign in to see platform-admin status.</div>
             </div>
@@ -1279,6 +1354,6 @@
     </div>
   </div>
 
-  <script src="/static/js/cmdb.js?v=0.29.0"></script>
+  <script src="/static/js/cmdb.js?v=0.31.0"></script>
 </body>
 </html>
