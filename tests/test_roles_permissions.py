@@ -146,6 +146,15 @@ def _set_role(user_id: str, role: str) -> dict[str, Any]:
     )
 
 
+def _clear_platform_admin(user_id: str) -> None:
+    from app.db import get_database
+
+    get_database()["users"].update_one(
+        {"user_id": user_id},
+        {"$set": {"is_platform_admin": False, "platform_admin_source": None}},
+    )
+
+
 def test_permission_matrix_defaults() -> None:
     viewer = permissions_for_role(MEMBERSHIP_ROLE_VIEWER)
     member = permissions_for_role(MEMBERSHIP_ROLE_MEMBER)
@@ -214,6 +223,7 @@ def test_viewer_denied_mutations(
     )
     user = users_service.get_user_by_oidc(ISSUER, "viewer-sub")
     assert user is not None
+    _clear_platform_admin(user["user_id"])
     _set_role(user["user_id"], MEMBERSHIP_ROLE_VIEWER)
 
     perms = oidc_client.get("/api/permissions")
@@ -262,6 +272,7 @@ def test_member_can_write_cmdb_not_config(
     )
     user = users_service.get_user_by_oidc(ISSUER, "member-sub")
     assert user is not None
+    _clear_platform_admin(user["user_id"])
     # Default OIDC membership is already member; assert explicitly.
     _set_role(user["user_id"], MEMBERSHIP_ROLE_MEMBER)
 
@@ -310,6 +321,7 @@ def test_admin_config_and_users_owner_org(
     )
     admin = users_service.get_user_by_oidc(ISSUER, "admin-sub")
     assert admin is not None
+    _clear_platform_admin(admin["user_id"])
     _set_role(admin["user_id"], MEMBERSHIP_ROLE_ADMIN)
 
     field = oidc_client.post(

@@ -132,7 +132,7 @@ def test_ensure_migration_tenant_idempotent(clean_db) -> None:
     again = tenants_service.ensure_migration_tenant()
     assert again["tenant_id"] == MIGRATION_TENANT_ID
     assert again["display_name"] == MIGRATION_TENANT_DISPLAY_NAME
-    assert again["switchable"] is False
+    assert again["switchable"] is True
 
     listed = tenants_service.list_tenants()
     assert len(listed) == 1
@@ -168,6 +168,12 @@ def test_membership_crud_link_and_list(clean_db) -> None:
     from app.services import users as users_service
 
     tenants_service.ensure_migration_tenant()
+    users_service.ensure_user_from_oidc(
+        issuer=ISSUER,
+        subject="seed-admin-sub",
+        username="seedadmin",
+        email="seedadmin@example.com",
+    )
     user = users_service.ensure_user_from_oidc(
         issuer=ISSUER,
         subject="mem-user-1",
@@ -210,7 +216,7 @@ def test_oidc_login_links_user_first_becomes_platform_admin(
     assert body["is_platform_admin"] is True
     assert body["current_tenant_id"] == MIGRATION_TENANT_ID
     assert body["current_tenant_display_name"] == MIGRATION_TENANT_DISPLAY_NAME
-    assert body["org_switcher_enabled"] is False
+    assert body["org_switcher_enabled"] is True
     assert body["isolation_enforced"] is True
     assert any(m["role"] == "member" for m in body.get("memberships") or [])
 

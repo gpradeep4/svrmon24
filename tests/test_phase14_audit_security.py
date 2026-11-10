@@ -444,6 +444,8 @@ def test_migration_dry_run_script_is_read_only(clean_db) -> None:
 def test_ui_exposes_audit_panel() -> None:
     from pathlib import Path
 
+    from app import __version__
+
     root = Path(__file__).resolve().parents[1]
     html = (root / "app" / "static" / "index.html").read_text(encoding="utf-8")
     js = (root / "app" / "static" / "js" / "cmdb.js").read_text(encoding="utf-8")
