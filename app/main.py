@@ -28,6 +28,8 @@ from .routers import dashboard as dashboard_router
 from .routers import dependencies as dependencies_router
 from .routers import diagnostics as diagnostics_router
 from .routers import entitlements as entitlements_router
+from .routers import org_admin as org_admin_router
+from .routers import platform as platform_router
 from .routers import relationships as relationships_router
 from .routers import tenants as tenants_router
 from .serialization import serialize_document
@@ -111,6 +113,8 @@ def create_app() -> FastAPI:
 
     app.include_router(auth_routes.router)
     app.include_router(tenants_router.router)
+    app.include_router(org_admin_router.router)
+    app.include_router(platform_router.router)
     app.include_router(audit_router.router)
     app.include_router(components_router.router)
     app.include_router(custom_fields_router.router)

@@ -456,7 +456,7 @@
       subtitle: "Browse and edit rows for a custom entity table",
     },
     columns: { title: "Column Settings", subtitle: "Tenant-scoped grid visibility, order, width, and pin" },
-    users: { title: "Users", subtitle: "OIDC memberships + current-org members (no auto platform-admin)" },
+    users: { title: "Users", subtitle: "Memberships, invites, and org members" },
     roles: {
       title: "Roles and Permissions",
       subtitle: "Live RBAC role, permissions, and matrix (viewer / member / admin / owner)",
@@ -717,6 +717,131 @@
     }
   }
 
+  async function loadOrgInvitesPanel() {
+    const body = $("#orgInvitesBody");
+    const hint = $("#orgInvitesHint");
+    const form = $("#orgInviteForm");
+    if (!body) return;
+    if (!can("users:admin")) {
+      if (hint) hint.textContent = "Requires users:admin to create or revoke invites.";
+      if (form) form.classList.add("hidden");
+      return;
+    }
+    if (form) form.classList.remove("hidden");
+    try {
+      const data = await api(
+        `/api/tenants/${encodeURIComponent(state.tenantId)}/invites`
+      );
+      const items = data.items || [];
+      if (!items.length) {
+        body.innerHTML =
+          `<tr><td colspan="5" class="hint">No pending invites.</td></tr>`;
+        return;
+      }
+      body.innerHTML = items
+        .map((inv) => {
+          const who =
+            inv.invitee_email ||
+            inv.invitee_username ||
+            inv.invite_id ||
+            "—";
+          const tok = inv.token
+            ? `<code title="share with invitee">${escapeHtml(
+                String(inv.token).slice(0, 12)
+              )}…</code>`
+            : "—";
+          const revoke =
+            inv.status === "pending"
+              ? `<button type="button" class="ghost btn-revoke-invite" data-invite-id="${escapeHtml(
+                  inv.invite_id
+                )}">Revoke</button>`
+              : "";
+          return `<tr>
+            <td>${escapeHtml(who)}</td>
+            <td><code>${escapeHtml(inv.role || "")}</code></td>
+            <td>${escapeHtml(inv.status || "")}</td>
+            <td>${tok}</td>
+            <td>${revoke}</td>
+          </tr>`;
+        })
+        .join("");
+    } catch (err) {
+      body.innerHTML = `<tr><td colspan="5" class="hint">${escapeHtml(
+        err.message || "Could not load invites"
+      )}</td></tr>`;
+    }
+  }
+
+  async function loadCustomRolesPanel() {
+    const body = $("#customRolesBody");
+    const form = $("#customRoleForm");
+    if (!body) return;
+    if (!can("users:admin")) {
+      if (form) form.classList.add("hidden");
+      body.innerHTML =
+        `<tr><td colspan="4" class="hint">Requires users:admin.</td></tr>`;
+      return;
+    }
+    if (form) form.classList.remove("hidden");
+    try {
+      const data = await api(
+        `/api/tenants/${encodeURIComponent(state.tenantId)}/custom-roles`
+      );
+      const items = data.items || [];
+      if (!items.length) {
+        body.innerHTML =
+          `<tr><td colspan="4" class="hint">No custom roles yet.</td></tr>`;
+        return;
+      }
+      body.innerHTML = items
+        .map(
+          (r) => `<tr>
+          <td><code>${escapeHtml(r.membership_role || r.role_key)}</code></td>
+          <td>${escapeHtml(r.display_name || "")}</td>
+          <td>${(r.permissions || [])
+            .map((p) => `<code>${escapeHtml(p)}</code>`)
+            .join(" ")}</td>
+          <td><button type="button" class="ghost btn-delete-custom-role" data-role-key="${escapeHtml(
+            r.role_key
+          )}">Delete</button></td>
+        </tr>`
+        )
+        .join("");
+    } catch (err) {
+      body.innerHTML = `<tr><td colspan="4" class="hint">${escapeHtml(
+        err.message
+      )}</td></tr>`;
+    }
+  }
+
+  async function loadOidcSettingsPanel() {
+    const status = $("#oidcSettingsStatus");
+    const block = $("#settingsOidcBlock");
+    if (!block) return;
+    if (!state.isPlatformAdmin) {
+      block.classList.add("hidden");
+      return;
+    }
+    block.classList.remove("hidden");
+    try {
+      const data = await api("/api/platform/oidc-settings");
+      $("#oidcDbActive").checked = !!data.active_db_config;
+      $("#oidcDbEnabled").checked = !!data.oidc_enabled;
+      $("#oidcDbIssuer").value = data.issuer || "";
+      $("#oidcDbClientId").value = data.client_id || "";
+      $("#oidcDbRedirect").value = data.redirect_uri || "";
+      $("#oidcDbScopes").value = data.scopes || "openid profile email";
+      $("#oidcDbSecretRef").value = data.client_secret_env_ref || "OIDC_CLIENT_SECRET";
+      if (status) {
+        status.textContent =
+          `secret_configured=${!!data.client_secret_configured}; ` +
+          (data.notes || "");
+      }
+    } catch (err) {
+      if (status) status.textContent = err.message || "Could not load OIDC settings";
+    }
+  }
+
   async function saveMemberRole(membershipId, role) {
     if (!membershipId || !role) return;
     await api(
@@ -937,9 +1062,10 @@
       renderMembershipTables(mem);
       if (platformEl) {
         platformEl.textContent = state.isPlatformAdmin
-          ? "You are a platform admin (CLI bootstrap). You can create orgs and assign plans."
-          : "You are not a platform admin. Operators bootstrap with scripts/bootstrap_platform_admin.py.";
+          ? "You are a platform admin (CLI or first OIDC user). You can create orgs, assign plans, and edit SSO settings."
+          : "You are not a platform admin. Bootstrap via scripts/bootstrap_platform_admin.py or be the first OIDC user.";
       }
+      loadOidcSettingsPanel().catch(() => {});
     } catch (err) {
       if (memEl) memEl.textContent = err.message || "Could not load memberships";
       if (platformEl) {
@@ -2061,12 +2187,14 @@
     }
     if (name === "users" && state.authenticated) {
       loadTenancyContext()
-        .then(() => loadTenantMembersPanel())
+        .then(() => Promise.all([loadTenantMembersPanel(), loadOrgInvitesPanel()]))
         .catch((err) => toast(err.message, true));
     }
     if (name === "roles") {
       if (state.authenticated) {
-        loadRolesPanel().catch((err) => toast(err.message, true));
+        loadRolesPanel()
+          .then(() => loadCustomRolesPanel())
+          .catch((err) => toast(err.message, true));
       } else {
         renderRolesSignedOut();
       }
@@ -2075,7 +2203,9 @@
       loadTenancyContext().catch((err) => toast(err.message, true));
     }
     if (name === "settings" && state.authenticated) {
-      loadTenancyContext().catch((err) => toast(err.message, true));
+      loadTenancyContext()
+        .then(() => loadOidcSettingsPanel())
+        .catch((err) => toast(err.message, true));
     }
     if (name === "audit") {
       loadAuditEvents()
@@ -3926,6 +4056,126 @@
         toast(err.message || "Role update failed", true);
       } finally {
         btn.disabled = false;
+      }
+    });
+    $("#orgInviteForm")?.addEventListener("submit", async (e) => {
+      e.preventDefault();
+      if (!can("users:admin")) {
+        toast("Requires users:admin", true);
+        return;
+      }
+      try {
+        const res = await api(
+          `/api/tenants/${encodeURIComponent(state.tenantId)}/invites`,
+          {
+            method: "POST",
+            body: JSON.stringify({
+              invitee_email: ($("#inviteEmail")?.value || "").trim() || null,
+              invitee_username: ($("#inviteUsername")?.value || "").trim() || null,
+              role: $("#inviteRole")?.value || "member",
+            }),
+          }
+        );
+        toast(`Invite created — token ${res.invite?.token || ""}`);
+        await loadOrgInvitesPanel();
+      } catch (err) {
+        toast(err.message || "Invite failed", true);
+      }
+    });
+    $("#orgInvitesBody")?.addEventListener("click", async (e) => {
+      const btn = e.target?.closest?.(".btn-revoke-invite");
+      if (!btn) return;
+      const iid = btn.getAttribute("data-invite-id");
+      if (!iid) return;
+      try {
+        await api(
+          `/api/tenants/${encodeURIComponent(state.tenantId)}/invites/${encodeURIComponent(iid)}`,
+          { method: "DELETE" }
+        );
+        toast("Invite revoked");
+        await loadOrgInvitesPanel();
+      } catch (err) {
+        toast(err.message || "Revoke failed", true);
+      }
+    });
+    $("#inviteAcceptForm")?.addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const token = ($("#inviteAcceptToken")?.value || "").trim();
+      if (!token) return;
+      try {
+        await api("/api/invites/accept", {
+          method: "POST",
+          body: JSON.stringify({ token }),
+        });
+        toast("Invite accepted");
+        await loadTenancyContext();
+      } catch (err) {
+        toast(err.message || "Accept failed", true);
+      }
+    });
+    $("#customRoleForm")?.addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const perms = ($("#customRolePerms")?.value || "")
+        .split(",")
+        .map((s) => s.trim())
+        .filter(Boolean);
+      try {
+        await api(
+          `/api/tenants/${encodeURIComponent(state.tenantId)}/custom-roles`,
+          {
+            method: "POST",
+            body: JSON.stringify({
+              role_key: ($("#customRoleKey")?.value || "").trim(),
+              display_name: ($("#customRoleLabel")?.value || "").trim(),
+              permissions: perms,
+            }),
+          }
+        );
+        toast("Custom role created");
+        await Promise.all([loadCustomRolesPanel(), loadRolesPanel()]);
+      } catch (err) {
+        toast(err.message || "Custom role failed", true);
+      }
+    });
+    $("#customRolesBody")?.addEventListener("click", async (e) => {
+      const btn = e.target?.closest?.(".btn-delete-custom-role");
+      if (!btn) return;
+      const key = btn.getAttribute("data-role-key");
+      if (!key) return;
+      try {
+        await api(
+          `/api/tenants/${encodeURIComponent(state.tenantId)}/custom-roles/${encodeURIComponent(key)}`,
+          { method: "DELETE" }
+        );
+        toast("Custom role deleted");
+        await Promise.all([loadCustomRolesPanel(), loadRolesPanel()]);
+      } catch (err) {
+        toast(err.message || "Delete failed", true);
+      }
+    });
+    $("#oidcSettingsForm")?.addEventListener("submit", async (e) => {
+      e.preventDefault();
+      if (!state.isPlatformAdmin) {
+        toast("Platform admin required", true);
+        return;
+      }
+      try {
+        await api("/api/platform/oidc-settings", {
+          method: "PUT",
+          body: JSON.stringify({
+            active: !!$("#oidcDbActive")?.checked,
+            oidc_enabled: !!$("#oidcDbEnabled")?.checked,
+            issuer: ($("#oidcDbIssuer")?.value || "").trim(),
+            client_id: ($("#oidcDbClientId")?.value || "").trim(),
+            redirect_uri: ($("#oidcDbRedirect")?.value || "").trim(),
+            scopes: ($("#oidcDbScopes")?.value || "").trim(),
+            client_secret_env_ref: ($("#oidcDbSecretRef")?.value || "").trim(),
+          }),
+        });
+        toast("OIDC settings saved");
+        await loadOidcSettingsPanel();
+      } catch (err) {
+        toast(err.message || "OIDC settings failed", true);
       }
     });
     $("#auditActionFilter")?.addEventListener("keydown", (e) => {

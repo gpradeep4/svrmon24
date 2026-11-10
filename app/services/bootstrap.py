@@ -36,6 +36,15 @@ def ensure_tenancy_ready() -> dict[str, Any]:
         tenants_service.ensure_indexes()
         users_service.ensure_indexes()
         memberships_service.ensure_indexes()
+        from . import custom_roles as custom_roles_service
+        from . import org_invites as org_invites_service
+        from . import platform_claim as platform_claim_service
+        from . import platform_oidc as platform_oidc_service
+
+        platform_claim_service.ensure_indexes()
+        platform_oidc_service.ensure_indexes()
+        org_invites_service.ensure_indexes()
+        custom_roles_service.ensure_indexes()
         audit_indexes = audit_service.ensure_indexes()
         tenant_idx = tenant_indexes.ensure_tenant_id_indexes(db)
         tenant = tenants_service.ensure_migration_tenant()

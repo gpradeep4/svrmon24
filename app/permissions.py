@@ -2,8 +2,11 @@
 
 Roles (SaaS defaults): ``viewer`` | ``member`` | ``admin`` | ``owner``.
 
-Platform admin is a separate user flag (CLI bootstrap only) and grants every
-permission across tenants where the caller is authorized to act.
+Platform admin is a separate user flag (CLI bootstrap or first OIDC user when no
+admin exists) and grants every permission across tenants where authorized.
+
+Membership roles may use built-in ``viewer|member|admin|owner`` or tenant custom
+roles ``custom:<role_key>`` backed by ``custom_roles`` documents.
 
 HTTP Basic migration sessions have no membership role; they receive an effective
 ``admin`` permission set on the migration tenant so existing migration tooling
@@ -148,6 +151,7 @@ BASIC_EFFECTIVE_ROLE = MEMBERSHIP_ROLE_ADMIN
 
 
 def normalize_role(role: str | None) -> str | None:
+    """Normalize built-in roles only (viewer|member|admin|owner)."""
     if role is None:
         return None
     value = str(role).strip().lower()
@@ -158,17 +162,53 @@ def normalize_role(role: str | None) -> str | None:
     return value
 
 
-def permissions_for_role(role: str | None) -> frozenset[str]:
+def normalize_membership_role(role: str | None, *, tenant_id: str | None = None) -> str:
+    """Normalize built-in or custom ``custom:<role_key>`` membership roles."""
+    from .services import custom_roles as custom_roles_service
+
+    if role is None:
+        raise ValueError("role is required")
+    value = str(role).strip().lower()
+    if not value:
+        raise ValueError("role is required")
+    if value in MEMBERSHIP_ROLES:
+        return value
+    if custom_roles_service.is_custom_role(value):
+        if not tenant_id:
+            raise ValueError(f"tenant_id required for custom role '{value}'")
+        key = custom_roles_service.custom_role_key(value)
+        doc = custom_roles_service.get_custom_role(tenant_id, key)
+        if doc is None:
+            raise ValueError(f"Unknown custom role '{value}' in tenant '{tenant_id}'")
+        return value
+    raise ValueError(
+        f"Invalid membership role '{role}' "
+        "(expected viewer|member|admin|owner or custom:<role_key>)"
+    )
+
+
+def permissions_for_role(
+    role: str | None, *, tenant_id: str | None = None
+) -> frozenset[str]:
     """Return the permission set for a tenant membership role."""
     if role is None:
         return frozenset()
-    try:
-        norm = normalize_role(role)
-    except ValueError:
+    value = str(role).strip().lower()
+    if not value:
         return frozenset()
-    if norm is None:
-        return frozenset()
-    return _ROLE_PERMISSIONS.get(norm, frozenset())
+    if value in MEMBERSHIP_ROLES:
+        return _ROLE_PERMISSIONS.get(value, frozenset())
+    if value.startswith("custom:"):
+        if not tenant_id:
+            return frozenset()
+        from .services import custom_roles as custom_roles_service
+
+        doc = custom_roles_service.get_custom_role_by_membership_role(tenant_id, value)
+        if not doc:
+            return frozenset()
+        perms = doc.get("permissions") or []
+        return frozenset(str(p) for p in perms if p in ALL_PERMISSIONS)
+    return frozenset()
 
 
 def effective_role(tenant: TenantContext) -> str | None:
@@ -186,7 +226,7 @@ def permissions_for_tenant(tenant: TenantContext) -> frozenset[str]:
         # Platform admin: full matrix including plans:admin.
         return frozenset(ALL_PERMISSIONS)
     role = effective_role(tenant)
-    return permissions_for_role(role)
+    return permissions_for_role(role, tenant_id=tenant.tenant_id)
 
 
 def has_permission(tenant: TenantContext, permission: str) -> bool:
@@ -218,13 +258,34 @@ def require_permission(permission: str):
     return _dep
 
 
+def _role_rank(role: str | None, *, tenant_id: str | None = None) -> int:
+    if not role:
+        return 0
+    value = str(role).strip().lower()
+    if value in ROLE_RANK:
+        return ROLE_RANK[value]
+    if value.startswith("custom:"):
+        if not tenant_id:
+            return 15
+        from .services import custom_roles as custom_roles_service
+
+        doc = custom_roles_service.get_custom_role_by_membership_role(tenant_id, value)
+        if not doc:
+            return 0
+        perms = doc.get("permissions") or []
+        if PERM_USERS_ADMIN in perms or PERM_ORG_ADMIN in perms:
+            return ROLE_RANK[MEMBERSHIP_ROLE_ADMIN]
+        if PERM_CMDB_WRITE in perms or PERM_CONFIG_WRITE in perms:
+            return ROLE_RANK[MEMBERSHIP_ROLE_MEMBER]
+        return ROLE_RANK[MEMBERSHIP_ROLE_VIEWER]
+    return 0
+
+
 def can_assign_role(*, actor: TenantContext, target_role: str) -> bool:
     """Whether ``actor`` may grant ``target_role`` in the current tenant."""
     try:
-        target = normalize_role(target_role)
+        target = normalize_membership_role(target_role, tenant_id=actor.tenant_id)
     except ValueError:
-        return False
-    if target is None:
         return False
     if actor.is_platform_admin:
         return True
@@ -232,19 +293,23 @@ def can_assign_role(*, actor: TenantContext, target_role: str) -> bool:
         return False
     if target == MEMBERSHIP_ROLE_OWNER:
         return has_permission(actor, PERM_ORG_ADMIN)
-    # Admins may assign viewer/member/admin; owners may assign any.
     actor_role = effective_role(actor)
-    actor_rank = ROLE_RANK.get(actor_role or "", 0)
-    target_rank = ROLE_RANK.get(target, 0)
-    # May assign roles at or below own rank (owner assigns all via org:admin above).
+    actor_rank = _role_rank(actor_role, tenant_id=actor.tenant_id)
+    target_rank = _role_rank(target, tenant_id=actor.tenant_id)
     return actor_rank >= target_rank and actor_rank >= ROLE_RANK[MEMBERSHIP_ROLE_ADMIN]
 
 
-def role_matrix() -> dict[str, list[str]]:
-    return {
-        role: sorted(perms)
-        for role, perms in _ROLE_PERMISSIONS.items()
-    }
+def role_matrix(*, tenant_id: str | None = None) -> dict[str, list[str]]:
+    matrix = {role: sorted(perms) for role, perms in _ROLE_PERMISSIONS.items()}
+    if tenant_id:
+        from .services import custom_roles as custom_roles_service
+
+        for doc in custom_roles_service.list_custom_roles(tenant_id):
+            key = str(doc.get("membership_role") or "")
+            perms = doc.get("permissions") or []
+            if key:
+                matrix[key] = sorted(str(p) for p in perms)
+    return matrix
 
 
 def permission_catalog() -> list[dict[str, str]]:
@@ -259,7 +324,7 @@ def describe_for_tenant(tenant: TenantContext) -> dict[str, Any]:
     return {
         "roles": sorted(MEMBERSHIP_ROLES, key=lambda r: ROLE_RANK.get(r, 0)),
         "permissions": permission_catalog(),
-        "matrix": role_matrix(),
+        "matrix": role_matrix(tenant_id=tenant.tenant_id),
         "current": {
             "tenant_id": tenant.tenant_id,
             "membership_role": tenant.membership_role,
@@ -269,9 +334,9 @@ def describe_for_tenant(tenant: TenantContext) -> dict[str, Any]:
             "permissions": perms,
         },
         "notes": (
-            "Tenant-scoped RBAC. Platform admin is CLI-bootstrap only and receives "
-            "all permissions (including plans:admin). HTTP Basic uses an effective "
-            "admin role on the migration tenant only."
+            "Tenant-scoped RBAC. Platform admin is CLI bootstrap or first OIDC user "
+            "when no admin exists. HTTP Basic uses an effective admin role on the "
+            "migration tenant only."
         ),
     }
 

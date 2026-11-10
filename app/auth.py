@@ -17,6 +17,7 @@ from fastapi.security import HTTPBasic, HTTPBasicCredentials
 
 from .config import Settings, get_settings
 from .oidc import SESSION_AUTH
+from .services.platform_oidc import resolve_oidc_runtime
 
 security = HTTPBasic(auto_error=False)
 
@@ -110,7 +111,8 @@ def require_user(
     ``BASIC_AUTH_ENABLED``. Basic must not be treated as a tenant-auth bypass
     in later phases — it remains a shared migration credential only.
     """
-    if settings.oidc_enabled:
+    oidc_runtime = resolve_oidc_runtime(settings)
+    if oidc_runtime.enabled:
         session_user = _user_from_session(request)
         if session_user is not None:
             return session_user
@@ -130,7 +132,7 @@ def require_user(
             raise _unauthorized(settings, "Invalid credentials")
         return AuthUser(username=credentials.username, auth_method="basic")
 
-    if not settings.oidc_enabled:
+    if not oidc_runtime.enabled:
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
             detail=(
