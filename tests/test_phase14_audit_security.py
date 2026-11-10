@@ -209,7 +209,7 @@ def foreign_tenant_docs(clean_db):
 def test_version_is_release_ready() -> None:
     from app import __version__
 
-    assert __version__ == "0.29.0"
+    assert __version__ == "0.31.1"
 
 
 def test_audit_logs_mutating_cmdb_and_list(
@@ -453,6 +453,6 @@ def test_ui_exposes_audit_panel() -> None:
     assert "Audit Logs <span class=\"coming\">Soon</span>" not in html
     assert "loadAuditEvents" in js
     assert "/api/audit-events" in js
-    assert "cmdb.js?v=0.29.0" in html
+    assert f"cmdb.js?v={__version__}" in html
     assert (root / "docs" / "migration-dry-run.md").is_file()
     assert (root / "docs" / "release-hardening.md").is_file()

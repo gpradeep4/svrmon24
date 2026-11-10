@@ -22,7 +22,7 @@ def _now() -> datetime:
 
 
 def ensure_indexes() -> None:
-    require_database()[COLLECTION].create_index("_id", unique=True)
+    # MongoDB collections already have a unique _id index; no extra spec needed.
 
 
 def count_platform_admins() -> int:

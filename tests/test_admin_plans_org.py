@@ -410,7 +410,7 @@ def test_ui_markers_phase13() -> None:
     html = (root / "app" / "static" / "index.html").read_text(encoding="utf-8")
     js = (root / "app" / "static" / "js" / "cmdb.js").read_text(encoding="utf-8")
 
-    assert __version__ == "0.28.0"
+    assert __version__ == "0.31.1"
     assert __version__ in html
     assert 'id="tenantSwitcher"' in html
     assert "Not switchable — no tenant isolation yet" not in html

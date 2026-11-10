@@ -368,7 +368,9 @@ def test_dependencies_ui_markers_and_version(
     assert "Source Table" in html
     assert "Target Table" in html
     assert "potentially affected" in html.lower()
-    assert "0.26.0" in html
+    from app import __version__
+
+    assert __version__ in html
     assert "max_dependency_depth" in html
     js = client.get("/static/js/cmdb.js", headers=auth_headers).text
     assert "syncDepPickers" in js
