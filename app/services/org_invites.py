@@ -208,6 +208,11 @@ def accept_invite(
         role=role,
         upgrade_role=True,
     )
+    if str(membership.get("role") or "") != role:
+        membership = memberships_service.update_membership_role(
+            membership_id=str(membership["membership_id"]),
+            role=role,
+        )
     _collection().update_one(
         {"invite_id": invite["invite_id"]},
         {
