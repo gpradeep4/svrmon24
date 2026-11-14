@@ -102,6 +102,9 @@ def test_enterprise_login_responsive_layout_css() -> None:
     assert "minmax(0, var(--sidebar-w))" in css
     assert ".sidebar" in css and "min-width: 0" in css
     assert ".brand-mark--png" in css and "overflow: hidden" in css
+    assert "--login-panel-bg:" in css
+    assert "justify-content: flex-start" in css
+    assert ".login-gate-enterprise .login-form-pane::before" in css
 
 
 def test_enterprise_login_scale_layout_css() -> None:
@@ -130,7 +133,7 @@ def test_enterprise_login_version_bump() -> None:
 
     html_path, _ = _static_paths()
     html = html_path.read_text(encoding="utf-8")
-    assert __version__ == "0.32.12"
+    assert __version__ == "0.32.13"
     assert f'content="{__version__}"' in html
     assert f"cmdb.css?v={__version__}" in html
     assert f"cmdb.js?v={__version__}" in html
