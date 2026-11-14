@@ -1486,15 +1486,8 @@
     const hostBanner = $("#hostMismatchBanner");
 
     if (hint) {
-      if (cfg.oidc_enabled && cfg.basic_auth_enabled) {
-        hint.textContent =
-          "Sign in with your credentials or continue with Keycloak SSO.";
-      } else if (cfg.oidc_enabled) {
-        hint.textContent =
-          "Continue with your organization’s Keycloak identity provider.";
-      } else if (cfg.basic_auth_enabled) {
-        hint.textContent =
-          "Migration HTTP Basic only — OIDC is disabled on this server.";
+      if (cfg.oidc_enabled || cfg.basic_auth_enabled) {
+        hint.textContent = "Sign in to your SVRMON24 workspace";
       } else {
         hint.textContent = "No authentication method is currently enabled.";
       }
@@ -4005,6 +3998,12 @@
       connect();
     });
     $("#btnAuthPassToggle")?.addEventListener("click", toggleAuthPasswordVisibility);
+    $("#btnForgotPassword")?.addEventListener("click", () => {
+      toast(
+        "Password reset is managed by your identity provider (Keycloak / Entra). Contact your administrator.",
+        false
+      );
+    });
     $("#authRemember")?.addEventListener("change", (e) => {
       if (!e.target?.checked) sessionStorage.removeItem(STORAGE_KEY);
     });
