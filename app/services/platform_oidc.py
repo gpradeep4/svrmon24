@@ -16,7 +16,7 @@ from typing import Any
 from pymongo import ASCENDING
 
 from ..config import Settings
-from ..db import require_database
+from ..db import DatabaseUnavailableError, require_database
 from ..serialization import serialize_document
 
 COLLECTION = "platform_settings"
@@ -72,7 +72,12 @@ def _normalize_env_ref(value: str | None) -> str | None:
 
 
 def get_stored_oidc() -> dict[str, Any] | None:
-    doc = _collection().find_one({"setting_key": DOC_KEY})
+    try:
+        doc = _collection().find_one({"setting_key": DOC_KEY})
+    except DatabaseUnavailableError:
+        return None
+    if not doc:
+        return None
     return serialize_document(doc)  # type: ignore[return-value]
 
 
