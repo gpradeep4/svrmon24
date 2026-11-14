@@ -15,7 +15,7 @@ def test_enterprise_login_structure() -> None:
     html = html_path.read_text(encoding="utf-8")
     js = js_path.read_text(encoding="utf-8")
 
-    assert 'content="login-enterprise-v4"' in html
+    assert 'content="login-enterprise-v5"' in html
     assert "brand-s-logo" in html
     assert 'id="svrmon-brand-s"' in html
     assert "login-gate-enterprise" in html
@@ -51,12 +51,20 @@ def test_enterprise_login_structure() -> None:
     assert "authOrDivider" in js
 
 
+def test_enterprise_login_responsive_layout_css() -> None:
+    css_path = Path(__file__).resolve().parents[1] / "app" / "static" / "css" / "cmdb.css"
+    css = css_path.read_text(encoding="utf-8")
+    assert "@media (min-width: 1200px)" in css
+    assert "grid-template-areas: \"portal form\"" in css
+    assert "@media (max-width: 1199px)" in css
+
+
 def test_enterprise_login_version_bump() -> None:
     from app import __version__
 
     html_path, _ = _static_paths()
     html = html_path.read_text(encoding="utf-8")
-    assert __version__ == "0.32.3"
+    assert __version__ == "0.32.4"
     assert f'content="{__version__}"' in html
     assert f"cmdb.css?v={__version__}" in html
     assert f"cmdb.js?v={__version__}" in html
