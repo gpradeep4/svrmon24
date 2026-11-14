@@ -17,7 +17,7 @@ def test_enterprise_login_structure() -> None:
     html = html_path.read_text(encoding="utf-8")
     js = js_path.read_text(encoding="utf-8")
 
-    assert 'content="login-enterprise-v12"' in html
+    assert 'content="login-enterprise-v13"' in html
     assert "svrmon-brand-lockup" in html
     assert 'src="/static/img/svrmon-logo.png"' in html
     assert "svrmon-logo-compact.png" in html
@@ -36,6 +36,8 @@ def test_enterprise_login_structure() -> None:
     for name in (
         "brand/svrmon24-logo.svg",
         "brand/svrmon24-symbol.svg",
+        "brand/login-waves.png",
+        "brand/login-waves.svg",
         "icons/cmdb.svg",
         "icons/ai-investigation.svg",
         "icons/diagnostics.svg",
@@ -54,6 +56,8 @@ def test_enterprise_login_structure() -> None:
     assert "markPng" in brand_js
     assert "logoSvg" in brand_js
     assert "symbolSvg" in brand_js
+    assert "loginWavesPng" in brand_js
+    assert "loginWavesSvg" in brand_js
     assert 'id="svrmon-brand-s"' not in html
     assert "brand-s-logo" not in html
     assert "login-gate-enterprise" in html
@@ -65,9 +69,8 @@ def test_enterprise_login_structure() -> None:
     assert "Middleware &amp; Log Intelligence" in html or "Middleware & Log Intelligence" in html
     assert "Open Investigations" in html
     assert "login-dash-nav-item" in html
-    assert "login-portal-curves" in html
-    assert "loginCurveA" in html
-    assert "M-120 980" in html or "M-40 860" in html  # bottom-left → top wave geometry
+    assert "login-portal-bg" in html
+    assert "login-waves.png" in (FRONTEND_STATIC / "css" / "cmdb.css").read_text(encoding="utf-8")
     assert "/static/assets/icons/cmdb.svg" in html
     assert "Unified view of servers, network and applications" in html
     assert "Analyse incidents, logs and health data to find root cause" in html
@@ -127,6 +130,8 @@ def test_enterprise_login_responsive_layout_css() -> None:
     assert ".sidebar" in css and "min-width: 0" in css
     assert ".brand-mark--png" in css and "overflow: hidden" in css
     assert "--login-panel-bg:" in css
+    assert 'url("/static/assets/brand/login-waves.png")' in css
+    assert "background-position: left bottom" in css
     assert "justify-content: flex-start" in css
     assert ".login-gate-enterprise .login-form-pane::before" in css
 
@@ -162,7 +167,7 @@ def test_enterprise_login_version_bump() -> None:
 
     html_path, _ = _static_paths()
     html = html_path.read_text(encoding="utf-8")
-    assert __version__ == "0.32.16"
+    assert __version__ == "0.32.17"
     assert f'content="{__version__}"' in html
     assert f"cmdb.css?v={__version__}" in html
     assert f"cmdb.js?v={__version__}" in html
