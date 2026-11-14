@@ -15,7 +15,7 @@ def test_enterprise_login_structure() -> None:
     html = html_path.read_text(encoding="utf-8")
     js = js_path.read_text(encoding="utf-8")
 
-    assert 'content="login-enterprise-v3"' in html
+    assert 'content="login-enterprise-v4"' in html
     assert "brand-s-logo" in html
     assert 'id="svrmon-brand-s"' in html
     assert "login-gate-enterprise" in html
@@ -23,8 +23,11 @@ def test_enterprise_login_structure() -> None:
     assert "login-gradient-text" in html
     assert "Turn Incidents into" in html
     assert "AI Infrastructure Diagnostic" in html
-    assert "CMDB &amp; Inventory" in html or "CMDB & Inventory" in html
+    assert "CMDB &amp; Infrastructure Inventory" in html or "CMDB & Infrastructure Inventory" in html
+    assert "Middleware &amp; Log Intelligence" in html or "Middleware & Log Intelligence" in html
+    assert "Open Investigations" in html
     assert "Sign in to your SVRMON24 workspace" in html
+    assert 'id="authMethodNote"' in html
     assert "login-feature-grid" in html
     assert "login-dashboard-tilt" in html
     assert "login-dashboard-preview" in html
@@ -53,7 +56,7 @@ def test_enterprise_login_version_bump() -> None:
 
     html_path, _ = _static_paths()
     html = html_path.read_text(encoding="utf-8")
-    assert __version__ == "0.32.2"
+    assert __version__ == "0.32.3"
     assert f'content="{__version__}"' in html
     assert f"cmdb.css?v={__version__}" in html
     assert f"cmdb.js?v={__version__}" in html

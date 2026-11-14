@@ -1407,7 +1407,11 @@
       toast("HTTP Basic is disabled (BASIC_AUTH_ENABLED=false)", true);
       return;
     }
+    const form = $("#loginBasicForm");
+    if (form && !form.reportValidity()) return;
     if (!saveAuthFromForm()) return;
+    const signInBtn = $("#btnConnect");
+    signInBtn?.classList.add("is-loading");
     setGlobalLoading(true, "Connecting…");
     try {
       const me = await api("/api/me");
@@ -1417,6 +1421,7 @@
       showLoginShell();
       toast(err.message || "Auth failed", true);
     } finally {
+      signInBtn?.classList.remove("is-loading");
       setGlobalLoading(false);
     }
   }
@@ -1479,6 +1484,7 @@
     authConfig.redirect_uri = cfg.redirect_uri || "";
 
     const hint = $("#authHint");
+    const methodNote = $("#authMethodNote");
     const oidcRow = $("#oidcAuthRow");
     const basicRow = $("#basicAuthRow");
     const orDivider = $("#authOrDivider");
@@ -1487,10 +1493,22 @@
 
     if (hint) {
       if (cfg.oidc_enabled || cfg.basic_auth_enabled) {
-        hint.textContent = "Sign in to your SVRMON24 workspace";
+        hint.textContent = "Sign in to your SVRMON24 workspace.";
       } else {
         hint.textContent = "No authentication method is currently enabled.";
       }
+    }
+    if (methodNote) {
+      let note = "";
+      if (cfg.oidc_enabled && cfg.basic_auth_enabled) {
+        note = "Use your credentials below or continue with Keycloak SSO.";
+      } else if (cfg.oidc_enabled) {
+        note = "Continue with your organization’s Keycloak identity provider.";
+      } else if (cfg.basic_auth_enabled) {
+        note = "Migration HTTP Basic only — OIDC is disabled on this server.";
+      }
+      methodNote.textContent = note;
+      methodNote.classList.toggle("hidden", !note);
     }
     oidcRow?.classList.toggle("hidden", !cfg.oidc_enabled);
     oidcRow?.classList.toggle("oidc-only", !!(cfg.oidc_enabled && !cfg.basic_auth_enabled));

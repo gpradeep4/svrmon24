@@ -151,7 +151,7 @@ def test_ui_contains_dashboard_and_required_columns() -> None:
     assert 'id="loginGate"' in html
     assert 'id="appShell"' in html
     assert 'id="authPanel"' not in html
-    assert "login-enterprise-v3" in html
+    assert "login-enterprise-v4" in html
     assert 'class="login-portal"' in html or "login-portal" in html
     assert "login-gate-split" in html
     assert 'id="settingsOrgBlock"' in html or 'id="settingsAccentBlock"' in html
