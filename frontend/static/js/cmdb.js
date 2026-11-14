@@ -1160,8 +1160,28 @@
     }
   }
 
-  function logout() {
+  function clearStoredBasicAuth() {
     sessionStorage.removeItem(STORAGE_KEY);
+    state.authMethod = "";
+    const userEl = $("#authUser");
+    const passEl = $("#authPass");
+    const rememberEl = $("#authRemember");
+    if (userEl) userEl.value = "";
+    if (passEl) passEl.value = "";
+    if (rememberEl) rememberEl.checked = false;
+  }
+
+  function logoutHomeWithLoggedOutFlag() {
+    const params = new URLSearchParams();
+    params.set("logged_out", "1");
+    const next = `${window.location.pathname}?${params}${window.location.hash || ""}`;
+    window.location.replace(next);
+  }
+
+  async function logout() {
+    const logoutPath = authConfig.logout_path || "/auth/logout";
+    const usedBasic = state.authMethod === "basic" || !!authHeader();
+    clearStoredBasicAuth();
     setSessionChip(false);
     state.authenticated = false;
     $("#dashContent")?.classList.add("hidden");
@@ -1174,8 +1194,20 @@
     if ($("#kpiComponents")) $("#kpiComponents").textContent = "—";
     if ($("#kpiRels")) $("#kpiRels").textContent = "—";
     showLoginShell();
-    const logoutPath = authConfig.logout_path || "/auth/logout";
-    // Clear server OIDC session cookie (and optional IdP end-session redirect).
+
+    if (usedBasic) {
+      // Avoid top-level navigation to /auth/logout: Chromium may replay cached HTTP
+      // Basic credentials on the redirect and immediately re-authenticate the SPA.
+      try {
+        await fetch(resolveApiUrl(logoutPath), { method: "POST", credentials: "include" });
+      } catch {
+        /* still land on login gate */
+      }
+      logoutHomeWithLoggedOutFlag();
+      return;
+    }
+
+    // OIDC: clear server session cookie (optional IdP end-session redirect).
     window.location.href = logoutPath;
   }
 
@@ -1458,6 +1490,13 @@
 
   async function tryResumeSession() {
     const params = new URLSearchParams(window.location.search);
+    if (params.get("logged_out") === "1") {
+      clearQueryParams(["logged_out", "signed_in", "auth_error"]);
+      clearStoredBasicAuth();
+      setSessionChip(false);
+      showLoginShell();
+      return false;
+    }
     const justSignedIn = params.get("signed_in") === "1";
     // Keep login gate visible until /api/me succeeds — never paint app chrome early.
     showLoginShell();

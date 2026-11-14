@@ -68,6 +68,9 @@ def test_enterprise_login_structure() -> None:
     assert "Audit Ready" in html
     assert "toggleAuthPasswordVisibility" in js
     assert "authOrDivider" in js
+    assert "logged_out" in js
+    assert "clearStoredBasicAuth" in js
+    assert "logoutHomeWithLoggedOutFlag" in js
 
 
 def test_enterprise_login_responsive_layout_css() -> None:
@@ -104,7 +107,7 @@ def test_enterprise_login_version_bump() -> None:
 
     html_path, _ = _static_paths()
     html = html_path.read_text(encoding="utf-8")
-    assert __version__ == "0.32.8"
+    assert __version__ == "0.32.9"
     assert f'content="{__version__}"' in html
     assert f"cmdb.css?v={__version__}" in html
     assert f"cmdb.js?v={__version__}" in html
