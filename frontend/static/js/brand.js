@@ -23,6 +23,16 @@
       markPng: "/static/img/svrmon-logo-mark.png",
       faviconPng: "/static/img/svrmon-favicon.png",
       appleTouchPng: "/static/img/svrmon-apple-touch.png",
+      logoSvg: "/static/assets/brand/svrmon24-logo.svg",
+      symbolSvg: "/static/assets/brand/svrmon24-symbol.svg",
+      icons: {
+        cmdb: "/static/assets/icons/cmdb.svg",
+        aiInvestigation: "/static/assets/icons/ai-investigation.svg",
+        diagnostics: "/static/assets/icons/diagnostics.svg",
+        logIntelligence: "/static/assets/icons/log-intelligence.svg",
+        workflows: "/static/assets/icons/workflows.svg",
+        security: "/static/assets/icons/security.svg",
+      },
     },
   };
   global.SVRMON24_BRAND = Object.freeze(brand);
