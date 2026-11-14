@@ -398,9 +398,10 @@ def test_ui_markers_phase13() -> None:
 
     from app import __version__
 
-    root = Path(__file__).resolve().parents[1]
-    html = (root / "app" / "static" / "index.html").read_text(encoding="utf-8")
-    js = (root / "app" / "static" / "js" / "cmdb.js").read_text(encoding="utf-8")
+    from tests.frontend_paths import FRONTEND_INDEX, FRONTEND_STATIC
+
+    html = FRONTEND_INDEX.read_text(encoding="utf-8")
+    js = (FRONTEND_STATIC / "js" / "cmdb.js").read_text(encoding="utf-8")
 
     assert __version__ == "0.32.6"
     assert __version__ in html

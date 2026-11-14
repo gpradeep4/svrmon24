@@ -48,6 +48,11 @@ class Settings(BaseSettings):
     session_https_only: bool = Field(default=False, alias="SESSION_HTTPS_ONLY")
     session_same_site: str = Field(default="lax", alias="SESSION_SAME_SITE")
 
+    # Monolith: serve frontend from Uvicorn (default). Split deploy: SERVE_STATIC=false.
+    serve_static: bool = Field(default=True, alias="SERVE_STATIC")
+    # Comma-separated browser origins for split FE (cross-origin). Same-origin nginx proxy preferred.
+    cors_origins: str = Field(default="", alias="CORS_ORIGINS")
+
     mongodb_uri: str = Field(default="mongodb://localhost:27017", alias="MONGODB_URI")
     mongodb_db: str = Field(default="svrmon24", alias="MONGODB_DB")
     mongodb_connect_timeout_ms: int = Field(default=3000, alias="MONGODB_CONNECT_TIMEOUT_MS")

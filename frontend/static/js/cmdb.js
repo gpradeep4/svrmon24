@@ -1,6 +1,18 @@
 (() => {
   const STORAGE_KEY = "svrmon24.basicAuth";
   const ACCENT_KEY = "svrmon24.accent";
+  function apiBaseUrl() {
+    const cfg = typeof window !== "undefined" ? window.SVRMON24 : null;
+    return cfg && typeof cfg.apiBase === "string" ? cfg.apiBase.replace(/\/$/, "") : "";
+  }
+
+  function resolveApiUrl(path) {
+    if (/^https?:\/\//i.test(path)) return path;
+    const base = apiBaseUrl();
+    const normalized = path.startsWith("/") ? path : `/${path}`;
+    return `${base}${normalized}`;
+  }
+
   const authConfig = {
     loaded: false,
     basic_auth_enabled: false,
@@ -1298,7 +1310,7 @@
     if (options.body && !headers["Content-Type"]) {
       headers["Content-Type"] = "application/json";
     }
-    const res = await fetch(path, { ...options, headers, credentials: "include" });
+    const res = await fetch(resolveApiUrl(path), { ...options, headers, credentials: "include" });
     let data = null;
     const text = await res.text();
     if (text) {
@@ -1552,7 +1564,10 @@
 
   async function loadAuthConfig() {
     try {
-      const cfg = await fetch("/api/auth/config", { credentials: "include", headers: { Accept: "application/json" } })
+      const cfg = await fetch(resolveApiUrl("/api/auth/config"), {
+        credentials: "include",
+        headers: { Accept: "application/json" },
+      })
         .then((r) => r.json());
       applyAuthConfig(cfg);
     } catch (_) {

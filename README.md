@@ -72,6 +72,23 @@ Or:
 uvicorn app.main:app --host 0.0.0.0 --port 8200
 ```
 
+### Split frontend / backend (independent deploy)
+
+The UI lives under `frontend/`; the API remains in `app/`. **Default (`SERVE_STATIC=true`)** is unchanged single-process: Uvicorn serves `frontend/` at `/` and `/static/*`.
+
+For **split deploy** (API and UI as separate units):
+
+```bash
+# Terminal A — API only (no UI routes)
+SERVE_STATIC=false uvicorn app.main:app --host 0.0.0.0 --port 8200
+
+# Terminal B — nginx UI + reverse proxy to API (recommended for OIDC cookies)
+docker compose up frontend api mongodb
+# Open http://localhost:8080/ — set OIDC_REDIRECT_URI=http://localhost:8080/auth/callback when using OIDC
+```
+
+Cross-origin UI/API is possible via `CORS_ORIGINS` and `frontend/static/js/config.js` (`window.SVRMON24.apiBase`); same-origin nginx proxy is preferred so session cookies and `/auth/*` stay on one browser origin.
+
 ## Configuration
 
 Copy `.env.example` → `.env` (never commit `.env`). Placeholders only in the example file:
@@ -85,6 +102,8 @@ Copy `.env.example` → `.env` (never commit `.env`). Placeholders only in the e
 | `BASIC_AUTH_USERNAME` / `BASIC_AUTH_PASSWORD` | Shared Basic credentials (only when flag on) | placeholders |
 | `MONGODB_URI` / `MONGODB_DB` | MongoDB connection | local defaults |
 | `APP_HOST` / `APP_PORT` | Bind address | `0.0.0.0:8200` |
+| `SERVE_STATIC` | Serve `frontend/` from Uvicorn (`false` = API-only) | `true` |
+| `CORS_ORIGINS` | Comma-separated browser origins (split cross-origin) | empty |
 | `OLLAMA_ENABLED` | Explicit enable for local Ollama AI | **`false`** (disabled unless set) |
 | `OLLAMA_URL` / `OLLAMA_MODEL` / `OLLAMA_TIMEOUT_SECONDS` | Local Ollama endpoint + model | localhost |
 
@@ -370,7 +389,7 @@ svrmon24/
     models/            # Pydantic models (incl. tenants)
     routers/           # HTTP routers (OIDC + tenants/memberships)
     services/          # Business logic (CMDB, deps, AI, tenancy)
-    static/            # Dashboard UI (HTML/CSS/JS)
+  frontend/            # Deployable dashboard UI (HTML/CSS/JS); nginx.conf for split deploy
     auth.py            # Unified OIDC session + Basic flag
     oidc.py            # Discovery / PKCE / token validation
     tenancy.py         # Migration tenant constants + scoping helpers
@@ -378,6 +397,7 @@ svrmon24/
   scripts/             # Demo seed, tenant backfill, platform-admin CLI, migration dry-run
   docs/                # Migration dry-run + release hardening
   tests/               # Pytest suite (incl. Phase 14 audit/security)
+  docker-compose.yml   # Local api + frontend + mongodb
   requirements.txt
   .env.example         # Placeholders only
   README.md
