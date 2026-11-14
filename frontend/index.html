@@ -3,8 +3,8 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <meta name="svrmon24-ui" content="login-enterprise-v10" />
-  <meta name="svrmon24-version" content="0.32.14" />
+  <meta name="svrmon24-ui" content="login-enterprise-v11" />
+  <meta name="svrmon24-version" content="0.32.15" />
   <title>SVRMON24</title>
   <link rel="icon" href="/static/img/svrmon-favicon.png" type="image/png" sizes="32x32" />
   <link rel="apple-touch-icon" href="/static/img/svrmon-apple-touch.png" sizes="180x180" />
@@ -15,9 +15,9 @@
     body.is-app .login-gate { display: none !important; }
     #authPanel, .auth-panel-legacy { display: none !important; }
   </style>
-  <link rel="stylesheet" href="/static/css/cmdb.css?v=0.32.14" />
-  <script src="/static/js/config.js?v=0.32.14"></script>
-  <script src="/static/js/brand.js?v=0.32.14"></script>
+  <link rel="stylesheet" href="/static/css/cmdb.css?v=0.32.15" />
+  <script src="/static/js/config.js?v=0.32.15"></script>
+  <script src="/static/js/brand.js?v=0.32.15"></script>
 </head>
 <body class="is-login">
   <!-- Enterprise login: showcase (left) + sign-in panel (right); stacks on small viewports -->
@@ -48,14 +48,7 @@
       </div>
       <div class="login-portal-inner">
         <div class="login-portal-brand">
-          <div class="login-brand-markrow">
-            <img class="login-brand-symbol" src="/static/assets/brand/svrmon24-symbol.svg" width="48" height="48" alt="" decoding="async" />
-            <div class="login-brand-textstack">
-              <span class="login-brand-wordmark">SVRMON<span>24</span></span>
-              <p class="login-portal-kicker">AI Infrastructure Diagnostic &amp; Automation Platform</p>
-            </div>
-          </div>
-          <img class="svrmon-brand-lockup svrmon-brand-lockup--showcase" src="/static/assets/brand/svrmon24-logo.svg" width="320" height="56" alt="SVRMON24" decoding="async" hidden />
+          <img class="svrmon-brand-lockup svrmon-brand-lockup--showcase" src="/static/img/svrmon-logo.png" width="2010" height="497" alt="SVRMON24 — AI Infrastructure Diagnostic &amp; Automation Platform" decoding="async" />
         </div>
 
         <div class="login-hero-stage">
@@ -69,7 +62,7 @@
             <div class="login-dash-chrome login-dash-chrome--labeled">
               <div class="login-dash-sidebar">
                 <div class="login-dash-logo-row">
-                  <img class="login-dash-logo-img" src="/static/assets/brand/svrmon24-symbol.svg" width="22" height="22" alt="" decoding="async" />
+                  <img class="login-dash-logo-img" src="/static/img/svrmon-logo-mark.png" width="22" height="22" alt="" decoding="async" />
                   <span class="login-dash-logo-text">SVRMON<span>24</span></span>
                 </div>
                 <nav class="login-dash-navlist">
@@ -110,15 +103,26 @@
                   <div class="login-dash-trend">
                     <p class="login-dash-section-label">Investigations Trend</p>
                     <div class="login-dash-spark">
-                      <svg viewBox="0 0 200 56" preserveAspectRatio="none" aria-hidden="true">
+                      <svg viewBox="0 0 240 72" preserveAspectRatio="none" aria-hidden="true">
                         <defs>
                           <linearGradient id="loginTrendFill" x1="0" y1="0" x2="0" y2="1">
-                            <stop offset="0%" stop-color="#3B82F6" stop-opacity=".28"/>
+                            <stop offset="0%" stop-color="#3B82F6" stop-opacity=".32"/>
                             <stop offset="100%" stop-color="#3B82F6" stop-opacity="0"/>
                           </linearGradient>
                         </defs>
-                        <path d="M0 44 L28 36 L56 38 L84 24 L112 30 L140 16 L168 22 L200 12 L200 56 L0 56 Z" fill="url(#loginTrendFill)"/>
-                        <path d="M0 44 L28 36 L56 38 L84 24 L112 30 L140 16 L168 22 L200 12" fill="none" stroke="#3B82F6" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/>
+                        <path d="M4 56 L34 46 L64 49 L94 32 L124 38 L154 20 L184 28 L210 18 L236 14 L236 72 L4 72 Z" fill="url(#loginTrendFill)"/>
+                        <path d="M4 56 L34 46 L64 49 L94 32 L124 38 L154 20 L184 28 L210 18 L236 14" fill="none" stroke="#2563EB" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+                        <g fill="#FFFFFF" stroke="#2563EB" stroke-width="2.2">
+                          <circle cx="4" cy="56" r="3.2"/>
+                          <circle cx="34" cy="46" r="3.2"/>
+                          <circle cx="64" cy="49" r="3.2"/>
+                          <circle cx="94" cy="32" r="3.2"/>
+                          <circle cx="124" cy="38" r="3.2"/>
+                          <circle cx="154" cy="20" r="3.2"/>
+                          <circle cx="184" cy="28" r="3.2"/>
+                          <circle cx="210" cy="18" r="3.2"/>
+                          <circle cx="236" cy="14" r="3.2"/>
+                        </g>
                       </svg>
                     </div>
                   </div>
@@ -131,7 +135,7 @@
                       <ul class="login-dash-legend">
                         <li><span class="swatch g"></span>91% Resolved</li>
                         <li><span class="swatch o"></span>6% Watch</li>
-                        <li><span class="swatch r"></span>2% Failed</li>
+                        <li><span class="swatch r"></span>3% Failed</li>
                       </ul>
                     </div>
                   </div>
@@ -1557,6 +1561,6 @@
     </div>
   </div>
 
-  <script src="/static/js/cmdb.js?v=0.32.14"></script>
+  <script src="/static/js/cmdb.js?v=0.32.15"></script>
 </body>
 </html>

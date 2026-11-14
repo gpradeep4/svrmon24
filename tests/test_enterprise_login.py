@@ -17,11 +17,13 @@ def test_enterprise_login_structure() -> None:
     html = html_path.read_text(encoding="utf-8")
     js = js_path.read_text(encoding="utf-8")
 
-    assert 'content="login-enterprise-v10"' in html
+    assert 'content="login-enterprise-v11"' in html
     assert "svrmon-brand-lockup" in html
-    assert "svrmon24-logo.svg" in html
+    assert 'src="/static/img/svrmon-logo.png"' in html
     assert "svrmon-logo-compact.png" in html
     assert 'class="svrmon-brand-lockup svrmon-brand-lockup--showcase"' in html
+    assert "login-brand-markrow" not in html
+    assert "login-brand-wordmark" not in html
     assert "login-hero-stage" in html
     for name in (
         "svrmon-logo.png",
@@ -132,7 +134,12 @@ def test_enterprise_login_scale_layout_css() -> None:
     assert ".login-portal-inner" in css
     assert "width: 90%;" in css
     assert ".login-hero-stage" in css
-    assert "rotateY(-11deg)" in css
+    assert "rotateY(-9deg)" in css
+    assert ".login-hero-stage .login-dashboard-tilt" in css
+    # Desktop composition: dashboard sits beside headline (col 2), not full-width stacked.
+    hero_dash = css.split(".login-hero-stage .login-dashboard-tilt", 1)[1].split("}", 1)[0]
+    assert "grid-column: 2" in hero_dash
+    assert "1 / -1" not in hero_dash
 
 
 def test_env_example_local_dual_auth_defaults() -> None:
@@ -149,7 +156,7 @@ def test_enterprise_login_version_bump() -> None:
 
     html_path, _ = _static_paths()
     html = html_path.read_text(encoding="utf-8")
-    assert __version__ == "0.32.14"
+    assert __version__ == "0.32.15"
     assert f'content="{__version__}"' in html
     assert f"cmdb.css?v={__version__}" in html
     assert f"cmdb.js?v={__version__}" in html
