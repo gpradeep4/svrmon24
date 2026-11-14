@@ -280,8 +280,9 @@ body { padding: 0; }
 
 @media (min-width: 1200px) {
   .login-gate-split {
-    grid-template-columns: minmax(0, 13fr) minmax(0, 7fr);
+    grid-template-columns: minmax(0, 65fr) minmax(0, 35fr);
     grid-template-areas: "portal form";
+    width: 100%;
     height: 100vh;
     height: 100dvh;
     min-height: 100vh;
@@ -305,6 +306,9 @@ body { padding: 0; }
   position: relative;
   display: flex;
   align-items: stretch;
+  justify-content: center;
+  width: 100%;
+  min-width: 0;
   min-height: 100%;
   color: var(--ink);
   overflow: hidden;
@@ -371,9 +375,9 @@ body { padding: 0; }
   display: flex;
   flex-direction: column;
   justify-content: center;
-  gap: 26px;
+  gap: clamp(18px, 2.2vh, 26px);
   width: 100%;
-  max-width: 760px;
+  max-width: none;
   margin: 0 auto;
   padding: clamp(32px, 5.5vw, 52px) clamp(28px, 5vw, 52px);
   animation: login-rise 480ms ease-out both;
@@ -381,8 +385,10 @@ body { padding: 0; }
 
 @media (min-width: 1200px) {
   .login-portal-inner {
-    max-width: min(840px, 92%);
-    gap: 28px;
+    width: 90%;
+    max-width: none;
+    gap: clamp(20px, 2.4vh, 28px);
+    padding: 40px 48px;
   }
 }
 
@@ -464,7 +470,7 @@ body { padding: 0; }
 }
 
 .login-portal-lede-wide {
-  max-width: 58ch;
+  max-width: min(68ch, 100%);
 }
 
 .login-portal-lede {
@@ -472,23 +478,24 @@ body { padding: 0; }
   font-size: clamp(1rem, 0.45vw + 0.9rem, 1.125rem);
   line-height: 1.6;
   color: #475569;
-  max-width: 52ch;
+  max-width: min(62ch, 100%);
 }
 
-/* Dashboard preview mock — 3D tilt */
+/* Dashboard preview mock — 3D tilt (mobile/tablet only; flat full-width on large desktop) */
 .login-dashboard-tilt {
   position: relative;
-  width: min(100%, 720px);
-  margin: 0 auto;
+  width: 100%;
+  margin: 0;
   perspective: 1500px;
-  padding: 8px 12px 32px 0;
+  padding: 8px 0 24px;
 }
 
 @media (min-width: 1200px) {
   .login-dashboard-tilt {
-    width: min(100%, 92%);
-    margin: 0;
-    padding: 10px 20px 36px 4px;
+    width: 100%;
+    max-width: 100%;
+    perspective: none;
+    padding: 0 0 20px;
   }
 }
 
@@ -507,6 +514,7 @@ body { padding: 0; }
 .login-dashboard-preview {
   position: relative;
   width: 100%;
+  max-width: 100%;
   border-radius: 14px;
   border: 1px solid rgba(148, 163, 184, 0.32);
   background: #FFFFFF;
@@ -518,6 +526,23 @@ body { padding: 0; }
   transform: rotateY(-12deg) rotateX(7deg) translateZ(32px);
   transform-origin: 18% center;
   backface-visibility: hidden;
+}
+
+@media (min-width: 1200px) {
+  .login-dashboard-preview {
+    width: min(100%, 72%);
+    margin: 0 auto;
+    transform: none;
+    transform-origin: center center;
+    box-shadow:
+      0 1px 2px rgba(15, 23, 42, 0.04),
+      0 20px 48px rgba(37, 99, 235, 0.14),
+      0 32px 64px rgba(15, 23, 42, 0.08);
+  }
+
+  .login-dashboard-shadow {
+    display: none;
+  }
 }
 
 .login-dash-window-bar {
@@ -905,7 +930,8 @@ body { padding: 0; }
 @media (min-width: 1200px) {
   .login-form-pane {
     align-items: center;
-    padding: clamp(40px, 5vw, 64px) clamp(32px, 4vw, 56px);
+    justify-content: center;
+    padding: 40px clamp(24px, 3vw, 48px);
     border-left: 1px solid #DCE7F5;
     box-shadow: -16px 0 48px rgba(16, 38, 74, 0.04);
   }
@@ -964,9 +990,17 @@ body { padding: 0; }
   box-shadow: none;
   background: transparent;
   padding: 8px 4px 16px;
-  width: min(420px, 100%);
-  max-width: 100%;
+  width: 100%;
+  max-width: 420px;
   margin: 0 auto;
+}
+
+@media (min-width: 1200px) {
+  .login-gate-enterprise .login-card.login-panel {
+    width: min(420px, 100%);
+    max-width: 440px;
+    min-width: min(360px, 100%);
+  }
 }
 
 /* App-shell auth rows use a 4-col grid; login auth blocks must stay block flow */

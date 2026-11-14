@@ -59,12 +59,26 @@ def test_enterprise_login_responsive_layout_css() -> None:
     assert "@media (max-width: 1199px)" in css
 
 
+def test_enterprise_login_scale_layout_css() -> None:
+    """Left showcase must not be capped at ~840px; large-desktop dashboard is flat (no 3D shrink)."""
+    css_path = Path(__file__).resolve().parents[1] / "app" / "static" / "css" / "cmdb.css"
+    css = css_path.read_text(encoding="utf-8")
+    assert "65fr) minmax(0, 35fr)" in css
+    assert "min(840px, 92%)" not in css
+    assert ".login-portal-inner" in css
+    assert "width: 90%;" in css
+    assert ".login-dashboard-preview" in css
+    idx = css.find("@media (min-width: 1200px)")
+    assert idx != -1
+    assert "transform: none" in css[idx : idx + 12000]
+
+
 def test_enterprise_login_version_bump() -> None:
     from app import __version__
 
     html_path, _ = _static_paths()
     html = html_path.read_text(encoding="utf-8")
-    assert __version__ == "0.32.4"
+    assert __version__ == "0.32.5"
     assert f'content="{__version__}"' in html
     assert f"cmdb.css?v={__version__}" in html
     assert f"cmdb.js?v={__version__}" in html
