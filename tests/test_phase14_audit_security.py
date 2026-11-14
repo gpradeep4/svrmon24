@@ -209,7 +209,7 @@ def foreign_tenant_docs(clean_db):
 def test_version_is_release_ready() -> None:
     from app import __version__
 
-    assert __version__ == "0.32.14"
+    assert __version__ == "0.32.15"
 
 
 def test_audit_logs_mutating_cmdb_and_list(
