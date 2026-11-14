@@ -1,3 +1,3 @@
 """SVRMON24 application package."""
 
-__version__ = "0.32.5"
+__version__ = "0.32.6"

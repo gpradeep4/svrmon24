@@ -15,9 +15,21 @@ def test_enterprise_login_structure() -> None:
     html = html_path.read_text(encoding="utf-8")
     js = js_path.read_text(encoding="utf-8")
 
-    assert 'content="login-enterprise-v5"' in html
+    assert 'content="login-enterprise-v6"' in html
     assert "brand-s-logo" in html
     assert 'id="svrmon-brand-s"' in html
+    assert "brand-wordmark" in html
+    assert "brand-wordmark-core" in html
+    assert "brand-wordmark-suffix" in html
+    assert "login-hero-stage" in html
+    static_root = Path(__file__).resolve().parents[1] / "app" / "static"
+    assert (static_root / "img" / "svrmon-brand-mark.svg").is_file()
+    assert (static_root / "img" / "svrmon-favicon.svg").is_file()
+    assert "svrmon-favicon.svg" in html
+    assert "brand.js" in html
+    brand_js = (static_root / "js" / "brand.js").read_text(encoding="utf-8")
+    assert "SVRMON24_BRAND" in brand_js
+    assert "markSvg" in brand_js
     assert "login-gate-enterprise" in html
     assert 'id="loginGate"' in html
     assert "login-gradient-text" in html
@@ -60,17 +72,15 @@ def test_enterprise_login_responsive_layout_css() -> None:
 
 
 def test_enterprise_login_scale_layout_css() -> None:
-    """Left showcase must not be capped at ~840px; large-desktop dashboard is flat (no 3D shrink)."""
+    """Left showcase must not be capped at ~840px; hero stage places tilted dashboard without narrow column cap."""
     css_path = Path(__file__).resolve().parents[1] / "app" / "static" / "css" / "cmdb.css"
     css = css_path.read_text(encoding="utf-8")
     assert "65fr) minmax(0, 35fr)" in css
     assert "min(840px, 92%)" not in css
     assert ".login-portal-inner" in css
     assert "width: 90%;" in css
-    assert ".login-dashboard-preview" in css
-    idx = css.find("@media (min-width: 1200px)")
-    assert idx != -1
-    assert "transform: none" in css[idx : idx + 12000]
+    assert ".login-hero-stage" in css
+    assert "rotateY(-11deg)" in css
 
 
 def test_enterprise_login_version_bump() -> None:
@@ -78,7 +88,8 @@ def test_enterprise_login_version_bump() -> None:
 
     html_path, _ = _static_paths()
     html = html_path.read_text(encoding="utf-8")
-    assert __version__ == "0.32.5"
+    assert __version__ == "0.32.6"
     assert f'content="{__version__}"' in html
     assert f"cmdb.css?v={__version__}" in html
     assert f"cmdb.js?v={__version__}" in html
+    assert f"brand.js?v={__version__}" in html

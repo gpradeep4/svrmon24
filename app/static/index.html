@@ -3,9 +3,10 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <meta name="svrmon24-ui" content="login-enterprise-v5" />
-  <meta name="svrmon24-version" content="0.32.5" />
+  <meta name="svrmon24-ui" content="login-enterprise-v6" />
+  <meta name="svrmon24-version" content="0.32.6" />
   <title>SVRMON24</title>
+  <link rel="icon" href="/static/img/svrmon-favicon.svg" type="image/svg+xml" />
   <!-- Critical gate CSS: never paint login + app chrome together (before cmdb.css). -->
   <style>
     body.is-login .app-shell,
@@ -13,7 +14,8 @@
     body.is-app .login-gate { display: none !important; }
     #authPanel, .auth-panel-legacy { display: none !important; }
   </style>
-  <link rel="stylesheet" href="/static/css/cmdb.css?v=0.32.5" />
+  <link rel="stylesheet" href="/static/css/cmdb.css?v=0.32.6" />
+  <script src="/static/js/brand.js?v=0.32.6"></script>
 </head>
 <body class="is-login">
   <svg xmlns="http://www.w3.org/2000/svg" class="login-svg-defs" aria-hidden="true" focusable="false">
@@ -44,11 +46,12 @@
             <svg viewBox="0 0 44 44"><use href="#svrmon-brand-s"/></svg>
           </span>
           <div class="login-portal-brand-text">
-            <h1 class="login-brand-title">SVRMON24</h1>
+            <h1 class="login-brand-title brand-wordmark"><span class="brand-wordmark-core">SVRMON</span><span class="brand-wordmark-suffix">24</span></h1>
             <p class="login-portal-kicker">AI Infrastructure Diagnostic &amp; Automation Platform</p>
           </div>
         </div>
 
+        <div class="login-hero-stage">
         <h2 class="login-headline">Turn Incidents into <span class="login-gradient-text">Faster Resolutions</span></h2>
         <p class="login-portal-lede login-portal-lede-wide">AI-powered investigation, diagnostics and automation for your infrastructure, middleware and databases.</p>
 
@@ -82,7 +85,7 @@
                 </div>
                 <div class="login-dash-analytics">
                   <div class="login-dash-trend">
-                    <p class="login-dash-section-label">Investigation Trend</p>
+                    <p class="login-dash-section-label">Investigations Trend</p>
                     <div class="login-dash-spark">
                       <svg viewBox="0 0 200 56" preserveAspectRatio="none">
                         <defs><linearGradient id="loginTrendFill" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#3B82F6" stop-opacity=".22"/><stop offset="100%" stop-color="#3B82F6" stop-opacity="0"/></linearGradient></defs>
@@ -106,6 +109,7 @@
               </div>
             </div>
           </div>
+        </div>
         </div>
 
         <div class="login-feature-grid">
@@ -159,7 +163,7 @@
           <span class="brand-s-logo brand-s-logo--panel" aria-hidden="true">
             <svg viewBox="0 0 44 44"><use href="#svrmon-brand-s"/></svg>
           </span>
-          <span class="login-panel-brand-name">SVRMON24</span>
+          <span class="login-panel-brand-name brand-wordmark"><span class="brand-wordmark-core">SVRMON</span><span class="brand-wordmark-suffix">24</span></span>
         </div>
         <h2 class="login-panel-title">Welcome Back</h2>
         <p class="hint login-panel-sub" id="authHint">Sign in to your SVRMON24 workspace.</p>
@@ -227,12 +231,12 @@
     <aside class="sidebar" id="sidebar">
       <div class="brand">
         <div class="brand-mark">
-          <span class="logo" aria-hidden="true">
-            <svg viewBox="0 0 24 24"><path d="M4 7h16M4 12h10M4 17h14"/><circle cx="18" cy="12" r="2.2"/></svg>
+          <span class="logo brand-s-logo brand-s-logo--sidebar" aria-hidden="true">
+            <svg viewBox="0 0 44 44"><use href="#svrmon-brand-s"/></svg>
           </span>
-          <h1>SVRMON24</h1>
+          <h1 class="brand-wordmark brand-wordmark--sidebar"><span class="brand-wordmark-core">SVRMON</span><span class="brand-wordmark-suffix">24</span></h1>
         </div>
-        <p class="tagline">Enterprise CMDB · dependencies · SIMULATED diagnostics</p>
+        <p class="tagline">AI Infrastructure Diagnostic &amp; Automation Platform</p>
       </div>
       <nav class="nav" aria-label="Primary">
         <div class="nav-section">Operations</div>
@@ -1529,6 +1533,6 @@
     </div>
   </div>
 
-  <script src="/static/js/cmdb.js?v=0.32.5"></script>
+  <script src="/static/js/cmdb.js?v=0.32.6"></script>
 </body>
 </html>
