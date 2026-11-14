@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="#2563EB" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" role="img" aria-label="CMDB server">
+  <!-- Lucide-style server -->
+  <rect x="2" y="3" width="20" height="7" rx="1.75"/>
+  <rect x="2" y="14" width="20" height="7" rx="1.75"/>
+  <circle cx="6.5" cy="6.5" r="0.9" fill="#2563EB" stroke="none"/>
+  <circle cx="6.5" cy="17.5" r="0.9" fill="#2563EB" stroke="none"/>
+  <path d="M10 6.5h8M10 17.5h8"/>
+</svg>

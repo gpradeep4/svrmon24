@@ -17,9 +17,9 @@ def test_enterprise_login_structure() -> None:
     html = html_path.read_text(encoding="utf-8")
     js = js_path.read_text(encoding="utf-8")
 
-    assert 'content="login-enterprise-v9"' in html
+    assert 'content="login-enterprise-v10"' in html
     assert "svrmon-brand-lockup" in html
-    assert "svrmon-logo.png" in html
+    assert "svrmon24-logo.svg" in html
     assert "svrmon-logo-compact.png" in html
     assert 'class="svrmon-brand-lockup svrmon-brand-lockup--showcase"' in html
     assert "login-hero-stage" in html
@@ -31,6 +31,17 @@ def test_enterprise_login_structure() -> None:
         "svrmon-apple-touch.png",
     ):
         assert (FRONTEND_STATIC / "img" / name).is_file()
+    for name in (
+        "brand/svrmon24-logo.svg",
+        "brand/svrmon24-symbol.svg",
+        "icons/cmdb.svg",
+        "icons/ai-investigation.svg",
+        "icons/diagnostics.svg",
+        "icons/log-intelligence.svg",
+        "icons/workflows.svg",
+        "icons/security.svg",
+    ):
+        assert (FRONTEND_STATIC / "assets" / name).is_file()
     assert "svrmon-favicon.png" in html
     assert "brand.js" in html
     assert "config.js" in html
@@ -39,6 +50,8 @@ def test_enterprise_login_structure() -> None:
     assert "user-png-exact" in brand_js
     assert "logoPng" in brand_js
     assert "markPng" in brand_js
+    assert "logoSvg" in brand_js
+    assert "symbolSvg" in brand_js
     assert 'id="svrmon-brand-s"' not in html
     assert "brand-s-logo" not in html
     assert "login-gate-enterprise" in html
@@ -49,6 +62,9 @@ def test_enterprise_login_structure() -> None:
     assert "CMDB &amp; Infrastructure Inventory" in html or "CMDB & Infrastructure Inventory" in html
     assert "Middleware &amp; Log Intelligence" in html or "Middleware & Log Intelligence" in html
     assert "Open Investigations" in html
+    assert "login-dash-nav-item" in html
+    assert "login-portal-curves" in html
+    assert "/static/assets/icons/cmdb.svg" in html
     assert "Sign in to your SVRMON24 workspace" in html
     assert 'id="authMethodNote"' in html
     assert "login-feature-grid" in html
@@ -133,7 +149,7 @@ def test_enterprise_login_version_bump() -> None:
 
     html_path, _ = _static_paths()
     html = html_path.read_text(encoding="utf-8")
-    assert __version__ == "0.32.13"
+    assert __version__ == "0.32.14"
     assert f'content="{__version__}"' in html
     assert f"cmdb.css?v={__version__}" in html
     assert f"cmdb.js?v={__version__}" in html
