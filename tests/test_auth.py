@@ -23,7 +23,19 @@ def test_auth_config_public(client: TestClient) -> None:
 def test_protected_route_requires_auth(client: TestClient) -> None:
     response = client.get("/api/me")
     assert response.status_code == 401
-    assert response.headers.get("WWW-Authenticate", "").startswith("Basic")
+    # Basic enabled but no WWW-Authenticate — in-app form sends Authorization.
+    assert "WWW-Authenticate" not in response.headers
+
+
+def test_root_and_api_me_no_basic_challenge_on_page_load(client: TestClient) -> None:
+    """GET / and session-check /api/me must not trigger browser-native Basic dialogs."""
+    root = client.get("/")
+    assert root.status_code == 200
+    assert "WWW-Authenticate" not in root.headers
+
+    me = client.get("/api/me", headers={"Accept": "application/json"})
+    assert me.status_code == 401
+    assert "WWW-Authenticate" not in me.headers
 
 
 def test_protected_route_rejects_bad_credentials(client: TestClient) -> None:

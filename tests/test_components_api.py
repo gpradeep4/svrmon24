@@ -156,6 +156,7 @@ def test_auto_generates_component_id(
 def test_ui_index_is_public(client: TestClient) -> None:
     response = client.get("/")
     assert response.status_code == 200
+    assert "WWW-Authenticate" not in response.headers
     assert "SVRMON24" in response.text
     assert "OS Family" in response.text
     assert "OS Version" in response.text
