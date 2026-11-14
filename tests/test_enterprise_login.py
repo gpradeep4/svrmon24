@@ -99,6 +99,9 @@ def test_enterprise_login_responsive_layout_css() -> None:
     assert "@media (max-width: 1199px)" in css
     assert ".svrmon-brand-lockup--showcase" in css
     assert "svrmon-logo-mark.png" in css
+    assert "minmax(0, var(--sidebar-w))" in css
+    assert ".sidebar" in css and "min-width: 0" in css
+    assert ".brand-mark--png" in css and "overflow: hidden" in css
 
 
 def test_enterprise_login_scale_layout_css() -> None:
@@ -127,7 +130,7 @@ def test_enterprise_login_version_bump() -> None:
 
     html_path, _ = _static_paths()
     html = html_path.read_text(encoding="utf-8")
-    assert __version__ == "0.32.10"
+    assert __version__ == "0.32.11"
     assert f'content="{__version__}"' in html
     assert f"cmdb.css?v={__version__}" in html
     assert f"cmdb.js?v={__version__}" in html
