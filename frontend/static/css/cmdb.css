@@ -64,6 +64,13 @@
   --brand-bg: #EEF6FF;
   --brand-border: #DCE7F5;
   --brand-muted: #64748B;
+
+  /* Login composition — shared cool blue-white surfaces (left + right) */
+  --login-surface: #F7FAFF;
+  --login-surface-2: #F0F6FC;
+  --login-surface-3: #E8F1FA;
+  --login-panel-bg: linear-gradient(165deg, #F8FBFF 0%, #F3F8FE 42%, #EEF5FC 100%);
+  --login-field-bg: #F4F8FD;
 }
 
 * { box-sizing: border-box; }
@@ -1111,11 +1118,28 @@ body { padding: 0; }
   justify-content: center;
   align-items: stretch;
   padding: clamp(28px, 5vw, 40px) clamp(20px, 4.5vw, 32px);
-  background: #FFFFFF;
+  background: var(--login-panel-bg);
   border-left: none;
   box-shadow: none;
   width: 100%;
   min-width: 0;
+  position: relative;
+}
+
+.login-gate-enterprise .login-form-pane::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background:
+    radial-gradient(720px 420px at 88% 8%, rgba(147, 197, 253, 0.28), transparent 62%),
+    radial-gradient(560px 360px at 12% 92%, rgba(191, 219, 254, 0.22), transparent 68%);
+  opacity: 0.9;
+}
+
+.login-gate-enterprise .login-form-pane > * {
+  position: relative;
+  z-index: 1;
 }
 
 @media (min-width: 1200px) {
@@ -1123,8 +1147,8 @@ body { padding: 0; }
     align-items: center;
     justify-content: center;
     padding: 40px clamp(24px, 3vw, 48px);
-    border-left: 1px solid #DCE7F5;
-    box-shadow: -16px 0 48px rgba(16, 38, 74, 0.04);
+    border-left: 1px solid color-mix(in srgb, var(--brand-border) 78%, white);
+    box-shadow: -16px 0 48px rgba(16, 38, 74, 0.035);
   }
 }
 
@@ -1218,7 +1242,7 @@ body { padding: 0; }
 .login-panel-brand {
   display: flex;
   align-items: center;
-  justify-content: center;
+  justify-content: flex-start;
   gap: 10px;
   margin-bottom: 22px;
   width: 100%;
@@ -1227,9 +1251,12 @@ body { padding: 0; }
 }
 
 .login-panel-brand .svrmon-brand-lockup--panel {
-  margin: 0 auto;
+  margin: 0;
 }
 
+.login-gate-enterprise .svrmon-brand-lockup--panel {
+  object-position: left center;
+}
 
 .login-panel-brand-name {
   font-family: var(--display);
@@ -1246,6 +1273,13 @@ body { padding: 0; }
   letter-spacing: -0.02em;
   color: #10264A;
   line-height: 1.15;
+  text-align: left;
+}
+
+/* Beat later .panel h2 color so Welcome Back stays brand navy */
+.login-gate-enterprise .login-card.login-panel .login-panel-title {
+  color: var(--brand-navy);
+  text-align: left;
 }
 
 .login-panel-sub {
@@ -1253,6 +1287,11 @@ body { padding: 0; }
   font-size: clamp(0.9375rem, 0.5vw + 0.85rem, 1rem);
   line-height: 1.5;
   color: #64748B;
+  text-align: left;
+}
+
+.login-gate-enterprise .login-auth-method-note {
+  text-align: left;
 }
 
 .login-auth-method-note {
@@ -1331,12 +1370,12 @@ body { padding: 0; }
   min-height: 50px;
   padding: 13px 14px 13px 42px;
   border-radius: 11px;
-  border: 1px solid #DCE7F5;
+  border: 1px solid var(--brand-border);
   font: inherit;
   font-size: 1rem;
   font-weight: 500;
   color: #10264A;
-  background: #F8FAFC;
+  background: var(--login-field-bg);
   transition: border-color 0.15s ease, box-shadow 0.15s ease;
 }
 
@@ -1483,8 +1522,8 @@ body { padding: 0; }
   min-height: 50px;
   padding: 13px 18px;
   border-radius: 11px;
-  border: 1px solid #DCE7F5;
-  background: #FFFFFF;
+  border: 1px solid var(--brand-border);
+  background: color-mix(in srgb, var(--login-surface) 70%, white);
   color: #10264A;
   font: inherit;
   font-size: 1rem;
@@ -1517,7 +1556,7 @@ body { padding: 0; }
 
 .login-btn-sso:hover {
   border-color: #93C5FD;
-  background: #F8FAFC;
+  background: var(--login-surface-2);
 }
 
 .login-gate-enterprise .auth-oidc-row.oidc-only #btnOidcLogin {
@@ -1534,11 +1573,11 @@ body { padding: 0; }
 .login-security-foot {
   margin-top: 22px;
   padding-top: 16px;
-  border-top: 1px solid #E2E8F0;
+  border-top: 1px solid color-mix(in srgb, var(--brand-border) 85%, white);
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  justify-content: center;
+  justify-content: flex-start;
   gap: 6px;
   font-size: 0.74rem;
   font-weight: 650;
