@@ -56,7 +56,7 @@
   --display: "IBM Plex Sans", "Segoe UI Semibold", "Candara", "Trebuchet MS", sans-serif;
   --mono: "IBM Plex Mono", "Cascadia Mono", "Consolas", "Courier New", monospace;
 
-  /* SVRMON24 brand (mirror app/static/js/brand.js) */
+  /* SVRMON24 brand (mirror frontend/static/js/brand.js) */
   --brand-navy: #10264A;
   --brand-blue: #1769D2;
   --brand-blue-bright: #2563EB;

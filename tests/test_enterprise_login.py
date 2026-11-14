@@ -2,12 +2,11 @@
 
 from __future__ import annotations
 
-from pathlib import Path
+from tests.frontend_paths import FRONTEND_INDEX, FRONTEND_STATIC
 
 
-def _static_paths() -> tuple[Path, Path]:
-    root = Path(__file__).resolve().parents[1]
-    return root / "app" / "static" / "index.html", root / "app" / "static" / "js" / "cmdb.js"
+def _static_paths() -> tuple:
+    return FRONTEND_INDEX, FRONTEND_STATIC / "js" / "cmdb.js"
 
 
 def test_enterprise_login_structure() -> None:
@@ -22,12 +21,12 @@ def test_enterprise_login_structure() -> None:
     assert "brand-wordmark-core" in html
     assert "brand-wordmark-suffix" in html
     assert "login-hero-stage" in html
-    static_root = Path(__file__).resolve().parents[1] / "app" / "static"
-    assert (static_root / "img" / "svrmon-brand-mark.svg").is_file()
-    assert (static_root / "img" / "svrmon-favicon.svg").is_file()
+    assert (FRONTEND_STATIC / "img" / "svrmon-brand-mark.svg").is_file()
+    assert (FRONTEND_STATIC / "img" / "svrmon-favicon.svg").is_file()
     assert "svrmon-favicon.svg" in html
     assert "brand.js" in html
-    brand_js = (static_root / "js" / "brand.js").read_text(encoding="utf-8")
+    assert "config.js" in html
+    brand_js = (FRONTEND_STATIC / "js" / "brand.js").read_text(encoding="utf-8")
     assert "SVRMON24_BRAND" in brand_js
     assert "markSvg" in brand_js
     assert "login-gate-enterprise" in html
@@ -64,7 +63,7 @@ def test_enterprise_login_structure() -> None:
 
 
 def test_enterprise_login_responsive_layout_css() -> None:
-    css_path = Path(__file__).resolve().parents[1] / "app" / "static" / "css" / "cmdb.css"
+    css_path = FRONTEND_STATIC / "css" / "cmdb.css"
     css = css_path.read_text(encoding="utf-8")
     assert "@media (min-width: 1200px)" in css
     assert "grid-template-areas: \"portal form\"" in css
@@ -73,7 +72,7 @@ def test_enterprise_login_responsive_layout_css() -> None:
 
 def test_enterprise_login_scale_layout_css() -> None:
     """Left showcase must not be capped at ~840px; hero stage places tilted dashboard without narrow column cap."""
-    css_path = Path(__file__).resolve().parents[1] / "app" / "static" / "css" / "cmdb.css"
+    css_path = FRONTEND_STATIC / "css" / "cmdb.css"
     css = css_path.read_text(encoding="utf-8")
     assert "65fr) minmax(0, 35fr)" in css
     assert "min(840px, 92%)" not in css

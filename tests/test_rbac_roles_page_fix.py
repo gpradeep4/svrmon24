@@ -7,12 +7,14 @@ from pathlib import Path
 from app import __version__
 
 
+from tests.frontend_paths import FRONTEND_INDEX, FRONTEND_STATIC
+
 ROOT = Path(__file__).resolve().parents[1]
 
 
 def test_roles_page_has_no_coming_soon_copy() -> None:
-    html = (ROOT / "app/static/index.html").read_text(encoding="utf-8")
-    js = (ROOT / "app/static/js/cmdb.js").read_text(encoding="utf-8")
+    html = FRONTEND_INDEX.read_text(encoding="utf-8")
+    js = (FRONTEND_STATIC / "js" / "cmdb.js").read_text(encoding="utf-8")
 
     assert "Coming soon" not in html.split('id="tab-roles"')[1].split('id="tab-organizations"')[0]
     assert "RBAC not implemented" not in html
@@ -26,9 +28,9 @@ def test_roles_page_has_no_coming_soon_copy() -> None:
 
 
 def test_audit_page_has_in_page_denied_panel() -> None:
-    html = (ROOT / "app/static/index.html").read_text(encoding="utf-8")
-    js = (ROOT / "app/static/js/cmdb.js").read_text(encoding="utf-8")
-    css = (ROOT / "app/static/css/cmdb.css").read_text(encoding="utf-8")
+    html = FRONTEND_INDEX.read_text(encoding="utf-8")
+    js = (FRONTEND_STATIC / "js" / "cmdb.js").read_text(encoding="utf-8")
+    css = (FRONTEND_STATIC / "css" / "cmdb.css").read_text(encoding="utf-8")
 
     assert 'data-audit-denied="1"' in html
     assert "Audit Logs require admin access" in html
@@ -39,8 +41,8 @@ def test_audit_page_has_in_page_denied_panel() -> None:
 
 
 def test_users_panel_exposes_role_change_controls() -> None:
-    html = (ROOT / "app/static/index.html").read_text(encoding="utf-8")
-    js = (ROOT / "app/static/js/cmdb.js").read_text(encoding="utf-8")
+    html = FRONTEND_INDEX.read_text(encoding="utf-8")
+    js = (FRONTEND_STATIC / "js" / "cmdb.js").read_text(encoding="utf-8")
 
     assert "Change role" in html
     assert "saveMemberRole" in js

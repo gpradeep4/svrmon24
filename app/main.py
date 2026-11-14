@@ -8,6 +8,7 @@ from pathlib import Path
 from typing import Any
 
 from fastapi import Depends, FastAPI
+from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 from starlette.middleware.sessions import SessionMiddleware
@@ -36,7 +37,9 @@ from .serialization import serialize_document
 from .services.bootstrap import ensure_tenancy_ready
 
 logger = logging.getLogger(__name__)
-STATIC_DIR = Path(__file__).resolve().parent / "static"
+REPO_ROOT = Path(__file__).resolve().parents[1]
+FRONTEND_DIR = REPO_ROOT / "frontend"
+STATIC_DIR = FRONTEND_DIR / "static"
 
 
 @asynccontextmanager
@@ -98,6 +101,17 @@ def create_app() -> FastAPI:
     )
     register_exception_handlers(app)
 
+    cors_raw = (settings.cors_origins or "").strip()
+    if cors_raw:
+        origins = [o.strip() for o in cors_raw.split(",") if o.strip()]
+        app.add_middleware(
+            CORSMiddleware,
+            allow_origins=origins,
+            allow_credentials=True,
+            allow_methods=["*"],
+            allow_headers=["*"],
+        )
+
     # Session cookie for OIDC login state + authenticated principal.
     same_site = (settings.session_same_site or "lax").lower()
     if same_site not in {"lax", "strict", "none"}:
@@ -127,18 +141,20 @@ def create_app() -> FastAPI:
     app.include_router(dependencies_router.router)
     app.include_router(diagnostics_router.router)
     app.include_router(dashboard_router.router)
-    app.mount("/static", StaticFiles(directory=str(STATIC_DIR)), name="static")
 
-    @app.get("/", include_in_schema=False)
-    def ui_index() -> FileResponse:
-        """CMDB inventory UI (browser). Never cache HTML so login-gate updates apply."""
-        return FileResponse(
-            STATIC_DIR / "index.html",
-            headers={
-                "Cache-Control": "no-store, no-cache, must-revalidate, max-age=0",
-                "Pragma": "no-cache",
-            },
-        )
+    if settings.serve_static:
+        app.mount("/static", StaticFiles(directory=str(STATIC_DIR)), name="static")
+
+        @app.get("/", include_in_schema=False)
+        def ui_index() -> FileResponse:
+            """CMDB inventory UI (browser). Never cache HTML so login-gate updates apply."""
+            return FileResponse(
+                FRONTEND_DIR / "index.html",
+                headers={
+                    "Cache-Control": "no-store, no-cache, must-revalidate, max-age=0",
+                    "Pragma": "no-cache",
+                },
+            )
 
     @app.get("/health", tags=["health"])
     def health() -> dict[str, Any]:
