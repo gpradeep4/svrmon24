@@ -3,8 +3,8 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <meta name="svrmon24-ui" content="login-enterprise-v11" />
-  <meta name="svrmon24-version" content="0.32.15" />
+  <meta name="svrmon24-ui" content="login-enterprise-v12" />
+  <meta name="svrmon24-version" content="0.32.16" />
   <title>SVRMON24</title>
   <link rel="icon" href="/static/img/svrmon-favicon.png" type="image/png" sizes="32x32" />
   <link rel="apple-touch-icon" href="/static/img/svrmon-apple-touch.png" sizes="180x180" />
@@ -15,9 +15,9 @@
     body.is-app .login-gate { display: none !important; }
     #authPanel, .auth-panel-legacy { display: none !important; }
   </style>
-  <link rel="stylesheet" href="/static/css/cmdb.css?v=0.32.15" />
-  <script src="/static/js/config.js?v=0.32.15"></script>
-  <script src="/static/js/brand.js?v=0.32.15"></script>
+  <link rel="stylesheet" href="/static/css/cmdb.css?v=0.32.16" />
+  <script src="/static/js/config.js?v=0.32.16"></script>
+  <script src="/static/js/brand.js?v=0.32.16"></script>
 </head>
 <body class="is-login">
   <!-- Enterprise login: showcase (left) + sign-in panel (right); stacks on small viewports -->
@@ -26,24 +26,35 @@
       <div class="login-portal-bg" aria-hidden="true">
         <svg class="login-portal-curves" viewBox="0 0 1200 900" preserveAspectRatio="xMidYMid slice" focusable="false">
           <defs>
-            <linearGradient id="loginCurveA" x1="0%" y1="0%" x2="100%" y2="100%">
-              <stop offset="0%" stop-color="#93C5FD" stop-opacity="0.55"/>
-              <stop offset="100%" stop-color="#BFDBFE" stop-opacity="0.08"/>
+            <linearGradient id="loginCurveA" x1="8%" y1="92%" x2="88%" y2="8%">
+              <stop offset="0%" stop-color="#93C5FD" stop-opacity="0.58"/>
+              <stop offset="55%" stop-color="#BFDBFE" stop-opacity="0.28"/>
+              <stop offset="100%" stop-color="#E0F2FE" stop-opacity="0.06"/>
             </linearGradient>
-            <linearGradient id="loginCurveB" x1="100%" y1="0%" x2="0%" y2="100%">
-              <stop offset="0%" stop-color="#7DD3FC" stop-opacity="0.42"/>
-              <stop offset="100%" stop-color="#DBEAFE" stop-opacity="0.06"/>
+            <linearGradient id="loginCurveB" x1="0%" y1="100%" x2="78%" y2="18%">
+              <stop offset="0%" stop-color="#7DD3FC" stop-opacity="0.46"/>
+              <stop offset="60%" stop-color="#BAE6FD" stop-opacity="0.18"/>
+              <stop offset="100%" stop-color="#F0F9FF" stop-opacity="0.04"/>
             </linearGradient>
-            <radialGradient id="loginGlow" cx="68%" cy="32%" r="42%">
-              <stop offset="0%" stop-color="#93C5FD" stop-opacity="0.55"/>
-              <stop offset="70%" stop-color="#BFDBFE" stop-opacity="0.12"/>
+            <linearGradient id="loginCurveC" x1="12%" y1="100%" x2="92%" y2="0%">
+              <stop offset="0%" stop-color="#60A5FA" stop-opacity="0.22"/>
+              <stop offset="100%" stop-color="#DBEAFE" stop-opacity="0.05"/>
+            </linearGradient>
+            <radialGradient id="loginGlow" cx="22%" cy="88%" r="55%">
+              <stop offset="0%" stop-color="#93C5FD" stop-opacity="0.5"/>
+              <stop offset="55%" stop-color="#BFDBFE" stop-opacity="0.16"/>
               <stop offset="100%" stop-color="#FFFFFF" stop-opacity="0"/>
             </radialGradient>
           </defs>
-          <ellipse cx="820" cy="260" rx="340" ry="220" fill="url(#loginGlow)"/>
-          <path fill="url(#loginCurveA)" d="M-80 120 C180 40 320 220 520 180 C760 130 880 40 1220 90 L1220 340 C980 280 820 360 620 390 C360 430 140 300 -80 340 Z"/>
-          <path fill="url(#loginCurveB)" d="M-60 620 C160 540 340 700 560 660 C820 610 980 520 1240 580 L1240 900 L-60 900 Z"/>
-          <path fill="none" stroke="#93C5FD" stroke-opacity="0.35" stroke-width="18" d="M-40 420 C220 300 480 520 740 440 C960 370 1080 300 1240 360"/>
+          <!-- Soft glow anchored at bottom-left, rising toward top-right -->
+          <ellipse cx="180" cy="780" rx="420" ry="280" fill="url(#loginGlow)"/>
+          <!-- Broad ribbon from bottom-left up toward top-right -->
+          <path fill="url(#loginCurveA)" d="M-120 980 C40 820 160 700 320 620 C520 510 720 390 980 240 C1100 170 1200 120 1320 70 L1320 360 C1160 390 1000 460 820 540 C600 640 380 760 160 900 C60 960 -40 1000 -120 1040 Z"/>
+          <!-- Secondary softer band, same diagonal -->
+          <path fill="url(#loginCurveB)" d="M-140 860 C80 720 220 620 400 540 C620 440 840 320 1100 170 C1180 120 1260 90 1340 50 L1340 260 C1180 300 1020 370 840 450 C620 560 380 700 140 840 C40 890 -40 920 -140 960 Z"/>
+          <path fill="url(#loginCurveC)" d="M-80 1020 C120 880 280 780 480 700 C700 610 920 500 1180 360 L1320 300 L1320 520 C1080 580 880 660 680 750 C440 860 200 960 -80 1080 Z"/>
+          <!-- Accent stroke following the rise -->
+          <path fill="none" stroke="#93C5FD" stroke-opacity="0.38" stroke-width="16" stroke-linecap="round" d="M-40 860 C180 700 360 580 560 500 C780 400 980 280 1240 140"/>
         </svg>
       </div>
       <div class="login-portal-inner">
@@ -148,32 +159,32 @@
 
         <div class="login-feature-grid">
           <article class="login-feature-card">
-            <span class="login-feature-ico tone-blue" aria-hidden="true"><img src="/static/assets/icons/cmdb.svg" width="26" height="26" alt="" decoding="async" /></span>
+            <span class="login-feature-ico tone-blue" aria-hidden="true"><img src="/static/assets/icons/cmdb.svg" width="22" height="22" alt="" decoding="async" /></span>
             <h3>CMDB &amp; Infrastructure Inventory</h3>
             <p>Unified view of servers, network and applications</p>
           </article>
           <article class="login-feature-card">
-            <span class="login-feature-ico tone-violet" aria-hidden="true"><img src="/static/assets/icons/ai-investigation.svg" width="26" height="26" alt="" decoding="async" /></span>
+            <span class="login-feature-ico tone-violet" aria-hidden="true"><img src="/static/assets/icons/ai-investigation.svg" width="22" height="22" alt="" decoding="async" /></span>
             <h3>AI Incident Investigation</h3>
             <p>Analyse incidents, logs and health data to find root cause</p>
           </article>
           <article class="login-feature-card">
-            <span class="login-feature-ico tone-green" aria-hidden="true"><img src="/static/assets/icons/diagnostics.svg" width="26" height="26" alt="" decoding="async" /></span>
+            <span class="login-feature-ico tone-green" aria-hidden="true"><img src="/static/assets/icons/diagnostics.svg" width="22" height="22" alt="" decoding="async" /></span>
             <h3>Automated Diagnostics</h3>
             <p>Run secure, read-only diagnostic scripts on demand</p>
           </article>
           <article class="login-feature-card">
-            <span class="login-feature-ico tone-orange" aria-hidden="true"><img src="/static/assets/icons/log-intelligence.svg" width="26" height="26" alt="" decoding="async" /></span>
+            <span class="login-feature-ico tone-orange" aria-hidden="true"><img src="/static/assets/icons/log-intelligence.svg" width="22" height="22" alt="" decoding="async" /></span>
             <h3>Middleware &amp; Log Intelligence</h3>
             <p>Understand middleware and system logs with AI</p>
           </article>
           <article class="login-feature-card">
-            <span class="login-feature-ico tone-pink" aria-hidden="true"><img src="/static/assets/icons/workflows.svg" width="26" height="26" alt="" decoding="async" /></span>
+            <span class="login-feature-ico tone-pink" aria-hidden="true"><img src="/static/assets/icons/workflows.svg" width="22" height="22" alt="" decoding="async" /></span>
             <h3>Investigation Workflows</h3>
             <p>Track, collaborate and resolve incidents end-to-end</p>
           </article>
           <article class="login-feature-card">
-            <span class="login-feature-ico tone-teal" aria-hidden="true"><img src="/static/assets/icons/security.svg" width="26" height="26" alt="" decoding="async" /></span>
+            <span class="login-feature-ico tone-teal" aria-hidden="true"><img src="/static/assets/icons/security.svg" width="22" height="22" alt="" decoding="async" /></span>
             <h3>Security &amp; Compliance</h3>
             <p>RBAC, audit trail and enterprise-grade access</p>
           </article>
@@ -1561,6 +1572,6 @@
     </div>
   </div>
 
-  <script src="/static/js/cmdb.js?v=0.32.15"></script>
+  <script src="/static/js/cmdb.js?v=0.32.16"></script>
 </body>
 </html>

@@ -17,7 +17,7 @@ def test_enterprise_login_structure() -> None:
     html = html_path.read_text(encoding="utf-8")
     js = js_path.read_text(encoding="utf-8")
 
-    assert 'content="login-enterprise-v11"' in html
+    assert 'content="login-enterprise-v12"' in html
     assert "svrmon-brand-lockup" in html
     assert 'src="/static/img/svrmon-logo.png"' in html
     assert "svrmon-logo-compact.png" in html
@@ -66,7 +66,13 @@ def test_enterprise_login_structure() -> None:
     assert "Open Investigations" in html
     assert "login-dash-nav-item" in html
     assert "login-portal-curves" in html
+    assert "loginCurveA" in html
+    assert "M-120 980" in html or "M-40 860" in html  # bottom-left → top wave geometry
     assert "/static/assets/icons/cmdb.svg" in html
+    assert "Unified view of servers, network and applications" in html
+    assert "Analyse incidents, logs and health data to find root cause" in html
+    assert "Understand middleware and system logs with AI" in html
+    assert "RBAC, audit trail and enterprise-grade access" in html
     assert "Sign in to your SVRMON24 workspace" in html
     assert 'id="authMethodNote"' in html
     assert "login-feature-grid" in html
@@ -134,7 +140,7 @@ def test_enterprise_login_scale_layout_css() -> None:
     assert ".login-portal-inner" in css
     assert "width: 90%;" in css
     assert ".login-hero-stage" in css
-    assert "rotateY(-9deg)" in css
+    assert "rotateY(-16deg)" in css
     assert ".login-hero-stage .login-dashboard-tilt" in css
     # Desktop composition: dashboard sits beside headline (col 2), not full-width stacked.
     hero_dash = css.split(".login-hero-stage .login-dashboard-tilt", 1)[1].split("}", 1)[0]
@@ -156,7 +162,7 @@ def test_enterprise_login_version_bump() -> None:
 
     html_path, _ = _static_paths()
     html = html_path.read_text(encoding="utf-8")
-    assert __version__ == "0.32.15"
+    assert __version__ == "0.32.16"
     assert f'content="{__version__}"' in html
     assert f"cmdb.css?v={__version__}" in html
     assert f"cmdb.js?v={__version__}" in html
