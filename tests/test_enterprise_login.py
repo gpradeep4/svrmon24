@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import hashlib
 from pathlib import Path
 
 from tests.frontend_paths import FRONTEND_INDEX, FRONTEND_STATIC
@@ -16,27 +17,30 @@ def test_enterprise_login_structure() -> None:
     html = html_path.read_text(encoding="utf-8")
     js = js_path.read_text(encoding="utf-8")
 
-    assert 'content="login-enterprise-v8"' in html
-    assert "brand-s-logo" in html
-    assert 'id="svrmon-brand-s"' in html
-    assert "brand-wordmark" in html
-    assert "brand-wordmark-core" in html
-    assert "brand-wordmark-suffix" in html
+    assert 'content="login-enterprise-v9"' in html
+    assert "svrmon-brand-lockup" in html
+    assert "svrmon-logo.png" in html
+    assert "svrmon-logo-compact.png" in html
+    assert 'class="svrmon-brand-lockup svrmon-brand-lockup--showcase"' in html
     assert "login-hero-stage" in html
-    assert (FRONTEND_STATIC / "img" / "svrmon-brand-mark.svg").is_file()
-    assert (FRONTEND_STATIC / "img" / "svrmon-favicon.svg").is_file()
-    assert "svrmon-favicon.svg" in html
+    for name in (
+        "svrmon-logo.png",
+        "svrmon-logo-compact.png",
+        "svrmon-logo-mark.png",
+        "svrmon-favicon.png",
+        "svrmon-apple-touch.png",
+    ):
+        assert (FRONTEND_STATIC / "img" / name).is_file()
+    assert "svrmon-favicon.png" in html
     assert "brand.js" in html
     assert "config.js" in html
     brand_js = (FRONTEND_STATIC / "js" / "brand.js").read_text(encoding="utf-8")
     assert "SVRMON24_BRAND" in brand_js
-    assert "markSvg" in brand_js
-    mark_svg = (FRONTEND_STATIC / "img" / "svrmon-brand-mark.svg").read_text(encoding="utf-8")
-    assert "35.2 11.4" in mark_svg
-    assert "35.2 11.4" in html
-    assert "svrmon-brand-swoosh" in html
-    assert "brand-mark-divider" in html
-    assert "brand-wordmark-swoosh" in html
+    assert "user-png-exact" in brand_js
+    assert "logoPng" in brand_js
+    assert "markPng" in brand_js
+    assert 'id="svrmon-brand-s"' not in html
+    assert "brand-s-logo" not in html
     assert "login-gate-enterprise" in html
     assert 'id="loginGate"' in html
     assert "login-gradient-text" in html
@@ -73,12 +77,28 @@ def test_enterprise_login_structure() -> None:
     assert "logoutHomeWithLoggedOutFlag" in js
 
 
+def test_enterprise_login_png_derivatives_match_source() -> None:
+    """Lockup PNGs are pinned exports of the user-provided master (not hand-drawn SVG)."""
+    expected = {
+        "svrmon-logo.png": "babf589ea4f241a951abc2db1054ae2b943c92d7866ca3b03483855bf31a9ae5",
+        "svrmon-logo-compact.png": "102d1adb36ca4c0f722746d2552d4f7c7c936948c4bf4c544b41b7896c1d6430",
+        "svrmon-logo-mark.png": "c3b89a03ee43a0786c00bb10970f4961814bcefa8ed1e236f128c42d7078aa7d",
+        "svrmon-favicon.png": "9697fcd5f81030bf25b78938d72179f3518e44d3f48020ad24ce07e682e5b54a",
+    }
+    for name, digest in expected.items():
+        path = FRONTEND_STATIC / "img" / name
+        assert path.is_file(), name
+        assert hashlib.sha256(path.read_bytes()).hexdigest() == digest
+
+
 def test_enterprise_login_responsive_layout_css() -> None:
     css_path = FRONTEND_STATIC / "css" / "cmdb.css"
     css = css_path.read_text(encoding="utf-8")
     assert "@media (min-width: 1200px)" in css
     assert "grid-template-areas: \"portal form\"" in css
     assert "@media (max-width: 1199px)" in css
+    assert ".svrmon-brand-lockup--showcase" in css
+    assert "svrmon-logo-mark.png" in css
 
 
 def test_enterprise_login_scale_layout_css() -> None:
@@ -94,12 +114,12 @@ def test_enterprise_login_scale_layout_css() -> None:
 
 
 def test_env_example_local_dual_auth_defaults() -> None:
-  """Local template exposes both auth methods; production still documents Basic off."""
-  root = Path(__file__).resolve().parents[1]
-  env_example = (root / ".env.example").read_text(encoding="utf-8")
-  assert "BASIC_AUTH_ENABLED=true" in env_example
-  assert "OIDC_ENABLED=true" in env_example
-  assert "BASIC_AUTH_ENABLED=false" in env_example  # production guidance in comments
+    """Local template exposes both auth methods; production still documents Basic off."""
+    root = Path(__file__).resolve().parents[1]
+    env_example = (root / ".env.example").read_text(encoding="utf-8")
+    assert "BASIC_AUTH_ENABLED=true" in env_example
+    assert "OIDC_ENABLED=true" in env_example
+    assert "BASIC_AUTH_ENABLED=false" in env_example  # production guidance in comments
 
 
 def test_enterprise_login_version_bump() -> None:
@@ -107,7 +127,7 @@ def test_enterprise_login_version_bump() -> None:
 
     html_path, _ = _static_paths()
     html = html_path.read_text(encoding="utf-8")
-    assert __version__ == "0.32.9"
+    assert __version__ == "0.32.10"
     assert f'content="{__version__}"' in html
     assert f"cmdb.css?v={__version__}" in html
     assert f"cmdb.js?v={__version__}" in html

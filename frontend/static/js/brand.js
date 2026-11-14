@@ -16,10 +16,13 @@
       border: "#DCE7F5",
       muted: "#64748B",
     },
-    markStyle: "ribbon-v8",
+    markStyle: "user-png-exact",
     assets: {
-      markSvg: "/static/img/svrmon-brand-mark.svg",
-      faviconSvg: "/static/img/svrmon-favicon.svg",
+      logoPng: "/static/img/svrmon-logo.png",
+      logoCompactPng: "/static/img/svrmon-logo-compact.png",
+      markPng: "/static/img/svrmon-logo-mark.png",
+      faviconPng: "/static/img/svrmon-favicon.png",
+      appleTouchPng: "/static/img/svrmon-apple-touch.png",
     },
   };
   global.SVRMON24_BRAND = Object.freeze(brand);
