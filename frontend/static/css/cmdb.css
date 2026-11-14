@@ -471,8 +471,8 @@ body { padding: 0; }
     max-width: none;
     height: 100%;
     justify-content: space-between;
-    gap: clamp(12px, 1.6vh, 20px);
-    padding: clamp(28px, 3.2vh, 40px) 48px;
+    gap: clamp(8px, 1.1vh, 14px);
+    padding: clamp(22px, 2.6vh, 32px) 44px clamp(18px, 2.2vh, 28px);
     overflow: hidden;
   }
 }
@@ -495,7 +495,7 @@ body { padding: 0; }
 }
 
 .svrmon-brand-lockup--showcase {
-  width: min(360px, 82%);
+  width: min(318px, 72%);
   max-width: 100%;
   margin: 0;
   filter: drop-shadow(0 4px 12px rgba(23, 105, 210, 0.1));
@@ -591,19 +591,21 @@ body { padding: 0; }
 @media (min-width: 1200px) {
   .login-hero-stage {
     display: grid;
-    grid-template-columns: minmax(0, 38%) minmax(0, 1fr);
-    grid-template-rows: auto auto minmax(280px, auto);
-    column-gap: clamp(20px, 3vw, 40px);
-    row-gap: 14px;
+    grid-template-columns: minmax(0, 36%) minmax(0, 1fr);
+    grid-template-rows: auto auto minmax(220px, auto);
+    column-gap: clamp(16px, 2.4vw, 32px);
+    row-gap: 10px;
     align-items: start;
-    margin-bottom: 4px;
+    margin-bottom: 0;
+    flex: 1 1 auto;
+    min-height: 0;
   }
 
   .login-hero-stage .login-headline {
     grid-column: 1;
     grid-row: 1;
     z-index: 2;
-    max-width: 16ch;
+    max-width: 15ch;
     align-self: end;
   }
 
@@ -620,11 +622,11 @@ body { padding: 0; }
     grid-row: 1 / 4;
     justify-self: end;
     align-self: center;
-    width: min(100%, 680px);
+    width: min(100%, 620px);
     max-width: 100%;
     z-index: 1;
     margin: 0;
-    padding: 4px 0 16px;
+    padding: 2px 0 10px;
     perspective: 1800px;
   }
 }
@@ -784,8 +786,8 @@ body { padding: 0; }
 }
 
 .login-dash-chrome--labeled {
-  grid-template-columns: minmax(148px, 168px) 1fr;
-  min-height: clamp(260px, 26vw, 318px);
+  grid-template-columns: minmax(140px, 158px) 1fr;
+  min-height: clamp(230px, 22vw, 278px);
 }
 
 .login-dash-sidebar {
@@ -1194,18 +1196,19 @@ body { padding: 0; }
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 10px 12px;
   width: 100%;
+  flex-shrink: 0;
 }
 
 @media (min-width: 1200px) {
   .login-feature-grid {
     grid-template-columns: repeat(3, minmax(0, 1fr));
-    gap: 14px 16px;
+    gap: 12px 14px;
     align-items: stretch;
   }
 }
 
 .login-feature-card {
-  padding: 14px 14px 12px;
+  padding: 12px 12px 10px;
   border-radius: 14px;
   border: 1px solid #DCE7F5;
   background: #FFFFFF;
@@ -1220,8 +1223,8 @@ body { padding: 0; }
 }
 
 .login-feature-card h3 {
-  margin: 8px 0 4px;
-  font-size: clamp(0.875rem, 0.7vw + 0.7rem, 0.98rem);
+  margin: 6px 0 3px;
+  font-size: clamp(0.84rem, 0.55vw + 0.7rem, 0.94rem);
   font-weight: 650;
   color: #10264A;
   letter-spacing: -0.01em;
@@ -1241,9 +1244,9 @@ body { padding: 0; }
 }
 
 .login-feature-ico {
-  width: 48px;
-  height: 48px;
-  border-radius: 13px;
+  width: 42px;
+  height: 42px;
+  border-radius: 12px;
   display: grid;
   place-items: center;
   background: linear-gradient(145deg, rgba(37, 99, 235, 0.12), rgba(14, 165, 233, 0.08));
@@ -1260,8 +1263,8 @@ body { padding: 0; }
 
 .login-feature-ico svg,
 .login-feature-ico img {
-  width: 24px;
-  height: 24px;
+  width: 22px;
+  height: 22px;
   display: block;
 }
 
@@ -1276,7 +1279,7 @@ body { padding: 0; }
 .login-capabilities {
   list-style: none;
   margin: 0;
-  padding: 0;
+  padding: 2px 0 0;
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 8px 16px;
@@ -1286,7 +1289,8 @@ body { padding: 0; }
 .login-capabilities-row {
   display: flex;
   flex-wrap: wrap;
-  gap: 10px 18px;
+  gap: 8px 16px;
+  flex-shrink: 0;
 }
 
 @media (min-width: 901px) {
