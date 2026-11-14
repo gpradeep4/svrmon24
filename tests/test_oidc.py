@@ -238,7 +238,7 @@ def test_ui_exposes_oidc_login_controls() -> None:
     assert 'id="loginGate"' in html
     assert "is-login" in html
     assert 'id="authPanel"' not in html  # embedded sign-in removed
-    assert "login-enterprise-v5" in html
+    assert "login-enterprise-v6" in html
     assert "login-gate-split" in html
     assert "login-gate-enterprise" in html
     assert "Welcome Back" in html
