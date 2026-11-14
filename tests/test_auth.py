@@ -88,6 +88,26 @@ def test_basic_auth_disabled_rejects_basic_header(monkeypatch) -> None:
     clear_discovery_cache()
 
 
+def test_basic_logout_redirect_marks_logged_out(client: TestClient) -> None:
+    """Basic-only logout must land on login gate without requiring another /api/me probe."""
+    logout = client.get("/auth/logout", follow_redirects=False)
+    assert logout.status_code == 302
+    location = logout.headers.get("location", "")
+    assert "logged_out=1" in location
+    assert client.get("/api/me").status_code == 401
+
+
+def test_basic_session_logout_then_me_requires_credentials_again(
+    client: TestClient, auth_headers: dict[str, str]
+) -> None:
+    assert client.get("/api/me", headers=auth_headers).status_code == 200
+    logout = client.get("/auth/logout", follow_redirects=False)
+    assert logout.status_code == 302
+    assert "logged_out=1" in logout.headers.get("location", "")
+    assert client.get("/api/me").status_code == 401
+    assert client.get("/api/me", headers=auth_headers).status_code == 200
+
+
 def test_basic_auth_disabled_with_oidc_session_path_still_needs_session(monkeypatch) -> None:
     """Basic off + OIDC on: bare Basic header does not authenticate."""
     monkeypatch.setenv("BASIC_AUTH_ENABLED", "false")

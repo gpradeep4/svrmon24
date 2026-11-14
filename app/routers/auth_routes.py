@@ -108,8 +108,13 @@ def _home_url(settings: Settings, *, auth_error: str | None = None) -> str:
     return base
 
 
-def _post_logout_redirect(settings: Settings) -> str:
-    return _home_url(settings)
+def _post_logout_redirect(settings: Settings, *, mark_logged_out: bool = False) -> str:
+    """Home URL after logout (optional ``logged_out=1`` for SPA session probe skip)."""
+    base = _home_url(settings)
+    if not mark_logged_out:
+        return base
+    sep = "&" if "?" in base else "?"
+    return f"{base}{sep}logged_out=1"
 
 
 def _set_pending_cookie(
@@ -337,6 +342,7 @@ def oidc_logout(
 
     from ..services.platform_oidc import resolve_oidc_runtime
 
+    # IdP post-logout URI must stay registered exactly — do not add query params here.
     redirect_home = _post_logout_redirect(settings)
     runtime = resolve_oidc_runtime(settings)
     if runtime.enabled and id_token:
@@ -350,7 +356,10 @@ def oidc_logout(
             _clear_pending_cookie(response, settings)
             return response
 
-    response = RedirectResponse(url=redirect_home, status_code=status.HTTP_302_FOUND)
+    response = RedirectResponse(
+        url=_post_logout_redirect(settings, mark_logged_out=True),
+        status_code=status.HTTP_302_FOUND,
+    )
     _clear_pending_cookie(response, settings)
     return response
 
