@@ -479,11 +479,45 @@ body { padding: 0; }
   gap: 16px;
 }
 
-.login-svg-defs {
-  position: absolute;
-  width: 0;
-  height: 0;
-  overflow: hidden;
+.svrmon-brand-lockup {
+  display: block;
+  width: auto;
+  height: auto;
+  max-width: 100%;
+  object-fit: contain;
+}
+
+.svrmon-brand-lockup--showcase {
+  max-width: min(500px, 90vw);
+  margin: 0 0 2px;
+}
+
+.svrmon-brand-lockup--panel {
+  max-width: min(300px, 82vw);
+  max-height: 56px;
+  width: auto;
+  object-position: center;
+}
+
+.svrmon-brand-lockup--sidebar {
+  max-width: 100%;
+  max-height: 38px;
+  width: auto;
+}
+
+.brand-mark--png {
+  display: block;
+  padding: 8px 10px 8px 8px;
+  background: rgba(248, 250, 252, 0.97);
+  border-radius: 12px;
+  border: 1px solid rgba(148, 163, 184, 0.24);
+  box-shadow: 0 8px 22px rgba(15, 23, 42, 0.22);
+}
+
+.brand-mark--png + .tagline,
+.brand-mark.brand-mark--png ~ .tagline {
+  padding-left: 4px;
+  margin-top: 8px;
 }
 
 .brand-s-logo {
@@ -726,7 +760,7 @@ body { padding: 0; }
   width: 22px;
   height: 22px;
   border-radius: 6px;
-  background: linear-gradient(145deg, #3B82F6, #2563EB);
+  background: url("/static/img/svrmon-logo-mark.png") center / contain no-repeat;
   margin-bottom: 4px;
 }
 
@@ -1173,6 +1207,10 @@ body { padding: 0; }
   justify-content: center;
   gap: 10px;
   margin-bottom: 22px;
+}
+
+.login-panel-brand .svrmon-brand-lockup--panel {
+  margin: 0 auto;
 }
 
 
