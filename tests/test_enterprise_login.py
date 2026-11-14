@@ -16,7 +16,7 @@ def test_enterprise_login_structure() -> None:
     html = html_path.read_text(encoding="utf-8")
     js = js_path.read_text(encoding="utf-8")
 
-    assert 'content="login-enterprise-v7"' in html
+    assert 'content="login-enterprise-v8"' in html
     assert "brand-s-logo" in html
     assert 'id="svrmon-brand-s"' in html
     assert "brand-wordmark" in html
@@ -32,8 +32,11 @@ def test_enterprise_login_structure() -> None:
     assert "SVRMON24_BRAND" in brand_js
     assert "markSvg" in brand_js
     mark_svg = (FRONTEND_STATIC / "img" / "svrmon-brand-mark.svg").read_text(encoding="utf-8")
-    assert "stroke-width" in mark_svg and "31.5 11.2" in mark_svg
-    assert "31.5 11.2" in html and "stroke-width" in html
+    assert "35.2 11.4" in mark_svg
+    assert "35.2 11.4" in html
+    assert "svrmon-brand-swoosh" in html
+    assert "brand-mark-divider" in html
+    assert "brand-wordmark-swoosh" in html
     assert "login-gate-enterprise" in html
     assert 'id="loginGate"' in html
     assert "login-gradient-text" in html
@@ -101,7 +104,7 @@ def test_enterprise_login_version_bump() -> None:
 
     html_path, _ = _static_paths()
     html = html_path.read_text(encoding="utf-8")
-    assert __version__ == "0.32.7"
+    assert __version__ == "0.32.8"
     assert f'content="{__version__}"' in html
     assert f"cmdb.css?v={__version__}" in html
     assert f"cmdb.js?v={__version__}" in html

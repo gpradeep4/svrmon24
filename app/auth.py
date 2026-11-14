@@ -42,17 +42,26 @@ class AuthUser:
         }
 
 
-def _www_authenticate(settings: Settings) -> str:
+def _unauthorized_headers(settings: Settings) -> dict[str, str] | None:
+    """Response headers for 401 responses.
+
+    Never send ``WWW-Authenticate: Basic`` when the Basic feature flag is on.
+    Browsers show a native credential dialog on any 401 that includes it (including
+    ``fetch``/XHR from the login page). In-app Basic uses an explicit Authorization
+    header from JavaScript instead.
+    """
     if settings.basic_auth_enabled:
-        return "Basic"
-    return 'Bearer realm="svrmon24"'
+        return None
+    if settings.oidc_enabled:
+        return {"WWW-Authenticate": 'Bearer realm="svrmon24"'}
+    return None
 
 
 def _unauthorized(settings: Settings, detail: str = "Authentication required") -> HTTPException:
     return HTTPException(
         status_code=status.HTTP_401_UNAUTHORIZED,
         detail=detail,
-        headers={"WWW-Authenticate": _www_authenticate(settings)},
+        headers=_unauthorized_headers(settings),
     )
 
 

@@ -161,6 +161,45 @@ body { padding: 0; }
   line-height: 1.1;
 }
 
+.brand-wordmark--swoosh {
+  position: relative;
+}
+
+.brand-wordmark-suffix-wrap {
+  position: relative;
+  display: inline-block;
+}
+
+.brand-wordmark-swoosh {
+  position: absolute;
+  left: -0.55em;
+  right: -0.2em;
+  top: -0.62em;
+  width: calc(100% + 0.75em);
+  height: 0.95em;
+  pointer-events: none;
+}
+
+.brand-wordmark--sidebar .brand-wordmark-swoosh {
+  top: -0.5em;
+  height: 0.8em;
+  opacity: 0.92;
+}
+
+.brand-mark-divider {
+  align-self: stretch;
+  width: 1px;
+  min-height: 52px;
+  margin: 2px 2px 2px 0;
+  background: linear-gradient(180deg, transparent, #C5D4E4 18%, #94A3B8 50%, #C5D4E4 82%, transparent);
+  flex-shrink: 0;
+}
+
+.brand-mark-divider--panel {
+  min-height: 40px;
+  margin: 0 4px 0 0;
+}
+
 .brand-wordmark-core {
   color: var(--brand-navy);
 }
