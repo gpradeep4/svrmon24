@@ -41,7 +41,7 @@ python -m venv .venv
 python -m pip install --upgrade pip
 pip install -r requirements.txt
 Copy-Item .env.example .env
-# Edit .env — configure OIDC (recommended) or temporarily set BASIC_AUTH_ENABLED=true
+# Edit .env — defaults enable Basic + OIDC for dual-auth local UI; set BASIC_AUTH_ENABLED=false for prod
 python -m app.main
 ```
 
@@ -62,7 +62,7 @@ source .venv/bin/activate
 python -m pip install --upgrade pip
 pip install -r requirements.txt
 cp .env.example .env
-# Edit .env — configure OIDC (recommended) or temporarily set BASIC_AUTH_ENABLED=true
+# Edit .env — defaults enable Basic + OIDC for dual-auth local UI; set BASIC_AUTH_ENABLED=false for prod
 python -m app.main
 ```
 
@@ -95,10 +95,10 @@ Copy `.env.example` → `.env` (never commit `.env`). Placeholders only in the e
 
 | Variable | Purpose | Production-oriented default |
 | --- | --- | --- |
-| `OIDC_ENABLED` / `OIDC_ISSUER` / `OIDC_CLIENT_ID` / `OIDC_CLIENT_SECRET` | Provider-neutral OIDC | `OIDC_ENABLED=false` until configured |
+| `OIDC_ENABLED` / `OIDC_ISSUER` / `OIDC_CLIENT_ID` / `OIDC_CLIENT_SECRET` | Provider-neutral OIDC | **`true`** in `.env.example`; fill issuer/client before SSO works |
 | `OIDC_REDIRECT_URI` / `OIDC_SCOPES` | Callback + scopes | `http://localhost:8200/auth/callback`, `openid profile email` |
 | `SESSION_SECRET` | Signed session cookie | **change before shared use** |
-| `BASIC_AUTH_ENABLED` | Feature-flag coexistence for migration/testing | **`false`** |
+| `BASIC_AUTH_ENABLED` | Feature-flag coexistence for migration/testing | **`true`** in `.env.example` (local dual-auth); **`false`** for shared/prod |
 | `BASIC_AUTH_USERNAME` / `BASIC_AUTH_PASSWORD` | Shared Basic credentials (only when flag on) | placeholders |
 | `MONGODB_URI` / `MONGODB_DB` | MongoDB connection | local defaults |
 | `APP_HOST` / `APP_PORT` | Bind address | `0.0.0.0:8200` |
@@ -120,7 +120,7 @@ Ollama runs as a **shared local** process (one host / GPU / CPU pool). Concurren
 - Browser login uses **Authorization Code + PKCE**; state/PKCE live in the signed session cookie **and** a short-lived pending cookie
 - Unauthenticated users see a **dedicated full-page login** (no Operations sidebar/header chrome). After SSO/Basic, the app shell loads on Dashboard
 - Authenticated top banner shows the current tenant; Organization switcher + Accent picker live under **Settings** (switcher works when the OIDC user has multiple memberships)
-- **Basic auth is disabled by default** for production-oriented deployments. Enable only for migration/testing. Basic is always scoped to the migration tenant and **must not** bypass tenant isolation (cannot switch orgs).
+- **Local `.env.example` enables Basic + OIDC together** so the login page matches the enterprise reference (credentials + Keycloak SSO). For shared/production deploys, set `BASIC_AUTH_ENABLED=false`. Basic is always scoped to the migration tenant and **must not** bypass tenant isolation (cannot switch orgs).
 - OIDC login links a local user + **member** membership on the migration tenant — **never** auto-admin the first public registrant. Current tenant is resolved from membership (+ session switch).
 - Platform admin is **CLI/operator bootstrap only**: `python scripts/bootstrap_platform_admin.py --username operator --email ops@example.com`
 - Create orgs / assign entitlements plans (operator): `python scripts/create_tenant.py --display-name "Acme" --plan-code starter --admin-username operator` and `python scripts/assign_tenant_plan.py --tenant-id tenant-acme --plan-code standard`
@@ -287,13 +287,15 @@ OIDC_ISSUER=http://localhost:8080/realms/svrmon24
 OIDC_CLIENT_ID=svrmon24-ui
 OIDC_CLIENT_SECRET=<client-secret-from-keycloak>
 OIDC_REDIRECT_URI=http://localhost:8200/auth/callback
-BASIC_AUTH_ENABLED=false
+BASIC_AUTH_ENABLED=true
+BASIC_AUTH_USERNAME=<local-dev-user>
+BASIC_AUTH_PASSWORD=<local-dev-password>
 SESSION_SECRET=<long-random-string>
 ```
 
-4. Start the app, open **`http://localhost:8200/`** (not `127.0.0.1` unless your redirect URI also uses it). You should see the dedicated login page (no sidebar). Click **Sign in with SSO (OIDC)**, complete Keycloak login, land on Dashboard, and confirm `/api/me` shows `"auth_method": "oidc"`.
+4. Start the app, open **`http://localhost:8200/`** (not `127.0.0.1` unless your redirect URI also uses it). You should see the dedicated login page (no sidebar) with **email/password** and **Sign in with Keycloak (SSO)**. Complete either flow; OIDC should land on Dashboard with `/api/me` showing `"auth_method": "oidc"`.
 
-5. Optional coexistence check: set `BASIC_AUTH_ENABLED=true` with known credentials; the Basic form appears alongside SSO. With the flag off, Basic headers must not authenticate.
+5. For shared/production, set `BASIC_AUTH_ENABLED=false` so only OIDC (or no auth until OIDC is configured) is offered; Basic headers must not authenticate when the flag is off.
 
 6. If you previously mixed hosts and hit a state error, clear site cookies for both `localhost` and `127.0.0.1`, then retry on the redirect-URI host only.
 

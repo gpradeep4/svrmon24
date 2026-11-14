@@ -16,6 +16,7 @@
       border: "#DCE7F5",
       muted: "#64748B",
     },
+    markStyle: "dual-curve-v7",
     assets: {
       markSvg: "/static/img/svrmon-brand-mark.svg",
       faviconSvg: "/static/img/svrmon-favicon.svg",
