@@ -81,7 +81,7 @@ def test_enterprise_login_png_derivatives_match_source() -> None:
     """Lockup PNGs are pinned exports of the user-provided master (not hand-drawn SVG)."""
     expected = {
         "svrmon-logo.png": "babf589ea4f241a951abc2db1054ae2b943c92d7866ca3b03483855bf31a9ae5",
-        "svrmon-logo-compact.png": "102d1adb36ca4c0f722746d2552d4f7c7c936948c4bf4c544b41b7896c1d6430",
+        "svrmon-logo-compact.png": "2f89cd55fa745977ba2bae21e4588b28c107319b1fc5e966d27d198283c4d740",
         "svrmon-logo-mark.png": "c3b89a03ee43a0786c00bb10970f4961814bcefa8ed1e236f128c42d7078aa7d",
         "svrmon-favicon.png": "9697fcd5f81030bf25b78938d72179f3518e44d3f48020ad24ce07e682e5b54a",
     }
@@ -130,7 +130,7 @@ def test_enterprise_login_version_bump() -> None:
 
     html_path, _ = _static_paths()
     html = html_path.read_text(encoding="utf-8")
-    assert __version__ == "0.32.11"
+    assert __version__ == "0.32.12"
     assert f'content="{__version__}"' in html
     assert f"cmdb.css?v={__version__}" in html
     assert f"cmdb.js?v={__version__}" in html
