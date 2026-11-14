@@ -448,6 +448,7 @@ def test_ui_exposes_audit_panel() -> None:
 
     from tests.frontend_paths import FRONTEND_INDEX, FRONTEND_STATIC
 
+    root = Path(__file__).resolve().parents[1]
     html = FRONTEND_INDEX.read_text(encoding="utf-8")
     js = (FRONTEND_STATIC / "js" / "cmdb.js").read_text(encoding="utf-8")
     assert 'id="tab-audit"' in html
