@@ -413,11 +413,9 @@ body { padding: 0; }
 
 @media (min-width: 1200px) {
   .login-portal {
-    /* Fluid showcase: fill pane; wave bg still covers full pane. */
-    container-type: size;
-    container-name: login-showcase;
+    /* Wave fills the full left pane; composition is capped/centered via .login-portal-inner. */
     align-items: stretch;
-    justify-content: stretch;
+    justify-content: center;
   }
 }
 
@@ -479,12 +477,15 @@ body { padding: 0; }
 @media (min-width: 1200px) {
   .login-portal-inner {
     /*
-      Fluid scale: fill the left showcase width/height while keeping relative
-      proportions (no hard 1080px center band / empty side margins, no space-between scatter).
-      Sizing uses container query units (cqi/cqb) against .login-portal.
+      Middle ground: fill reasonably on normal desktops, but cap composition width on
+      ultrawide so brand/dashboard/cards don't stretch into a sparse band. Wave still
+      covers the full left pane. Fluid scale (cqi/cqb) is relative to this capped column.
     */
+    container-type: size;
+    container-name: login-showcase;
     width: 100%;
-    max-width: none;
+    max-width: min(1200px, 100%);
+    margin-inline: auto;
     height: 100%;
     max-height: 100%;
     justify-content: center;
