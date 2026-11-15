@@ -102,6 +102,12 @@
     currentDiagnosticId: null,
     fmSelectedWatchId: null,
     inventoryType: null,
+    selectedComponentIds: {},
+    importCatalog: null,
+    importHeaders: [],
+    importMapping: {},
+    importLastReport: null,
+    filterOptions: null,
     activeNav: "dashboard",
     authenticated: false,
     authMethod: "",
@@ -190,8 +196,20 @@
     setRbacControl($("#btnAdd"), writeCmdb, {
       titleWhenDenied: "Requires cmdb:write (member+)",
     });
+    setRbacControl($("#btnImport"), writeCmdb, {
+      titleWhenDenied: "Requires cmdb:write (member+)",
+    });
+    setRbacControl($("#btnImportValidate"), writeCmdb);
+    setRbacControl($("#btnImportCommit"), writeCmdb);
+    setRbacControl($("#btnBulkApply"), writeCmdb, {
+      titleWhenDenied: "Requires cmdb:write (member+)",
+    });
     setRbacControl($("#btnSaveComponent"), writeCmdb);
     setRbacControl($("#btnConfirmDelete"), writeCmdb);
+    const bulkBar = $("#inventoryBulkBar");
+    if (bulkBar) {
+      bulkBar.hidden = !writeCmdb || selectedCount() === 0;
+    }
     setRbacControl($("#btnAddRel"), writeRel, {
       titleWhenDenied: "Requires relationships:write (member+)",
     });
@@ -1671,10 +1689,10 @@
 
   function queryParams() {
     const params = new URLSearchParams();
-    const q = $("#searchQ").value.trim();
-    const component_type = state.inventoryType || $("#filterType").value;
-    const environment = $("#filterEnv").value.trim();
-    const status = $("#filterStatus").value;
+    const q = ($("#searchQ")?.value || "").trim();
+    const component_type = state.inventoryType || ($("#filterType")?.value || "");
+    const environment = ($("#filterEnv")?.value || "").trim();
+    const status = $("#filterStatus")?.value || "";
     if (q) params.set("q", q);
     if (component_type) params.set("component_type", component_type);
     if (environment) params.set("environment", environment);
@@ -1684,6 +1702,98 @@
     params.set("sort_by", "updated_at");
     params.set("sort_dir", "desc");
     return params;
+  }
+
+  function filterQueryParams() {
+    const params = queryParams();
+    params.delete("page");
+    params.delete("page_size");
+    params.delete("sort_by");
+    params.delete("sort_dir");
+    return params;
+  }
+
+  function selectedCount() {
+    return Object.keys(state.selectedComponentIds || {}).length;
+  }
+
+  function updateBulkBar() {
+    const count = selectedCount();
+    const bar = $("#inventoryBulkBar");
+    const label = $("#bulkSelectedCount");
+    if (label) label.textContent = `${count} selected`;
+    if (bar) {
+      bar.hidden = !(can("cmdb:write") && count > 0);
+    }
+    const selectAll = $("#inventorySelectAll");
+    if (selectAll) {
+      const boxes = $$("#inventoryBody input[data-select-id]");
+      const checked = boxes.filter((el) => el.checked).length;
+      selectAll.checked = boxes.length > 0 && checked === boxes.length;
+      selectAll.indeterminate = checked > 0 && checked < boxes.length;
+    }
+  }
+
+  function clearInventorySelection() {
+    state.selectedComponentIds = {};
+    $$("#inventoryBody input[data-select-id]").forEach((el) => {
+      el.checked = false;
+    });
+    const selectAll = $("#inventorySelectAll");
+    if (selectAll) {
+      selectAll.checked = false;
+      selectAll.indeterminate = false;
+    }
+    updateBulkBar();
+  }
+
+  function fillSelectOptions(sel, values, { keepFirst = true, selected } = {}) {
+    if (!sel) return;
+    const first = keepFirst && sel.options.length ? sel.options[0] : null;
+    const current = selected !== undefined ? selected : sel.value;
+    sel.innerHTML = "";
+    if (first) {
+      const opt = document.createElement("option");
+      opt.value = first.value;
+      opt.textContent = first.textContent;
+      sel.appendChild(opt);
+    }
+    for (const value of values || []) {
+      const opt = document.createElement("option");
+      opt.value = value;
+      opt.textContent = value;
+      sel.appendChild(opt);
+    }
+    if (current && [...sel.options].some((o) => o.value === current)) {
+      sel.value = current;
+    }
+  }
+
+  async function loadFilterOptions() {
+    const data = await api("/api/components/filter-options");
+    state.filterOptions = data;
+    const envSel = $("#filterEnv");
+    if (envSel) {
+      fillSelectOptions(envSel, data.environments || [], { keepFirst: true });
+    }
+    const statusSel = $("#filterStatus");
+    if (statusSel && (data.statuses || []).length) {
+      fillSelectOptions(statusSel, data.statuses, { keepFirst: true });
+    }
+    const bulkList = $("#bulkEnvList");
+    if (bulkList) {
+      bulkList.innerHTML = (data.environments || [])
+        .map((env) => `<option value="${escapeAttr(env)}"></option>`)
+        .join("");
+    }
+  }
+
+  function clearInventoryFilters() {
+    if ($("#searchQ")) $("#searchQ").value = "";
+    if ($("#filterType") && !state.inventoryType) $("#filterType").value = "";
+    if ($("#filterEnv")) $("#filterEnv").value = "";
+    if ($("#filterStatus")) $("#filterStatus").value = "";
+    state.page = 1;
   }
 
   function customFieldAppliesToCurrentType(col) {
@@ -1718,24 +1828,47 @@
     return String(value);
   }
 
-  function applyHeadRow(headSel, columns) {
+  function applyHeadRow(headSel, columns, { withSelect } = {}) {
     const head = $(headSel);
     if (!head) return;
-    head.innerHTML = columns
-      .map((c) => {
-        const style = [];
-        if (c.width) style.push(`width:${Number(c.width)}px`);
-        if (c.pinned === "left" || c.pinned === "right") {
-          style.push(`position:sticky;${c.pinned}:0;z-index:1;background:var(--surface)`);
-        }
-        const styleAttr = style.length ? ` style="${style.join(";")}"` : "";
-        return `<th data-col="${escapeAttr(c.column_key)}"${styleAttr}>${escapeHtml(c.label || c.column_key)}</th>`;
-      })
-      .join("");
+    const selectTh = withSelect
+      ? `<th data-col="select" class="col-select"><input type="checkbox" id="inventorySelectAll" title="Select all on this page" aria-label="Select all on this page" /></th>`
+      : "";
+    head.innerHTML =
+      selectTh +
+      columns
+        .map((c) => {
+          const style = [];
+          if (c.width) style.push(`width:${Number(c.width)}px`);
+          if (c.pinned === "left" || c.pinned === "right") {
+            style.push(`position:sticky;${c.pinned}:0;z-index:1;background:var(--surface)`);
+          }
+          const styleAttr = style.length ? ` style="${style.join(";")}"` : "";
+          return `<th data-col="${escapeAttr(c.column_key)}"${styleAttr}>${escapeHtml(c.label || c.column_key)}</th>`;
+        })
+        .join("");
+    if (withSelect) {
+      $("#inventorySelectAll")?.addEventListener("change", (e) => {
+        const checked = !!e.target.checked;
+        $$("#inventoryBody input[data-select-id]").forEach((box) => {
+          box.checked = checked;
+          const id = box.getAttribute("data-select-id");
+          if (!id) return;
+          if (checked) state.selectedComponentIds[id] = true;
+          else delete state.selectedComponentIds[id];
+        });
+        updateBulkBar();
+      });
+    }
   }
 
   function inventoryCellHtml(row, columnKey) {
     switch (columnKey) {
+      case "select": {
+        const id = row.component_id;
+        const checked = !!state.selectedComponentIds[id];
+        return `<td class="col-select"><input type="checkbox" data-select-id="${escapeAttr(id)}" ${checked ? "checked" : ""} aria-label="Select ${escapeAttr(id)}" /></td>`;
+      }
       case "component_id":
         return `<td class="mono">${escapeHtml(row.component_id)}</td>`;
       case "hostname_or_name":
@@ -1822,8 +1955,8 @@
         state.columnConfigs[item.grid_key] = item;
       }
     }
-    applyHeadRow("#inventoryHeadRow", visibleColumns("inventory"));
-    applyHeadRow("#relationshipHeadRow", visibleColumns("relationships"));
+    applyHeadRow("#inventoryHeadRow", visibleColumns("inventory"), { withSelect: true });
+    applyHeadRow("#relationshipHeadProp", visibleColumns("relationships"));
   }
 
   async function loadInventory() {
@@ -1832,8 +1965,15 @@
       if (!state.columnConfigs.inventory) {
         await loadColumnConfigurations();
       }
+      if (!state.filterOptions) {
+        try {
+          await loadFilterOptions();
+        } catch (_) {
+          /* filter options are best-effort */
+        }
+      }
       const columns = visibleColumns("inventory");
-      applyHeadRow("#inventoryHeadRow", columns);
+      applyHeadRow("#inventoryHeadRow", columns, { withSelect: can("cmdb:write") });
       const data = await api(`/api/components?${queryParams().toString()}`);
       state.totalPages = data.total_pages || 1;
       $("#pageInfo").textContent = `Page ${data.page} / ${state.totalPages || 1} · ${data.total} components`;
@@ -1848,15 +1988,308 @@
           "No components found",
           "Adjust filters or add a component to the CMDB inventory."
         );
+        updateBulkBar();
         return;
       }
+      const showSelect = can("cmdb:write");
       for (const row of rows) {
         const tr = document.createElement("tr");
-        tr.innerHTML = columns.map((c) => inventoryCellHtml(row, c.column_key)).join("");
+        const cells = [];
+        if (showSelect) cells.push(inventoryCellHtml(row, "select"));
+        for (const c of columns) cells.push(inventoryCellHtml(row, c.column_key));
+        tr.innerHTML = cells.join("");
         tbody.appendChild(tr);
       }
+      updateBulkBar();
     } finally {
       setOverlayLoading("#inventoryLoading", false);
+    }
+  }
+
+  async function downloadExport(format) {
+    const params = filterQueryParams();
+    params.set("format", format);
+    const headers = { Accept: "*/*" };
+    const auth = authHeader();
+    if (auth) headers.Authorization = auth;
+    const res = await fetch(resolveApiUrl(`/api/components/export?${params.toString()}`), {
+      headers,
+      credentials: "include",
+    });
+    if (!res.ok) {
+      let detail = res.statusText;
+      try {
+        const data = await res.json();
+        detail = data?.detail || data?.error?.message || detail;
+      } catch (_) {
+        /* ignore */
+      }
+      throw new Error(typeof detail === "string" ? detail : JSON.stringify(detail));
+    }
+    const blob = await res.blob();
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = format === "xlsx" ? "svrmon24-inventory.xlsx" : "svrmon24-inventory.csv";
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(url);
+    const count = res.headers.get("X-Export-Count");
+    toast(`Exported ${count || "filtered"} row(s) as ${format.toUpperCase()}`);
+  }
+
+  async function applyBulkEdit() {
+    const ids = Object.keys(state.selectedComponentIds);
+    if (!ids.length) {
+      toast("Select at least one component", true);
+      return;
+    }
+    const status = ($("#bulkStatus")?.value || "").trim();
+    const environment = ($("#bulkEnv")?.value || "").trim();
+    if (!status && !environment) {
+      toast("Choose a status and/or environment to apply", true);
+      return;
+    }
+    const payload = { component_ids: ids };
+    if (status) payload.status = status;
+    if (environment) payload.environment = environment;
+    const result = await api("/api/components/bulk-update", {
+      method: "POST",
+      body: JSON.stringify(payload),
+    });
+    toast(`Updated ${result.updated} of ${result.requested}`);
+    clearInventorySelection();
+    if ($("#bulkStatus")) $("#bulkStatus").value = "";
+    if ($("#bulkEnv")) $("#bulkEnv").value = "";
+    await loadFilterOptions();
+    await loadInventory();
+  }
+
+  function openImportModal() {
+    state.importLastReport = null;
+    state.importHeaders = [];
+    state.importMapping = {};
+    if ($("#importFile")) $("#importFile").value = "";
+    if ($("#importMappingBody")) {
+      $("#importMappingBody").innerHTML =
+        '<tr><td colspan="2" class="hint">No file loaded</td></tr>';
+    }
+    if ($("#importReportSummary")) {
+      $("#importReportSummary").textContent = "Run Validate to see results.";
+    }
+    if ($("#importReportBody")) {
+      $("#importReportBody").innerHTML =
+        '<tr><td colspan="4" class="hint">No report yet</td></tr>';
+    }
+    $("#importModal")?.classList.add("open");
+    loadImportCatalog().catch((err) => toast(err.message, true));
+  }
+
+  function closeImportModal() {
+    $("#importModal")?.classList.remove("open");
+  }
+
+  async function loadImportCatalog() {
+    if (state.importCatalog) return state.importCatalog;
+    state.importCatalog = await api("/api/components/import/fields");
+    return state.importCatalog;
+  }
+
+  async function downloadImportTemplate(format) {
+    const headers = { Accept: "*/*" };
+    const auth = authHeader();
+    if (auth) headers.Authorization = auth;
+    const res = await fetch(
+      resolveApiUrl(`/api/components/import/template?format=${encodeURIComponent(format)}`),
+      { headers, credentials: "include" }
+    );
+    if (!res.ok) throw new Error(`Template download failed (${res.status})`);
+    const blob = await res.blob();
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download =
+      format === "xlsx"
+        ? "svrmon24-inventory-template.xlsx"
+        : "svrmon24-inventory-template.csv";
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(url);
+  }
+
+  function guessImportField(header, catalog) {
+    const fields = (catalog && catalog.fields) || [];
+    const aliases = (catalog && catalog.aliases) || {};
+    const raw = String(header || "").trim();
+    if (fields.includes(raw)) return raw;
+    const normalized = raw.toLowerCase().replace(/_/g, " ").replace(/\s+/g, " ").trim();
+    const underscored = normalized.replace(/ /g, "_");
+    if (fields.includes(underscored)) return underscored;
+    if (aliases[normalized]) return aliases[normalized];
+    return "";
+  }
+
+  function renderImportMapping() {
+    const catalog = state.importCatalog || { fields: [] };
+    const body = $("#importMappingBody");
+    if (!body) return;
+    if (!state.importHeaders.length) {
+      body.innerHTML = '<tr><td colspan="2" class="hint">No file loaded</td></tr>';
+      return;
+    }
+    const options = ['<option value="">— ignore —</option>']
+      .concat(
+        (catalog.fields || []).map(
+          (f) => `<option value="${escapeAttr(f)}">${escapeHtml(f)}</option>`
+        )
+      )
+      .join("");
+    body.innerHTML = state.importHeaders
+      .map((header) => {
+        return `<tr>
+          <td class="mono">${escapeHtml(header)}</td>
+          <td>
+            <select data-import-header="${escapeAttr(header)}">${options}</select>
+          </td>
+        </tr>`;
+      })
+      .join("");
+    $$("#importMappingBody select[data-import-header]").forEach((sel) => {
+      const header = sel.getAttribute("data-import-header");
+      sel.value = state.importMapping[header] || "";
+      sel.addEventListener("change", () => {
+        const value = sel.value;
+        if (value) state.importMapping[header] = value;
+        else delete state.importMapping[header];
+      });
+    });
+  }
+
+  async function readImportHeaders(file) {
+    const catalog = await loadImportCatalog();
+    const name = (file.name || "").toLowerCase();
+    if (name.endsWith(".xlsx")) {
+      state.importHeaders = [];
+      state.importMapping = {};
+      renderImportMapping();
+      if ($("#importMappingHint")) {
+        $("#importMappingHint").textContent =
+          "Excel selected — click Validate to detect headers and mapping (editable after first validate).";
+      }
+      return;
+    }
+    const text = await file.text();
+    const firstLine = text.split(/\r?\n/).find((line) => line.trim()) || "";
+    const headers = firstLine
+      .split(",")
+      .map((h) => h.replace(/^"|"$/g, "").trim())
+      .filter(Boolean);
+    state.importHeaders = headers;
+    state.importMapping = {};
+    for (const header of headers) {
+      const guessed = guessImportField(header, catalog);
+      if (guessed) state.importMapping[header] = guessed;
+    }
+    renderImportMapping();
+    if ($("#importMappingHint")) {
+      $("#importMappingHint").textContent =
+        "Adjust mapping if needed, then Validate. Required: component_type, name, environment.";
+    }
+  }
+
+  function collectImportMapping() {
+    const mapping = {};
+    $$("#importMappingBody select[data-import-header]").forEach((sel) => {
+      const header = sel.getAttribute("data-import-header");
+      if (header && sel.value) mapping[header] = sel.value;
+    });
+    if (Object.keys(mapping).length) return mapping;
+    return state.importMapping;
+  }
+
+  function renderImportReport(report) {
+    state.importLastReport = report;
+    if (report.headers && report.headers.length) {
+      state.importHeaders = report.headers;
+      state.importMapping = report.mapping || {};
+      renderImportMapping();
+    }
+    const summary = $("#importReportSummary");
+    if (summary) {
+      const parts = [
+        report.dry_run ? "Dry run" : "Committed",
+        `${report.total_rows} rows`,
+        `${report.valid_rows} valid`,
+        `${report.invalid_rows} invalid`,
+      ];
+      if (!report.dry_run) parts.push(`${report.created} created`);
+      if ((report.missing_required || []).length) {
+        parts.push(`missing mapping: ${report.missing_required.join(", ")}`);
+      }
+      if ((report.unmapped_headers || []).length) {
+        parts.push(`unmapped: ${report.unmapped_headers.join(", ")}`);
+      }
+      summary.textContent = parts.join(" · ");
+    }
+    const body = $("#importReportBody");
+    if (!body) return;
+    const rows = report.rows || [];
+    if (!rows.length) {
+      body.innerHTML = '<tr><td colspan="4" class="hint">No row details</td></tr>';
+      return;
+    }
+    body.innerHTML = rows
+      .map((row) => {
+        const errors = (row.errors || []).join("; ") || "—";
+        return `<tr>
+          <td class="mono">${escapeHtml(row.row_number)}</td>
+          <td>${row.ok ? "yes" : "no"}</td>
+          <td class="mono">${escapeHtml(row.component_id || "—")}</td>
+          <td class="${row.ok ? "dash" : ""}">${escapeHtml(errors)}</td>
+        </tr>`;
+      })
+      .join("");
+  }
+
+  async function runImport(dryRun) {
+    const file = $("#importFile")?.files?.[0];
+    if (!file) {
+      toast("Choose a CSV or Excel file", true);
+      return;
+    }
+    const mapping = collectImportMapping();
+    const form = new FormData();
+    form.append("file", file);
+    if (mapping && Object.keys(mapping).length) {
+      form.append("mapping", JSON.stringify(mapping));
+    }
+    const headers = { Accept: "application/json" };
+    const auth = authHeader();
+    if (auth) headers.Authorization = auth;
+    const res = await fetch(
+      resolveApiUrl(`/api/components/import?dry_run=${dryRun ? "true" : "false"}`),
+      { method: "POST", headers, body: form, credentials: "include" }
+    );
+    const text = await res.text();
+    let data = null;
+    try {
+      data = text ? JSON.parse(text) : null;
+    } catch {
+      data = { detail: text };
+    }
+    if (!res.ok) {
+      const detail = data?.detail || data?.error?.message || res.statusText;
+      throw new Error(typeof detail === "string" ? detail : JSON.stringify(detail));
+    }
+    renderImportReport(data);
+    if (dryRun) {
+      toast(`Validated ${data.valid_rows}/${data.total_rows} rows`);
+    } else {
+      toast(`Imported ${data.created} component(s)`);
+      await loadFilterOptions();
+      await loadInventory();
     }
   }
 
@@ -4471,6 +4904,41 @@
       state.page = 1;
       try { await loadInventory(); } catch (err) { toast(err.message, true); }
     });
+    $("#btnClearFilters")?.addEventListener("click", async () => {
+      clearInventoryFilters();
+      try { await loadInventory(); } catch (err) { toast(err.message, true); }
+    });
+    $("#btnExportCsv")?.addEventListener("click", async () => {
+      try { await downloadExport("csv"); } catch (err) { toast(err.message, true); }
+    });
+    $("#btnExportXlsx")?.addEventListener("click", async () => {
+      try { await downloadExport("xlsx"); } catch (err) { toast(err.message, true); }
+    });
+    $("#btnImport")?.addEventListener("click", () => {
+      try { openImportModal(); } catch (err) { toast(err.message, true); }
+    });
+    $("#btnCloseImportModal")?.addEventListener("click", closeImportModal);
+    $("#btnImportTemplateCsv")?.addEventListener("click", async () => {
+      try { await downloadImportTemplate("csv"); } catch (err) { toast(err.message, true); }
+    });
+    $("#btnImportTemplateXlsx")?.addEventListener("click", async () => {
+      try { await downloadImportTemplate("xlsx"); } catch (err) { toast(err.message, true); }
+    });
+    $("#importFile")?.addEventListener("change", async (e) => {
+      const file = e.target.files && e.target.files[0];
+      if (!file) return;
+      try { await readImportHeaders(file); } catch (err) { toast(err.message, true); }
+    });
+    $("#btnImportValidate")?.addEventListener("click", async () => {
+      try { await runImport(true); } catch (err) { toast(err.message, true); }
+    });
+    $("#btnImportCommit")?.addEventListener("click", async () => {
+      try { await runImport(false); } catch (err) { toast(err.message, true); }
+    });
+    $("#btnBulkApply")?.addEventListener("click", async () => {
+      try { await applyBulkEdit(); } catch (err) { toast(err.message, true); }
+    });
+    $("#btnBulkClear")?.addEventListener("click", () => clearInventorySelection());
     $("#btnAdd").addEventListener("click", () => {
       try { openCreate(); } catch (err) { toast(err.message, true); }
     });
@@ -4784,6 +5252,13 @@
       } catch (err) {
         toast(err.message, true);
       }
+    });
+    $("#inventoryBody").addEventListener("change", (e) => {
+      const id = e.target.getAttribute("data-select-id");
+      if (!id) return;
+      if (e.target.checked) state.selectedComponentIds[id] = true;
+      else delete state.selectedComponentIds[id];
+      updateBulkBar();
     });
     $("#customFieldBody").addEventListener("click", async (e) => {
       const editKey = e.target.getAttribute("data-cf-edit");

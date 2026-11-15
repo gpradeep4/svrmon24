@@ -31,6 +31,8 @@ KNOWN_ACTIONS: frozenset[str] = frozenset(
         "membership.create",
         "component.create",
         "component.update",
+        "component.bulk_update",
+        "component.import",
         "component.delete",
         "relationship.create",
         "relationship.update",

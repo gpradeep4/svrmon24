@@ -4,7 +4,7 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <meta name="svrmon24-ui" content="login-enterprise-v13" />
-  <meta name="svrmon24-version" content="0.32.24" />
+  <meta name="svrmon24-version" content="0.33.0" />
   <title>SVRMON24</title>
   <link rel="icon" href="/static/img/svrmon-favicon.png" type="image/png" sizes="32x32" />
   <link rel="apple-touch-icon" href="/static/img/svrmon-apple-touch.png" sizes="180x180" />
@@ -15,9 +15,9 @@
     body.is-app .login-gate { display: none !important; }
     #authPanel, .auth-panel-legacy { display: none !important; }
   </style>
-  <link rel="stylesheet" href="/static/css/cmdb.css?v=0.32.24" />
-  <script src="/static/js/config.js?v=0.32.24"></script>
-  <script src="/static/js/brand.js?v=0.32.24"></script>
+  <link rel="stylesheet" href="/static/css/cmdb.css?v=0.33.0" />
+  <script src="/static/js/config.js?v=0.33.0"></script>
+  <script src="/static/js/brand.js?v=0.33.0"></script>
 </head>
 <body class="is-login">
   <!-- Enterprise login: showcase (left) + sign-in panel (right); stacks on small viewports -->
@@ -452,14 +452,18 @@
         <section id="tab-inventory" class="tab-panel hidden">
           <section class="panel">
             <p class="type-lock-hint" id="inventoryTypeHint">Showing one component type from the Operations sidebar.</p>
-            <div class="toolbar">
+            <div class="toolbar inventory-toolbar">
               <label>Search<input id="searchQ" placeholder="id, name, hostname, product…" /></label>
               <label id="filterTypeWrap">Type
                 <select id="filterType" data-keep-first="1">
                   <option value="">All</option>
                 </select>
               </label>
-              <label>Environment<input id="filterEnv" placeholder="prod / nonprod" /></label>
+              <label>Environment
+                <select id="filterEnv" data-keep-first="1">
+                  <option value="">All</option>
+                </select>
+              </label>
               <label>Status
                 <select id="filterStatus">
                   <option value="">All</option>
@@ -469,9 +473,36 @@
                   <option value="unknown">unknown</option>
                 </select>
               </label>
-              <span></span>
-              <button type="button" id="btnSearch" class="secondary">Apply filters</button>
-              <button type="button" id="btnAdd">Add component</button>
+              <div class="toolbar-actions">
+                <button type="button" id="btnSearch" class="secondary">Apply filters</button>
+                <button type="button" id="btnClearFilters" class="ghost">Clear</button>
+                <button type="button" id="btnExportCsv" class="secondary" title="Export filtered inventory as CSV">Export CSV</button>
+                <button type="button" id="btnExportXlsx" class="secondary" title="Export filtered inventory as Excel">Export Excel</button>
+                <button type="button" id="btnImport" class="secondary">Import</button>
+                <button type="button" id="btnAdd">Add component</button>
+              </div>
+            </div>
+            <p class="hint inventory-filter-hint" id="inventoryFilterHint">OS Family / OS Version and Product Type / Product Version stay separate columns — they are not combined in filters or export.</p>
+          </section>
+
+          <section class="panel inventory-bulk-bar" id="inventoryBulkBar" hidden>
+            <div class="bulk-bar-inner">
+              <strong id="bulkSelectedCount">0 selected</strong>
+              <label>Status
+                <select id="bulkStatus">
+                  <option value="">— leave unchanged —</option>
+                  <option value="active">active</option>
+                  <option value="inactive">inactive</option>
+                  <option value="decommissioned">decommissioned</option>
+                  <option value="unknown">unknown</option>
+                </select>
+              </label>
+              <label>Environment
+                <input id="bulkEnv" list="bulkEnvList" placeholder="e.g. prod" />
+                <datalist id="bulkEnvList"></datalist>
+              </label>
+              <button type="button" id="btnBulkApply">Apply to selected</button>
+              <button type="button" id="btnBulkClear" class="ghost">Clear selection</button>
             </div>
           </section>
 
@@ -482,6 +513,7 @@
               <table class="inventory" id="inventoryTable">
                 <thead>
                   <tr id="inventoryHeadRow">
+                    <th data-col="select" class="col-select"><input type="checkbox" id="inventorySelectAll" title="Select all on this page" aria-label="Select all on this page" /></th>
                     <th data-col="component_id">Component ID</th>
                     <th data-col="hostname_or_name">Hostname/Component Name</th>
                     <th data-col="component_type">Component Type</th>
@@ -1633,6 +1665,61 @@
     </div>
   </div>
 
-  <script src="/static/js/cmdb.js?v=0.32.24"></script>
+  <div id="importModal" class="modal-backdrop" role="dialog" aria-modal="true" aria-labelledby="importModalTitle">
+    <div class="modal modal-wide">
+      <header>
+        <h3 id="importModalTitle">Import inventory</h3>
+        <button type="button" id="btnCloseImportModal" class="ghost">Close</button>
+      </header>
+      <p class="hint">Upload CSV or Excel (.xlsx). Map columns to component fields, review the validation report, then create via the typed CMDB collections.</p>
+      <div class="form-grid import-form-grid">
+        <label class="full">File
+          <input type="file" id="importFile" accept=".csv,.xlsx,text/csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" />
+        </label>
+        <div class="full import-template-row">
+          <button type="button" id="btnImportTemplateCsv" class="secondary">Download CSV template</button>
+          <button type="button" id="btnImportTemplateXlsx" class="secondary">Download Excel template</button>
+        </div>
+      </div>
+      <h2 class="import-section-title">Column mapping</h2>
+      <p class="hint" id="importMappingHint">Choose a file to auto-detect headers. Adjust mapping if needed before Validate.</p>
+      <div class="table-wrap import-mapping-wrap">
+        <table class="inventory" id="importMappingTable">
+          <thead>
+            <tr>
+              <th>Source column</th>
+              <th>Maps to field</th>
+            </tr>
+          </thead>
+          <tbody id="importMappingBody">
+            <tr><td colspan="2" class="hint">No file loaded</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div style="margin-top:12px;display:flex;gap:8px;flex-wrap:wrap">
+        <button type="button" id="btnImportValidate" class="secondary">Validate</button>
+        <button type="button" id="btnImportCommit">Import valid rows</button>
+      </div>
+      <h2 class="import-section-title">Validation report</h2>
+      <div id="importReportSummary" class="hint">Run Validate to see results.</div>
+      <div class="table-wrap import-report-wrap">
+        <table class="inventory" id="importReportTable">
+          <thead>
+            <tr>
+              <th>Row</th>
+              <th>OK</th>
+              <th>Component ID</th>
+              <th>Errors</th>
+            </tr>
+          </thead>
+          <tbody id="importReportBody">
+            <tr><td colspan="4" class="hint">No report yet</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <script src="/static/js/cmdb.js?v=0.33.0"></script>
 </body>
 </html>
