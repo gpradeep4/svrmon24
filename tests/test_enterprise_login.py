@@ -28,6 +28,7 @@ def test_enterprise_login_structure() -> None:
     for name in (
         "svrmon-logo.png",
         "svrmon-logo-compact.png",
+        "svrmon-logo-sidebar.png",
         "svrmon-logo-mark.png",
         "svrmon-favicon.png",
         "svrmon-apple-touch.png",
@@ -53,6 +54,7 @@ def test_enterprise_login_structure() -> None:
     assert "SVRMON24_BRAND" in brand_js
     assert "user-png-exact" in brand_js
     assert "logoPng" in brand_js
+    assert "logoSidebarPng" in brand_js
     assert "markPng" in brand_js
     assert "logoSvg" in brand_js
     assert "symbolSvg" in brand_js
@@ -106,10 +108,10 @@ def test_enterprise_login_structure() -> None:
     assert "basicCredentials" in js
     assert "activeBasicCredentials" in js
     assert "brand-mark--sidebar" in html
-    assert "brand-sidebar-wordmark" in html
-    assert "brand-wordmark-core" in html
-    assert "brand-wordmark-suffix" in html
-    assert "brand-wordmark-swoosh" in html
+    assert 'class="svrmon-brand-lockup svrmon-brand-lockup--sidebar"' in html
+    assert 'src="/static/img/svrmon-logo-sidebar.png"' in html
+    assert "brand-sidebar-wordmark" not in html
+    assert "brand-wordmark-swoosh" not in html
     # Remember me is opt-in (unchecked by default) so Basic does not silently resume on refresh.
     assert 'id="authRemember" checked' not in html
 
@@ -119,6 +121,7 @@ def test_enterprise_login_png_derivatives_match_source() -> None:
     expected = {
         "svrmon-logo.png": "babf589ea4f241a951abc2db1054ae2b943c92d7866ca3b03483855bf31a9ae5",
         "svrmon-logo-compact.png": "2f89cd55fa745977ba2bae21e4588b28c107319b1fc5e966d27d198283c4d740",
+        "svrmon-logo-sidebar.png": "f10cde67d141f5d41a1e9fe9d7d830bd70481b23af0559c2090aea14a46c45c1",
         "svrmon-logo-mark.png": "c3b89a03ee43a0786c00bb10970f4961814bcefa8ed1e236f128c42d7078aa7d",
         "svrmon-favicon.png": "9697fcd5f81030bf25b78938d72179f3518e44d3f48020ad24ce07e682e5b54a",
     }
@@ -172,15 +175,14 @@ def test_enterprise_login_scale_layout_css() -> None:
     # Capped composition + container queries (fluid scale inside the cap).
     assert "max-width: min(1200px, 100%)" in css
     assert "margin-inline: auto" in css
-    # Post-login sidebar: mark + split wordmark (SVRMON white, 24+swoosh brand blue).
+    # Post-login sidebar: transparent PNG lockup (no CSS-split wordmark / white pill).
     assert ".brand-mark--sidebar" in css
-    assert ".brand-sidebar-wordmark" in css
-    assert "color: #FFFFFF" in css.split(".brand-sidebar-wordmark", 1)[1].split("}", 1)[0]
-    sidebar_suffix = css.split(".brand-sidebar-wordmark .brand-wordmark-suffix", 1)[1].split("}", 1)[0]
-    assert "var(--brand-blue)" in sidebar_suffix
-    assert ".brand-sidebar-wordmark .brand-wordmark-swoosh" in css
-    assert "var(--brand-blue)" in css.split(".brand-wordmark--sidebar .brand-wordmark-suffix", 1)[1].split("}", 1)[0]
-    assert "color: var(--brand-blue)" in css.split(".brand-wordmark--sidebar .brand-wordmark-swoosh", 1)[1]
+    assert ".svrmon-brand-lockup--sidebar" in css
+    sidebar_mark = css.split(".brand-mark--sidebar", 1)[1].split("}", 1)[0]
+    assert "background: transparent" in sidebar_mark
+    assert "border-radius: 0" in sidebar_mark
+    assert ".brand-sidebar-wordmark" not in css
+    assert "brand-wordmark--sidebar" not in css
 
 
 def test_env_example_local_dual_auth_defaults() -> None:
@@ -197,7 +199,7 @@ def test_enterprise_login_version_bump() -> None:
 
     html_path, _ = _static_paths()
     html = html_path.read_text(encoding="utf-8")
-    assert __version__ == "0.32.22"
+    assert __version__ == "0.32.23"
     assert f'content="{__version__}"' in html
     assert f"cmdb.css?v={__version__}" in html
     assert f"cmdb.js?v={__version__}" in html

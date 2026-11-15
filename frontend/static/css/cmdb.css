@@ -192,12 +192,6 @@ body { padding: 0; }
   pointer-events: none;
 }
 
-.brand-wordmark--sidebar .brand-wordmark-swoosh {
-  top: -0.5em;
-  height: 0.8em;
-  opacity: 0.92;
-}
-
 .brand-mark-divider {
   align-self: stretch;
   width: 1px;
@@ -217,18 +211,6 @@ body { padding: 0; }
 }
 
 .brand-wordmark-suffix {
-  color: var(--brand-blue);
-}
-
-.brand-wordmark--sidebar .brand-wordmark-core {
-  color: #FFFFFF;
-}
-
-.brand-wordmark--sidebar .brand-wordmark-suffix {
-  color: var(--brand-blue);
-}
-
-.brand-wordmark--sidebar .brand-wordmark-swoosh {
   color: var(--brand-blue);
 }
 
@@ -547,9 +529,10 @@ body { padding: 0; }
 }
 
 .svrmon-brand-lockup--sidebar {
-  /* Legacy compact lockup; sidebar now uses .brand-mark--sidebar (mark + split wordmark). */
   width: 100%;
-  max-height: 52px;
+  max-width: 100%;
+  max-height: 48px;
+  height: auto;
   object-fit: contain;
   object-position: left center;
 }
@@ -567,48 +550,18 @@ body { padding: 0; }
   box-shadow: 0 8px 22px rgba(15, 23, 42, 0.22);
 }
 
-/* Sidebar: no white pill — mark + split wordmark (SVRMON white, 24+swoosh brand blue) */
+/* Sidebar: transparent PNG lockup on navy — no white pill, no CSS-split wordmark */
 .brand-mark--sidebar {
-  display: flex;
-  align-items: center;
-  gap: 10px;
+  display: block;
   width: 100%;
   max-width: 100%;
   min-width: 0;
-  padding: 4px 2px;
+  padding: 2px 0;
   background: transparent;
   border: none;
   border-radius: 0;
   box-shadow: none;
-  overflow: visible;
-}
-
-.brand-sidebar-mark {
-  width: 36px;
-  height: 36px;
-  flex-shrink: 0;
-  display: block;
-  object-fit: contain;
-}
-
-.brand-sidebar-wordmark {
-  font-family: var(--display);
-  font-size: 1.15rem;
-  font-weight: 700;
-  letter-spacing: -0.02em;
-  line-height: 1.1;
-  color: #FFFFFF;
-  white-space: nowrap;
-  min-width: 0;
-}
-
-.brand-sidebar-wordmark .brand-wordmark-core {
-  color: #FFFFFF;
-}
-
-.brand-sidebar-wordmark .brand-wordmark-suffix,
-.brand-sidebar-wordmark .brand-wordmark-swoosh {
-  color: var(--brand-blue);
+  overflow: hidden;
 }
 
 .brand-mark--png + .tagline,
