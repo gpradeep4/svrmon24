@@ -66,7 +66,8 @@ def test_enterprise_login_structure() -> None:
     assert "Turn Incidents into" in html
     assert "AI Infrastructure Diagnostic" in html
     assert "CMDB &amp; Infrastructure Inventory" in html or "CMDB & Infrastructure Inventory" in html
-    assert "Middleware &amp; Log Intelligence" in html or "Middleware & Log Intelligence" in html
+    assert "Log Intelligence" in html
+    assert "Middleware &amp; Log Intelligence" not in html and "Middleware & Log Intelligence" not in html
     assert "Open Investigations" in html
     assert "login-dash-nav-item" in html
     assert "login-portal-bg" in html
@@ -74,7 +75,7 @@ def test_enterprise_login_structure() -> None:
     assert "/static/assets/icons/cmdb.svg" in html
     assert "Unified view of servers, network and applications" in html
     assert "Analyse incidents, logs and health data to find root cause" in html
-    assert "Understand middleware and system logs with AI" in html
+    assert "Understand application, database and system logs with AI" in html
     assert "RBAC, audit trail and enterprise-grade access" in html
     assert "Sign in to your SVRMON24 workspace" in html
     assert 'id="authMethodNote"' in html
@@ -137,20 +138,26 @@ def test_enterprise_login_responsive_layout_css() -> None:
 
 
 def test_enterprise_login_scale_layout_css() -> None:
-    """Left showcase must not be capped at ~840px; hero stage places tilted dashboard without narrow column cap."""
+    """Showcase fluid-scales with the left pane; form pane stays a fixed comfortable band."""
     css_path = FRONTEND_STATIC / "css" / "cmdb.css"
     css = css_path.read_text(encoding="utf-8")
-    assert "65fr) minmax(0, 35fr)" in css
+    assert "minmax(0, 1fr) minmax(400px, 440px)" in css
     assert "min(840px, 92%)" not in css
+    assert "max-width: min(1080px, 92%)" not in css
+    assert "container-type: size" in css
+    assert "container-name: login-showcase" in css
+    assert "3.2cqi" in css or "cqi" in css
+    assert "max-width: none" in css
     assert ".login-portal-inner" in css
-    assert "width: 90%;" in css
     assert ".login-hero-stage" in css
     assert "rotateY(-16deg)" in css
     assert ".login-hero-stage .login-dashboard-tilt" in css
+    assert "width: min(100%, 560px)" not in css
     # Desktop composition: dashboard sits beside headline (col 2), not full-width stacked.
     hero_dash = css.split(".login-hero-stage .login-dashboard-tilt", 1)[1].split("}", 1)[0]
     assert "grid-column: 2" in hero_dash
     assert "1 / -1" not in hero_dash
+    assert "width: 100%" in hero_dash
 
 
 def test_env_example_local_dual_auth_defaults() -> None:
@@ -167,7 +174,7 @@ def test_enterprise_login_version_bump() -> None:
 
     html_path, _ = _static_paths()
     html = html_path.read_text(encoding="utf-8")
-    assert __version__ == "0.32.17"
+    assert __version__ == "0.32.19"
     assert f'content="{__version__}"' in html
     assert f"cmdb.css?v={__version__}" in html
     assert f"cmdb.js?v={__version__}" in html

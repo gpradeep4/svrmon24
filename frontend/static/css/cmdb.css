@@ -372,7 +372,8 @@ body { padding: 0; }
 
 @media (min-width: 1200px) {
   .login-gate-split {
-    grid-template-columns: minmax(0, 65fr) minmax(0, 35fr);
+    /* Left showcase flexes; right auth pane stays a comfortable fixed band. */
+    grid-template-columns: minmax(0, 1fr) minmax(400px, 440px);
     grid-template-areas: "portal form";
     width: 100%;
     height: 100vh;
@@ -410,6 +411,16 @@ body { padding: 0; }
   color: #0F172A;
 }
 
+@media (min-width: 1200px) {
+  .login-portal {
+    /* Fluid showcase: fill pane; wave bg still covers full pane. */
+    container-type: size;
+    container-name: login-showcase;
+    align-items: stretch;
+    justify-content: stretch;
+  }
+}
+
 .login-portal-bg {
   position: absolute;
   inset: 0;
@@ -419,10 +430,12 @@ body { padding: 0; }
     radial-gradient(900px 640px at 6% 96%, rgba(59, 130, 246, 0.12), transparent 58%),
     linear-gradient(155deg, #F8FBFF 0%, #EEF6FF 42%, #E8F2FC 100%);
   background-repeat: no-repeat, no-repeat, no-repeat;
+  /* Cover the left pane only — never stretch UI descendants. */
   background-size: cover, auto, auto;
   background-position: left bottom, 6% 96%, center;
   pointer-events: none;
   overflow: hidden;
+  z-index: 0;
 }
 
 .login-portal-curves {
@@ -456,21 +469,31 @@ body { padding: 0; }
   justify-content: flex-start;
   gap: clamp(14px, 1.8vh, 22px);
   width: 100%;
-  max-width: none;
+  max-width: min(720px, 100%);
   margin: 0 auto;
   padding: clamp(24px, 4vw, 40px) clamp(28px, 5vw, 52px);
+  min-width: 0;
   animation: login-rise 480ms ease-out both;
 }
 
 @media (min-width: 1200px) {
   .login-portal-inner {
-    width: 90%;
+    /*
+      Fluid scale: fill the left showcase width/height while keeping relative
+      proportions (no hard 1080px center band / empty side margins, no space-between scatter).
+      Sizing uses container query units (cqi/cqb) against .login-portal.
+    */
+    width: 100%;
     max-width: none;
     height: 100%;
-    justify-content: space-between;
-    gap: clamp(8px, 1.1vh, 14px);
-    padding: clamp(22px, 2.6vh, 32px) 44px clamp(18px, 2.2vh, 28px);
+    max-height: 100%;
+    justify-content: center;
+    gap: clamp(12px, 1.7cqb, 26px);
+    padding:
+      clamp(16px, 2.4cqb, 36px)
+      clamp(18px, 3.2cqi, 48px);
     overflow: hidden;
+    box-sizing: border-box;
   }
 }
 
@@ -496,6 +519,13 @@ body { padding: 0; }
   max-width: 100%;
   margin: 0;
   filter: drop-shadow(0 4px 12px rgba(23, 105, 210, 0.1));
+}
+
+@media (min-width: 1200px) {
+  .svrmon-brand-lockup--showcase {
+    width: clamp(260px, 26cqi, 400px);
+    max-width: 100%;
+  }
 }
 
 .svrmon-brand-lockup--panel {
@@ -588,14 +618,16 @@ body { padding: 0; }
 @media (min-width: 1200px) {
   .login-hero-stage {
     display: grid;
-    grid-template-columns: minmax(0, 36%) minmax(0, 1fr);
-    grid-template-rows: auto auto minmax(220px, auto);
-    column-gap: clamp(16px, 2.4vw, 32px);
-    row-gap: 10px;
+    grid-template-columns: minmax(0, 0.95fr) minmax(0, 1.15fr);
+    grid-template-rows: auto auto minmax(0, auto);
+    column-gap: clamp(12px, 2.2cqi, 36px);
+    row-gap: clamp(6px, 1cqb, 12px);
     align-items: start;
     margin-bottom: 0;
-    flex: 1 1 auto;
+    flex: 0 1 auto;
     min-height: 0;
+    width: 100%;
+    max-width: 100%;
   }
 
   .login-hero-stage .login-headline {
@@ -604,26 +636,28 @@ body { padding: 0; }
     z-index: 2;
     max-width: 15ch;
     align-self: end;
+    font-size: clamp(1.45rem, 0.55cqi + 0.95rem, 2.45rem);
   }
 
   .login-hero-stage .login-portal-lede-wide {
     grid-column: 1;
     grid-row: 2;
     z-index: 2;
-    max-width: 34ch;
+    max-width: min(34ch, 100%);
     margin-top: 0;
+    font-size: clamp(0.9rem, 0.22cqi + 0.78rem, 1.08rem);
   }
 
   .login-hero-stage .login-dashboard-tilt {
     grid-column: 2;
     grid-row: 1 / 4;
-    justify-self: end;
+    justify-self: stretch;
     align-self: center;
-    width: min(100%, 620px);
+    width: 100%;
     max-width: 100%;
     z-index: 1;
     margin: 0;
-    padding: 2px 0 10px;
+    padding: 2px 0 clamp(8px, 1.2cqb, 14px);
     perspective: 1400px;
     perspective-origin: 30% 45%;
   }
@@ -774,6 +808,13 @@ body { padding: 0; }
 .login-dash-chrome--labeled {
   grid-template-columns: minmax(140px, 158px) 1fr;
   min-height: clamp(230px, 22vw, 278px);
+}
+
+@media (min-width: 1200px) {
+  .login-dash-chrome--labeled {
+    grid-template-columns: minmax(140px, 12cqi) 1fr;
+    min-height: clamp(220px, 28cqb, 320px);
+  }
 }
 
 .login-dash-sidebar {
@@ -1182,13 +1223,15 @@ body { padding: 0; }
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 10px 12px;
   width: 100%;
+  max-width: 100%;
+  min-width: 0;
   flex-shrink: 0;
 }
 
 @media (min-width: 1200px) {
   .login-feature-grid {
     grid-template-columns: repeat(3, minmax(0, 1fr));
-    gap: 12px 14px;
+    gap: clamp(10px, 1.2cqb, 16px) clamp(12px, 1.4cqi, 18px);
     align-items: stretch;
   }
 }
@@ -1200,6 +1243,28 @@ body { padding: 0; }
   background: #FFFFFF;
   box-shadow: 0 6px 22px rgba(15, 23, 42, 0.06);
   transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
+  min-width: 0;
+  max-width: 100%;
+  box-sizing: border-box;
+}
+
+@media (min-width: 1200px) {
+  .login-feature-card {
+    padding: clamp(10px, 1.1cqi, 16px) clamp(10px, 1.1cqi, 16px) clamp(8px, 1cqb, 14px);
+  }
+
+  .login-feature-card h3 {
+    font-size: clamp(0.84rem, 0.35cqi + 0.7rem, 1.02rem);
+  }
+
+  .login-feature-card p {
+    font-size: clamp(0.75rem, 0.25cqi + 0.66rem, 0.92rem);
+  }
+
+  .login-feature-ico {
+    width: clamp(40px, 3.2cqi, 52px);
+    height: clamp(40px, 3.2cqi, 52px);
+  }
 }
 
 .login-feature-card:hover {
@@ -1282,7 +1347,18 @@ body { padding: 0; }
 @media (min-width: 901px) {
   .login-capabilities-row {
     flex-wrap: nowrap;
-    justify-content: space-between;
+    justify-content: flex-start;
+    gap: clamp(14px, 2vw, 28px);
+  }
+}
+
+@media (min-width: 1200px) {
+  .login-capabilities-row {
+    gap: clamp(14px, 2.4cqi, 36px);
+  }
+
+  .login-capabilities li {
+    font-size: clamp(0.78rem, 0.2cqi + 0.7rem, 0.92rem);
   }
 }
 
