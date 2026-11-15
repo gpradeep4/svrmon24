@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 900" preserveAspectRatio="xMidYMid slice">
+  <defs>
+    <linearGradient id="ribbonA" x1="0%" y1="100%" x2="90%" y2="0%">
+      <stop offset="0%" stop-color="#93C5FD" stop-opacity="0.62"/>
+      <stop offset="40%" stop-color="#BFDBFE" stop-opacity="0.32"/>
+      <stop offset="100%" stop-color="#E0F2FE" stop-opacity="0.06"/>
+    </linearGradient>
+    <linearGradient id="ribbonB" x1="5%" y1="100%" x2="95%" y2="8%">
+      <stop offset="0%" stop-color="#7DD3FC" stop-opacity="0.48"/>
+      <stop offset="50%" stop-color="#BAE6FD" stop-opacity="0.20"/>
+      <stop offset="100%" stop-color="#F0F9FF" stop-opacity="0.04"/>
+    </linearGradient>
+    <linearGradient id="ribbonC" x1="0%" y1="92%" x2="85%" y2="12%">
+      <stop offset="0%" stop-color="#60A5FA" stop-opacity="0.26"/>
+      <stop offset="100%" stop-color="#DBEAFE" stop-opacity="0.05"/>
+    </linearGradient>
+    <radialGradient id="glow" cx="12%" cy="90%" r="58%">
+      <stop offset="0%" stop-color="#93C5FD" stop-opacity="0.55"/>
+      <stop offset="55%" stop-color="#BFDBFE" stop-opacity="0.18"/>
+      <stop offset="100%" stop-color="#FFFFFF" stop-opacity="0"/>
+    </radialGradient>
+    <filter id="soft" x="-25%" y="-25%" width="150%" height="150%">
+      <feGaussianBlur stdDeviation="16"/>
+    </filter>
+  </defs>
+  <ellipse cx="160" cy="790" rx="460" ry="300" fill="url(#glow)"/>
+  <g filter="url(#soft)" opacity="0.95">
+    <path fill="url(#ribbonA)" d="M-100 960 C40 790 180 670 360 580 C580 470 820 340 1080 190 C1200 120 1300 70 1400 20 L1400 300 C1220 340 1040 420 840 520 C600 640 340 780 120 920 C40 960 -30 980 -100 1000 Z"/>
+    <path fill="url(#ribbonB)" d="M-120 820 C60 670 220 560 420 480 C680 370 920 240 1180 110 C1260 70 1340 40 1420 10 L1420 230 C1240 270 1060 340 860 430 C620 550 360 700 120 840 C40 880 -40 900 -120 920 Z"/>
+    <path fill="url(#ribbonC)" d="M-80 1020 C120 870 300 760 520 670 C780 560 1020 430 1280 290 L1420 220 L1420 430 C1160 490 940 580 720 680 C460 810 180 930 -80 1080 Z"/>
+  </g>
+</svg>

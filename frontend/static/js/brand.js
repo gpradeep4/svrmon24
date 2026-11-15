@@ -25,6 +25,8 @@
       appleTouchPng: "/static/img/svrmon-apple-touch.png",
       logoSvg: "/static/assets/brand/svrmon24-logo.svg",
       symbolSvg: "/static/assets/brand/svrmon24-symbol.svg",
+      loginWavesPng: "/static/assets/brand/login-waves.png",
+      loginWavesSvg: "/static/assets/brand/login-waves.svg",
       icons: {
         cmdb: "/static/assets/icons/cmdb.svg",
         aiInvestigation: "/static/assets/icons/ai-investigation.svg",
