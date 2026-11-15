@@ -4,14 +4,14 @@ AI-assisted infrastructure CMDB, dependency mapping, **SIMULATED** diagnostics, 
 
 Stack: **FastAPI + Uvicorn + MongoDB (PyMongo) + provider-neutral OIDC** (HTTP Basic optional via feature flag). Diagnostics never contact remote hosts and never execute shell/SQL/network scans. File Monitoring v1 is demo-only (no live filesystem watching).
 
-## Features (through Auth Admin / 0.31.0)
+## Features (through CMDB inventory UX / 0.33.0)
 
 | Area | Capability |
 | --- | --- |
 | Auth / ops | OIDC (Auth Code + PKCE), feature-flagged HTTP Basic (still present — cutover documented, not silently removed), `/health`, `/api/status`, structured logging |
 | Roles / RBAC | Built-in roles `viewer` / `member` / `admin` / `owner` plus tenant **custom roles** (`custom:<role_key>`); permission matrix enforced on APIs/UI; platform admin via CLI **or** first OIDC user when no admin exists |
 | Tenancy | Hard `tenant_id` isolation on CMDB/relationships/field-definitions/column-configurations/custom-tables/diagnostics/dashboard; migration tenant **SVRMON24 Legacy** (`tenant-svrmon24-legacy`); Basic scoped to migration tenant (no auth bypass); **org switcher enabled** for multi-membership OIDC users |
-| CMDB | Typed Mongo collections (`cmdb_servers`, `cmdb_network`, `cmdb_middleware`, `cmdb_databases`, `cmdb_applications`) behind stable `/api/components*` facade; OS Family/Version and Product Type/Version stay separate |
+| CMDB | Typed Mongo collections (`cmdb_servers`, `cmdb_network`, `cmdb_middleware`, `cmdb_databases`, `cmdb_applications`) behind stable `/api/components*` facade; OS Family/Version and Product Type/Version stay separate; inventory filters (type/status/environment/search), bulk status/environment edit, CSV/Excel import with mapping + validation, filtered CSV/Excel export |
 | Field definitions | Tenant-scoped `cmdb_field_definitions` (custom + locked built-in OS/product natives); `/api/custom-fields` facade; values still on component `custom_fields` |
 | Column configurations | Tenant-scoped `cmdb_column_configurations` driving Inventory + Relationships grids (visibility / order / width / pin); Inventory includes toggleable **custom field** columns; locked OS/product and protocol/port columns; Relationships also expose optional Source/Target Table columns |
 | Custom entity tables | Tenant-scoped `cmdb_custom_table_definitions` + `cmdb_custom_records` (`table_key`); typed columns including **reference** fields; relationships can link custom entities via `source_table` / `target_table`; Edit UI for defs/columns; dropdowns show display name + `table_key` (open lists via ink-on-white combo selects); beginner help balloons |
@@ -336,6 +336,12 @@ make test
 | GET | `/api/memberships` | OIDC / Basic* | Memberships for current OIDC user |
 | GET | `/api/dashboard/summary` | OIDC / Basic* | Live dashboard widgets |
 | GET/POST | `/api/components` | OIDC / Basic* | List / create components |
+| GET | `/api/components/filter-options` | OIDC / Basic* | Distinct environments / statuses / types for inventory filters |
+| POST | `/api/components/bulk-update` | `cmdb:write` | Batch update status / environment |
+| GET | `/api/components/export` | OIDC / Basic* | Export filtered inventory as CSV or Excel |
+| GET | `/api/components/import/fields` | OIDC / Basic* | Importable field catalog + aliases |
+| GET | `/api/components/import/template` | OIDC / Basic* | CSV/Excel import template |
+| POST | `/api/components/import` | `cmdb:write` | Validate / import CSV or Excel (multipart) |
 | GET/PUT/DELETE | `/api/components/{id}` | OIDC / Basic* | Get / update / delete |
 | GET | `/api/components/{id}/delete-preview` | OIDC / Basic* | Delete confirmation + relationship warning |
 | GET/POST | `/api/field-definitions` | OIDC / Basic* | CMDB field definitions (custom + built-in) |

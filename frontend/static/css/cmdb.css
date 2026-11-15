@@ -2362,6 +2362,85 @@ body.is-app .app-shell { display: grid; }
   align-items: end;
 }
 
+.inventory-toolbar {
+  grid-template-columns: 1.5fr repeat(3, minmax(0, 1fr));
+  align-items: end;
+}
+
+.inventory-toolbar .toolbar-actions {
+  grid-column: 1 / -1;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+}
+
+.inventory-filter-hint {
+  margin: 8px 0 0;
+}
+
+.inventory-bulk-bar {
+  padding: 12px 14px;
+  background: linear-gradient(180deg, #F8FAFC 0%, #FFFFFF 100%);
+  border: 1px solid var(--line-soft);
+}
+
+.inventory-bulk-bar[hidden] {
+  display: none !important;
+}
+
+.bulk-bar-inner {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  align-items: end;
+}
+
+.bulk-bar-inner > strong {
+  align-self: center;
+  font-size: 0.9rem;
+  color: var(--ink);
+  min-width: 6.5rem;
+}
+
+.bulk-bar-inner label {
+  min-width: 140px;
+}
+
+table.inventory th.col-select,
+table.inventory td.col-select {
+  width: 36px;
+  text-align: center;
+  padding-left: 8px;
+  padding-right: 8px;
+}
+
+.modal.modal-wide {
+  width: min(920px, 100%);
+}
+
+.import-form-grid {
+  grid-template-columns: 1fr;
+}
+
+.import-template-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.import-section-title {
+  margin: 16px 0 6px;
+  font-size: 1rem;
+}
+
+.import-mapping-wrap,
+.import-report-wrap {
+  max-height: 220px;
+  overflow: auto;
+  margin-top: 8px;
+}
+
 label {
   display: grid;
   gap: 4px;

@@ -17,6 +17,7 @@ from pymongo.errors import DuplicateKeyError
 
 from ..db import require_database
 from ..models.components import (
+    COMPONENT_TYPES,
     TYPE_SPECIFIC_KEYS,
     ComponentCreate,
     ComponentType,
@@ -358,3 +359,103 @@ def list_components(
 
 def as_view(doc: dict[str, Any]) -> ComponentView:
     return ComponentView.model_validate(doc)
+
+
+def list_filter_options(*, tenant_id: str) -> dict[str, Any]:
+    """Distinct filter values for the inventory toolbar (tenant-scoped)."""
+    tid = require_tenant_id(tenant_id)
+    ensure_component_indexes()
+    db = require_database()
+    scoped = tenant_filter(tid)
+    environments: set[str] = set()
+    statuses: set[str] = set()
+    types_found: set[str] = set()
+    os_families: set[str] = set()
+    product_types: set[str] = set()
+    for name in typed_collection_names(None):
+        for doc in db[name].find(
+            scoped,
+            {
+                "environment": 1,
+                "status": 1,
+                "component_type": 1,
+                "os_family": 1,
+                "product_type": 1,
+            },
+        ):
+            env = doc.get("environment")
+            if isinstance(env, str) and env.strip():
+                environments.add(env.strip())
+            st = doc.get("status")
+            if isinstance(st, str) and st.strip():
+                statuses.add(st.strip())
+            ct = doc.get("component_type")
+            if isinstance(ct, str) and ct.strip():
+                types_found.add(ct.strip())
+            osf = doc.get("os_family")
+            if isinstance(osf, str) and osf.strip():
+                os_families.add(osf.strip())
+            pt = doc.get("product_type")
+            if isinstance(pt, str) and pt.strip():
+                product_types.add(pt.strip())
+    return {
+        "component_types": [t for t in COMPONENT_TYPES if t in types_found]
+        or list(COMPONENT_TYPES),
+        "statuses": sorted(statuses)
+        or ["active", "inactive", "decommissioned", "unknown"],
+        "environments": sorted(environments, key=str.lower),
+        "os_families": sorted(os_families, key=str.lower),
+        "product_types": sorted(product_types, key=str.lower),
+        "tenant_id": tid,
+    }
+
+
+def bulk_update_components(
+    *,
+    tenant_id: str,
+    component_ids: list[str],
+    status: str | None = None,
+    environment: str | None = None,
+) -> dict[str, Any]:
+    """Update status/environment on many components. Tenant-scoped."""
+    tid = require_tenant_id(tenant_id)
+    if not component_ids:
+        raise ComponentError("component_ids is required", status_code=422)
+    if status is None and environment is None:
+        raise ComponentError(
+            "Provide status and/or environment to update", status_code=422
+        )
+
+    updated: list[str] = []
+    missing: list[str] = []
+    errors: list[dict[str, str]] = []
+    for component_id in component_ids:
+        payload_data: dict[str, Any] = {}
+        if status is not None:
+            payload_data["status"] = status
+        if environment is not None:
+            payload_data["environment"] = environment
+        try:
+            payload = ComponentUpdate.model_validate(payload_data)
+            update_component(component_id, payload, tenant_id=tid)
+            updated.append(component_id)
+        except ComponentError as exc:
+            if exc.status_code == 404:
+                missing.append(component_id)
+            else:
+                errors.append({"component_id": component_id, "error": exc.message})
+        except Exception as exc:  # noqa: BLE001
+            errors.append({"component_id": component_id, "error": str(exc)})
+
+    return {
+        "requested": len(component_ids),
+        "updated": len(updated),
+        "updated_ids": updated,
+        "missing_ids": missing,
+        "errors": errors,
+        "tenant_id": tid,
+        "fields": {
+            "status": status,
+            "environment": environment,
+        },
+    }
