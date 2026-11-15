@@ -4,7 +4,7 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <meta name="svrmon24-ui" content="login-enterprise-v13" />
-  <meta name="svrmon24-version" content="0.32.23" />
+  <meta name="svrmon24-version" content="0.32.24" />
   <title>SVRMON24</title>
   <link rel="icon" href="/static/img/svrmon-favicon.png" type="image/png" sizes="32x32" />
   <link rel="apple-touch-icon" href="/static/img/svrmon-apple-touch.png" sizes="180x180" />
@@ -15,9 +15,9 @@
     body.is-app .login-gate { display: none !important; }
     #authPanel, .auth-panel-legacy { display: none !important; }
   </style>
-  <link rel="stylesheet" href="/static/css/cmdb.css?v=0.32.23" />
-  <script src="/static/js/config.js?v=0.32.23"></script>
-  <script src="/static/js/brand.js?v=0.32.23"></script>
+  <link rel="stylesheet" href="/static/css/cmdb.css?v=0.32.24" />
+  <script src="/static/js/config.js?v=0.32.24"></script>
+  <script src="/static/js/brand.js?v=0.32.24"></script>
 </head>
 <body class="is-login">
   <!-- Enterprise login: showcase (left) + sign-in panel (right); stacks on small viewports -->
@@ -241,8 +241,11 @@
   <div class="app-shell hidden" id="appShell">
     <aside class="sidebar" id="sidebar">
       <div class="brand">
-        <div class="brand-mark brand-mark--sidebar">
-          <img class="svrmon-brand-lockup svrmon-brand-lockup--sidebar" src="/static/img/svrmon-logo-sidebar.png" width="900" height="198" alt="SVRMON24" decoding="async" />
+        <div class="brand-mark brand-mark--sidebar" aria-label="SVRMON24">
+          <img class="brand-sidebar-mark" src="/static/img/svrmon-logo-mark.png" width="36" height="36" alt="" decoding="async" />
+          <span class="brand-sidebar-wordmark brand-wordmark brand-wordmark--sidebar brand-wordmark--swoosh">
+            <span class="brand-wordmark-core">SVRMON</span><span class="brand-wordmark-suffix-wrap"><span class="brand-wordmark-suffix">24</span><svg class="brand-wordmark-swoosh" viewBox="0 0 80 20" aria-hidden="true" focusable="false"><path fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" d="M2 14 C 22 2, 44 2, 76 12"/></svg></span>
+          </span>
         </div>
         <p class="tagline">AI Infrastructure Diagnostic &amp; Automation Platform</p>
       </div>
@@ -285,6 +288,10 @@
         <button type="button" class="nav-item" data-tab="diagnostics">
           <span class="nav-ico" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M9 18h6M10 21h4"/><path d="M8 14a6 6 0 1 1 8 0"/><path d="M12 3v2"/></svg></span>
           Diagnostics
+        </button>
+        <button type="button" class="nav-item" data-tab="file-monitoring" data-fm-nav="1">
+          <span class="nav-ico" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M4 4h7l2 2h7v14H4z"/><path d="M8 12h8M8 16h5"/></svg></span>
+          File Monitoring
         </button>
 
         <div class="nav-section">Configuration</div>
@@ -672,6 +679,94 @@
             </h2>
             <div id="depImpactList" class="hint">No analysis yet.</div>
           </section>
+        </section>
+
+        <section id="tab-file-monitoring" class="tab-panel hidden" data-fm-module="1">
+          <section class="panel">
+            <h2>File Monitoring (DEMO / SIMULATED)</h2>
+            <p class="hint" id="fmSaasIntro">
+              Tenant-scoped SIMULATED file watches and version history.
+              Paths, actors, and change events are demo data filtered by your
+              current <code>tenant_id</code>. Live filesystem watching is
+              <strong>not</strong> enabled.
+              <button type="button" class="help-balloon" aria-label="Help: file monitoring SaaS" data-help="List and version history always use the session tenant. Cross-tenant watch_id / event_id lookups return 404. No inotify, agent, or SSH file probes in v1.">i</button>
+            </p>
+            <div class="demo-banner" id="fmBanner" data-fm-simulated="1">
+              All File Monitoring output is <strong>SIMULATED / SYNTHETIC_DEMO</strong>.
+              execution_mode is always SIMULATED. No live paths are watched; agents and
+              remote filesystem probes remain disabled until explicitly approved.
+            </div>
+            <div class="toolbar" style="grid-template-columns: 1.6fr 1fr auto;">
+              <label>Search
+                <input id="fmSearch" placeholder="path, label, host, actor…" data-fm-search="1" />
+              </label>
+              <label>Status
+                <select id="fmStatusFilter" data-fm-status="1">
+                  <option value="">All</option>
+                  <option value="active">active</option>
+                  <option value="paused">paused</option>
+                  <option value="error">error</option>
+                </select>
+              </label>
+              <button type="button" id="btnRefreshFm" class="secondary" data-fm-refresh="1">Refresh</button>
+            </div>
+            <p class="hint" id="fmListMeta">Tenant-scoped watches · mode SIMULATED</p>
+          </section>
+
+          <section class="panel">
+            <h2>Watched files / paths
+              <button type="button" class="help-balloon" aria-label="Help: watched paths" data-help="Demo watch targets with latest version, actor, and timestamp. Open a row for version history.">i</button>
+            </h2>
+            <div class="table-wrap">
+              <table class="inventory" id="fmTargetsTable" data-fm-targets-table="1">
+                <thead>
+                  <tr>
+                    <th>Label</th>
+                    <th>Path</th>
+                    <th>Host</th>
+                    <th>Status</th>
+                    <th>Version</th>
+                    <th>Changed by</th>
+                    <th>Changed at</th>
+                    <th>Mode</th>
+                    <th>Actions</th>
+                  </tr>
+                </thead>
+                <tbody id="fmTargetsBody" data-fm-targets-body="1"></tbody>
+              </table>
+            </div>
+          </section>
+
+          <aside id="fmDrawer" class="fm-drawer" hidden data-fm-drawer="1" aria-hidden="true">
+            <div class="fm-drawer-panel" role="dialog" aria-labelledby="fmDrawerTitle">
+              <header class="fm-drawer-head">
+                <div>
+                  <h3 id="fmDrawerTitle">Watch detail</h3>
+                  <p class="hint" id="fmDrawerSub">SIMULATED version history</p>
+                </div>
+                <button type="button" id="btnCloseFmDrawer" class="ghost" aria-label="Close detail">Close</button>
+              </header>
+              <div id="fmDrawerDetail" class="fm-drawer-detail hint">Select a watched path.</div>
+              <h4 class="fm-drawer-section">Version history
+                <button type="button" class="help-balloon" aria-label="Help: version history" data-help="Each row is a SYNTHETIC_DEMO change event with actor and timestamp. Not a live filesystem audit.">i</button>
+              </h4>
+              <div class="table-wrap">
+                <table class="inventory" data-fm-versions-table="1">
+                  <thead>
+                    <tr>
+                      <th>Ver</th>
+                      <th>When</th>
+                      <th>Actor</th>
+                      <th>Kind</th>
+                      <th>Summary</th>
+                      <th>Hash</th>
+                    </tr>
+                  </thead>
+                  <tbody id="fmVersionsBody" data-fm-versions-body="1"></tbody>
+                </table>
+              </div>
+            </div>
+          </aside>
         </section>
 
         <section id="tab-diagnostics" class="tab-panel hidden">
@@ -1541,6 +1636,6 @@
     </div>
   </div>
 
-  <script src="/static/js/cmdb.js?v=0.32.23"></script>
+  <script src="/static/js/cmdb.js?v=0.32.24"></script>
 </body>
 </html>

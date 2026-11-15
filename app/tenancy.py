@@ -60,6 +60,8 @@ TENANTED_COLLECTIONS: tuple[str, ...] = (
     "cmdb_custom_records",  # Custom entity rows (table_key partitioned)
     "cmdb_relationships",
     "diagnostic_history",
+    "file_watch_targets",
+    "file_version_events",
 )
 
 # Master Phase 5: hard isolation is on.

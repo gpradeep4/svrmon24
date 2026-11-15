@@ -34,6 +34,7 @@ from app.services import ai_analysis as ai_analysis_service
 from app.services import components as components_service
 from app.services import custom_fields as custom_fields_service
 from app.services import diagnostics as diagnostics_service
+from app.services import file_monitoring as file_monitoring_service
 from app.services import relationships as relationships_service
 from app.services.bootstrap import ensure_tenancy_ready
 from app.services.components import ComponentError
@@ -96,6 +97,9 @@ def wipe_demo() -> dict[str, int]:
     counts["components_legacy"] = legacy_wiped
     # Total CI docs removed (typed primary + any leftover legacy rows).
     counts["components"] = typed_wiped + legacy_wiped
+    fm = file_monitoring_service.wipe_demo_for_tenant(tenant_id=SEED_TENANT_ID)
+    counts["file_watch_targets"] = fm.get("targets", 0)
+    counts["file_version_events"] = fm.get("events", 0)
     return counts
 
 
@@ -450,6 +454,20 @@ def seed() -> dict[str, int]:
     print("Seeding SIMULATED diagnostics…")
     for cid in ("demo-srv-web01", "demo-srv-app01", "demo-db-orders"):
         tally(ensure_simulated_diagnostic(cid))
+
+    print("Seeding SIMULATED file monitoring…")
+    fm = file_monitoring_service.ensure_simulated_seed(tenant_id=SEED_TENANT_ID)
+    if fm.get("seeded"):
+        _ok(
+            f"file monitoring targets={fm.get('targets')} events={fm.get('events')}"
+        )
+        stats["created"] += int(fm.get("targets") or 0) + int(fm.get("events") or 0)
+    else:
+        _skip(
+            f"file monitoring already present "
+            f"(targets={fm.get('targets')} events={fm.get('events')})"
+        )
+        stats["skipped"] += 1
 
     return stats
 

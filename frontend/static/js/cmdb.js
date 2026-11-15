@@ -100,6 +100,7 @@
     relTypes: [],
     componentIds: [],
     currentDiagnosticId: null,
+    fmSelectedWatchId: null,
     inventoryType: null,
     activeNav: "dashboard",
     authenticated: false,
@@ -461,6 +462,10 @@
     relationships: { title: "Relationships", subtitle: "Manual links with separate protocol and ports" },
     dependencies: { title: "Dependencies", subtitle: "Tenant-scoped graph wrap · CMDB + custom edges · potentially affected apps" },
     diagnostics: { title: "Diagnostics", subtitle: "DEMO / SIMULATED evidence only — no live probes" },
+    "file-monitoring": {
+      title: "File Monitoring",
+      subtitle: "DEMO / SIMULATED watched paths + version history — no live filesystem watching",
+    },
     custom: { title: "Custom Fields", subtitle: "Extend inventory forms with typed definitions" },
     "custom-tables": {
       title: "Custom Tables",
@@ -2289,6 +2294,11 @@
         refreshOllamaStatus(),
       ]).catch((err) => toast(err.message, true));
     }
+    if (name === "file-monitoring" && state.authenticated) {
+      loadFileMonitoringTargets().catch((err) =>
+        toast(err.message || "File monitoring failed", true)
+      );
+    }
     if (name === "columns" && state.authenticated) {
       openColumnSettings($("#colGridKey")?.value || "inventory").catch((err) =>
         toast(err.message || "Column settings failed", true)
@@ -2537,6 +2547,132 @@
     renderDiagnosticResult(doc);
     await loadDiagnosticHistory();
     await refreshOllamaStatus();
+  }
+
+  function closeFmDrawer() {
+    const drawer = $("#fmDrawer");
+    if (!drawer) return;
+    drawer.hidden = true;
+    drawer.setAttribute("aria-hidden", "true");
+    state.fmSelectedWatchId = null;
+  }
+
+  function openFmDrawer() {
+    const drawer = $("#fmDrawer");
+    if (!drawer) return;
+    drawer.hidden = false;
+    drawer.setAttribute("aria-hidden", "false");
+  }
+
+  function renderFmTargetDetail(target) {
+    const el = $("#fmDrawerDetail");
+    const title = $("#fmDrawerTitle");
+    const sub = $("#fmDrawerSub");
+    if (!el || !target) return;
+    if (title) title.textContent = target.label || target.watch_id || "Watch detail";
+    if (sub) {
+      sub.textContent = `${target.execution_mode || "SIMULATED"} · ${target.path || ""}`;
+    }
+    el.innerHTML = `
+      <div><strong>Watch ID:</strong> <code>${escapeHtml(target.watch_id || "—")}</code></div>
+      <div><strong>Path:</strong> <code>${escapeHtml(target.path || "—")}</code></div>
+      <div><strong>Host / CI:</strong> ${escapeHtml(target.host || "—")}
+        ${target.component_id ? ` · <code>${escapeHtml(target.component_id)}</code>` : ""}</div>
+      <div><strong>Status:</strong> <span class="fm-pill ${escapeAttr(target.status || "")}">${escapeHtml(target.status || "—")}</span>
+        <span class="fm-pill sim">${escapeHtml(target.execution_mode || "SIMULATED")}</span></div>
+      <div><strong>Latest version:</strong> v${escapeHtml(String(target.latest_version ?? "—"))}
+        by <strong>${escapeHtml(target.latest_actor || "—")}</strong>
+        at ${escapeHtml(target.latest_changed_at || "—")}</div>
+      <div class="hint" style="margin-top:8px">${escapeHtml(
+        "SYNTHETIC_DEMO — not a live filesystem watch."
+      )}</div>`;
+  }
+
+  async function loadFileMonitoringVersions(watchId) {
+    const data = await api(
+      `/api/file-monitoring/targets/${encodeURIComponent(watchId)}/versions?page=1&page_size=50`
+    );
+    if (data.target) renderFmTargetDetail(data.target);
+    const tbody = $("#fmVersionsBody");
+    if (!tbody) return;
+    tbody.innerHTML = "";
+    const items = data.items || [];
+    if (!items.length) {
+      tbody.innerHTML = emptyStateHtml(
+        "No version events",
+        "SIMULATED history is empty for this watch."
+      );
+      return;
+    }
+    for (const item of items) {
+      const tr = document.createElement("tr");
+      tr.innerHTML = `
+        <td class="mono">v${escapeHtml(String(item.version))}</td>
+        <td>${escapeHtml(item.changed_at || "—")}</td>
+        <td><strong>${escapeHtml(item.actor || "—")}</strong>
+          <span class="hint">(${escapeHtml(item.actor_type || "user")})</span></td>
+        <td>${escapeHtml(item.change_kind || "—")}</td>
+        <td>${escapeHtml(item.summary || "—")}</td>
+        <td class="mono">${escapeHtml(item.content_hash || "—")}</td>`;
+      tbody.appendChild(tr);
+    }
+  }
+
+  async function openFileMonitoringDetail(watchId) {
+    state.fmSelectedWatchId = watchId;
+    openFmDrawer();
+    await loadFileMonitoringVersions(watchId);
+  }
+
+  async function loadFileMonitoringTargets() {
+    const q = ($("#fmSearch")?.value || "").trim();
+    const status = ($("#fmStatusFilter")?.value || "").trim();
+    const params = new URLSearchParams({ page: "1", page_size: "50" });
+    if (q) params.set("q", q);
+    if (status) params.set("status", status);
+    const data = await api(`/api/file-monitoring/targets?${params.toString()}`);
+    const meta = $("#fmListMeta");
+    if (meta) {
+      const tid = data.tenant_id || state.tenantId || "—";
+      meta.textContent = `Tenant-scoped watches · tenant_id ${tid} · mode ${
+        data.execution_mode || "SIMULATED"
+      } · ${data.total || 0} target(s) · live_watching=${
+        data.live_watching === true ? "yes" : "no"
+      }`;
+    }
+    const tbody = $("#fmTargetsBody");
+    if (!tbody) return;
+    tbody.innerHTML = "";
+    const items = data.items || [];
+    if (!items.length) {
+      tbody.innerHTML = emptyStateHtml(
+        "No watched paths",
+        "SIMULATED demo targets will appear after the first load for this tenant."
+      );
+      return;
+    }
+    for (const item of items) {
+      const tr = document.createElement("tr");
+      tr.innerHTML = `
+        <td>${escapeHtml(item.label || "—")}</td>
+        <td class="mono">${escapeHtml(item.path || "—")}</td>
+        <td class="mono">${escapeHtml(item.host || "—")}</td>
+        <td><span class="fm-pill ${escapeAttr(item.status || "")}">${escapeHtml(
+          item.status || "—"
+        )}</span></td>
+        <td class="mono">v${escapeHtml(String(item.latest_version ?? "—"))}</td>
+        <td>${escapeHtml(item.latest_actor || "—")}</td>
+        <td>${escapeHtml(item.latest_changed_at || "—")}</td>
+        <td><span class="fm-pill sim">${escapeHtml(
+          item.execution_mode || "SIMULATED"
+        )}</span></td>
+        <td class="actions">
+          <button type="button" class="ghost" data-fm-view="${escapeAttr(
+            item.watch_id
+          )}">History</button>
+        </td>`;
+      tbody.appendChild(tr);
+    }
   }
 
   async function loadDiagnosticHistory() {
@@ -4417,6 +4553,42 @@
       try {
         const doc = await api(`/api/diagnostics/${encodeURIComponent(id)}`);
         renderDiagnosticResult(doc);
+      } catch (err) {
+        toast(err.message, true);
+      }
+    });
+    $("#btnRefreshFm")?.addEventListener("click", async () => {
+      try {
+        await loadFileMonitoringTargets();
+      } catch (err) {
+        toast(err.message, true);
+      }
+    });
+    $("#fmSearch")?.addEventListener("keydown", async (e) => {
+      if (e.key !== "Enter") return;
+      try {
+        await loadFileMonitoringTargets();
+      } catch (err) {
+        toast(err.message, true);
+      }
+    });
+    $("#fmStatusFilter")?.addEventListener("change", async () => {
+      try {
+        await loadFileMonitoringTargets();
+      } catch (err) {
+        toast(err.message, true);
+      }
+    });
+    $("#btnCloseFmDrawer")?.addEventListener("click", () => closeFmDrawer());
+    $("#fmDrawer")?.addEventListener("click", (e) => {
+      if (e.target === $("#fmDrawer")) closeFmDrawer();
+    });
+    $("#fmTargetsBody")?.addEventListener("click", async (e) => {
+      const btn = e.target.closest("[data-fm-view]");
+      const id = btn?.getAttribute("data-fm-view");
+      if (!id) return;
+      try {
+        await openFileMonitoringDetail(id);
       } catch (err) {
         toast(err.message, true);
       }
