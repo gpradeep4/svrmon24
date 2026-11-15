@@ -103,6 +103,12 @@ def test_enterprise_login_structure() -> None:
     assert "logged_out" in js
     assert "clearStoredBasicAuth" in js
     assert "logoutHomeWithLoggedOutFlag" in js
+    assert "basicCredentials" in js
+    assert "activeBasicCredentials" in js
+    assert "brand-mark--sidebar" in html
+    assert "brand-sidebar-wordmark" in html
+    # Remember me is opt-in (unchecked by default) so Basic does not silently resume on refresh.
+    assert 'id="authRemember" checked' not in html
 
 
 def test_enterprise_login_png_derivatives_match_source() -> None:
@@ -141,7 +147,9 @@ def test_enterprise_login_scale_layout_css() -> None:
     """Showcase fills normally but caps composition on ultrawide; form band stays fixed."""
     css_path = FRONTEND_STATIC / "css" / "cmdb.css"
     css = css_path.read_text(encoding="utf-8")
-    assert "minmax(0, 1fr) minmax(400px, 440px)" in css
+    assert "minmax(0, 1200px) minmax(400px, 440px)" in css
+    assert "justify-content: center" in css
+    assert "minmax(0, 1fr) minmax(400px, 440px)" not in css
     assert "min(840px, 92%)" not in css
     assert "max-width: min(1080px, 92%)" not in css
     assert "max-width: min(1200px, 100%)" in css
@@ -161,6 +169,10 @@ def test_enterprise_login_scale_layout_css() -> None:
     # Capped composition + container queries (fluid scale inside the cap).
     assert "max-width: min(1200px, 100%)" in css
     assert "margin-inline: auto" in css
+    # Post-login sidebar: mark + white wordmark, no white pill.
+    assert ".brand-mark--sidebar" in css
+    assert ".brand-sidebar-wordmark" in css
+    assert "color: #FFFFFF" in css.split(".brand-sidebar-wordmark", 1)[1].split("}", 1)[0]
 
 
 def test_env_example_local_dual_auth_defaults() -> None:
@@ -177,7 +189,7 @@ def test_enterprise_login_version_bump() -> None:
 
     html_path, _ = _static_paths()
     html = html_path.read_text(encoding="utf-8")
-    assert __version__ == "0.32.20"
+    assert __version__ == "0.32.21"
     assert f'content="{__version__}"' in html
     assert f"cmdb.css?v={__version__}" in html
     assert f"cmdb.js?v={__version__}" in html

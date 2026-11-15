@@ -4,7 +4,7 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <meta name="svrmon24-ui" content="login-enterprise-v13" />
-  <meta name="svrmon24-version" content="0.32.20" />
+  <meta name="svrmon24-version" content="0.32.21" />
   <title>SVRMON24</title>
   <link rel="icon" href="/static/img/svrmon-favicon.png" type="image/png" sizes="32x32" />
   <link rel="apple-touch-icon" href="/static/img/svrmon-apple-touch.png" sizes="180x180" />
@@ -15,9 +15,9 @@
     body.is-app .login-gate { display: none !important; }
     #authPanel, .auth-panel-legacy { display: none !important; }
   </style>
-  <link rel="stylesheet" href="/static/css/cmdb.css?v=0.32.20" />
-  <script src="/static/js/config.js?v=0.32.20"></script>
-  <script src="/static/js/brand.js?v=0.32.20"></script>
+  <link rel="stylesheet" href="/static/css/cmdb.css?v=0.32.21" />
+  <script src="/static/js/config.js?v=0.32.21"></script>
+  <script src="/static/js/brand.js?v=0.32.21"></script>
 </head>
 <body class="is-login">
   <!-- Enterprise login: showcase (left) + sign-in panel (right); stacks on small viewports -->
@@ -204,7 +204,7 @@
             </label>
             <div class="login-field-row">
               <label class="login-remember">
-                <input type="checkbox" id="authRemember" checked />
+                <input type="checkbox" id="authRemember" />
                 <span>Remember me</span>
               </label>
               <button type="button" class="login-forgot" id="btnForgotPassword" title="Password reset is managed by your identity provider (Keycloak / Entra).">Forgot password?</button>
@@ -241,8 +241,9 @@
   <div class="app-shell hidden" id="appShell">
     <aside class="sidebar" id="sidebar">
       <div class="brand">
-        <div class="brand-mark brand-mark--png">
-          <img class="svrmon-brand-lockup svrmon-brand-lockup--sidebar" src="/static/img/svrmon-logo-compact.png" width="2030" height="506" alt="SVRMON24" decoding="async" />
+        <div class="brand-mark brand-mark--sidebar" aria-label="SVRMON24">
+          <img class="brand-sidebar-mark" src="/static/img/svrmon-logo-mark.png" width="36" height="36" alt="" decoding="async" />
+          <span class="brand-sidebar-wordmark">SVRMON<span>24</span></span>
         </div>
         <p class="tagline">AI Infrastructure Diagnostic &amp; Automation Platform</p>
       </div>
@@ -1541,6 +1542,6 @@
     </div>
   </div>
 
-  <script src="/static/js/cmdb.js?v=0.32.20"></script>
+  <script src="/static/js/cmdb.js?v=0.32.21"></script>
 </body>
 </html>
