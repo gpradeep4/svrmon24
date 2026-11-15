@@ -4,7 +4,7 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <meta name="svrmon24-ui" content="login-enterprise-v13" />
-  <meta name="svrmon24-version" content="0.32.21" />
+  <meta name="svrmon24-version" content="0.32.22" />
   <title>SVRMON24</title>
   <link rel="icon" href="/static/img/svrmon-favicon.png" type="image/png" sizes="32x32" />
   <link rel="apple-touch-icon" href="/static/img/svrmon-apple-touch.png" sizes="180x180" />
@@ -15,9 +15,9 @@
     body.is-app .login-gate { display: none !important; }
     #authPanel, .auth-panel-legacy { display: none !important; }
   </style>
-  <link rel="stylesheet" href="/static/css/cmdb.css?v=0.32.21" />
-  <script src="/static/js/config.js?v=0.32.21"></script>
-  <script src="/static/js/brand.js?v=0.32.21"></script>
+  <link rel="stylesheet" href="/static/css/cmdb.css?v=0.32.22" />
+  <script src="/static/js/config.js?v=0.32.22"></script>
+  <script src="/static/js/brand.js?v=0.32.22"></script>
 </head>
 <body class="is-login">
   <!-- Enterprise login: showcase (left) + sign-in panel (right); stacks on small viewports -->
@@ -243,7 +243,9 @@
       <div class="brand">
         <div class="brand-mark brand-mark--sidebar" aria-label="SVRMON24">
           <img class="brand-sidebar-mark" src="/static/img/svrmon-logo-mark.png" width="36" height="36" alt="" decoding="async" />
-          <span class="brand-sidebar-wordmark">SVRMON<span>24</span></span>
+          <span class="brand-sidebar-wordmark brand-wordmark brand-wordmark--sidebar brand-wordmark--swoosh">
+            <span class="brand-wordmark-core">SVRMON</span><span class="brand-wordmark-suffix-wrap"><span class="brand-wordmark-suffix">24</span><svg class="brand-wordmark-swoosh" viewBox="0 0 80 20" aria-hidden="true" focusable="false"><path fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" d="M2 14 C 22 2, 44 2, 76 12"/></svg></span>
+          </span>
         </div>
         <p class="tagline">AI Infrastructure Diagnostic &amp; Automation Platform</p>
       </div>
@@ -1542,6 +1544,6 @@
     </div>
   </div>
 
-  <script src="/static/js/cmdb.js?v=0.32.21"></script>
+  <script src="/static/js/cmdb.js?v=0.32.22"></script>
 </body>
 </html>
