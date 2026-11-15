@@ -107,6 +107,9 @@ def test_enterprise_login_structure() -> None:
     assert "activeBasicCredentials" in js
     assert "brand-mark--sidebar" in html
     assert "brand-sidebar-wordmark" in html
+    assert "brand-wordmark-core" in html
+    assert "brand-wordmark-suffix" in html
+    assert "brand-wordmark-swoosh" in html
     # Remember me is opt-in (unchecked by default) so Basic does not silently resume on refresh.
     assert 'id="authRemember" checked' not in html
 
@@ -169,10 +172,15 @@ def test_enterprise_login_scale_layout_css() -> None:
     # Capped composition + container queries (fluid scale inside the cap).
     assert "max-width: min(1200px, 100%)" in css
     assert "margin-inline: auto" in css
-    # Post-login sidebar: mark + white wordmark, no white pill.
+    # Post-login sidebar: mark + split wordmark (SVRMON white, 24+swoosh brand blue).
     assert ".brand-mark--sidebar" in css
     assert ".brand-sidebar-wordmark" in css
     assert "color: #FFFFFF" in css.split(".brand-sidebar-wordmark", 1)[1].split("}", 1)[0]
+    sidebar_suffix = css.split(".brand-sidebar-wordmark .brand-wordmark-suffix", 1)[1].split("}", 1)[0]
+    assert "var(--brand-blue)" in sidebar_suffix
+    assert ".brand-sidebar-wordmark .brand-wordmark-swoosh" in css
+    assert "var(--brand-blue)" in css.split(".brand-wordmark--sidebar .brand-wordmark-suffix", 1)[1].split("}", 1)[0]
+    assert "color: var(--brand-blue)" in css.split(".brand-wordmark--sidebar .brand-wordmark-swoosh", 1)[1]
 
 
 def test_env_example_local_dual_auth_defaults() -> None:
@@ -189,7 +197,7 @@ def test_enterprise_login_version_bump() -> None:
 
     html_path, _ = _static_paths()
     html = html_path.read_text(encoding="utf-8")
-    assert __version__ == "0.32.21"
+    assert __version__ == "0.32.22"
     assert f'content="{__version__}"' in html
     assert f"cmdb.css?v={__version__}" in html
     assert f"cmdb.js?v={__version__}" in html
