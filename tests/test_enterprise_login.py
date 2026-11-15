@@ -108,10 +108,10 @@ def test_enterprise_login_structure() -> None:
     assert "basicCredentials" in js
     assert "activeBasicCredentials" in js
     assert "brand-mark--sidebar" in html
-    assert "brand-sidebar-wordmark" in html
-    assert "brand-wordmark-core" in html
-    assert "brand-wordmark-suffix" in html
-    assert "brand-wordmark-swoosh" in html
+    assert 'class="svrmon-brand-lockup svrmon-brand-lockup--sidebar"' in html
+    assert 'src="/static/img/svrmon-logo-sidebar.png"' in html
+    assert "brand-sidebar-wordmark" not in html
+    assert "brand-wordmark-swoosh" not in html
     # Remember me is opt-in (unchecked by default) so Basic does not silently resume on refresh.
     assert 'id="authRemember" checked' not in html
 
@@ -175,15 +175,14 @@ def test_enterprise_login_scale_layout_css() -> None:
     # Capped composition + container queries (fluid scale inside the cap).
     assert "max-width: min(1200px, 100%)" in css
     assert "margin-inline: auto" in css
-    # Post-login sidebar: mark + split wordmark (SVRMON white, 24+swoosh brand blue).
+    # Post-login sidebar: transparent PNG lockup (no CSS-split wordmark / white pill).
     assert ".brand-mark--sidebar" in css
-    assert ".brand-sidebar-wordmark" in css
-    assert "color: #FFFFFF" in css.split(".brand-sidebar-wordmark", 1)[1].split("}", 1)[0]
-    sidebar_suffix = css.split(".brand-sidebar-wordmark .brand-wordmark-suffix", 1)[1].split("}", 1)[0]
-    assert "var(--brand-blue)" in sidebar_suffix
-    assert ".brand-sidebar-wordmark .brand-wordmark-swoosh" in css
-    assert "var(--brand-blue)" in css.split(".brand-wordmark--sidebar .brand-wordmark-suffix", 1)[1].split("}", 1)[0]
-    assert "color: var(--brand-blue)" in css.split(".brand-wordmark--sidebar .brand-wordmark-swoosh", 1)[1]
+    assert ".svrmon-brand-lockup--sidebar" in css
+    sidebar_mark = css.split(".brand-mark--sidebar", 1)[1].split("}", 1)[0]
+    assert "background: transparent" in sidebar_mark
+    assert "border-radius: 0" in sidebar_mark
+    assert ".brand-sidebar-wordmark" not in css
+    assert "brand-wordmark--sidebar" not in css
 
 
 def test_env_example_local_dual_auth_defaults() -> None:
