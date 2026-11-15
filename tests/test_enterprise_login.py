@@ -137,16 +137,17 @@ def test_enterprise_login_responsive_layout_css() -> None:
 
 
 def test_enterprise_login_scale_layout_css() -> None:
-    """Left showcase must not be capped at ~840px; hero stage places tilted dashboard without narrow column cap."""
+    """Showcase is a centered max-width composition; form pane stays a fixed comfortable band."""
     css_path = FRONTEND_STATIC / "css" / "cmdb.css"
     css = css_path.read_text(encoding="utf-8")
-    assert "65fr) minmax(0, 35fr)" in css
+    assert "minmax(0, 1fr) minmax(400px, 440px)" in css
     assert "min(840px, 92%)" not in css
+    assert "max-width: min(1080px, 92%)" in css
     assert ".login-portal-inner" in css
-    assert "width: 90%;" in css
     assert ".login-hero-stage" in css
     assert "rotateY(-16deg)" in css
     assert ".login-hero-stage .login-dashboard-tilt" in css
+    assert "width: min(100%, 560px)" in css
     # Desktop composition: dashboard sits beside headline (col 2), not full-width stacked.
     hero_dash = css.split(".login-hero-stage .login-dashboard-tilt", 1)[1].split("}", 1)[0]
     assert "grid-column: 2" in hero_dash
@@ -167,7 +168,7 @@ def test_enterprise_login_version_bump() -> None:
 
     html_path, _ = _static_paths()
     html = html_path.read_text(encoding="utf-8")
-    assert __version__ == "0.32.17"
+    assert __version__ == "0.32.18"
     assert f'content="{__version__}"' in html
     assert f"cmdb.css?v={__version__}" in html
     assert f"cmdb.js?v={__version__}" in html
