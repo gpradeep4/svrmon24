@@ -20,6 +20,7 @@
     assets: {
       logoPng: "/static/img/svrmon-logo.png",
       logoCompactPng: "/static/img/svrmon-logo-compact.png",
+      logoSidebarPng: "/static/img/svrmon-logo-sidebar.png",
       markPng: "/static/img/svrmon-logo-mark.png",
       faviconPng: "/static/img/svrmon-favicon.png",
       appleTouchPng: "/static/img/svrmon-apple-touch.png",
