@@ -158,6 +158,42 @@ def ensure_tenant_id_indexes(db: Database) -> dict[str, list[str]]:
                 name="tenant_diag_component_idx",
             )
             names.extend(["tenant_diag_timestamp_idx", "tenant_diag_component_idx"])
+        elif name == "file_watch_targets":
+            coll.create_index(
+                [("tenant_id", ASCENDING), ("watch_id", ASCENDING)],
+                unique=True,
+                name="tenant_watch_id_unique",
+            )
+            coll.create_index(
+                [("tenant_id", ASCENDING), ("path", ASCENDING)],
+                name="tenant_path_idx",
+            )
+            names.extend(["tenant_watch_id_unique", "tenant_path_idx"])
+        elif name == "file_version_events":
+            coll.create_index(
+                [("tenant_id", ASCENDING), ("event_id", ASCENDING)],
+                unique=True,
+                name="tenant_event_id_unique",
+            )
+            coll.create_index(
+                [
+                    ("tenant_id", ASCENDING),
+                    ("watch_id", ASCENDING),
+                    ("version", ASCENDING),
+                ],
+                name="tenant_watch_version_idx",
+            )
+            coll.create_index(
+                [("tenant_id", ASCENDING), ("changed_at", ASCENDING)],
+                name="tenant_changed_at_idx",
+            )
+            names.extend(
+                [
+                    "tenant_event_id_unique",
+                    "tenant_watch_version_idx",
+                    "tenant_changed_at_idx",
+                ]
+            )
         created[name] = names
     return created
 

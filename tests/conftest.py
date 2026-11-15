@@ -76,6 +76,8 @@ def clean_db(client: TestClient) -> Generator[None, None, None]:
         "cmdb_custom_records",
         "cmdb_relationships",
         "diagnostic_history",
+        "file_watch_targets",
+        "file_version_events",
         "tenants",
         "users",
         "memberships",

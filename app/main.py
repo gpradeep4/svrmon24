@@ -29,6 +29,7 @@ from .routers import dashboard as dashboard_router
 from .routers import dependencies as dependencies_router
 from .routers import diagnostics as diagnostics_router
 from .routers import entitlements as entitlements_router
+from .routers import file_monitoring as file_monitoring_router
 from .routers import org_admin as org_admin_router
 from .routers import platform as platform_router
 from .routers import relationships as relationships_router
@@ -94,7 +95,8 @@ def create_app() -> FastAPI:
             "provider-neutral OIDC auth (HTTP Basic optional via feature flag). "
             "Hard tenant isolation on shared MongoDB; org switcher for "
             "multi-membership OIDC users. Tenant RBAC (viewer/member/admin/owner) "
-            "enforced on mutating APIs. Diagnostics are demo-only; no remote execution. "
+            "enforced on mutating APIs. Diagnostics and File Monitoring are "
+            "demo-only / SIMULATED; no remote execution or live filesystem watching. "
             "Audit events collected for sensitive mutating SaaS actions."
         ),
         lifespan=lifespan,
@@ -140,6 +142,7 @@ def create_app() -> FastAPI:
     app.include_router(relationships_router.router)
     app.include_router(dependencies_router.router)
     app.include_router(diagnostics_router.router)
+    app.include_router(file_monitoring_router.router)
     app.include_router(dashboard_router.router)
 
     if settings.serve_static:

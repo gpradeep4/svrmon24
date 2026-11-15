@@ -38,6 +38,7 @@ PERM_RELATIONSHIPS_READ = "relationships:read"
 PERM_RELATIONSHIPS_WRITE = "relationships:write"
 PERM_DIAGNOSTICS_READ = "diagnostics:read"
 PERM_DIAGNOSTICS_RUN = "diagnostics:run"
+PERM_FILE_MONITORING_READ = "file_monitoring:read"
 PERM_CONFIG_READ = "config:read"
 PERM_CONFIG_WRITE = "config:write"
 PERM_USERS_READ = "users:read"
@@ -54,6 +55,7 @@ ALL_PERMISSIONS: tuple[str, ...] = (
     PERM_RELATIONSHIPS_WRITE,
     PERM_DIAGNOSTICS_READ,
     PERM_DIAGNOSTICS_RUN,
+    PERM_FILE_MONITORING_READ,
     PERM_CONFIG_READ,
     PERM_CONFIG_WRITE,
     PERM_USERS_READ,
@@ -71,6 +73,7 @@ PERMISSION_LABELS: dict[str, str] = {
     PERM_RELATIONSHIPS_WRITE: "Create / update / delete relationships",
     PERM_DIAGNOSTICS_READ: "Read diagnostic history",
     PERM_DIAGNOSTICS_RUN: "Run SIMULATED diagnostics + AI analysis",
+    PERM_FILE_MONITORING_READ: "Read SIMULATED file monitoring targets + version history",
     PERM_CONFIG_READ: "Read field defs / column configs / custom table schemas",
     PERM_CONFIG_WRITE: "Write field defs / column configs / custom table schemas",
     PERM_USERS_READ: "List organization members",
@@ -88,6 +91,7 @@ _ROLE_PERMISSIONS: dict[str, frozenset[str]] = {
             PERM_CMDB_READ,
             PERM_RELATIONSHIPS_READ,
             PERM_DIAGNOSTICS_READ,
+            PERM_FILE_MONITORING_READ,
             PERM_CONFIG_READ,
             PERM_PLANS_READ,
         }
@@ -100,6 +104,7 @@ _ROLE_PERMISSIONS: dict[str, frozenset[str]] = {
             PERM_RELATIONSHIPS_WRITE,
             PERM_DIAGNOSTICS_READ,
             PERM_DIAGNOSTICS_RUN,
+            PERM_FILE_MONITORING_READ,
             PERM_CONFIG_READ,
             PERM_PLANS_READ,
         }
@@ -112,6 +117,7 @@ _ROLE_PERMISSIONS: dict[str, frozenset[str]] = {
             PERM_RELATIONSHIPS_WRITE,
             PERM_DIAGNOSTICS_READ,
             PERM_DIAGNOSTICS_RUN,
+            PERM_FILE_MONITORING_READ,
             PERM_CONFIG_READ,
             PERM_CONFIG_WRITE,
             PERM_USERS_READ,
@@ -128,6 +134,7 @@ _ROLE_PERMISSIONS: dict[str, frozenset[str]] = {
             PERM_RELATIONSHIPS_WRITE,
             PERM_DIAGNOSTICS_READ,
             PERM_DIAGNOSTICS_RUN,
+            PERM_FILE_MONITORING_READ,
             PERM_CONFIG_READ,
             PERM_CONFIG_WRITE,
             PERM_USERS_READ,

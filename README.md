@@ -1,8 +1,8 @@
 ﻿# SVRMON24
 
-AI-assisted infrastructure CMDB, dependency mapping, **SIMULATED** diagnostics, local Ollama analysis, and operations dashboard.
+AI-assisted infrastructure CMDB, dependency mapping, **SIMULATED** diagnostics, **SIMULATED** file monitoring, local Ollama analysis, and operations dashboard.
 
-Stack: **FastAPI + Uvicorn + MongoDB (PyMongo) + provider-neutral OIDC** (HTTP Basic optional via feature flag). Diagnostics never contact remote hosts and never execute shell/SQL/network scans.
+Stack: **FastAPI + Uvicorn + MongoDB (PyMongo) + provider-neutral OIDC** (HTTP Basic optional via feature flag). Diagnostics never contact remote hosts and never execute shell/SQL/network scans. File Monitoring v1 is demo-only (no live filesystem watching).
 
 ## Features (through Auth Admin / 0.31.0)
 
@@ -21,6 +21,7 @@ Stack: **FastAPI + Uvicorn + MongoDB (PyMongo) + provider-neutral OIDC** (HTTP B
 | Audit | Tenant-scoped `audit_events` for mutating admin/tenant/CMDB actions; `GET /api/audit-events`; Audit Logs UI |
 | Dependencies | SaaS wrap of the existing graph engine: tenant-scoped upstream / downstream / impact; typed CMDB **and** custom-table relationship edges; protocol/ports preserved; “potentially affected” disclaimer |
 | Diagnostics | SaaS wrap of the **existing** SIMULATED engine: tenant-scoped run/list/get history; `basic-health` only; no live/remote probes; `max_diagnostic_runs` entitlement |
+| File Monitoring | Operations module (own nav): tenant-scoped SIMULATED watched paths + version history (actor/timestamp); no live filesystem watching |
 | AI analysis | Local Ollama only (`OLLAMA_ENABLED` off by default; `OLLAMA_URL` / `OLLAMA_MODEL`); tenant `max_ollama_analyses`; rule-based fallback; shared-local contention documented |
 | Dashboard | Live aggregates from MongoDB (no hardcoded counts) |
 | Release | Migration dry-run script/docs; release hardening checklist; Basic removal path documented after OIDC+migration |
