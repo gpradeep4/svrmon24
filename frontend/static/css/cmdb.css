@@ -372,9 +372,14 @@ body { padding: 0; }
 
 @media (min-width: 1200px) {
   .login-gate-split {
-    /* Left showcase flexes; right auth pane stays a comfortable fixed band. */
-    grid-template-columns: minmax(0, 1fr) minmax(400px, 440px);
+    /*
+      Showcase + form as one centered pair (not form stuck on the far-right cliff).
+      Left column caps at the composition width; wave still fills that portal pane.
+      Soft gate gradient fills leftover ultrawide margins outside the shell.
+    */
+    grid-template-columns: minmax(0, 1200px) minmax(400px, 440px);
     grid-template-areas: "portal form";
+    justify-content: center;
     width: 100%;
     height: 100vh;
     height: 100dvh;
@@ -538,6 +543,7 @@ body { padding: 0; }
 }
 
 .svrmon-brand-lockup--sidebar {
+  /* Legacy compact lockup; sidebar now uses .brand-mark--sidebar (mark + white wordmark). */
   width: 100%;
   max-height: 52px;
   object-fit: contain;
@@ -557,8 +563,48 @@ body { padding: 0; }
   box-shadow: 0 8px 22px rgba(15, 23, 42, 0.22);
 }
 
+/* Sidebar: no white pill — mark + white wordmark on navy */
+.brand-mark--sidebar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  padding: 4px 2px;
+  background: transparent;
+  border: none;
+  border-radius: 0;
+  box-shadow: none;
+  overflow: visible;
+}
+
+.brand-sidebar-mark {
+  width: 36px;
+  height: 36px;
+  flex-shrink: 0;
+  display: block;
+  object-fit: contain;
+}
+
+.brand-sidebar-wordmark {
+  font-family: var(--display);
+  font-size: 1.15rem;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  line-height: 1.1;
+  color: #FFFFFF;
+  white-space: nowrap;
+  min-width: 0;
+}
+
+.brand-sidebar-wordmark span {
+  color: #FFFFFF;
+}
+
 .brand-mark--png + .tagline,
-.brand-mark.brand-mark--png ~ .tagline {
+.brand-mark.brand-mark--png ~ .tagline,
+.brand-mark--sidebar + .tagline {
   padding-left: 4px;
   margin-top: 8px;
 }

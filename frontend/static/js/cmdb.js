@@ -1,6 +1,9 @@
 (() => {
   const STORAGE_KEY = "svrmon24.basicAuth";
   const ACCENT_KEY = "svrmon24.accent";
+  /* In-memory Basic credentials for the active SPA lifetime (API Authorization header).
+     sessionStorage is only written when Remember me is checked (same-tab refresh resume). */
+  let basicCredentials = null;
   function apiBaseUrl() {
     const cfg = typeof window !== "undefined" ? window.SVRMON24 : null;
     return cfg && typeof cfg.apiBase === "string" ? cfg.apiBase.replace(/\/$/, "") : "";
@@ -1161,6 +1164,7 @@
   }
 
   function clearStoredBasicAuth() {
+    basicCredentials = null;
     sessionStorage.removeItem(STORAGE_KEY);
     state.authMethod = "";
     const userEl = $("#authUser");
@@ -1169,6 +1173,25 @@
     if (userEl) userEl.value = "";
     if (passEl) passEl.value = "";
     if (rememberEl) rememberEl.checked = false;
+  }
+
+  function readPersistedBasicAuth() {
+    const raw = sessionStorage.getItem(STORAGE_KEY);
+    if (!raw) return null;
+    try {
+      const parsed = JSON.parse(raw);
+      if (!parsed?.username || !parsed?.password) return null;
+      return { username: String(parsed.username), password: String(parsed.password) };
+    } catch {
+      return null;
+    }
+  }
+
+  function activeBasicCredentials() {
+    if (basicCredentials?.username && basicCredentials?.password) {
+      return basicCredentials;
+    }
+    return readPersistedBasicAuth();
   }
 
   function logoutHomeWithLoggedOutFlag() {
@@ -1324,12 +1347,10 @@
   }
 
   function authHeader() {
-    const raw = sessionStorage.getItem(STORAGE_KEY);
-    if (!raw) return null;
+    const creds = activeBasicCredentials();
+    if (!creds) return null;
     try {
-      const { username, password } = JSON.parse(raw);
-      if (!username || !password) return null;
-      return "Basic " + btoa(`${username}:${password}`);
+      return "Basic " + btoa(`${creds.username}:${creds.password}`);
     } catch {
       return null;
     }
@@ -1379,7 +1400,11 @@
       toast("Enter username and password", true);
       return false;
     }
-    const remember = $("#authRemember")?.checked !== false;
+    // Always keep credentials in memory for this SPA session so Basic API calls work
+    // even when Remember me is off. Persist to sessionStorage only when opted in
+    // (same-tab refresh resume — not cross-tab / overnight by itself).
+    basicCredentials = { username, password };
+    const remember = !!$("#authRemember")?.checked;
     if (remember) {
       sessionStorage.setItem(STORAGE_KEY, JSON.stringify({ username, password }));
     } else {
@@ -1389,18 +1414,16 @@
   }
 
   function loadAuthIntoForm() {
-    const raw = sessionStorage.getItem(STORAGE_KEY);
+    const persisted = readPersistedBasicAuth();
     const remember = $("#authRemember");
-    if (!raw) {
+    if (!persisted) {
       if (remember) remember.checked = false;
       return;
     }
-    try {
-      const { username, password } = JSON.parse(raw);
-      $("#authUser").value = username || "";
-      $("#authPass").value = password || "";
-      if (remember) remember.checked = true;
-    } catch { /* ignore */ }
+    basicCredentials = persisted;
+    $("#authUser").value = persisted.username || "";
+    $("#authPass").value = persisted.password || "";
+    if (remember) remember.checked = true;
   }
 
   function toggleAuthPasswordVisibility() {
@@ -4077,7 +4100,14 @@
       );
     });
     $("#authRemember")?.addEventListener("change", (e) => {
-      if (!e.target?.checked) sessionStorage.removeItem(STORAGE_KEY);
+      if (!e.target?.checked) {
+        sessionStorage.removeItem(STORAGE_KEY);
+        return;
+      }
+      const creds = activeBasicCredentials();
+      if (creds) {
+        sessionStorage.setItem(STORAGE_KEY, JSON.stringify(creds));
+      }
     });
     $("#btnLoginPortalToggle")?.addEventListener("click", () => {
       const gate = $("#loginGate");
@@ -4629,14 +4659,9 @@
     await loadAuthConfig();
     const resumed = await tryResumeSession();
     if (resumed) return;
-    if (authHeader() && authConfig.basic_auth_enabled) {
-      try {
-        await connect();
-      } catch (_) {
-        showLoginShell();
-      }
-      return;
-    }
+    // Basic refresh resume only when Remember me previously persisted credentials.
+    // OIDC resumes via the signed session cookie inside tryResumeSession (/api/me).
+    // Do not call connect() again here — that would re-toast failures and fight logout.
     showLoginShell();
   });
 })();
