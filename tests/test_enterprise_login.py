@@ -138,16 +138,16 @@ def test_enterprise_login_responsive_layout_css() -> None:
 
 
 def test_enterprise_login_scale_layout_css() -> None:
-    """Showcase fluid-scales with the left pane; form pane stays a fixed comfortable band."""
+    """Showcase fills normally but caps composition on ultrawide; form band stays fixed."""
     css_path = FRONTEND_STATIC / "css" / "cmdb.css"
     css = css_path.read_text(encoding="utf-8")
     assert "minmax(0, 1fr) minmax(400px, 440px)" in css
     assert "min(840px, 92%)" not in css
     assert "max-width: min(1080px, 92%)" not in css
+    assert "max-width: min(1200px, 100%)" in css
     assert "container-type: size" in css
     assert "container-name: login-showcase" in css
     assert "3.2cqi" in css or "cqi" in css
-    assert "max-width: none" in css
     assert ".login-portal-inner" in css
     assert ".login-hero-stage" in css
     assert "rotateY(-16deg)" in css
@@ -158,6 +158,9 @@ def test_enterprise_login_scale_layout_css() -> None:
     assert "grid-column: 2" in hero_dash
     assert "1 / -1" not in hero_dash
     assert "width: 100%" in hero_dash
+    # Capped composition + container queries (fluid scale inside the cap).
+    assert "max-width: min(1200px, 100%)" in css
+    assert "margin-inline: auto" in css
 
 
 def test_env_example_local_dual_auth_defaults() -> None:
@@ -174,7 +177,7 @@ def test_enterprise_login_version_bump() -> None:
 
     html_path, _ = _static_paths()
     html = html_path.read_text(encoding="utf-8")
-    assert __version__ == "0.32.19"
+    assert __version__ == "0.32.20"
     assert f'content="{__version__}"' in html
     assert f"cmdb.css?v={__version__}" in html
     assert f"cmdb.js?v={__version__}" in html
