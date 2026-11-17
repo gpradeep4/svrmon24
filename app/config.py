@@ -54,11 +54,30 @@ class Settings(BaseSettings):
     cors_origins: str = Field(default="", alias="CORS_ORIGINS")
 
     mongodb_uri: str = Field(default="mongodb://localhost:27017", alias="MONGODB_URI")
+    # Legacy / fallback DB name. Existing deploys keep working when only MONGODB_DB is set.
+    # Greenfield CMDB target name is ``svrmon-cmdb`` via MONGODB_CMDB_DB (optional).
     mongodb_db: str = Field(default="svrmon24", alias="MONGODB_DB")
+    # Optional explicit CMDB database. When unset/blank, falls back to ``mongodb_db``.
+    mongodb_cmdb_db: str = Field(default="", alias="MONGODB_CMDB_DB")
+    # Dedicated ITSM database (separate from CMDB). Default ``svrmon-itsm``.
+    mongodb_itsm_db: str = Field(default="svrmon-itsm", alias="MONGODB_ITSM_DB")
     mongodb_connect_timeout_ms: int = Field(default=3000, alias="MONGODB_CONNECT_TIMEOUT_MS")
     mongodb_server_selection_timeout_ms: int = Field(
         default=3000, alias="MONGODB_SERVER_SELECTION_TIMEOUT_MS"
     )
+
+    @property
+    def cmdb_database_name(self) -> str:
+        """Resolved CMDB DB: ``MONGODB_CMDB_DB`` or legacy ``MONGODB_DB`` (default ``svrmon24``)."""
+        explicit = (self.mongodb_cmdb_db or "").strip()
+        if explicit:
+            return explicit
+        return (self.mongodb_db or "").strip() or "svrmon24"
+
+    @property
+    def itsm_database_name(self) -> str:
+        """Resolved ITSM DB name (default ``svrmon-itsm``)."""
+        return (self.mongodb_itsm_db or "").strip() or "svrmon-itsm"
 
     # Local Ollama (Phase 7 + Master Phase 12 entitlements). Prefer OLLAMA_URL;
     # OLLAMA_HOST is accepted as alias. Disabled unless explicitly enabled —

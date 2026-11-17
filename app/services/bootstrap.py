@@ -57,6 +57,14 @@ def ensure_tenancy_ready() -> dict[str, Any]:
         field_migrate = field_defs_migrate.migrate_custom_fields_to_cmdb(
             db, default_tenant_id=MIGRATION_TENANT_ID, remove_legacy=False
         )
+        itsm_indexes: dict[str, Any] | None = None
+        try:
+            from ..itsm.services.indexes import ensure_itsm_indexes
+
+            itsm_indexes = ensure_itsm_indexes()
+        except Exception as exc:  # noqa: BLE001 — ITSM indexes must not block CMDB boot
+            logger.warning("itsm_indexes_skipped detail=%s", exc)
+            itsm_indexes = {"ok": False, "detail": str(exc)}
         return {
             "ok": True,
             "migration_tenant_id": tenant.get("tenant_id"),
@@ -66,6 +74,7 @@ def ensure_tenancy_ready() -> dict[str, Any]:
             "backfill": backfill,
             "typed_cmdb_migrate": typed_migrate,
             "field_defs_migrate": field_migrate,
+            "itsm_indexes": itsm_indexes,
             "isolation_enforced": ISOLATION_ENFORCED,
         }
     except DatabaseUnavailableError as exc:

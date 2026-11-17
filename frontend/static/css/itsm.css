@@ -1,0 +1,172 @@
+/* ITSM module styles — extends CMDB SaaS tokens (accent #4F46E5). */
+
+.itsm-panel h2 {
+  margin-bottom: 0.35rem;
+}
+
+.itsm-kpi-row {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 0.85rem;
+  margin: 1rem 0;
+}
+
+.itsm-kpi {
+  border: 1px solid var(--border, #e2e8f0);
+  border-radius: 8px;
+  padding: 0.85rem 1rem;
+  background: linear-gradient(180deg, #ffffff 0%, #f8fafc 100%);
+}
+
+.itsm-kpi-label {
+  display: block;
+  font-size: 0.75rem;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  color: var(--muted, #64748b);
+  margin-bottom: 0.35rem;
+}
+
+.itsm-kpi strong {
+  font-size: 1.5rem;
+  color: var(--ink, #0f172a);
+  font-weight: 700;
+}
+
+.itsm-toolbar {
+  grid-template-columns: 1.6fr 1fr 1fr auto auto;
+}
+
+.itsm-status {
+  display: inline-block;
+  padding: 0.15rem 0.55rem;
+  border-radius: 999px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  background: #eef2ff;
+  color: var(--accent, #4f46e5);
+  border: 1px solid #c7d2fe;
+}
+
+.itsm-status.is-resolved,
+.itsm-status.is-closed {
+  background: #ecfdf5;
+  color: #047857;
+  border-color: #a7f3d0;
+}
+
+.itsm-status.is-cancelled {
+  background: #f8fafc;
+  color: #64748b;
+  border-color: #e2e8f0;
+}
+
+.itsm-status.is-on_hold {
+  background: #fff7ed;
+  color: #c2410c;
+  border-color: #fed7aa;
+}
+
+.itsm-priority {
+  font-weight: 700;
+  text-transform: uppercase;
+  font-size: 0.78rem;
+}
+
+.itsm-priority.is-p1 {
+  color: #b91c1c;
+}
+
+.itsm-drawer {
+  position: fixed;
+  inset: 0;
+  z-index: 40;
+  background: rgba(15, 23, 42, 0.28);
+  display: flex;
+  justify-content: flex-end;
+}
+
+.itsm-drawer[hidden] {
+  display: none !important;
+}
+
+.itsm-drawer-panel {
+  width: min(480px, 100%);
+  height: 100%;
+  background: #fff;
+  border-left: 1px solid var(--border, #e2e8f0);
+  box-shadow: -8px 0 24px rgba(15, 23, 42, 0.08);
+  padding: 1rem 1.15rem 1.5rem;
+  overflow: auto;
+}
+
+.itsm-drawer-head {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  align-items: flex-start;
+  margin-bottom: 0.75rem;
+}
+
+.itsm-drawer-section {
+  margin: 1.1rem 0 0.45rem;
+  font-size: 0.95rem;
+}
+
+.itsm-drawer-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  margin: 0.75rem 0;
+}
+
+.itsm-ci-add,
+.itsm-comment-row {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 0.45rem;
+  margin-bottom: 0.5rem;
+}
+
+.itsm-ci-list,
+.itsm-activity-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.itsm-ci-list li,
+.itsm-activity-list li {
+  border: 1px solid var(--border, #e2e8f0);
+  border-radius: 8px;
+  padding: 0.55rem 0.7rem;
+  margin-bottom: 0.4rem;
+  background: #f8fafc;
+}
+
+.itsm-activity-list li .meta {
+  display: block;
+  font-size: 0.72rem;
+  color: var(--muted, #64748b);
+  margin-top: 0.2rem;
+}
+
+.itsm-stub-banner {
+  border-left: 3px solid var(--accent, #4f46e5);
+  padding: 0.65rem 0.85rem;
+  background: #eef2ff;
+}
+
+.nav-item.itsm-nav-stub {
+  opacity: 0.85;
+}
+
+@media (max-width: 900px) {
+  .itsm-kpi-row {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .itsm-toolbar {
+    grid-template-columns: 1fr 1fr;
+  }
+}

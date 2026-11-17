@@ -249,6 +249,12 @@
       // Users page still shows "my memberships"; keep reachable.
       usersNav.title = "Member list requires users:read";
     }
+    if (window.SVRMON24Itsm?.applyItsmNavGates) {
+      window.SVRMON24Itsm.applyItsmNavGates(can);
+    }
+    if (window.SVRMON24ItsmIncidents?.applyWriteGates) {
+      window.SVRMON24ItsmIncidents.applyWriteGates();
+    }
   }
 
   function renderRolesSignedOut() {
@@ -505,6 +511,22 @@
     audit: {
       title: "Audit Logs",
       subtitle: "Tenant-scoped audit_events for mutating admin / CMDB actions",
+    },
+    "itsm-dashboard": {
+      title: "ITSM Dashboard",
+      subtitle: "Open incidents and ITSM stub KPIs for the current tenant",
+    },
+    "itsm-incidents": {
+      title: "Incidents",
+      subtitle: "Incident Management · activities · CMDB CI links",
+    },
+    "itsm-changes": {
+      title: "Changes",
+      subtitle: "Change Management — coming in a later slice",
+    },
+    "itsm-problems": {
+      title: "Problems",
+      subtitle: "Problem Management — coming in a later slice",
     },
   };
 
@@ -2730,6 +2752,17 @@
     if (name === "file-monitoring" && state.authenticated) {
       loadFileMonitoringTargets().catch((err) =>
         toast(err.message || "File monitoring failed", true)
+      );
+    }
+    if (name === "itsm-dashboard" && state.authenticated) {
+      window.SVRMON24ItsmDashboard?.loadItsmDashboard?.({ toast })?.catch?.((err) =>
+        toast(err.message || "ITSM dashboard failed", true)
+      );
+    }
+    if (name === "itsm-incidents" && state.authenticated) {
+      window.SVRMON24ItsmIncidents?.applyWriteGates?.();
+      window.SVRMON24ItsmIncidents?.loadIncidents?.()?.catch?.((err) =>
+        toast(err.message || "Incidents failed", true)
       );
     }
     if (name === "columns" && state.authenticated) {
@@ -5299,6 +5332,15 @@
     restoreAccent();
     loadAuthIntoForm();
     wireEvents();
+    if (window.SVRMON24Itsm?.registerItsmHooks) {
+      window.SVRMON24Itsm.registerItsmHooks({
+        can,
+        toast,
+        escapeHtml,
+        api,
+        pageMeta: PAGE_META,
+      });
+    }
     // Default: full-page login only — app shell stays hidden until /api/me OK.
     showLoginShell();
     setSessionChip(false);
