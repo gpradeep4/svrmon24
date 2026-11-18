@@ -35,6 +35,8 @@
     const modal = $("#itsmIncidentModal");
     if (!modal) return;
     modal.classList.add("open");
+    const title = $("#itsmFieldTitle");
+    if (title) title.focus();
   }
 
   function closeModal() {
@@ -125,6 +127,8 @@
           <p><strong>${esc(doc.title)}</strong></p>
           <p class="hint">${esc(doc.description || "No description")}</p>
           <p class="hint">Assignee: ${esc(doc.assignee_user_id || "—")} · Category: ${esc(doc.category || "—")}</p>
+          <p class="hint">Urgency: ${esc(doc.urgency || "—")} · Impact: ${esc(doc.impact || "—")}</p>
+          <p class="hint">Related problem: ${esc(doc.problem_id || "—")} · Related change: ${esc(doc.change_id || "—")}</p>
           <p class="hint">Created ${esc(fmtWhen(doc.created_at))} · Updated ${esc(fmtWhen(doc.updated_at))}</p>
         `;
       }
@@ -233,16 +237,28 @@
 
   async function createIncident(event) {
     event.preventDefault();
+    const title = $("#itsmFieldTitle")?.value?.trim();
+    if (!title) {
+      deps.toast("Title is required", true);
+      return;
+    }
     const payload = {
-      title: $("#itsmFieldTitle")?.value?.trim(),
+      title,
       description: $("#itsmFieldDescription")?.value?.trim() || null,
       priority: $("#itsmFieldPriority")?.value || "p3",
+      urgency: $("#itsmFieldUrgency")?.value?.trim() || null,
+      impact: $("#itsmFieldImpact")?.value?.trim() || null,
       category: $("#itsmFieldCategory")?.value?.trim() || null,
       assignee_user_id: $("#itsmFieldAssignee")?.value?.trim() || null,
+      caller_email: $("#itsmFieldCallerEmail")?.value?.trim() || null,
+      problem_id: $("#itsmFieldProblemId")?.value?.trim() || null,
+      change_id: $("#itsmFieldChangeId")?.value?.trim() || null,
       ci_links: [],
     };
     const ci = $("#itsmFieldCi")?.value?.trim();
     if (ci) payload.ci_links = [{ component_id: ci }];
+    const btn = $("#btnSaveItsmIncident");
+    if (btn) btn.disabled = true;
     try {
       const doc = await SVRMON24ItsmApi.createIncident(payload);
       deps.toast(`Created ${doc.number_display || doc.incident_id}`);
@@ -251,6 +267,8 @@
       await openIncident(doc.incident_id);
     } catch (err) {
       deps.toast(err.message || "Create failed", true);
+    } finally {
+      if (btn) btn.disabled = !deps.can("itsm:incident:write");
     }
   }
 

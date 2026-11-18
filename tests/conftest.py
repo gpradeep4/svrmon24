@@ -91,6 +91,8 @@ def clean_db(client: TestClient) -> Generator[None, None, None]:
     itsm_db = get_itsm_database()
     itsm_collections = (
         "itsm_incidents",
+        "itsm_changes",
+        "itsm_problems",
         "itsm_ticket_activities",
         "itsm_counters",
     )

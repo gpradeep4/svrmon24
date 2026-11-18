@@ -56,6 +56,16 @@ KNOWN_ACTIONS: frozenset[str] = frozenset(
         "itsm.incident.transition",
         "itsm.incident.ci_link_add",
         "itsm.incident.ci_link_remove",
+        "itsm.change.create",
+        "itsm.change.update",
+        "itsm.change.transition",
+        "itsm.change.ci_link_add",
+        "itsm.change.ci_link_remove",
+        "itsm.problem.create",
+        "itsm.problem.update",
+        "itsm.problem.transition",
+        "itsm.problem.ci_link_add",
+        "itsm.problem.ci_link_remove",
         "itsm.activity.create",
     }
 )

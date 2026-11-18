@@ -43,6 +43,44 @@
         `/incidents/${encodeURIComponent(id)}/ci-links/${encodeURIComponent(componentId)}`,
         "DELETE"
       ),
+    listChanges: (params) => {
+      const q = new URLSearchParams(params || {});
+      return itsmGet(`/changes?${q.toString()}`);
+    },
+    getChange: (id) => itsmGet(`/changes/${encodeURIComponent(id)}`),
+    createChange: (payload) => itsmSend("/changes", "POST", payload),
+    updateChange: (id, payload) =>
+      itsmSend(`/changes/${encodeURIComponent(id)}`, "PATCH", payload),
+    transitionChange: (id, payload) =>
+      itsmSend(`/changes/${encodeURIComponent(id)}/transition`, "POST", payload),
+    addChangeCiLink: (id, componentId) =>
+      itsmSend(`/changes/${encodeURIComponent(id)}/ci-links`, "POST", {
+        component_id: componentId,
+      }),
+    removeChangeCiLink: (id, componentId) =>
+      itsmSend(
+        `/changes/${encodeURIComponent(id)}/ci-links/${encodeURIComponent(componentId)}`,
+        "DELETE"
+      ),
+    listProblems: (params) => {
+      const q = new URLSearchParams(params || {});
+      return itsmGet(`/problems?${q.toString()}`);
+    },
+    getProblem: (id) => itsmGet(`/problems/${encodeURIComponent(id)}`),
+    createProblem: (payload) => itsmSend("/problems", "POST", payload),
+    updateProblem: (id, payload) =>
+      itsmSend(`/problems/${encodeURIComponent(id)}`, "PATCH", payload),
+    transitionProblem: (id, payload) =>
+      itsmSend(`/problems/${encodeURIComponent(id)}/transition`, "POST", payload),
+    addProblemCiLink: (id, componentId) =>
+      itsmSend(`/problems/${encodeURIComponent(id)}/ci-links`, "POST", {
+        component_id: componentId,
+      }),
+    removeProblemCiLink: (id, componentId) =>
+      itsmSend(
+        `/problems/${encodeURIComponent(id)}/ci-links/${encodeURIComponent(componentId)}`,
+        "DELETE"
+      ),
     listActivities: (ticketType, ticketId) =>
       itsmGet(
         `/${encodeURIComponent(ticketType)}/${encodeURIComponent(ticketId)}/activities?page=1&page_size=50`

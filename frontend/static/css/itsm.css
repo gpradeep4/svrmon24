@@ -157,8 +157,51 @@
   background: #eef2ff;
 }
 
-.nav-item.itsm-nav-stub {
-  opacity: 0.85;
+.itsm-create-modal {
+  max-width: 720px;
+}
+
+.itsm-create-lead {
+  margin: 0 0 0.85rem;
+}
+
+.itsm-check-label {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+}
+
+.itsm-check-label input[type="checkbox"] {
+  width: auto;
+}
+
+.itsm-status.is-draft,
+.itsm-status.is-submitted,
+.itsm-status.is-under_investigation {
+  background: #eef2ff;
+  color: var(--accent, #4f46e5);
+  border-color: #c7d2fe;
+}
+
+.itsm-status.is-approved,
+.itsm-status.is-scheduled,
+.itsm-status.is-known_error {
+  background: #ecfeff;
+  color: #0e7490;
+  border-color: #a5f3fc;
+}
+
+.itsm-status.is-implementing,
+.itsm-status.is-review {
+  background: #fff7ed;
+  color: #c2410c;
+  border-color: #fed7aa;
+}
+
+.itsm-status.is-rejected {
+  background: #fef2f2;
+  color: #b91c1c;
+  border-color: #fecaca;
 }
 
 @media (max-width: 900px) {

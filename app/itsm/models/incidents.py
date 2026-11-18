@@ -24,6 +24,8 @@ class IncidentCreate(BaseModel):
     caller_email: str | None = Field(default=None, max_length=320)
     ci_links: list[CiLink] = Field(default_factory=list)
     resolution_notes: str | None = Field(default=None, max_length=20000)
+    problem_id: str | None = Field(default=None, max_length=128)
+    change_id: str | None = Field(default=None, max_length=128)
 
 
 class IncidentUpdate(BaseModel):
@@ -41,6 +43,8 @@ class IncidentUpdate(BaseModel):
     caller_user_id: str | None = Field(default=None, max_length=128)
     caller_email: str | None = Field(default=None, max_length=320)
     resolution_notes: str | None = Field(default=None, max_length=20000)
+    problem_id: str | None = Field(default=None, max_length=128)
+    change_id: str | None = Field(default=None, max_length=128)
 
 
 class IncidentTransition(BaseModel):

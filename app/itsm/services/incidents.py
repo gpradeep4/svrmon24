@@ -191,6 +191,8 @@ def create_incident(
         "caller_email": payload.caller_email,
         "ci_links": ci_links,
         "resolution_notes": payload.resolution_notes,
+        "problem_id": (payload.problem_id or "").strip() or None,
+        "change_id": (payload.change_id or "").strip() or None,
         "resolved_at": now if payload.status == "resolved" else None,
         "closed_at": now if payload.status == "closed" else None,
         "created_at": now,
