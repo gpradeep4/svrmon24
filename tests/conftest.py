@@ -18,6 +18,7 @@ os.environ.setdefault("OIDC_ENABLED", "false")
 os.environ.setdefault("SESSION_SECRET", "test-session-secret")
 os.environ.setdefault("MONGODB_URI", "mongodb://localhost:27017")
 os.environ.setdefault("MONGODB_DB", "svrmon24_test")
+os.environ.setdefault("MONGODB_ITSM_DB", "svrmon24_itsm_test")
 os.environ.setdefault("MONGODB_CONNECT_TIMEOUT_MS", "2000")
 os.environ.setdefault("MONGODB_SERVER_SELECTION_TIMEOUT_MS", "2000")
 os.environ.setdefault("LOG_LEVEL", "WARNING")
@@ -53,9 +54,9 @@ def client() -> Generator[TestClient, None, None]:
 
 @pytest.fixture()
 def clean_db(client: TestClient) -> Generator[None, None, None]:
-    """Drop CMDB collections used by API tests (preserves other DBs)."""
+    """Drop CMDB (+ ITSM) collections used by API tests (preserves other DBs)."""
     from app.config import get_settings
-    from app.db import get_database, ping_database, reset_client_for_tests
+    from app.db import get_database, get_itsm_database, ping_database, reset_client_for_tests
 
     status = ping_database()
     if not status.get("ok"):
@@ -87,10 +88,20 @@ def clean_db(client: TestClient) -> Generator[None, None, None]:
         "platform_settings",
         "platform_admin_claim",
     )
+    itsm_db = get_itsm_database()
+    itsm_collections = (
+        "itsm_incidents",
+        "itsm_ticket_activities",
+        "itsm_counters",
+    )
     for name in collections:
         db[name].delete_many({})
+    for name in itsm_collections:
+        itsm_db[name].delete_many({})
     yield
     for name in collections:
         db[name].delete_many({})
+    for name in itsm_collections:
+        itsm_db[name].delete_many({})
     reset_client_for_tests()
     get_settings.cache_clear()

@@ -51,6 +51,12 @@ KNOWN_ACTIONS: frozenset[str] = frozenset(
         "custom_record.create",
         "custom_record.update",
         "custom_record.delete",
+        "itsm.incident.create",
+        "itsm.incident.update",
+        "itsm.incident.transition",
+        "itsm.incident.ci_link_add",
+        "itsm.incident.ci_link_remove",
+        "itsm.activity.create",
     }
 )
 

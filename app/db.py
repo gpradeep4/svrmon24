@@ -42,9 +42,19 @@ def get_client(settings: Settings | None = None) -> MongoClient:
 
 
 def get_database(settings: Settings | None = None) -> Database:
-    """Return the configured database handle (does not force a network round-trip)."""
+    """Return the CMDB database handle (does not force a network round-trip).
+
+    Uses ``MONGODB_CMDB_DB`` when set; otherwise legacy ``MONGODB_DB`` (default
+    ``svrmon24``) so existing deploys keep working without a forced rename.
+    """
     cfg = settings or get_settings()
-    return get_client(cfg)[cfg.mongodb_db]
+    return get_client(cfg)[cfg.cmdb_database_name]
+
+
+def get_itsm_database(settings: Settings | None = None) -> Database:
+    """Return the dedicated ITSM database handle (``MONGODB_ITSM_DB`` / ``svrmon-itsm``)."""
+    cfg = settings or get_settings()
+    return get_client(cfg)[cfg.itsm_database_name]
 
 
 def ping_database(settings: Settings | None = None) -> dict[str, Any]:
@@ -58,14 +68,19 @@ def ping_database(settings: Settings | None = None) -> dict[str, Any]:
         result = client.admin.command("ping")
         return {
             "ok": True,
-            "database": cfg.mongodb_db,
+            "database": cfg.cmdb_database_name,
+            "cmdb_database": cfg.cmdb_database_name,
+            "itsm_database": cfg.itsm_database_name,
+            "mongodb_db_legacy": cfg.mongodb_db,
             "ping": serialize_document(dict(result)) if isinstance(result, dict) else result,
         }
     except (ConnectionFailure, ServerSelectionTimeoutError) as exc:
         logger.warning("mongodb_ping_failed error=%s", exc)
         return {
             "ok": False,
-            "database": cfg.mongodb_db,
+            "database": cfg.cmdb_database_name,
+            "cmdb_database": cfg.cmdb_database_name,
+            "itsm_database": cfg.itsm_database_name,
             "error": "connection_failed",
             "detail": str(exc),
         }
@@ -73,18 +88,28 @@ def ping_database(settings: Settings | None = None) -> dict[str, Any]:
         logger.warning("mongodb_ping_error error=%s", exc)
         return {
             "ok": False,
-            "database": cfg.mongodb_db,
+            "database": cfg.cmdb_database_name,
+            "cmdb_database": cfg.cmdb_database_name,
+            "itsm_database": cfg.itsm_database_name,
             "error": "mongodb_error",
             "detail": str(exc),
         }
 
 
 def require_database(settings: Settings | None = None) -> Database:
-    """Return database after verifying connectivity; raise if unavailable."""
+    """Return CMDB database after verifying connectivity; raise if unavailable."""
     status = ping_database(settings)
     if not status.get("ok"):
         raise DatabaseUnavailableError(status.get("detail") or "MongoDB is unavailable")
     return get_database(settings)
+
+
+def require_itsm_database(settings: Settings | None = None) -> Database:
+    """Return ITSM database after verifying connectivity; raise if unavailable."""
+    status = ping_database(settings)
+    if not status.get("ok"):
+        raise DatabaseUnavailableError(status.get("detail") or "MongoDB is unavailable")
+    return get_itsm_database(settings)
 
 
 def close_client() -> None:

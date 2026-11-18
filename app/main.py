@@ -34,6 +34,7 @@ from .routers import org_admin as org_admin_router
 from .routers import platform as platform_router
 from .routers import relationships as relationships_router
 from .routers import tenants as tenants_router
+from .itsm.routers import router as itsm_router
 from .serialization import serialize_document
 from .services.bootstrap import ensure_tenancy_ready
 
@@ -57,13 +58,18 @@ async def lifespan(_app: FastAPI):
     )
     db_status = ping_database(settings)
     if db_status.get("ok"):
-        logger.info("mongodb_ready database=%s", settings.mongodb_db)
+        logger.info(
+            "mongodb_ready cmdb=%s itsm=%s",
+            settings.cmdb_database_name,
+            settings.itsm_database_name,
+        )
         tenancy = ensure_tenancy_ready()
         if tenancy.get("ok"):
             logger.info(
-                "tenancy_ready migration_tenant=%s isolation=%s",
+                "tenancy_ready migration_tenant=%s isolation=%s itsm_indexes=%s",
                 tenancy.get("migration_tenant_id"),
                 tenancy.get("isolation_enforced"),
+                bool(tenancy.get("itsm_indexes")),
             )
         else:
             logger.warning(
@@ -73,7 +79,7 @@ async def lifespan(_app: FastAPI):
     else:
         logger.warning(
             "mongodb_not_ready database=%s detail=%s",
-            settings.mongodb_db,
+            settings.cmdb_database_name,
             db_status.get("detail"),
         )
     yield
@@ -93,10 +99,11 @@ def create_app() -> FastAPI:
             "SVRMON24: FastAPI + MongoDB CMDB, relationships, dependency/impact "
             "analysis, SIMULATED diagnostics, AI analysis, and dashboard with "
             "provider-neutral OIDC auth (HTTP Basic optional via feature flag). "
-            "Hard tenant isolation on shared MongoDB; org switcher for "
-            "multi-membership OIDC users. Tenant RBAC (viewer/member/admin/owner) "
+            "Hard tenant isolation across CMDB + ITSM MongoDB databases; org switcher "
+            "for multi-membership OIDC users. Tenant RBAC (viewer/member/admin/owner) "
             "enforced on mutating APIs. Diagnostics and File Monitoring are "
             "demo-only / SIMULATED; no remote execution or live filesystem watching. "
+            "ITSM Incident Management is additive under /api/itsm. "
             "Audit events collected for sensitive mutating SaaS actions."
         ),
         lifespan=lifespan,
@@ -144,6 +151,7 @@ def create_app() -> FastAPI:
     app.include_router(diagnostics_router.router)
     app.include_router(file_monitoring_router.router)
     app.include_router(dashboard_router.router)
+    app.include_router(itsm_router)
 
     if settings.serve_static:
         app.mount("/static", StaticFiles(directory=str(STATIC_DIR)), name="static")

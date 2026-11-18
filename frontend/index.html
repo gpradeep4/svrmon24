@@ -4,7 +4,7 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <meta name="svrmon24-ui" content="login-enterprise-v13" />
-  <meta name="svrmon24-version" content="0.33.0" />
+  <meta name="svrmon24-version" content="0.34.0" />
   <title>SVRMON24</title>
   <link rel="icon" href="/static/img/svrmon-favicon.png" type="image/png" sizes="32x32" />
   <link rel="apple-touch-icon" href="/static/img/svrmon-apple-touch.png" sizes="180x180" />
@@ -15,9 +15,10 @@
     body.is-app .login-gate { display: none !important; }
     #authPanel, .auth-panel-legacy { display: none !important; }
   </style>
-  <link rel="stylesheet" href="/static/css/cmdb.css?v=0.33.0" />
-  <script src="/static/js/config.js?v=0.33.0"></script>
-  <script src="/static/js/brand.js?v=0.33.0"></script>
+  <link rel="stylesheet" href="/static/css/cmdb.css?v=0.34.0" />
+  <link rel="stylesheet" href="/static/css/itsm.css?v=0.34.0" />
+  <script src="/static/js/config.js?v=0.34.0"></script>
+  <script src="/static/js/brand.js?v=0.34.0"></script>
 </head>
 <body class="is-login">
   <!-- Enterprise login: showcase (left) + sign-in panel (right); stacks on small viewports -->
@@ -289,6 +290,24 @@
         <button type="button" class="nav-item" data-tab="file-monitoring" data-fm-nav="1">
           <span class="nav-ico" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M4 4h7l2 2h7v14H4z"/><path d="M8 12h8M8 16h5"/></svg></span>
           File Monitoring
+        </button>
+
+        <div class="nav-section" id="navItsmSection" data-itsm-nav-section="1">ITSM</div>
+        <button type="button" class="nav-item" data-tab="itsm-dashboard" data-itsm-nav="1" data-itsm-perm="itsm:dashboard:read">
+          <span class="nav-ico" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M4 19V5h4v14H4zm6 0V9h4v10h-4zm6 0v-7h4v7h-4z"/></svg></span>
+          ITSM Dashboard
+        </button>
+        <button type="button" class="nav-item" data-tab="itsm-incidents" data-itsm-nav="1" data-itsm-perm="itsm:incident:read">
+          <span class="nav-ico" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M12 3 3 19h18L12 3zm0 6v5m0 3h.01"/></svg></span>
+          Incidents
+        </button>
+        <button type="button" class="nav-item itsm-nav-stub" data-tab="itsm-changes" data-itsm-nav="1" data-itsm-perm="itsm:change:read" title="Coming in a later slice">
+          <span class="nav-ico" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M4 7h12M8 3v4M16 17H4M12 13v4"/><path d="M18 3v6h3l-4 6-4-6h3V3z"/></svg></span>
+          Changes
+        </button>
+        <button type="button" class="nav-item itsm-nav-stub" data-tab="itsm-problems" data-itsm-nav="1" data-itsm-perm="itsm:problem:read" title="Coming in a later slice">
+          <span class="nav-ico" aria-hidden="true"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 8v5m0 3h.01"/></svg></span>
+          Problems
         </button>
 
         <div class="nav-section">Configuration</div>
@@ -707,6 +726,117 @@
               <button type="button" class="help-balloon" aria-label="Help: potentially affected" data-help="Only typed CMDB Application nodes reachable downstream. Wording is always “potentially affected” — never an outage claim.">i</button>
             </h2>
             <div id="depImpactList" class="hint">No analysis yet.</div>
+          </section>
+        </section>
+
+        <section id="tab-itsm-dashboard" class="tab-panel hidden" data-itsm-module="1">
+          <section class="panel itsm-panel">
+            <h2>ITSM Dashboard</h2>
+            <p class="hint">Open-incident aggregates for the current tenant. Approvals / SLA / Change modules arrive in later slices.</p>
+            <div class="itsm-kpi-row" id="itsmDashKpis">
+              <div class="itsm-kpi"><span class="itsm-kpi-label">Open incidents</span><strong id="itsmKpiOpen">—</strong></div>
+              <div class="itsm-kpi"><span class="itsm-kpi-label">P1 open</span><strong id="itsmKpiP1">—</strong></div>
+              <div class="itsm-kpi"><span class="itsm-kpi-label">Pending approvals</span><strong id="itsmKpiApprovals">0</strong></div>
+              <div class="itsm-kpi"><span class="itsm-kpi-label">SLA breaches</span><strong id="itsmKpiSla">0</strong></div>
+            </div>
+            <p class="hint" id="itsmDashNotes">Sign in to load ITSM summary.</p>
+            <div class="toolbar" style="grid-template-columns: auto;">
+              <button type="button" id="btnRefreshItsmDash" class="secondary">Refresh</button>
+            </div>
+          </section>
+        </section>
+
+        <section id="tab-itsm-incidents" class="tab-panel hidden" data-itsm-module="1">
+          <section class="panel itsm-panel">
+            <h2>Incidents</h2>
+            <p class="hint">Tenant-scoped incident tickets with status transitions, activity timeline, and CMDB CI links by <code>component_id</code>.</p>
+            <div class="toolbar itsm-toolbar">
+              <label>Search
+                <input id="itsmIncSearch" placeholder="title, INC-…, category…" />
+              </label>
+              <label>Status
+                <select id="itsmIncStatus">
+                  <option value="">All</option>
+                  <option value="new">new</option>
+                  <option value="in_progress">in_progress</option>
+                  <option value="on_hold">on_hold</option>
+                  <option value="resolved">resolved</option>
+                  <option value="closed">closed</option>
+                  <option value="cancelled">cancelled</option>
+                </select>
+              </label>
+              <label>Priority
+                <select id="itsmIncPriority">
+                  <option value="">All</option>
+                  <option value="p1">p1</option>
+                  <option value="p2">p2</option>
+                  <option value="p3">p3</option>
+                  <option value="p4">p4</option>
+                </select>
+              </label>
+              <button type="button" id="btnRefreshItsmInc" class="secondary">Refresh</button>
+              <button type="button" id="btnNewItsmInc">New incident</button>
+            </div>
+            <p class="hint" id="itsmIncListMeta">No incidents loaded yet.</p>
+            <div class="table-wrap">
+              <table class="inventory" id="itsmIncTable">
+                <thead>
+                  <tr>
+                    <th>Number</th>
+                    <th>Title</th>
+                    <th>Status</th>
+                    <th>Priority</th>
+                    <th>Assignee</th>
+                    <th>CIs</th>
+                    <th>Updated</th>
+                    <th></th>
+                  </tr>
+                </thead>
+                <tbody id="itsmIncBody">
+                  <tr><td colspan="8" class="hint">Sign in to load incidents.</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </section>
+
+          <aside id="itsmIncDrawer" class="itsm-drawer" hidden aria-hidden="true">
+            <div class="itsm-drawer-panel" role="dialog" aria-labelledby="itsmIncDrawerTitle">
+              <header class="itsm-drawer-head">
+                <div>
+                  <h3 id="itsmIncDrawerTitle">Incident</h3>
+                  <p class="hint" id="itsmIncDrawerSub">Detail · activity · CIs</p>
+                </div>
+                <button type="button" id="btnCloseItsmIncDrawer" class="ghost" aria-label="Close detail">Close</button>
+              </header>
+              <div id="itsmIncDrawerDetail" class="itsm-drawer-detail hint">Select an incident.</div>
+              <div class="itsm-drawer-actions" id="itsmIncTransitionBar"></div>
+              <h4 class="itsm-drawer-section">Affected CIs</h4>
+              <div class="itsm-ci-add">
+                <input id="itsmCiComponentId" placeholder="component_id" />
+                <button type="button" id="btnItsmAddCi" class="secondary">Link CI</button>
+              </div>
+              <ul id="itsmCiList" class="itsm-ci-list"></ul>
+              <h4 class="itsm-drawer-section">Activity</h4>
+              <div class="itsm-comment-row">
+                <input id="itsmCommentInput" placeholder="Add a comment…" />
+                <button type="button" id="btnItsmComment" class="secondary">Post</button>
+              </div>
+              <ul id="itsmActivityList" class="itsm-activity-list"></ul>
+            </div>
+          </aside>
+        </section>
+
+        <section id="tab-itsm-changes" class="tab-panel hidden" data-itsm-module="1">
+          <section class="panel itsm-panel">
+            <h2>Changes</h2>
+            <p class="hint itsm-stub-banner">Change Management is planned for a later ITSM slice. Incident Management is available now.</p>
+          </section>
+        </section>
+
+        <section id="tab-itsm-problems" class="tab-panel hidden" data-itsm-module="1">
+          <section class="panel itsm-panel">
+            <h2>Problems</h2>
+            <p class="hint itsm-stub-banner">Problem Management is planned for a later ITSM slice. Incident Management is available now.</p>
           </section>
         </section>
 
@@ -1500,6 +1630,36 @@
     </div>
   </div>
 
+  <div id="itsmIncidentModal" class="modal-backdrop" role="dialog" aria-modal="true">
+    <div class="modal">
+      <header>
+        <h3>New incident</h3>
+        <button type="button" id="btnCloseItsmIncidentModal" class="ghost">Close</button>
+      </header>
+      <form id="itsmIncidentForm">
+        <div class="form-grid">
+          <label>Title<input id="itsmFieldTitle" required maxlength="500" /></label>
+          <label>Priority
+            <select id="itsmFieldPriority">
+              <option value="p1">p1</option>
+              <option value="p2">p2</option>
+              <option value="p3" selected>p3</option>
+              <option value="p4">p4</option>
+            </select>
+          </label>
+          <label>Category<input id="itsmFieldCategory" maxlength="128" /></label>
+          <label>Assignee user id<input id="itsmFieldAssignee" maxlength="128" /></label>
+          <label class="full">Description<textarea id="itsmFieldDescription" rows="4" maxlength="20000"></textarea></label>
+          <label>CI component_id<input id="itsmFieldCi" placeholder="optional" maxlength="128" /></label>
+        </div>
+        <footer class="modal-actions">
+          <button type="button" id="btnCancelItsmIncident" class="secondary">Cancel</button>
+          <button type="submit" id="btnSaveItsmIncident">Create</button>
+        </footer>
+      </form>
+    </div>
+  </div>
+
   <div id="componentModal" class="modal-backdrop" role="dialog" aria-modal="true">
     <div class="modal">
       <header>
@@ -1720,6 +1880,10 @@
     </div>
   </div>
 
-  <script src="/static/js/cmdb.js?v=0.33.0"></script>
+  <script src="/static/js/cmdb.js?v=0.34.0"></script>
+  <script src="/static/js/itsm/api.js?v=0.34.0"></script>
+  <script src="/static/js/itsm/dashboard.js?v=0.34.0"></script>
+  <script src="/static/js/itsm/incidents.js?v=0.34.0"></script>
+  <script src="/static/js/itsm/index.js?v=0.34.0"></script>
 </body>
 </html>

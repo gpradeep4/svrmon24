@@ -48,6 +48,24 @@ PERM_AUDIT_READ = "audit:read"
 PERM_PLANS_READ = "plans:read"
 PERM_PLANS_ADMIN = "plans:admin"
 
+# ITSM (additive) — Incident Management first slice; future modules reserved.
+PERM_ITSM_INCIDENT_READ = "itsm:incident:read"
+PERM_ITSM_INCIDENT_WRITE = "itsm:incident:write"
+PERM_ITSM_CHANGE_READ = "itsm:change:read"
+PERM_ITSM_CHANGE_WRITE = "itsm:change:write"
+PERM_ITSM_PROBLEM_READ = "itsm:problem:read"
+PERM_ITSM_PROBLEM_WRITE = "itsm:problem:write"
+PERM_ITSM_WORKFLOW_READ = "itsm:workflow:read"
+PERM_ITSM_WORKFLOW_ADMIN = "itsm:workflow:admin"
+PERM_ITSM_APPROVAL_READ = "itsm:approval:read"
+PERM_ITSM_APPROVAL_DECIDE = "itsm:approval:decide"
+PERM_ITSM_SLA_READ = "itsm:sla:read"
+PERM_ITSM_SLA_ADMIN = "itsm:sla:admin"
+PERM_ITSM_KNOWLEDGE_READ = "itsm:knowledge:read"
+PERM_ITSM_KNOWLEDGE_WRITE = "itsm:knowledge:write"
+PERM_ITSM_NOTIFICATION_READ = "itsm:notification:read"
+PERM_ITSM_DASHBOARD_READ = "itsm:dashboard:read"
+
 ALL_PERMISSIONS: tuple[str, ...] = (
     PERM_CMDB_READ,
     PERM_CMDB_WRITE,
@@ -64,6 +82,22 @@ ALL_PERMISSIONS: tuple[str, ...] = (
     PERM_AUDIT_READ,
     PERM_PLANS_READ,
     PERM_PLANS_ADMIN,
+    PERM_ITSM_INCIDENT_READ,
+    PERM_ITSM_INCIDENT_WRITE,
+    PERM_ITSM_CHANGE_READ,
+    PERM_ITSM_CHANGE_WRITE,
+    PERM_ITSM_PROBLEM_READ,
+    PERM_ITSM_PROBLEM_WRITE,
+    PERM_ITSM_WORKFLOW_READ,
+    PERM_ITSM_WORKFLOW_ADMIN,
+    PERM_ITSM_APPROVAL_READ,
+    PERM_ITSM_APPROVAL_DECIDE,
+    PERM_ITSM_SLA_READ,
+    PERM_ITSM_SLA_ADMIN,
+    PERM_ITSM_KNOWLEDGE_READ,
+    PERM_ITSM_KNOWLEDGE_WRITE,
+    PERM_ITSM_NOTIFICATION_READ,
+    PERM_ITSM_DASHBOARD_READ,
 )
 
 PERMISSION_LABELS: dict[str, str] = {
@@ -82,7 +116,52 @@ PERMISSION_LABELS: dict[str, str] = {
     PERM_AUDIT_READ: "Read tenant audit events",
     PERM_PLANS_READ: "Read entitlements / plan catalog",
     PERM_PLANS_ADMIN: "Assign tenant plan_code (platform admin)",
+    PERM_ITSM_INCIDENT_READ: "View ITSM incidents + activities",
+    PERM_ITSM_INCIDENT_WRITE: "Create / update / transition ITSM incidents",
+    PERM_ITSM_CHANGE_READ: "View ITSM changes (reserved)",
+    PERM_ITSM_CHANGE_WRITE: "Create / update ITSM changes (reserved)",
+    PERM_ITSM_PROBLEM_READ: "View ITSM problems (reserved)",
+    PERM_ITSM_PROBLEM_WRITE: "Create / update ITSM problems (reserved)",
+    PERM_ITSM_WORKFLOW_READ: "View ITSM workflows (reserved)",
+    PERM_ITSM_WORKFLOW_ADMIN: "Design / publish ITSM workflows (reserved)",
+    PERM_ITSM_APPROVAL_READ: "View ITSM approvals (reserved)",
+    PERM_ITSM_APPROVAL_DECIDE: "Decide ITSM approvals (reserved)",
+    PERM_ITSM_SLA_READ: "View ITSM SLA policies / tracking (reserved)",
+    PERM_ITSM_SLA_ADMIN: "Manage ITSM SLA policies (reserved)",
+    PERM_ITSM_KNOWLEDGE_READ: "View ITSM knowledge articles (reserved)",
+    PERM_ITSM_KNOWLEDGE_WRITE: "Author ITSM knowledge articles (reserved)",
+    PERM_ITSM_NOTIFICATION_READ: "Read own ITSM in-app notifications (reserved)",
+    PERM_ITSM_DASHBOARD_READ: "View ITSM dashboard aggregates",
 }
+
+_ITSM_VIEWER_PERMS: frozenset[str] = frozenset(
+    {
+        PERM_ITSM_INCIDENT_READ,
+        PERM_ITSM_CHANGE_READ,
+        PERM_ITSM_PROBLEM_READ,
+        PERM_ITSM_WORKFLOW_READ,
+        PERM_ITSM_APPROVAL_READ,
+        PERM_ITSM_SLA_READ,
+        PERM_ITSM_KNOWLEDGE_READ,
+        PERM_ITSM_NOTIFICATION_READ,
+        PERM_ITSM_DASHBOARD_READ,
+    }
+)
+_ITSM_MEMBER_WRITE_PERMS: frozenset[str] = frozenset(
+    {
+        PERM_ITSM_INCIDENT_WRITE,
+        PERM_ITSM_CHANGE_WRITE,
+        PERM_ITSM_PROBLEM_WRITE,
+        PERM_ITSM_APPROVAL_DECIDE,
+        PERM_ITSM_KNOWLEDGE_WRITE,
+    }
+)
+_ITSM_ADMIN_PERMS: frozenset[str] = frozenset(
+    {
+        PERM_ITSM_WORKFLOW_ADMIN,
+        PERM_ITSM_SLA_ADMIN,
+    }
+)
 
 # Role → permissions (tenant-scoped). Platform admin gets the full set separately.
 _ROLE_PERMISSIONS: dict[str, frozenset[str]] = {
@@ -94,6 +173,7 @@ _ROLE_PERMISSIONS: dict[str, frozenset[str]] = {
             PERM_FILE_MONITORING_READ,
             PERM_CONFIG_READ,
             PERM_PLANS_READ,
+            *_ITSM_VIEWER_PERMS,
         }
     ),
     MEMBERSHIP_ROLE_MEMBER: frozenset(
@@ -107,6 +187,8 @@ _ROLE_PERMISSIONS: dict[str, frozenset[str]] = {
             PERM_FILE_MONITORING_READ,
             PERM_CONFIG_READ,
             PERM_PLANS_READ,
+            *_ITSM_VIEWER_PERMS,
+            *_ITSM_MEMBER_WRITE_PERMS,
         }
     ),
     MEMBERSHIP_ROLE_ADMIN: frozenset(
@@ -124,6 +206,9 @@ _ROLE_PERMISSIONS: dict[str, frozenset[str]] = {
             PERM_USERS_ADMIN,
             PERM_AUDIT_READ,
             PERM_PLANS_READ,
+            *_ITSM_VIEWER_PERMS,
+            *_ITSM_MEMBER_WRITE_PERMS,
+            *_ITSM_ADMIN_PERMS,
         }
     ),
     MEMBERSHIP_ROLE_OWNER: frozenset(
@@ -142,6 +227,9 @@ _ROLE_PERMISSIONS: dict[str, frozenset[str]] = {
             PERM_ORG_ADMIN,
             PERM_AUDIT_READ,
             PERM_PLANS_READ,
+            *_ITSM_VIEWER_PERMS,
+            *_ITSM_MEMBER_WRITE_PERMS,
+            *_ITSM_ADMIN_PERMS,
         }
     ),
 }

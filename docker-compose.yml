@@ -35,6 +35,9 @@ services:
       SESSION_SECRET: "${SESSION_SECRET:-dev-session-secret}"
       MONGODB_URI: mongodb://mongodb:27017
       MONGODB_DB: svrmon24
+      # Optional greenfield CMDB name (leave unset to keep legacy MONGODB_DB):
+      # MONGODB_CMDB_DB: svrmon-cmdb
+      MONGODB_ITSM_DB: svrmon-itsm
     ports:
       - "8200:8200"
     depends_on:
