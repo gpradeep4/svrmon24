@@ -356,6 +356,7 @@
   global.SVRMON24ItsmChanges = {
     initItsmChanges,
     loadChanges,
+    openChange,
     applyWriteGates,
     closeDrawer,
   };

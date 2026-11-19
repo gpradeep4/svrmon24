@@ -215,6 +215,17 @@ def create_approval(
         actor_username=who["username"],
         to_value="pending",
     )
+    from . import notifications as notifications_service
+
+    notifications_service.notify_approval_requested(
+        tenant_id=tid,
+        approval_id=approval_id,
+        title=str(doc["title"]),
+        ticket_type=str(doc["ticket_type"]),
+        ticket_id=str(doc["ticket_id"]),
+        approver_user_ids=list(doc.get("approver_user_ids") or []),
+        actor=actor,
+    )
     return serialize_document(doc)  # type: ignore[return-value]
 
 
@@ -316,6 +327,29 @@ def decide_approval(
         actor_username=who["username"],
         from_value="pending",
         to_value=target,
+    )
+    from . import notifications as notifications_service
+
+    decide_recipients: list[str] = []
+    created_by = doc.get("created_by")
+    if created_by:
+        decide_recipients.append(str(created_by))
+    assignee, _ = notifications_service.lookup_ticket_assignee(
+        tenant_id=tid,
+        ticket_type=str(doc["ticket_type"]),
+        ticket_id=str(doc["ticket_id"]),
+    )
+    if assignee:
+        decide_recipients.append(assignee)
+    notifications_service.notify_approval_decided(
+        tenant_id=tid,
+        approval_id=approval_id,
+        title=str(doc.get("title") or approval_id),
+        ticket_type=str(doc["ticket_type"]),
+        ticket_id=str(doc["ticket_id"]),
+        decision=target,
+        recipient_user_ids=decide_recipients,
+        actor=actor,
     )
 
     if resume_workflow and doc.get("workflow_execution_id"):

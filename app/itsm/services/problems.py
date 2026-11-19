@@ -302,6 +302,16 @@ def update_problem(
             from_value=old_assignee,
             to_value=new_assignee,
         )
+        from . import notifications as notifications_service
+
+        notifications_service.notify_assignment(
+            tenant_id=tid,
+            ticket_type="problem",
+            ticket_id=problem_id,
+            assignee_user_id=new_assignee,
+            number_display=doc.get("number_display"),
+            actor=actor,
+        )
     else:
         activities_service.append_activity(
             tenant_id=tid,
@@ -394,6 +404,7 @@ def transition_problem(
         from_value=current,
         to_value=target,
     )
+    from . import notifications as notifications_service
     from . import sla as sla_service
 
     sla_service.notify_status_changed(
@@ -403,6 +414,16 @@ def transition_problem(
         from_status=current,
         to_status=target,
         priority=str(doc.get("priority") or "p3"),
+        actor=actor,
+    )
+    notifications_service.notify_status_change(
+        tenant_id=tid,
+        ticket_type="problem",
+        ticket_id=problem_id,
+        from_status=current,
+        to_status=target,
+        assignee_user_id=doc.get("assignee_user_id"),
+        number_display=doc.get("number_display"),
         actor=actor,
     )
     return serialize_document(doc)  # type: ignore[return-value]

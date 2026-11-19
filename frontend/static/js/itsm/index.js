@@ -1,4 +1,4 @@
-/* global SVRMON24ItsmDashboard, SVRMON24ItsmIncidents, SVRMON24ItsmChanges, SVRMON24ItsmProblems, SVRMON24ItsmApprovals, SVRMON24ItsmWorkflows, SVRMON24ItsmSla, SVRMON24ItsmKnowledge */
+/* global SVRMON24ItsmDashboard, SVRMON24ItsmIncidents, SVRMON24ItsmChanges, SVRMON24ItsmProblems, SVRMON24ItsmApprovals, SVRMON24ItsmWorkflows, SVRMON24ItsmSla, SVRMON24ItsmKnowledge, SVRMON24ItsmNotifications */
 (function (global) {
   "use strict";
 
@@ -81,6 +81,10 @@
         title: "Knowledge Base",
         subtitle: "Articles · publish / retire · related ticket and CI refs · search",
       };
+      pageMeta["itsm-notifications"] = {
+        title: "Notifications",
+        subtitle: "In-app inbox · assign / status / approval / SLA events · mark read",
+      };
     }
 
     SVRMON24ItsmIncidents.initItsmIncidents({ can, toast, escapeHtml });
@@ -90,6 +94,7 @@
     SVRMON24ItsmWorkflows.initItsmWorkflows({ can, toast, escapeHtml });
     SVRMON24ItsmSla.initItsmSla({ can, toast, escapeHtml });
     SVRMON24ItsmKnowledge.initItsmKnowledge({ can, toast, escapeHtml });
+    SVRMON24ItsmNotifications.initItsmNotifications({ can, toast, escapeHtml });
 
     document.getElementById("btnRefreshItsmDash")?.addEventListener("click", () => {
       SVRMON24ItsmDashboard.loadItsmDashboard({ toast });
@@ -129,6 +134,9 @@
           SVRMON24ItsmKnowledge.applyWriteGates();
           SVRMON24ItsmKnowledge.loadArticles();
         }
+        if (name === "itsm-notifications") {
+          SVRMON24ItsmNotifications.loadNotifications();
+        }
       });
     }
 
@@ -142,6 +150,11 @@
         SVRMON24ItsmWorkflows.applyWriteGates();
         SVRMON24ItsmSla.applyWriteGates();
         SVRMON24ItsmKnowledge.applyWriteGates();
+        if (can("itsm:notification:read")) {
+          SVRMON24ItsmNotifications.startBadgePolling();
+        } else {
+          SVRMON24ItsmNotifications.stopBadgePolling();
+        }
       });
     } else {
       applyItsmNavGates(can);

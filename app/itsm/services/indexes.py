@@ -21,6 +21,7 @@ WORKFLOW_EXECUTIONS = "itsm_workflow_executions"
 SLA_POLICIES = "itsm_sla_policies"
 SLA_TRACKING = "itsm_sla_tracking"
 KNOWLEDGE_ARTICLES = "itsm_knowledge_articles"
+NOTIFICATIONS = "itsm_notifications"
 
 
 def _ticket_indexes(coll, *, id_field: str, prefix: str) -> list[str]:
@@ -296,6 +297,48 @@ def ensure_itsm_indexes(db: Database | None = None) -> dict[str, Any]:
         ),
     ]
     created[KNOWLEDGE_ARTICLES] = [str(n) for n in names]
+
+    ntf = handle[NOTIFICATIONS]
+    names = [
+        ntf.create_index(
+            [("tenant_id", ASCENDING), ("notification_id", ASCENDING)],
+            unique=True,
+            name="tenant_notification_id_unique",
+        ),
+        ntf.create_index(
+            [
+                ("tenant_id", ASCENDING),
+                ("recipient_user_id", ASCENDING),
+                ("status", ASCENDING),
+                ("created_at", DESCENDING),
+            ],
+            name="tenant_notification_inbox_idx",
+        ),
+        ntf.create_index(
+            [
+                ("tenant_id", ASCENDING),
+                ("recipient_user_id", ASCENDING),
+                ("status", ASCENDING),
+            ],
+            name="tenant_notification_unread_idx",
+        ),
+        ntf.create_index(
+            [
+                ("tenant_id", ASCENDING),
+                ("ticket_type", ASCENDING),
+                ("ticket_id", ASCENDING),
+            ],
+            name="tenant_notification_ticket_idx",
+        ),
+        ntf.create_index(
+            [("tenant_id", ASCENDING), ("event_type", ASCENDING)],
+            name="tenant_notification_event_idx",
+        ),
+        ntf.create_index(
+            [("tenant_id", ASCENDING)], name="tenant_notification_tenant_id_idx"
+        ),
+    ]
+    created[NOTIFICATIONS] = [str(n) for n in names]
 
     return {
         "ok": True,

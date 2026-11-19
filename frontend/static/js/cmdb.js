@@ -550,6 +550,10 @@
       title: "Knowledge Base",
       subtitle: "Articles · publish / retire · related ticket and CI refs · search",
     },
+    "itsm-notifications": {
+      title: "Notifications",
+      subtitle: "In-app inbox · assign / status / approval / SLA events · mark read",
+    },
   };
 
   function setTenantBanner(connected, tenantName = "", tenantId = "") {
@@ -2819,6 +2823,11 @@
       window.SVRMON24ItsmKnowledge?.applyWriteGates?.();
       window.SVRMON24ItsmKnowledge?.loadArticles?.()?.catch?.((err) =>
         toast(err.message || "Knowledge failed", true)
+      );
+    }
+    if (name === "itsm-notifications" && state.authenticated) {
+      window.SVRMON24ItsmNotifications?.loadNotifications?.()?.catch?.((err) =>
+        toast(err.message || "Notifications failed", true)
       );
     }
     if (name === "columns" && state.authenticated) {
