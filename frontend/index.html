@@ -4,7 +4,7 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <meta name="svrmon24-ui" content="login-enterprise-v13" />
-  <meta name="svrmon24-version" content="0.39.0" />
+  <meta name="svrmon24-version" content="0.40.0" />
   <title>SVRMON24</title>
   <link rel="icon" href="/static/img/svrmon-favicon.png" type="image/png" sizes="32x32" />
   <link rel="apple-touch-icon" href="/static/img/svrmon-apple-touch.png" sizes="180x180" />
@@ -15,10 +15,10 @@
     body.is-app .login-gate { display: none !important; }
     #authPanel, .auth-panel-legacy { display: none !important; }
   </style>
-  <link rel="stylesheet" href="/static/css/cmdb.css?v=0.39.0" />
-  <link rel="stylesheet" href="/static/css/itsm.css?v=0.39.0" />
-  <script src="/static/js/config.js?v=0.39.0"></script>
-  <script src="/static/js/brand.js?v=0.39.0"></script>
+  <link rel="stylesheet" href="/static/css/cmdb.css?v=0.40.0" />
+  <link rel="stylesheet" href="/static/css/itsm.css?v=0.40.0" />
+  <script src="/static/js/config.js?v=0.40.0"></script>
+  <script src="/static/js/brand.js?v=0.40.0"></script>
 </head>
 <body class="is-login">
   <!-- Enterprise login: showcase (left) + sign-in panel (right); stacks on small viewports -->
@@ -329,6 +329,10 @@
           <span class="nav-ico" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M12 22a2 2 0 0 0 2-2h-4a2 2 0 0 0 2 2zm6-6V11a6 6 0 1 0-12 0v5l-2 2v1h16v-1l-2-2z"/></svg></span>
           Notifications
           <span id="itsmNotifNavBadge" class="itsm-notif-badge" hidden aria-hidden="true">0</span>
+        </button>
+        <button type="button" class="nav-item" data-tab="itsm-reports" data-itsm-nav="1" data-itsm-perm="itsm:dashboard:read">
+          <span class="nav-ico" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M4 19h16M6 16V9m4 7V5m4 11v-4m4 4V7"/></svg></span>
+          Reports
         </button>
 
         <div class="nav-section">Configuration</div>
@@ -753,17 +757,53 @@
         <section id="tab-itsm-dashboard" class="tab-panel hidden" data-itsm-module="1">
           <section class="panel itsm-panel">
             <h2>ITSM Dashboard</h2>
-            <p class="hint">Open ticket aggregates for the current tenant. Approvals, Workflows, and SLA are available in the ITSM nav.</p>
-            <div class="itsm-kpi-row" id="itsmDashKpis">
+            <p class="hint">Live aggregates from the ITSM database for the current tenant — open tickets, SLA, approvals, workflows, knowledge, and notifications.</p>
+            <div class="toolbar itsm-toolbar itsm-dash-toolbar">
+              <label>Window
+                <select id="itsmDashWindow">
+                  <option value="">Snapshot (all time)</option>
+                  <option value="7">Last 7 days</option>
+                  <option value="30">Last 30 days</option>
+                </select>
+              </label>
+              <button type="button" id="btnRefreshItsmDash" class="secondary">Refresh</button>
+            </div>
+            <div class="itsm-kpi-row itsm-kpi-row-wide" id="itsmDashKpis">
               <div class="itsm-kpi"><span class="itsm-kpi-label">Open incidents</span><strong id="itsmKpiOpen">—</strong></div>
               <div class="itsm-kpi"><span class="itsm-kpi-label">P1 open</span><strong id="itsmKpiP1">—</strong></div>
               <div class="itsm-kpi"><span class="itsm-kpi-label">Open changes</span><strong id="itsmKpiChanges">—</strong></div>
               <div class="itsm-kpi"><span class="itsm-kpi-label">Open problems</span><strong id="itsmKpiProblems">—</strong></div>
+              <div class="itsm-kpi"><span class="itsm-kpi-label">Pending approvals</span><strong id="itsmKpiApprovals">—</strong></div>
+              <div class="itsm-kpi"><span class="itsm-kpi-label">SLA breaches</span><strong id="itsmKpiSlaBreach">—</strong></div>
+              <div class="itsm-kpi"><span class="itsm-kpi-label">SLA at risk</span><strong id="itsmKpiSlaRisk">—</strong></div>
+              <div class="itsm-kpi"><span class="itsm-kpi-label">Workflows active</span><strong id="itsmKpiWorkflows">—</strong></div>
+              <div class="itsm-kpi"><span class="itsm-kpi-label">KB published</span><strong id="itsmKpiKnowledge">—</strong></div>
+              <div class="itsm-kpi"><span class="itsm-kpi-label">Unread notifs</span><strong id="itsmKpiNotif">—</strong></div>
+            </div>
+            <div class="itsm-dash-window-strip">
+              <span class="itsm-kpi-label" id="itsmDashWindowLabel">All time</span>
+              <div class="itsm-kpi-row itsm-kpi-row-compact">
+                <div class="itsm-kpi itsm-kpi-mini"><span class="itsm-kpi-label">Created INC</span><strong id="itsmDashCreated">—</strong></div>
+                <div class="itsm-kpi itsm-kpi-mini"><span class="itsm-kpi-label">Created CHG</span><strong id="itsmDashCreatedChg">—</strong></div>
+                <div class="itsm-kpi itsm-kpi-mini"><span class="itsm-kpi-label">Created PRB</span><strong id="itsmDashCreatedPrb">—</strong></div>
+                <div class="itsm-kpi itsm-kpi-mini"><span class="itsm-kpi-label">Resolved INC</span><strong id="itsmDashResolved">—</strong></div>
+              </div>
+            </div>
+            <div class="itsm-chart-grid">
+              <section class="itsm-chart-card">
+                <h3>Incidents by status</h3>
+                <div id="itsmDashIncStatusChart" class="itsm-chart"></div>
+              </section>
+              <section class="itsm-chart-card">
+                <h3>Open incidents by priority</h3>
+                <div id="itsmDashIncPriorityChart" class="itsm-chart"></div>
+              </section>
+              <section class="itsm-chart-card">
+                <h3>Changes by status</h3>
+                <div id="itsmDashChgStatusChart" class="itsm-chart"></div>
+              </section>
             </div>
             <p class="hint" id="itsmDashNotes">Sign in to load ITSM summary.</p>
-            <div class="toolbar" style="grid-template-columns: auto;">
-              <button type="button" id="btnRefreshItsmDash" class="secondary">Refresh</button>
-            </div>
           </section>
         </section>
 
@@ -1179,6 +1219,65 @@
                 </div>
               </div>
             </div>
+          </section>
+        </section>
+
+        <section id="tab-itsm-reports" class="tab-panel hidden" data-itsm-module="1">
+          <section class="panel itsm-panel">
+            <h2>Reports &amp; Analytics</h2>
+            <p class="hint">Tenant-scoped ITSM volume and open-work analytics. Charts use the same indigo SaaS accent as the rest of the product.</p>
+            <div class="toolbar itsm-toolbar itsm-dash-toolbar">
+              <label>Window
+                <select id="itsmReportsWindow">
+                  <option value="7">Last 7 days</option>
+                  <option value="30" selected>Last 30 days</option>
+                </select>
+              </label>
+              <button type="button" id="btnRefreshItsmReports" class="secondary">Refresh</button>
+            </div>
+            <p class="hint" id="itsmReportsWindowLabel">Last 30 days</p>
+            <div class="itsm-kpi-row itsm-kpi-row-wide">
+              <div class="itsm-kpi"><span class="itsm-kpi-label">Open incidents</span><strong id="itsmRepOpenInc">—</strong></div>
+              <div class="itsm-kpi"><span class="itsm-kpi-label">Open changes</span><strong id="itsmRepOpenChg">—</strong></div>
+              <div class="itsm-kpi"><span class="itsm-kpi-label">Open problems</span><strong id="itsmRepOpenPrb">—</strong></div>
+              <div class="itsm-kpi"><span class="itsm-kpi-label">Pending approvals</span><strong id="itsmRepApprovals">—</strong></div>
+              <div class="itsm-kpi"><span class="itsm-kpi-label">SLA breaches</span><strong id="itsmRepSlaBreach">—</strong></div>
+              <div class="itsm-kpi"><span class="itsm-kpi-label">SLA at risk</span><strong id="itsmRepSlaRisk">—</strong></div>
+              <div class="itsm-kpi"><span class="itsm-kpi-label">Workflows active</span><strong id="itsmRepWorkflows">—</strong></div>
+              <div class="itsm-kpi"><span class="itsm-kpi-label">KB published</span><strong id="itsmRepKnowledge">—</strong></div>
+              <div class="itsm-kpi"><span class="itsm-kpi-label">Unread notifs</span><strong id="itsmRepNotif">—</strong></div>
+            </div>
+            <div class="itsm-kpi-row itsm-kpi-row-compact">
+              <div class="itsm-kpi itsm-kpi-mini"><span class="itsm-kpi-label">Created INC</span><strong id="itsmRepCreatedInc">—</strong></div>
+              <div class="itsm-kpi itsm-kpi-mini"><span class="itsm-kpi-label">Created CHG</span><strong id="itsmRepCreatedChg">—</strong></div>
+              <div class="itsm-kpi itsm-kpi-mini"><span class="itsm-kpi-label">Created PRB</span><strong id="itsmRepCreatedPrb">—</strong></div>
+              <div class="itsm-kpi itsm-kpi-mini"><span class="itsm-kpi-label">Resolved INC</span><strong id="itsmRepResolvedInc">—</strong></div>
+              <div class="itsm-kpi itsm-kpi-mini"><span class="itsm-kpi-label">Closed CHG</span><strong id="itsmRepResolvedChg">—</strong></div>
+              <div class="itsm-kpi itsm-kpi-mini"><span class="itsm-kpi-label">Resolved PRB</span><strong id="itsmRepResolvedPrb">—</strong></div>
+            </div>
+            <section class="itsm-chart-card itsm-chart-card-wide">
+              <h3>Daily created volume</h3>
+              <div id="itsmRepVolumeChart" class="itsm-chart"></div>
+            </section>
+            <div class="itsm-chart-grid">
+              <section class="itsm-chart-card">
+                <h3>Incidents by status</h3>
+                <div id="itsmRepIncStatusChart" class="itsm-chart"></div>
+              </section>
+              <section class="itsm-chart-card">
+                <h3>Open priority mix</h3>
+                <div id="itsmRepPriorityChart" class="itsm-chart"></div>
+              </section>
+              <section class="itsm-chart-card">
+                <h3>Changes by status</h3>
+                <div id="itsmRepChgStatusChart" class="itsm-chart"></div>
+              </section>
+              <section class="itsm-chart-card">
+                <h3>Problems by status</h3>
+                <div id="itsmRepPrbStatusChart" class="itsm-chart"></div>
+              </section>
+            </div>
+            <p class="hint" id="itsmReportsNotes">Sign in to load ITSM reports.</p>
           </section>
         </section>
 
@@ -2688,17 +2787,18 @@
     </div>
   </div>
 
-  <script src="/static/js/cmdb.js?v=0.39.0"></script>
-  <script src="/static/js/itsm/api.js?v=0.39.0"></script>
-  <script src="/static/js/itsm/dashboard.js?v=0.39.0"></script>
-  <script src="/static/js/itsm/incidents.js?v=0.39.0"></script>
-  <script src="/static/js/itsm/changes.js?v=0.39.0"></script>
-  <script src="/static/js/itsm/problems.js?v=0.39.0"></script>
-  <script src="/static/js/itsm/approvals.js?v=0.39.0"></script>
-  <script src="/static/js/itsm/workflows.js?v=0.39.0"></script>
-  <script src="/static/js/itsm/sla.js?v=0.39.0"></script>
-  <script src="/static/js/itsm/knowledge.js?v=0.39.0"></script>
-  <script src="/static/js/itsm/notifications.js?v=0.39.0"></script>
-  <script src="/static/js/itsm/index.js?v=0.39.0"></script>
+  <script src="/static/js/cmdb.js?v=0.40.0"></script>
+  <script src="/static/js/itsm/api.js?v=0.40.0"></script>
+  <script src="/static/js/itsm/dashboard.js?v=0.40.0"></script>
+  <script src="/static/js/itsm/reports.js?v=0.40.0"></script>
+  <script src="/static/js/itsm/incidents.js?v=0.40.0"></script>
+  <script src="/static/js/itsm/changes.js?v=0.40.0"></script>
+  <script src="/static/js/itsm/problems.js?v=0.40.0"></script>
+  <script src="/static/js/itsm/approvals.js?v=0.40.0"></script>
+  <script src="/static/js/itsm/workflows.js?v=0.40.0"></script>
+  <script src="/static/js/itsm/sla.js?v=0.40.0"></script>
+  <script src="/static/js/itsm/knowledge.js?v=0.40.0"></script>
+  <script src="/static/js/itsm/notifications.js?v=0.40.0"></script>
+  <script src="/static/js/itsm/index.js?v=0.40.0"></script>
 </body>
 </html>

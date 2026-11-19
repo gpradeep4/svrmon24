@@ -23,7 +23,16 @@
 
   global.SVRMON24ItsmApi = {
     bindApi,
-    dashboardSummary: () => itsmGet("/dashboard/summary"),
+    dashboardSummary: (params) => {
+      const q = new URLSearchParams(params || {});
+      const suffix = q.toString() ? `?${q.toString()}` : "";
+      return itsmGet(`/dashboard/summary${suffix}`);
+    },
+    dashboardReports: (params) => {
+      const q = new URLSearchParams(params || {});
+      const suffix = q.toString() ? `?${q.toString()}` : "";
+      return itsmGet(`/dashboard/reports${suffix}`);
+    },
     listIncidents: (params) => {
       const q = new URLSearchParams(params || {});
       return itsmGet(`/incidents?${q.toString()}`);
