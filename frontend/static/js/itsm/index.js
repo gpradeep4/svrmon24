@@ -1,4 +1,4 @@
-/* global SVRMON24ItsmDashboard, SVRMON24ItsmIncidents, SVRMON24ItsmChanges, SVRMON24ItsmProblems, SVRMON24ItsmApprovals, SVRMON24ItsmWorkflows */
+/* global SVRMON24ItsmDashboard, SVRMON24ItsmIncidents, SVRMON24ItsmChanges, SVRMON24ItsmProblems, SVRMON24ItsmApprovals, SVRMON24ItsmWorkflows, SVRMON24ItsmSla */
 (function (global) {
   "use strict";
 
@@ -73,6 +73,10 @@
         title: "Workflow Designer",
         subtitle: "Define graphs · activate · start executions · approval gates",
       };
+      pageMeta["itsm-sla"] = {
+        title: "SLA",
+        subtitle: "Policies · tracking · response / resolution clocks · breach view",
+      };
     }
 
     SVRMON24ItsmIncidents.initItsmIncidents({ can, toast, escapeHtml });
@@ -80,6 +84,7 @@
     SVRMON24ItsmProblems.initItsmProblems({ can, toast, escapeHtml });
     SVRMON24ItsmApprovals.initItsmApprovals({ can, toast, escapeHtml });
     SVRMON24ItsmWorkflows.initItsmWorkflows({ can, toast, escapeHtml });
+    SVRMON24ItsmSla.initItsmSla({ can, toast, escapeHtml });
 
     document.getElementById("btnRefreshItsmDash")?.addEventListener("click", () => {
       SVRMON24ItsmDashboard.loadItsmDashboard({ toast });
@@ -111,6 +116,10 @@
           SVRMON24ItsmWorkflows.applyWriteGates();
           SVRMON24ItsmWorkflows.loadWorkflows();
         }
+        if (name === "itsm-sla") {
+          SVRMON24ItsmSla.applyWriteGates();
+          SVRMON24ItsmSla.setView("policies");
+        }
       });
     }
 
@@ -122,6 +131,7 @@
         SVRMON24ItsmProblems.applyWriteGates();
         SVRMON24ItsmApprovals.applyWriteGates();
         SVRMON24ItsmWorkflows.applyWriteGates();
+        SVRMON24ItsmSla.applyWriteGates();
       });
     } else {
       applyItsmNavGates(can);

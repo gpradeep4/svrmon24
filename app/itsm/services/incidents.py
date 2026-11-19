@@ -189,10 +189,15 @@ def create_incident(
         "assignee_user_id": payload.assignee_user_id,
         "caller_user_id": payload.caller_user_id,
         "caller_email": payload.caller_email,
+        "service_tier": (payload.service_tier or "").strip() or None,
+        "customer_class": (payload.customer_class or "").strip() or None,
+        "ci_tier": (payload.ci_tier or "").strip() or None,
+        "ci_criticality": (payload.ci_criticality or "").strip() or None,
         "ci_links": ci_links,
         "resolution_notes": payload.resolution_notes,
         "problem_id": (payload.problem_id or "").strip() or None,
         "change_id": (payload.change_id or "").strip() or None,
+        "sla_tracking_ids": [],
         "resolved_at": now if payload.status == "resolved" else None,
         "closed_at": now if payload.status == "closed" else None,
         "created_at": now,
@@ -213,7 +218,18 @@ def create_incident(
         actor_username=who["username"],
         to_value=payload.status,
     )
-    return serialize_document(doc)  # type: ignore[return-value]
+    from . import sla as sla_service
+
+    sla_service.notify_ticket_created(
+        tenant_id=tid,
+        ticket_type="incident",
+        ticket_id=incident_id,
+        priority=payload.priority,
+        status=payload.status,
+        actor=actor,
+    )
+    refreshed = _coll().find_one({"tenant_id": tid, "incident_id": incident_id})
+    return serialize_document(refreshed or doc)  # type: ignore[return-value]
 
 
 def update_incident(
@@ -242,6 +258,7 @@ def update_incident(
     # Track assignment changes for activity.
     old_assignee = existing.get("assignee_user_id")
     new_assignee = updates.get("assignee_user_id", old_assignee)
+    unset_fields = payload.model_dump(exclude_unset=True)
 
     doc = _coll().find_one_and_update(
         {"tenant_id": tid, "incident_id": incident_id},
@@ -251,7 +268,7 @@ def update_incident(
     if doc is None:
         raise IncidentError(f"Incident '{incident_id}' not found", status_code=404)
 
-    if "assignee_user_id" in payload.model_dump(exclude_unset=True) and old_assignee != new_assignee:
+    if "assignee_user_id" in unset_fields and old_assignee != new_assignee:
         activities_service.append_activity(
             tenant_id=tid,
             ticket_type="incident",
@@ -273,6 +290,22 @@ def update_incident(
             actor_user_id=who["user_id"],
             actor_username=who["username"],
         )
+    from . import sla as sla_service
+
+    if sla_service.match_context_changed(existing, doc):
+        sla_service.notify_context_changed(
+            tenant_id=tid,
+            ticket_type="incident",
+            ticket_id=incident_id,
+            priority=str(doc.get("priority") or existing.get("priority") or "p3"),
+            status=str(doc.get("status") or "new"),
+            actor=actor,
+            ticket=doc,
+            reason="context_change",
+        )
+        refreshed = _coll().find_one({"tenant_id": tid, "incident_id": incident_id})
+        if refreshed is not None:
+            doc = refreshed
     return serialize_document(doc)  # type: ignore[return-value]
 
 
@@ -334,6 +367,17 @@ def transition_incident(
         actor_username=who["username"],
         from_value=current,
         to_value=target,
+    )
+    from . import sla as sla_service
+
+    sla_service.notify_status_changed(
+        tenant_id=tid,
+        ticket_type="incident",
+        ticket_id=incident_id,
+        from_status=current,
+        to_status=target,
+        priority=str(doc.get("priority") or "p3"),
+        actor=actor,
     )
     return serialize_document(doc)  # type: ignore[return-value]
 

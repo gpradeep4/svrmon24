@@ -141,6 +141,13 @@
       }
       renderTransitions(doc.status);
       renderCiLinks(doc.ci_links || []);
+      if (global.SVRMON24ItsmSla?.renderTicketBadges) {
+        await global.SVRMON24ItsmSla.renderTicketBadges(
+          $("#itsmChgSlaBadges"),
+          "change",
+          changeId
+        );
+      }
       await loadActivities(changeId);
     } catch (err) {
       if (detail) detail.textContent = err.message || "Failed to load change";

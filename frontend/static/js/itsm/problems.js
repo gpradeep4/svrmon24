@@ -138,6 +138,13 @@
       }
       renderTransitions(doc.status);
       renderCiLinks(doc.ci_links || []);
+      if (global.SVRMON24ItsmSla?.renderTicketBadges) {
+        await global.SVRMON24ItsmSla.renderTicketBadges(
+          $("#itsmPrbSlaBadges"),
+          "problem",
+          problemId
+        );
+      }
       await loadActivities(problemId);
     } catch (err) {
       if (detail) detail.textContent = err.message || "Failed to load problem";

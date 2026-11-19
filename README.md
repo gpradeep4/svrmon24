@@ -4,14 +4,14 @@ AI-assisted infrastructure CMDB, dependency mapping, **SIMULATED** diagnostics, 
 
 Stack: **FastAPI + Uvicorn + MongoDB (PyMongo) + provider-neutral OIDC** (HTTP Basic optional via feature flag). Diagnostics never contact remote hosts and never execute shell/SQL/network scans. File Monitoring v1 is demo-only (no live filesystem watching).
 
-## Features (through ITSM approvals/workflows / 0.36.0)
+## Features (through ITSM SLA / 0.37.1)
 
 | Area | Capability |
 | --- | --- |
 | Auth / ops | OIDC (Auth Code + PKCE), feature-flagged HTTP Basic (still present — cutover documented, not silently removed), `/health`, `/api/status`, structured logging |
 | Roles / RBAC | Built-in roles `viewer` / `member` / `admin` / `owner` plus tenant **custom roles** (`custom:<role_key>`); permission matrix enforced on APIs/UI (includes additive `itsm:*`); platform admin via CLI **or** first OIDC user when no admin exists |
 | Tenancy | Hard `tenant_id` isolation on CMDB/relationships/field-definitions/column-configurations/custom-tables/diagnostics/dashboard/**ITSM**; migration tenant **SVRMON24 Legacy** (`tenant-svrmon24-legacy`); Basic scoped to migration tenant (no auth bypass); **org switcher enabled** for multi-membership OIDC users |
-| ITSM | Dual MongoDB DBs (`MONGODB_CMDB_DB`→CMDB with legacy `MONGODB_DB` fallback; `MONGODB_ITSM_DB` default `svrmon-itsm`); `/api/itsm/*` Incident + Change + Problem + Approvals + Workflow definitions/executions; CI links via `component_id`; workflow designer UI; ITSM nav + dashboard open counts |
+| ITSM | Dual MongoDB DBs (`MONGODB_CMDB_DB`→CMDB with legacy `MONGODB_DB` fallback; `MONGODB_ITSM_DB` default `svrmon-itsm`); `/api/itsm/*` Incident + Change + Problem + Approvals + Workflows + multi-dimensional SLA (tier/VIP/category/CI); CI links via `component_id`; workflow designer + SLA UI; ITSM nav + dashboard open counts / breaches |
 | CMDB | Typed Mongo collections (`cmdb_servers`, `cmdb_network`, `cmdb_middleware`, `cmdb_databases`, `cmdb_applications`) behind stable `/api/components*` facade; OS Family/Version and Product Type/Version stay separate; inventory filters (type/status/environment/search), bulk status/environment edit, CSV/Excel import with mapping + validation, filtered CSV/Excel export |
 | Field definitions | Tenant-scoped `cmdb_field_definitions` (custom + locked built-in OS/product natives); `/api/custom-fields` facade; values still on component `custom_fields` |
 | Column configurations | Tenant-scoped `cmdb_column_configurations` driving Inventory + Relationships grids (visibility / order / width / pin); Inventory includes toggleable **custom field** columns; locked OS/product and protocol/port columns; Relationships also expose optional Source/Target Table columns |

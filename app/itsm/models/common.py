@@ -84,6 +84,7 @@ ACTIVITY_TYPES: tuple[str, ...] = (
     "system",
     "approval",
     "workflow",
+    "sla",
 )
 
 TicketType = Literal["incident", "change", "problem"]
@@ -121,12 +122,17 @@ ActivityType = Literal[
     "system",
     "approval",
     "workflow",
+    "sla",
 ]
 ActivityVisibility = Literal["public", "internal"]
 
 
 class CiLink(BaseModel):
-    """Reference-only link to a CMDB component (same tenant)."""
+    """Reference-only link to a CMDB component (same tenant).
+
+    Optional ``ci_tier`` / ``criticality`` are ticket-side snapshots for SLA
+    matching — not CMDB schema fields.
+    """
 
     model_config = ConfigDict(extra="forbid")
 
@@ -135,6 +141,8 @@ class CiLink(BaseModel):
     name_snapshot: str | None = None
     table_key: str | None = None
     record_id: str | None = None
+    ci_tier: str | None = Field(default=None, max_length=64)
+    criticality: str | None = Field(default=None, max_length=64)
 
 
 class TicketActivityCreate(BaseModel):
