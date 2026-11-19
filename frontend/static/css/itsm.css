@@ -536,6 +536,62 @@
   margin-bottom: 0.5rem;
 }
 
+.itsm-kb-toolbar {
+  grid-template-columns: 1.4fr 1fr 1fr 1fr auto auto;
+}
+
+.itsm-kb-modal {
+  max-width: 720px;
+  max-height: 90vh;
+  overflow: auto;
+}
+
+.itsm-kb-body {
+  margin: 0.75rem 0;
+  padding: 0.75rem 0.9rem;
+  border: 1px solid var(--border, #e2e8f0);
+  border-radius: 8px;
+  background: #f8fafc;
+  color: var(--ink, #0f172a);
+  white-space: normal;
+  line-height: 1.45;
+  max-height: 280px;
+  overflow: auto;
+}
+
+.itsm-kb-suggest {
+  list-style: none;
+  margin: 0.35rem 0 0.75rem;
+  padding: 0;
+  display: grid;
+  gap: 0.35rem;
+}
+
+.itsm-kb-suggest li {
+  display: flex;
+  align-items: baseline;
+  gap: 0.45rem;
+  flex-wrap: wrap;
+}
+
+.itsm-status.is-draft {
+  background: #f1f5f9;
+  color: #475569;
+  border-color: #cbd5e1;
+}
+
+.itsm-status.is-published {
+  background: #ecfdf5;
+  color: #047857;
+  border-color: #a7f3d0;
+}
+
+.itsm-status.is-retired {
+  background: #fef2f2;
+  color: #b91c1c;
+  border-color: #fecaca;
+}
+
 @media (max-width: 900px) {
   .itsm-kpi-row {
     grid-template-columns: repeat(2, minmax(0, 1fr));

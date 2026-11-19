@@ -20,6 +20,7 @@ WORKFLOWS = "itsm_workflows"
 WORKFLOW_EXECUTIONS = "itsm_workflow_executions"
 SLA_POLICIES = "itsm_sla_policies"
 SLA_TRACKING = "itsm_sla_tracking"
+KNOWLEDGE_ARTICLES = "itsm_knowledge_articles"
 
 
 def _ticket_indexes(coll, *, id_field: str, prefix: str) -> list[str]:
@@ -249,6 +250,52 @@ def ensure_itsm_indexes(db: Database | None = None) -> dict[str, Any]:
         ),
     ]
     created[SLA_TRACKING] = [str(n) for n in names]
+
+    kb = handle[KNOWLEDGE_ARTICLES]
+    names = [
+        kb.create_index(
+            [("tenant_id", ASCENDING), ("article_id", ASCENDING)],
+            unique=True,
+            name="tenant_knowledge_article_id_unique",
+        ),
+        kb.create_index(
+            [("tenant_id", ASCENDING), ("number", ASCENDING)],
+            unique=True,
+            name="tenant_knowledge_number_unique",
+        ),
+        kb.create_index(
+            [
+                ("tenant_id", ASCENDING),
+                ("status", ASCENDING),
+                ("updated_at", DESCENDING),
+            ],
+            name="tenant_knowledge_status_updated_idx",
+        ),
+        kb.create_index(
+            [("tenant_id", ASCENDING), ("category", ASCENDING)],
+            name="tenant_knowledge_category_idx",
+        ),
+        kb.create_index(
+            [("tenant_id", ASCENDING), ("tags", ASCENDING)],
+            name="tenant_knowledge_tags_idx",
+        ),
+        kb.create_index(
+            [("tenant_id", ASCENDING), ("related_incident_ids", ASCENDING)],
+            name="tenant_knowledge_related_incident_idx",
+        ),
+        kb.create_index(
+            [("tenant_id", ASCENDING), ("related_problem_ids", ASCENDING)],
+            name="tenant_knowledge_related_problem_idx",
+        ),
+        kb.create_index(
+            [("tenant_id", ASCENDING), ("related_component_ids", ASCENDING)],
+            name="tenant_knowledge_related_component_idx",
+        ),
+        kb.create_index(
+            [("tenant_id", ASCENDING)], name="tenant_knowledge_tenant_id_idx"
+        ),
+    ]
+    created[KNOWLEDGE_ARTICLES] = [str(n) for n in names]
 
     return {
         "ok": True,

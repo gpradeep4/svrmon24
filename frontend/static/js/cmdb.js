@@ -546,6 +546,10 @@
       title: "SLA",
       subtitle: "Policies · tracking · response / resolution clocks · breach view",
     },
+    "itsm-knowledge": {
+      title: "Knowledge Base",
+      subtitle: "Articles · publish / retire · related ticket and CI refs · search",
+    },
   };
 
   function setTenantBanner(connected, tenantName = "", tenantId = "") {
@@ -2810,6 +2814,12 @@
     if (name === "itsm-sla" && state.authenticated) {
       window.SVRMON24ItsmSla?.applyWriteGates?.();
       window.SVRMON24ItsmSla?.setView?.("policies");
+    }
+    if (name === "itsm-knowledge" && state.authenticated) {
+      window.SVRMON24ItsmKnowledge?.applyWriteGates?.();
+      window.SVRMON24ItsmKnowledge?.loadArticles?.()?.catch?.((err) =>
+        toast(err.message || "Knowledge failed", true)
+      );
     }
     if (name === "columns" && state.authenticated) {
       openColumnSettings($("#colGridKey")?.value || "inventory").catch((err) =>

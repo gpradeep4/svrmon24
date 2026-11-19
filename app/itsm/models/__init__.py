@@ -34,6 +34,13 @@ from .incidents import (
     IncidentTransition,
     IncidentUpdate,
 )
+from .knowledge import (
+    KNOWLEDGE_STATUSES,
+    KNOWLEDGE_TRANSITIONS,
+    KnowledgeArticleCreate,
+    KnowledgeArticleTransition,
+    KnowledgeArticleUpdate,
+)
 from .problems import (
     ProblemCiLinkCreate,
     ProblemCreate,
@@ -80,6 +87,8 @@ __all__ = [
     "INCIDENT_PRIORITIES",
     "INCIDENT_STATUSES",
     "INCIDENT_TRANSITIONS",
+    "KNOWLEDGE_STATUSES",
+    "KNOWLEDGE_TRANSITIONS",
     "PROBLEM_PRIORITIES",
     "PROBLEM_STATUSES",
     "PROBLEM_TRANSITIONS",
@@ -98,6 +107,9 @@ __all__ = [
     "IncidentCreate",
     "IncidentTransition",
     "IncidentUpdate",
+    "KnowledgeArticleCreate",
+    "KnowledgeArticleTransition",
+    "KnowledgeArticleUpdate",
     "ChangeCiLinkCreate",
     "ChangeCreate",
     "ChangeTransition",

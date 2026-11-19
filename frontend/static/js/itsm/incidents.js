@@ -141,6 +141,15 @@
           incidentId
         );
       }
+      if (global.SVRMON24ItsmKnowledge?.renderSuggestedArticles) {
+        const tags = [];
+        if (doc.category) tags.push(String(doc.category).toLowerCase());
+        if (doc.subcategory) tags.push(String(doc.subcategory).toLowerCase());
+        await global.SVRMON24ItsmKnowledge.renderSuggestedArticles(
+          $("#itsmIncKbSuggest"),
+          { category: doc.category || "", tags }
+        );
+      }
       await loadActivities(incidentId);
     } catch (err) {
       if (detail) detail.textContent = err.message || "Failed to load incident";
