@@ -95,6 +95,11 @@ def clean_db(client: TestClient) -> Generator[None, None, None]:
         "itsm_problems",
         "itsm_ticket_activities",
         "itsm_counters",
+        "itsm_approvals",
+        "itsm_workflows",
+        "itsm_workflow_executions",
+        "itsm_sla_policies",
+        "itsm_sla_tracking",
     )
     for name in collections:
         db[name].delete_many({})

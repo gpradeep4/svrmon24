@@ -22,6 +22,14 @@ class IncidentCreate(BaseModel):
     assignee_user_id: str | None = Field(default=None, max_length=128)
     caller_user_id: str | None = Field(default=None, max_length=128)
     caller_email: str | None = Field(default=None, max_length=320)
+    service_tier: str | None = Field(
+        default=None, max_length=64, description="e.g. tier1 / tier2 / tier3"
+    )
+    customer_class: str | None = Field(
+        default=None, max_length=64, description="e.g. vip / premium / standard"
+    )
+    ci_tier: str | None = Field(default=None, max_length=64)
+    ci_criticality: str | None = Field(default=None, max_length=64)
     ci_links: list[CiLink] = Field(default_factory=list)
     resolution_notes: str | None = Field(default=None, max_length=20000)
     problem_id: str | None = Field(default=None, max_length=128)
@@ -42,6 +50,10 @@ class IncidentUpdate(BaseModel):
     assignee_user_id: str | None = Field(default=None, max_length=128)
     caller_user_id: str | None = Field(default=None, max_length=128)
     caller_email: str | None = Field(default=None, max_length=320)
+    service_tier: str | None = Field(default=None, max_length=64)
+    customer_class: str | None = Field(default=None, max_length=64)
+    ci_tier: str | None = Field(default=None, max_length=64)
+    ci_criticality: str | None = Field(default=None, max_length=64)
     resolution_notes: str | None = Field(default=None, max_length=20000)
     problem_id: str | None = Field(default=None, max_length=128)
     change_id: str | None = Field(default=None, max_length=128)

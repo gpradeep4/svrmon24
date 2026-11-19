@@ -16,8 +16,14 @@ class ProblemCreate(BaseModel):
     priority: ProblemPriority = "p3"
     category: str | None = Field(default=None, max_length=128)
     subcategory: str | None = Field(default=None, max_length=128)
+    urgency: str | None = Field(default=None, max_length=64)
+    impact: str | None = Field(default=None, max_length=64)
     assignment_group: str | None = Field(default=None, max_length=128)
     assignee_user_id: str | None = Field(default=None, max_length=128)
+    service_tier: str | None = Field(default=None, max_length=64)
+    customer_class: str | None = Field(default=None, max_length=64)
+    ci_tier: str | None = Field(default=None, max_length=64)
+    ci_criticality: str | None = Field(default=None, max_length=64)
     root_cause: str | None = Field(default=None, max_length=20000)
     workaround: str | None = Field(default=None, max_length=20000)
     known_error: bool = False
@@ -34,8 +40,14 @@ class ProblemUpdate(BaseModel):
     priority: ProblemPriority | None = None
     category: str | None = Field(default=None, max_length=128)
     subcategory: str | None = Field(default=None, max_length=128)
+    urgency: str | None = Field(default=None, max_length=64)
+    impact: str | None = Field(default=None, max_length=64)
     assignment_group: str | None = Field(default=None, max_length=128)
     assignee_user_id: str | None = Field(default=None, max_length=128)
+    service_tier: str | None = Field(default=None, max_length=64)
+    customer_class: str | None = Field(default=None, max_length=64)
+    ci_tier: str | None = Field(default=None, max_length=64)
+    ci_criticality: str | None = Field(default=None, max_length=64)
     root_cause: str | None = Field(default=None, max_length=20000)
     workaround: str | None = Field(default=None, max_length=20000)
     known_error: bool | None = None

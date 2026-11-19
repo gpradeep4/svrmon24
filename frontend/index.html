@@ -4,7 +4,7 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <meta name="svrmon24-ui" content="login-enterprise-v13" />
-  <meta name="svrmon24-version" content="0.37.0" />
+  <meta name="svrmon24-version" content="0.37.1" />
   <title>SVRMON24</title>
   <link rel="icon" href="/static/img/svrmon-favicon.png" type="image/png" sizes="32x32" />
   <link rel="apple-touch-icon" href="/static/img/svrmon-apple-touch.png" sizes="180x180" />
@@ -15,10 +15,10 @@
     body.is-app .login-gate { display: none !important; }
     #authPanel, .auth-panel-legacy { display: none !important; }
   </style>
-  <link rel="stylesheet" href="/static/css/cmdb.css?v=0.37.0" />
-  <link rel="stylesheet" href="/static/css/itsm.css?v=0.37.0" />
-  <script src="/static/js/config.js?v=0.37.0"></script>
-  <script src="/static/js/brand.js?v=0.37.0"></script>
+  <link rel="stylesheet" href="/static/css/cmdb.css?v=0.37.1" />
+  <link rel="stylesheet" href="/static/css/itsm.css?v=0.37.1" />
+  <script src="/static/js/config.js?v=0.37.1"></script>
+  <script src="/static/js/brand.js?v=0.37.1"></script>
 </head>
 <body class="is-login">
   <!-- Enterprise login: showcase (left) + sign-in panel (right); stacks on small viewports -->
@@ -1174,7 +1174,7 @@
         <section id="tab-itsm-sla" class="tab-panel hidden" data-itsm-module="1">
           <section class="panel itsm-panel">
             <h2>SLA</h2>
-            <p class="hint">Define response and resolution policies with priority targets. Active policies auto-attach tracking when matching tickets are created or priority changes. Pause clocks on configured statuses (e.g. on_hold).</p>
+            <p class="hint">Define multi-dimensional policies (tier, VIP, category, CI criticality, …). The most specific matching active policy wins. Tracking shows which policy matched and why.</p>
             <div class="itsm-sla-tabs">
               <button type="button" id="btnItsmSlaTabPolicies" class="secondary active">Policies</button>
               <button type="button" id="btnItsmSlaTabTracking" class="secondary">Tracking</button>
@@ -1211,14 +1211,15 @@
                       <th>ID</th>
                       <th>Name</th>
                       <th>Applies</th>
+                      <th>Match</th>
+                      <th>Order</th>
                       <th>Active</th>
                       <th>Metrics</th>
-                      <th>Updated</th>
                       <th></th>
                     </tr>
                   </thead>
                   <tbody id="itsmSlaPolBody">
-                    <tr><td colspan="7" class="hint">Sign in to load SLA policies.</td></tr>
+                    <tr><td colspan="8" class="hint">Sign in to load SLA policies.</td></tr>
                   </tbody>
                 </table>
               </div>
@@ -1264,9 +1265,9 @@
                       <th>Status</th>
                       <th>Ticket</th>
                       <th>Policy</th>
+                      <th>Matched why</th>
                       <th>Target</th>
                       <th>Due</th>
-                      <th>Updated</th>
                     </tr>
                   </thead>
                   <tbody id="itsmSlaTrkBody">
@@ -2242,9 +2243,9 @@
       </header>
       <form id="itsmSlaForm">
         <input type="hidden" id="itsmSlaEditId" value="" />
-        <p class="hint itsm-create-lead">Priority targets are minutes (24×7 clock). Leave a priority blank to omit it from that metric.</p>
+        <p class="hint itsm-create-lead">Blank match fields are wildcards. More specific policies win (Tier1 + VIP beats a generic policy). Priority targets are minutes.</p>
         <div class="form-grid">
-          <label>Name<input id="itsmSlaFieldName" required maxlength="200" placeholder="Incident default SLA" /></label>
+          <label>Name<input id="itsmSlaFieldName" required maxlength="200" placeholder="Tier 1 VIP incident SLA" /></label>
           <label>Applies to
             <select id="itsmSlaFieldAppliesTo">
               <option value="incident">incident</option>
@@ -2252,9 +2253,45 @@
               <option value="problem">problem</option>
             </select>
           </label>
+          <label>Precedence order<input id="itsmSlaFieldPriorityOrder" type="number" min="0" max="10000" value="100" title="Lower wins on score ties" /></label>
           <label class="itsm-sla-check-inline"><input type="checkbox" id="itsmSlaFieldActive" checked /> Active</label>
           <label>Pause on statuses<input id="itsmSlaFieldPause" maxlength="500" placeholder="on_hold (comma-separated)" /></label>
           <label class="full">Description<textarea id="itsmSlaFieldDescription" rows="2" maxlength="4000"></textarea></label>
+        </div>
+        <h4 class="itsm-drawer-section">Match conditions (optional)</h4>
+        <p class="hint">Leave blank to match any. Combined with applies_to for multi-dimensional selection.</p>
+        <div class="form-grid itsm-sla-match-grid">
+          <label>Service tier
+            <input id="itsmSlaMatchTier" list="itsmSlaTierList" maxlength="64" placeholder="tier1 / tier2 / tier3" />
+            <datalist id="itsmSlaTierList">
+              <option value="tier1"></option>
+              <option value="tier2"></option>
+              <option value="tier3"></option>
+            </datalist>
+          </label>
+          <label>Customer class
+            <input id="itsmSlaMatchCustomer" list="itsmSlaCustomerList" maxlength="64" placeholder="vip / premium / standard" />
+            <datalist id="itsmSlaCustomerList">
+              <option value="vip"></option>
+              <option value="premium"></option>
+              <option value="standard"></option>
+            </datalist>
+          </label>
+          <label>Category<input id="itsmSlaMatchCategory" maxlength="128" placeholder="network" /></label>
+          <label>Subcategory<input id="itsmSlaMatchSubcategory" maxlength="128" placeholder="vpn" /></label>
+          <label>Assignment group<input id="itsmSlaMatchGroup" maxlength="128" placeholder="NOC" /></label>
+          <label>Urgency<input id="itsmSlaMatchUrgency" maxlength="64" placeholder="high" /></label>
+          <label>Impact<input id="itsmSlaMatchImpact" maxlength="64" placeholder="high" /></label>
+          <label>CI criticality<input id="itsmSlaMatchCiCrit" maxlength="64" placeholder="critical" /></label>
+          <label>CI tier<input id="itsmSlaMatchCiTier" maxlength="64" placeholder="tier1" /></label>
+          <label>Priorities filter<input id="itsmSlaMatchPriorities" maxlength="32" placeholder="p1,p2 (blank = any)" /></label>
+        </div>
+        <h4 class="itsm-drawer-section">Calendar</h4>
+        <div class="form-grid">
+          <label>Timezone<input id="itsmSlaCalTz" maxlength="64" value="UTC" /></label>
+          <label class="itsm-sla-check-inline"><input type="checkbox" id="itsmSlaCalBiz" /> Business hours only</label>
+          <label>Start (HH:MM)<input id="itsmSlaCalStart" maxlength="8" placeholder="09:00" /></label>
+          <label>End (HH:MM)<input id="itsmSlaCalEnd" maxlength="8" placeholder="17:00" /></label>
         </div>
         <h4 class="itsm-drawer-section">Response targets (minutes)</h4>
         <div class="form-grid itsm-sla-priority-grid">
@@ -2498,15 +2535,15 @@
     </div>
   </div>
 
-  <script src="/static/js/cmdb.js?v=0.37.0"></script>
-  <script src="/static/js/itsm/api.js?v=0.37.0"></script>
-  <script src="/static/js/itsm/dashboard.js?v=0.37.0"></script>
-  <script src="/static/js/itsm/incidents.js?v=0.37.0"></script>
-  <script src="/static/js/itsm/changes.js?v=0.37.0"></script>
-  <script src="/static/js/itsm/problems.js?v=0.37.0"></script>
-  <script src="/static/js/itsm/approvals.js?v=0.37.0"></script>
-  <script src="/static/js/itsm/workflows.js?v=0.37.0"></script>
-  <script src="/static/js/itsm/sla.js?v=0.37.0"></script>
-  <script src="/static/js/itsm/index.js?v=0.37.0"></script>
+  <script src="/static/js/cmdb.js?v=0.37.1"></script>
+  <script src="/static/js/itsm/api.js?v=0.37.1"></script>
+  <script src="/static/js/itsm/dashboard.js?v=0.37.1"></script>
+  <script src="/static/js/itsm/incidents.js?v=0.37.1"></script>
+  <script src="/static/js/itsm/changes.js?v=0.37.1"></script>
+  <script src="/static/js/itsm/problems.js?v=0.37.1"></script>
+  <script src="/static/js/itsm/approvals.js?v=0.37.1"></script>
+  <script src="/static/js/itsm/workflows.js?v=0.37.1"></script>
+  <script src="/static/js/itsm/sla.js?v=0.37.1"></script>
+  <script src="/static/js/itsm/index.js?v=0.37.1"></script>
 </body>
 </html>

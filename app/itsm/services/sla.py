@@ -14,6 +14,7 @@ from ...serialization import serialize_document
 from ...tenancy import merge_tenant_filter, require_tenant_id, stamp_tenant_id
 from ..models.common import TICKET_TYPES
 from ..models.sla import (
+    MATCH_WEIGHTS,
     SLA_METRICS,
     SLA_TRACKING_STATUSES,
     SlaPolicyCreate,
@@ -21,6 +22,22 @@ from ..models.sla import (
 )
 from . import activities as activities_service
 from .indexes import SLA_POLICIES, SLA_TRACKING, ensure_itsm_indexes
+
+# Ticket fields that affect which policy wins (reattach when any change).
+_MATCH_CONTEXT_FIELDS: frozenset[str] = frozenset(
+    {
+        "priority",
+        "service_tier",
+        "customer_class",
+        "category",
+        "subcategory",
+        "assignment_group",
+        "urgency",
+        "impact",
+        "ci_tier",
+        "ci_criticality",
+    }
+)
 
 # Terminal statuses complete the resolution clock (and cancel leftover response clocks).
 _TERMINAL_BY_TYPE: dict[str, frozenset[str]] = {
@@ -100,6 +117,166 @@ def _minutes_for_priority(target: dict[str, Any], priority: str) -> int | None:
         if row.get("priority") == priority:
             return int(row["minutes"])
     return None
+
+
+def _norm(value: Any) -> str | None:
+    if value is None:
+        return None
+    text = str(value).strip()
+    return text.lower() if text else None
+
+
+def _match_doc(match: Any) -> dict[str, Any]:
+    if match is None:
+        return {}
+    if hasattr(match, "model_dump"):
+        data = match.model_dump(exclude_none=True)
+    elif isinstance(match, dict):
+        data = {k: v for k, v in match.items() if v is not None and v != ""}
+    else:
+        data = {}
+    # Drop empty lists.
+    if not data.get("priorities"):
+        data.pop("priorities", None)
+    return data
+
+
+def build_ticket_context(ticket: dict[str, Any] | None) -> dict[str, Any]:
+    """Normalize ticket (+ CI snapshot) fields used for SLA matching."""
+    ticket = ticket or {}
+    ci_links = ticket.get("ci_links") or []
+    ci_tiers: list[str] = []
+    ci_crits: list[str] = []
+    for link in ci_links:
+        if not isinstance(link, dict):
+            continue
+        t = _norm(link.get("ci_tier"))
+        c = _norm(link.get("criticality"))
+        if t:
+            ci_tiers.append(t)
+        if c:
+            ci_crits.append(c)
+    ticket_ci_tier = _norm(ticket.get("ci_tier"))
+    ticket_ci_crit = _norm(ticket.get("ci_criticality"))
+    if ticket_ci_tier:
+        ci_tiers.insert(0, ticket_ci_tier)
+    if ticket_ci_crit:
+        ci_crits.insert(0, ticket_ci_crit)
+    return {
+        "priority": _norm(ticket.get("priority")),
+        "service_tier": _norm(ticket.get("service_tier")),
+        "customer_class": _norm(ticket.get("customer_class")),
+        "category": _norm(ticket.get("category")),
+        "subcategory": _norm(ticket.get("subcategory")),
+        "assignment_group": _norm(ticket.get("assignment_group")),
+        "urgency": _norm(ticket.get("urgency")),
+        "impact": _norm(ticket.get("impact")),
+        "ci_tier": ticket_ci_tier,
+        "ci_criticality": ticket_ci_crit,
+        "ci_tiers": ci_tiers,
+        "ci_criticalities": ci_crits,
+    }
+
+
+def evaluate_policy_match(
+    policy: dict[str, Any],
+    context: dict[str, Any],
+) -> tuple[bool, int, dict[str, Any]]:
+    """Return (matches, specificity_score, matched_fields).
+
+    Missing / empty match fields are wildcards. Most-specific wins among matches.
+    """
+    match = policy.get("match") or {}
+    if hasattr(match, "model_dump"):
+        match = match.model_dump(exclude_none=True)
+    matched: dict[str, Any] = {}
+    score = 0
+
+    def require_eq(field: str, ticket_value: str | None) -> bool:
+        nonlocal score
+        expected = _norm(match.get(field)) if isinstance(match, dict) else None
+        if not expected:
+            return True  # wildcard
+        if ticket_value == expected:
+            matched[field] = ticket_value
+            score += MATCH_WEIGHTS.get(field, 10)
+            return True
+        return False
+
+    if not isinstance(match, dict):
+        match = {}
+
+    checks = [
+        ("service_tier", context.get("service_tier")),
+        ("customer_class", context.get("customer_class")),
+        ("category", context.get("category")),
+        ("subcategory", context.get("subcategory")),
+        ("assignment_group", context.get("assignment_group")),
+        ("urgency", context.get("urgency")),
+        ("impact", context.get("impact")),
+    ]
+    for field, value in checks:
+        if not require_eq(field, value):
+            return False, 0, {}
+
+    # CI criticality: ticket field OR any ci_links snapshot.
+    expected_crit = _norm(match.get("ci_criticality"))
+    if expected_crit:
+        pool = set(context.get("ci_criticalities") or [])
+        if context.get("ci_criticality"):
+            pool.add(context["ci_criticality"])
+        if expected_crit not in pool:
+            return False, 0, {}
+        matched["ci_criticality"] = expected_crit
+        score += MATCH_WEIGHTS.get("ci_criticality", 10)
+
+    expected_ci_tier = _norm(match.get("ci_tier"))
+    if expected_ci_tier:
+        pool = set(context.get("ci_tiers") or [])
+        if context.get("ci_tier"):
+            pool.add(context["ci_tier"])
+        if expected_ci_tier not in pool:
+            return False, 0, {}
+        matched["ci_tier"] = expected_ci_tier
+        score += MATCH_WEIGHTS.get("ci_tier", 10)
+
+    priorities = match.get("priorities") or []
+    if priorities:
+        allowed = {_norm(p) for p in priorities if _norm(p)}
+        ticket_priority = context.get("priority")
+        if ticket_priority not in allowed:
+            return False, 0, {}
+        matched["priorities"] = sorted(allowed)
+        matched["priority"] = ticket_priority
+        score += MATCH_WEIGHTS.get("priorities", 10)
+
+    return True, score, matched
+
+
+def select_winning_policy(
+    policies: list[dict[str, Any]],
+    context: dict[str, Any],
+) -> tuple[dict[str, Any] | None, int, dict[str, Any]]:
+    """Pick the most specific matching policy.
+
+    Sort key: specificity score DESC, priority_order ASC, updated_at DESC.
+    """
+    candidates: list[tuple[int, int, Any, dict[str, Any], dict[str, Any]]] = []
+    for policy in policies:
+        ok, score, matched = evaluate_policy_match(policy, context)
+        if not ok:
+            continue
+        order = int(policy.get("priority_order") if policy.get("priority_order") is not None else 100)
+        candidates.append((score, order, policy.get("updated_at"), policy, matched))
+
+    if not candidates:
+        return None, 0, {}
+
+    candidates.sort(
+        key=lambda row: (-row[0], row[1], row[2] is None, row[2]),
+    )
+    best = candidates[0]
+    return best[3], best[0], best[4]
 
 
 def _ensure_aware(value: datetime | None) -> datetime | None:
@@ -286,6 +463,8 @@ def create_policy(
         "description": (payload.description or "").strip() or None,
         "active": bool(payload.active),
         "applies_to": payload.applies_to,
+        "priority_order": int(payload.priority_order),
+        "match": _match_doc(payload.match),
         "targets": _targets_to_docs(payload.targets),
         "pause_on_statuses": pause,
         "calendar": payload.calendar.model_dump(),
@@ -318,6 +497,8 @@ def update_policy(
         updates["name"] = updates["name"].strip()
     if "description" in updates and updates["description"] is not None:
         updates["description"] = updates["description"].strip() or None
+    if "match" in updates:
+        updates["match"] = _match_doc(payload.match)
     if "targets" in updates and updates["targets"] is not None:
         updates["targets"] = _targets_to_docs(payload.targets or [])
     if "calendar" in updates and updates["calendar"] is not None:
@@ -521,6 +702,8 @@ def _create_tracking_rows(
     priority: str,
     status: str,
     actor: dict[str, Any] | None,
+    matched_fields: dict[str, Any] | None = None,
+    match_score: int = 0,
 ) -> list[dict[str, Any]]:
     who = _actor_fields(actor)
     now = _now()
@@ -528,6 +711,12 @@ def _create_tracking_rows(
     initial_paused = status in pause_statuses
     created: list[dict[str, Any]] = []
     tracking_ids: list[str] = []
+    matched_fields = matched_fields or {}
+    why = (
+        ", ".join(f"{k}={v}" for k, v in matched_fields.items())
+        if matched_fields
+        else "wildcard (default policy)"
+    )
 
     for target in policy.get("targets") or []:
         metric = target.get("metric")
@@ -554,6 +743,14 @@ def _create_tracking_rows(
             "breached_at": None,
             "completed_at": None,
             "status": "paused" if initial_paused else "running",
+            "match_score": int(match_score),
+            "matched_fields": matched_fields,
+            "match_reason": why,
+            "policy_priority_order": int(
+                policy.get("priority_order")
+                if policy.get("priority_order") is not None
+                else 100
+            ),
             "created_at": now,
             "updated_at": now,
             "created_by": who["username"],
@@ -578,7 +775,7 @@ def _create_tracking_rows(
             activity_type="sla",
             message=(
                 f"SLA attached: {policy.get('name')} ({policy.get('policy_id')}) "
-                f"· {len(created)} metric(s)"
+                f"· score={match_score} · {why} · {len(created)} metric(s)"
             ),
             actor_user_id=who["user_id"],
             actor_username=who["username"],
@@ -595,52 +792,78 @@ def attach_matching_policies(
     priority: str,
     status: str,
     actor: dict[str, Any] | None = None,
+    ticket: dict[str, Any] | None = None,
 ) -> list[dict[str, Any]]:
-    """Best-effort: attach all active policies for this ticket type (tenant-scoped)."""
+    """Attach the single most-specific matching active policy (tenant-scoped).
+
+    Match algorithm (documented):
+    1. Load active policies where ``applies_to`` equals ticket type.
+    2. Evaluate ``match`` conditions — unset/empty fields are wildcards.
+    3. Among matches, pick highest specificity score (sum of dimension weights);
+       ties break by lower ``priority_order``, then newer ``updated_at``.
+    4. Attach that policy's response/resolution clocks only.
+    Legacy policies without ``match`` behave as full wildcards (score 0).
+    """
     tid = require_tenant_id(tenant_id)
     if ticket_type not in TICKET_TYPES:
         return []
+
+    if ticket is None:
+        try:
+            ticket = ensure_ticket_exists(ticket_type, ticket_id, tenant_id=tid)
+        except SlaError:
+            ticket = {
+                "priority": priority,
+                "status": status,
+            }
+
+    context = build_ticket_context(ticket)
+    if not context.get("priority"):
+        context["priority"] = _norm(priority)
+
     policies = list(
         _policies().find(
             {"tenant_id": tid, "active": True, "applies_to": ticket_type}
         )
     )
-    attached: list[dict[str, Any]] = []
-    for policy in policies:
-        # Skip metrics already actively tracked for this policy+ticket.
-        existing_metrics = {
-            row["metric"]
-            for row in _tracking().find(
-                {
-                    "tenant_id": tid,
-                    "ticket_type": ticket_type,
-                    "ticket_id": ticket_id,
-                    "policy_id": policy["policy_id"],
-                    "status": {"$in": ["running", "paused"]},
-                },
-                {"metric": 1},
-            )
-        }
-        filtered = dict(policy)
-        filtered["targets"] = [
-            t
-            for t in (policy.get("targets") or [])
-            if t.get("metric") not in existing_metrics
-        ]
-        if not filtered["targets"]:
-            continue
-        attached.extend(
-            _create_tracking_rows(
-                tenant_id=tid,
-                policy=filtered,
-                ticket_type=ticket_type,
-                ticket_id=ticket_id,
-                priority=priority,
-                status=status,
-                actor=actor,
-            )
+    winner, score, matched = select_winning_policy(policies, context)
+    if winner is None:
+        return []
+
+    # Skip if this policy already has open tracking for all its metrics.
+    existing_metrics = {
+        row["metric"]
+        for row in _tracking().find(
+            {
+                "tenant_id": tid,
+                "ticket_type": ticket_type,
+                "ticket_id": ticket_id,
+                "policy_id": winner["policy_id"],
+                "status": {"$in": ["running", "paused"]},
+            },
+            {"metric": 1},
         )
-    return attached
+    }
+    filtered = dict(winner)
+    filtered["targets"] = [
+        t
+        for t in (winner.get("targets") or [])
+        if t.get("metric") not in existing_metrics
+    ]
+    if not filtered["targets"]:
+        return []
+
+    return _create_tracking_rows(
+        tenant_id=tid,
+        policy=filtered,
+        ticket_type=ticket_type,
+        ticket_id=ticket_id,
+        priority=priority,
+        status=status,
+        actor=actor,
+        matched_fields=matched,
+        match_score=score,
+    )
 
 
 def cancel_open_tracking(
@@ -674,6 +897,36 @@ def cancel_open_tracking(
     return int(result.modified_count)
 
 
+def reattach_for_context_change(
+    *,
+    tenant_id: str,
+    ticket_type: str,
+    ticket_id: str,
+    priority: str,
+    status: str,
+    actor: dict[str, Any] | None = None,
+    reason: str = "context_change",
+    ticket: dict[str, Any] | None = None,
+) -> list[dict[str, Any]]:
+    """Cancel open clocks and attach the winning policy for the updated ticket."""
+    cancel_open_tracking(
+        tenant_id=tenant_id,
+        ticket_type=ticket_type,
+        ticket_id=ticket_id,
+        actor=actor,
+        reason=reason,
+    )
+    return attach_matching_policies(
+        tenant_id=tenant_id,
+        ticket_type=ticket_type,
+        ticket_id=ticket_id,
+        priority=priority,
+        status=status,
+        actor=actor,
+        ticket=ticket,
+    )
+
+
 def reattach_for_priority_change(
     *,
     tenant_id: str,
@@ -684,21 +937,23 @@ def reattach_for_priority_change(
     actor: dict[str, Any] | None = None,
 ) -> list[dict[str, Any]]:
     """Cancel open clocks and attach fresh tracking for the new priority."""
-    cancel_open_tracking(
-        tenant_id=tenant_id,
-        ticket_type=ticket_type,
-        ticket_id=ticket_id,
-        actor=actor,
-        reason="priority_change",
-    )
-    return attach_matching_policies(
+    return reattach_for_context_change(
         tenant_id=tenant_id,
         ticket_type=ticket_type,
         ticket_id=ticket_id,
         priority=priority,
         status=status,
         actor=actor,
+        reason="priority_change",
     )
+
+
+def match_context_changed(before: dict[str, Any], after: dict[str, Any]) -> bool:
+    """True when SLA-relevant ticket fields changed."""
+    for field in _MATCH_CONTEXT_FIELDS:
+        if _norm(before.get(field)) != _norm(after.get(field)):
+            return True
+    return False
 
 
 def _pause_row(doc: dict[str, Any], *, actor: dict[str, Any] | None) -> dict[str, Any]:
@@ -948,6 +1203,32 @@ def notify_priority_changed(
             priority=priority,
             status=status,
             actor=actor,
+        )
+    except Exception:  # noqa: BLE001
+        return []
+
+
+def notify_context_changed(
+    *,
+    tenant_id: str,
+    ticket_type: str,
+    ticket_id: str,
+    priority: str,
+    status: str,
+    actor: dict[str, Any] | None = None,
+    ticket: dict[str, Any] | None = None,
+    reason: str = "context_change",
+) -> list[dict[str, Any]]:
+    try:
+        return reattach_for_context_change(
+            tenant_id=tenant_id,
+            ticket_type=ticket_type,
+            ticket_id=ticket_id,
+            priority=priority,
+            status=status,
+            actor=actor,
+            reason=reason,
+            ticket=ticket,
         )
     except Exception:  # noqa: BLE001
         return []

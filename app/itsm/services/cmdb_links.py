@@ -38,21 +38,36 @@ def resolve_component_link(
 def resolve_ci_links(
     links: list[CiLink] | list[dict[str, Any]] | None, *, tenant_id: str
 ) -> list[dict[str, Any]]:
-    """Resolve and de-dupe CI links by component_id."""
+    """Resolve and de-dupe CI links by component_id.
+
+    Preserves optional ticket-side SLA snapshots (``ci_tier``, ``criticality``)
+    supplied on the incoming link — never written back to CMDB.
+    """
     if not links:
         return []
     resolved: list[dict[str, Any]] = []
     seen: set[str] = set()
     for raw in links:
+        snapshot_tier: str | None = None
+        snapshot_crit: str | None = None
         if isinstance(raw, CiLink):
             cid = raw.component_id
+            snapshot_tier = (raw.ci_tier or "").strip() or None
+            snapshot_crit = (raw.criticality or "").strip() or None
         elif isinstance(raw, dict):
             cid = str(raw.get("component_id") or "")
+            snapshot_tier = str(raw.get("ci_tier") or "").strip() or None
+            snapshot_crit = str(raw.get("criticality") or "").strip() or None
         else:
             continue
         cid = cid.strip()
         if not cid or cid in seen:
             continue
         seen.add(cid)
-        resolved.append(resolve_component_link(cid, tenant_id=tenant_id))
+        link = resolve_component_link(cid, tenant_id=tenant_id)
+        if snapshot_tier:
+            link["ci_tier"] = snapshot_tier
+        if snapshot_crit:
+            link["criticality"] = snapshot_crit
+        resolved.append(link)
     return resolved

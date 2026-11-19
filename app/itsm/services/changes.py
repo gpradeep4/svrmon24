@@ -206,9 +206,16 @@ def create_change(
         "change_type": payload.change_type,
         "risk": payload.risk,
         "impact": payload.impact,
+        "urgency": (payload.urgency or "").strip() or None,
         "priority": payload.priority,
+        "category": (payload.category or "").strip() or None,
+        "subcategory": (payload.subcategory or "").strip() or None,
         "assignment_group": payload.assignment_group,
         "assignee_user_id": payload.assignee_user_id,
+        "service_tier": (payload.service_tier or "").strip() or None,
+        "customer_class": (payload.customer_class or "").strip() or None,
+        "ci_tier": (payload.ci_tier or "").strip() or None,
+        "ci_criticality": (payload.ci_criticality or "").strip() or None,
         "planned_start": payload.planned_start,
         "planned_end": payload.planned_end,
         "actual_start": None,
@@ -285,11 +292,7 @@ def update_change(
 
     old_assignee = existing.get("assignee_user_id")
     new_assignee = updates.get("assignee_user_id", old_assignee)
-    old_priority = existing.get("priority")
-    priority_changed = (
-        "priority" in payload.model_dump(exclude_unset=True)
-        and updates.get("priority") != old_priority
-    )
+    unset_fields = payload.model_dump(exclude_unset=True)
 
     doc = _coll().find_one_and_update(
         {"tenant_id": tid, "change_id": change_id},
@@ -299,7 +302,7 @@ def update_change(
     if doc is None:
         raise ChangeError(f"Change '{change_id}' not found", status_code=404)
 
-    if "assignee_user_id" in payload.model_dump(exclude_unset=True) and old_assignee != new_assignee:
+    if "assignee_user_id" in unset_fields and old_assignee != new_assignee:
         activities_service.append_activity(
             tenant_id=tid,
             ticket_type="change",
@@ -321,16 +324,18 @@ def update_change(
             actor_user_id=who["user_id"],
             actor_username=who["username"],
         )
-    if priority_changed:
-        from . import sla as sla_service
+    from . import sla as sla_service
 
-        sla_service.notify_priority_changed(
+    if sla_service.match_context_changed(existing, doc):
+        sla_service.notify_context_changed(
             tenant_id=tid,
             ticket_type="change",
             ticket_id=change_id,
-            priority=str(doc.get("priority") or old_priority),
+            priority=str(doc.get("priority") or existing.get("priority") or "p3"),
             status=str(doc.get("status") or "draft"),
             actor=actor,
+            ticket=doc,
+            reason="context_change",
         )
         refreshed = _coll().find_one({"tenant_id": tid, "change_id": change_id})
         if refreshed is not None:
