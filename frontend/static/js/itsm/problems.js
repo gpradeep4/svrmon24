@@ -350,6 +350,7 @@
   global.SVRMON24ItsmProblems = {
     initItsmProblems,
     loadProblems,
+    openProblem,
     applyWriteGates,
     closeDrawer,
   };

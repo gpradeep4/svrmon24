@@ -264,6 +264,7 @@
   global.SVRMON24ItsmApprovals = {
     initItsmApprovals,
     loadApprovals,
+    openApproval,
     applyWriteGates,
   };
 })(window);

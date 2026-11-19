@@ -1,4 +1,4 @@
-"""ITSM Knowledge Management — functional coverage for 0.38.0."""
+"""ITSM Knowledge Management — functional coverage for 0.39.0."""
 
 from __future__ import annotations
 
@@ -17,7 +17,7 @@ from tests.frontend_paths import FRONTEND_INDEX
 
 
 def test_version_bump_for_knowledge_slice() -> None:
-    assert __version__ == "0.38.0"
+    assert __version__ == "0.39.0"
 
 
 def test_knowledge_permissions_in_catalog() -> None:
@@ -230,9 +230,9 @@ def test_knowledge_tenant_isolation(
 
 def test_frontend_knowledge_markers() -> None:
     html = FRONTEND_INDEX.read_text(encoding="utf-8")
-    assert 'content="0.38.0"' in html
+    assert 'content="0.39.0"' in html
     assert 'data-tab="itsm-knowledge"' in html
     assert 'id="tab-itsm-knowledge"' in html
-    assert "itsm/knowledge.js?v=0.38.0" in html
+    assert "itsm/knowledge.js?v=0.39.0" in html
     assert 'id="itsmKnowledgeModal"' in html
     assert 'id="itsmIncKbSuggest"' in html

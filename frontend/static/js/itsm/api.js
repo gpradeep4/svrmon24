@@ -176,5 +176,18 @@
       const q = new URLSearchParams(params || {});
       return itsmGet(`/knowledge/articles/suggest?${q.toString()}`);
     },
+    listNotifications: (params) => {
+      const q = new URLSearchParams(params || {});
+      return itsmGet(`/notifications?${q.toString()}`);
+    },
+    getNotification: (id) =>
+      itsmGet(`/notifications/${encodeURIComponent(id)}`),
+    notificationUnreadCount: () => itsmGet("/notifications/unread-count"),
+    markNotificationRead: (id) =>
+      itsmSend(`/notifications/${encodeURIComponent(id)}/read`, "POST"),
+    markNotificationUnread: (id) =>
+      itsmSend(`/notifications/${encodeURIComponent(id)}/unread`, "POST"),
+    markNotificationArchive: (id) =>
+      itsmSend(`/notifications/${encodeURIComponent(id)}/archive`, "POST"),
   };
 })(window);

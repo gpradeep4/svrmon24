@@ -374,7 +374,28 @@ def _refresh_breach_doc(doc: dict[str, Any]) -> dict[str, Any]:
         },
         return_document=ReturnDocument.AFTER,
     )
-    return updated or doc
+    result = updated or doc
+    if updated is not None and updated.get("status") == "breached":
+        try:
+            from . import notifications as notifications_service
+
+            assignee, number_display = notifications_service.lookup_ticket_assignee(
+                tenant_id=str(tid),
+                ticket_type=str(updated.get("ticket_type") or ""),
+                ticket_id=str(updated.get("ticket_id") or ""),
+            )
+            notifications_service.notify_sla_breach(
+                tenant_id=str(tid),
+                ticket_type=str(updated.get("ticket_type") or ""),
+                ticket_id=str(updated.get("ticket_id") or ""),
+                tracking_id=str(tracking_id),
+                metric=str(updated.get("metric") or "SLA"),
+                assignee_user_id=assignee,
+                number_display=number_display,
+            )
+        except Exception:  # noqa: BLE001 — breach refresh must not fail
+            pass
+    return result
 
 
 def get_policy(policy_id: str, *, tenant_id: str) -> dict[str, Any] | None:

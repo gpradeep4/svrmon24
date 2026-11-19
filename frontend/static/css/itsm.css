@@ -592,6 +592,75 @@
   border-color: #fecaca;
 }
 
+.itsm-status.is-unread {
+  background: #eef2ff;
+  color: #4338ca;
+  border-color: #c7d2fe;
+}
+
+.itsm-status.is-read {
+  background: #f1f5f9;
+  color: #475569;
+  border-color: #cbd5e1;
+}
+
+.itsm-status.is-archived {
+  background: #f8fafc;
+  color: #64748b;
+  border-color: #e2e8f0;
+}
+
+.itsm-notif-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 1.25rem;
+  height: 1.25rem;
+  padding: 0 0.35rem;
+  margin-left: 0.35rem;
+  border-radius: 999px;
+  font-size: 0.7rem;
+  font-weight: 700;
+  line-height: 1;
+  background: var(--accent, #4f46e5);
+  color: #ffffff;
+  vertical-align: middle;
+}
+
+.nav-item .itsm-notif-badge {
+  margin-left: auto;
+}
+
+.itsm-notif-toolbar {
+  grid-template-columns: 1fr 1fr auto auto;
+}
+
+.itsm-notif-include {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 0.9rem;
+  color: var(--muted, #64748b);
+}
+
+.itsm-notif-row.itsm-notif-unread td {
+  font-weight: 600;
+}
+
+.itsm-notif-body {
+  margin-top: 0.2rem;
+  font-weight: 400;
+}
+
+.itsm-notif-event {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 0.78rem;
+}
+
+.itsm-notif-actions {
+  white-space: nowrap;
+}
+
 @media (max-width: 900px) {
   .itsm-kpi-row {
     grid-template-columns: repeat(2, minmax(0, 1fr));

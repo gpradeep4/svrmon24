@@ -347,6 +347,7 @@
   global.SVRMON24ItsmIncidents = {
     initItsmIncidents,
     loadIncidents,
+    openIncident,
     applyWriteGates,
     closeDrawer,
   };
