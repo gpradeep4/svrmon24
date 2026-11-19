@@ -54,10 +54,11 @@ class Settings(BaseSettings):
     cors_origins: str = Field(default="", alias="CORS_ORIGINS")
 
     mongodb_uri: str = Field(default="mongodb://localhost:27017", alias="MONGODB_URI")
-    # Legacy / fallback DB name. Existing deploys keep working when only MONGODB_DB is set.
-    # Greenfield CMDB target name is ``svrmon-cmdb`` via MONGODB_CMDB_DB (optional).
-    mongodb_db: str = Field(default="svrmon24", alias="MONGODB_DB")
-    # Optional explicit CMDB database. When unset/blank, falls back to ``mongodb_db``.
+    # CMDB database name (slice 2K cutover). Default ``svrmon-cmdb``.
+    # Existing deploys still on the pre-cutover name should set ``MONGODB_DB=svrmon24``
+    # (or copy/rename data into ``svrmon-cmdb``) until they finish ops migration.
+    mongodb_db: str = Field(default="svrmon-cmdb", alias="MONGODB_DB")
+    # Optional explicit CMDB database override. When unset/blank, uses ``mongodb_db``.
     mongodb_cmdb_db: str = Field(default="", alias="MONGODB_CMDB_DB")
     # Dedicated ITSM database (separate from CMDB). Default ``svrmon-itsm``.
     mongodb_itsm_db: str = Field(default="svrmon-itsm", alias="MONGODB_ITSM_DB")
@@ -68,11 +69,11 @@ class Settings(BaseSettings):
 
     @property
     def cmdb_database_name(self) -> str:
-        """Resolved CMDB DB: ``MONGODB_CMDB_DB`` or legacy ``MONGODB_DB`` (default ``svrmon24``)."""
+        """Resolved CMDB DB: ``MONGODB_CMDB_DB`` or ``MONGODB_DB`` (default ``svrmon-cmdb``)."""
         explicit = (self.mongodb_cmdb_db or "").strip()
         if explicit:
             return explicit
-        return (self.mongodb_db or "").strip() or "svrmon24"
+        return (self.mongodb_db or "").strip() or "svrmon-cmdb"
 
     @property
     def itsm_database_name(self) -> str:

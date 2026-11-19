@@ -44,8 +44,8 @@ def get_client(settings: Settings | None = None) -> MongoClient:
 def get_database(settings: Settings | None = None) -> Database:
     """Return the CMDB database handle (does not force a network round-trip).
 
-    Uses ``MONGODB_CMDB_DB`` when set; otherwise legacy ``MONGODB_DB`` (default
-    ``svrmon24``) so existing deploys keep working without a forced rename.
+    Uses ``MONGODB_CMDB_DB`` when set; otherwise ``MONGODB_DB`` (default
+    ``svrmon-cmdb`` after the 2K cutover).
     """
     cfg = settings or get_settings()
     return get_client(cfg)[cfg.cmdb_database_name]

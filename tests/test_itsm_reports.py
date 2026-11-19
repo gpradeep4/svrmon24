@@ -1,4 +1,4 @@
-"""ITSM report export + custom report definitions — functional coverage for 0.41.0."""
+"""ITSM report export + custom report definitions — functional coverage for 0.42.0."""
 
 from __future__ import annotations
 
@@ -20,7 +20,7 @@ from tests.frontend_paths import FRONTEND_INDEX
 
 
 def test_version_bump_for_reports_slice() -> None:
-    assert __version__ == "0.41.0"
+    assert __version__ == "0.42.0"
 
 
 def test_reports_permissions_for_roles() -> None:
@@ -184,9 +184,9 @@ def test_custom_report_crud_run_export_and_tenant_isolation(
 
 def test_frontend_wires_report_export_ui(client: TestClient) -> None:
     html = FRONTEND_INDEX.read_text(encoding="utf-8")
-    assert 'content="0.41.0"' in html
+    assert 'content="0.42.0"' in html
     assert "btnExportItsmReportsCsv" in html
     assert "btnExportItsmReportsXlsx" in html
     assert "itsmCustomReportForm" in html
-    assert "itsm/reports.js?v=0.41.0" in html
+    assert "itsm/reports.js?v=0.42.0" in html
     assert "itsm:reports:write" in html
