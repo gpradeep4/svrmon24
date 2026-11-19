@@ -520,7 +520,11 @@
     },
     "itsm-dashboard": {
       title: "ITSM Dashboard",
-      subtitle: "Open incidents, changes, and problems for the current tenant",
+      subtitle: "Open work, SLA, approvals, workflows, and knowledge KPIs",
+    },
+    "itsm-reports": {
+      title: "Reports & Analytics",
+      subtitle: "Time-window volume charts and open-work breakdowns",
     },
     "itsm-incidents": {
       title: "Incidents",
@@ -2823,6 +2827,11 @@
       window.SVRMON24ItsmKnowledge?.applyWriteGates?.();
       window.SVRMON24ItsmKnowledge?.loadArticles?.()?.catch?.((err) =>
         toast(err.message || "Knowledge failed", true)
+      );
+    }
+    if (name === "itsm-reports" && state.authenticated) {
+      window.SVRMON24ItsmReports?.loadItsmReports?.({ toast })?.catch?.((err) =>
+        toast(err.message || "ITSM reports failed", true)
       );
     }
     if (name === "itsm-notifications" && state.authenticated) {

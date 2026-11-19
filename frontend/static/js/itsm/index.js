@@ -1,4 +1,4 @@
-/* global SVRMON24ItsmDashboard, SVRMON24ItsmIncidents, SVRMON24ItsmChanges, SVRMON24ItsmProblems, SVRMON24ItsmApprovals, SVRMON24ItsmWorkflows, SVRMON24ItsmSla, SVRMON24ItsmKnowledge, SVRMON24ItsmNotifications */
+/* global SVRMON24ItsmDashboard, SVRMON24ItsmReports, SVRMON24ItsmIncidents, SVRMON24ItsmChanges, SVRMON24ItsmProblems, SVRMON24ItsmApprovals, SVRMON24ItsmWorkflows, SVRMON24ItsmSla, SVRMON24ItsmKnowledge, SVRMON24ItsmNotifications */
 (function (global) {
   "use strict";
 
@@ -51,7 +51,11 @@
     if (pageMeta) {
       pageMeta["itsm-dashboard"] = {
         title: "ITSM Dashboard",
-        subtitle: "Open incidents, changes, and problems for the current tenant",
+        subtitle: "Open work, SLA, approvals, workflows, and knowledge KPIs",
+      };
+      pageMeta["itsm-reports"] = {
+        title: "Reports & Analytics",
+        subtitle: "Time-window volume charts and open-work breakdowns",
       };
       pageMeta["itsm-incidents"] = {
         title: "Incidents",
@@ -87,6 +91,8 @@
       };
     }
 
+    SVRMON24ItsmDashboard.initItsmDashboard({ toast });
+    SVRMON24ItsmReports.initItsmReports({ toast });
     SVRMON24ItsmIncidents.initItsmIncidents({ can, toast, escapeHtml });
     SVRMON24ItsmChanges.initItsmChanges({ can, toast, escapeHtml });
     SVRMON24ItsmProblems.initItsmProblems({ can, toast, escapeHtml });
@@ -99,12 +105,18 @@
     document.getElementById("btnRefreshItsmDash")?.addEventListener("click", () => {
       SVRMON24ItsmDashboard.loadItsmDashboard({ toast });
     });
+    document.getElementById("btnRefreshItsmReports")?.addEventListener("click", () => {
+      SVRMON24ItsmReports.loadItsmReports({ toast });
+    });
 
     if (typeof onShowTab === "function") {
       onShowTab((name, ctx) => {
         if (!ctx?.authenticated) return;
         if (name === "itsm-dashboard") {
           SVRMON24ItsmDashboard.loadItsmDashboard({ toast });
+        }
+        if (name === "itsm-reports") {
+          SVRMON24ItsmReports.loadItsmReports({ toast });
         }
         if (name === "itsm-incidents") {
           SVRMON24ItsmIncidents.applyWriteGates();
