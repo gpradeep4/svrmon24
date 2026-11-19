@@ -4,7 +4,7 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <meta name="svrmon24-ui" content="login-enterprise-v13" />
-  <meta name="svrmon24-version" content="0.40.0" />
+  <meta name="svrmon24-version" content="0.41.0" />
   <title>SVRMON24</title>
   <link rel="icon" href="/static/img/svrmon-favicon.png" type="image/png" sizes="32x32" />
   <link rel="apple-touch-icon" href="/static/img/svrmon-apple-touch.png" sizes="180x180" />
@@ -15,10 +15,10 @@
     body.is-app .login-gate { display: none !important; }
     #authPanel, .auth-panel-legacy { display: none !important; }
   </style>
-  <link rel="stylesheet" href="/static/css/cmdb.css?v=0.40.0" />
-  <link rel="stylesheet" href="/static/css/itsm.css?v=0.40.0" />
-  <script src="/static/js/config.js?v=0.40.0"></script>
-  <script src="/static/js/brand.js?v=0.40.0"></script>
+  <link rel="stylesheet" href="/static/css/cmdb.css?v=0.41.0" />
+  <link rel="stylesheet" href="/static/css/itsm.css?v=0.41.0" />
+  <script src="/static/js/config.js?v=0.41.0"></script>
+  <script src="/static/js/brand.js?v=0.41.0"></script>
 </head>
 <body class="is-login">
   <!-- Enterprise login: showcase (left) + sign-in panel (right); stacks on small viewports -->
@@ -1225,7 +1225,7 @@
         <section id="tab-itsm-reports" class="tab-panel hidden" data-itsm-module="1">
           <section class="panel itsm-panel">
             <h2>Reports &amp; Analytics</h2>
-            <p class="hint">Tenant-scoped ITSM volume and open-work analytics. Charts use the same indigo SaaS accent as the rest of the product.</p>
+            <p class="hint">Tenant-scoped ITSM volume and open-work analytics. Download summary + detail tables as CSV or Excel, or save custom report definitions.</p>
             <div class="toolbar itsm-toolbar itsm-dash-toolbar">
               <label>Window
                 <select id="itsmReportsWindow">
@@ -1234,6 +1234,8 @@
                 </select>
               </label>
               <button type="button" id="btnRefreshItsmReports" class="secondary">Refresh</button>
+              <button type="button" id="btnExportItsmReportsCsv" class="secondary" data-itsm-reports-read="1">Download CSV</button>
+              <button type="button" id="btnExportItsmReportsXlsx" class="secondary" data-itsm-reports-read="1">Download Excel</button>
             </div>
             <p class="hint" id="itsmReportsWindowLabel">Last 30 days</p>
             <div class="itsm-kpi-row itsm-kpi-row-wide">
@@ -1278,6 +1280,115 @@
               </section>
             </div>
             <p class="hint" id="itsmReportsNotes">Sign in to load ITSM reports.</p>
+
+            <section class="itsm-custom-reports" id="itsmCustomReportsSection">
+              <h3>Custom reports</h3>
+              <p class="hint">Save reusable report definitions (metrics, filters, columns), then run or download them. Write access requires <code>itsm:reports:write</code>.</p>
+              <div class="toolbar itsm-toolbar itsm-custom-report-toolbar">
+                <button type="button" id="btnRefreshItsmCustomReports" class="secondary">Refresh list</button>
+                <button type="button" id="btnNewItsmCustomReport" data-itsm-reports-write="1">New report</button>
+              </div>
+              <p class="hint" id="itsmCustomReportListMeta">No custom reports loaded yet.</p>
+              <div class="table-wrap">
+                <table class="inventory" id="itsmCustomReportTable">
+                  <thead>
+                    <tr>
+                      <th>Name</th>
+                      <th>Metrics</th>
+                      <th>Window</th>
+                      <th>Updated</th>
+                      <th>Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody></tbody>
+                </table>
+              </div>
+
+              <form id="itsmCustomReportForm" class="itsm-custom-report-form" hidden>
+                <h4 id="itsmCustomReportFormTitle">New custom report</h4>
+                <input type="hidden" id="itsmCustomReportId" value="" />
+                <div class="itsm-form-grid">
+                  <label>Name
+                    <input type="text" id="itsmCustomReportName" maxlength="200" required />
+                  </label>
+                  <label>Description
+                    <input type="text" id="itsmCustomReportDesc" maxlength="2000" />
+                  </label>
+                  <label>Window (days)
+                    <select id="itsmCustomReportWindow">
+                      <option value="7">7</option>
+                      <option value="30" selected>30</option>
+                      <option value="">None (snapshot KPIs only)</option>
+                    </select>
+                  </label>
+                  <label>Category
+                    <input type="text" id="itsmCustomReportCategory" maxlength="128" placeholder="optional" />
+                  </label>
+                  <label>Service tier
+                    <input type="text" id="itsmCustomReportTier" maxlength="64" placeholder="tier1 / tier2 / …" />
+                  </label>
+                  <label>Priorities (comma)
+                    <input type="text" id="itsmCustomReportPriorities" placeholder="p1,p2" />
+                  </label>
+                  <label>Statuses (comma)
+                    <input type="text" id="itsmCustomReportStatuses" placeholder="new,in_progress" />
+                  </label>
+                  <fieldset class="itsm-check-fieldset">
+                    <legend>Ticket types</legend>
+                    <label><input type="checkbox" name="itsmCustomReportType" value="incident" checked /> incident</label>
+                    <label><input type="checkbox" name="itsmCustomReportType" value="change" checked /> change</label>
+                    <label><input type="checkbox" name="itsmCustomReportType" value="problem" checked /> problem</label>
+                  </fieldset>
+                  <fieldset class="itsm-check-fieldset itsm-check-fieldset-wide">
+                    <legend>Metrics</legend>
+                    <label><input type="checkbox" name="itsmCustomReportMetric" value="open_incidents" checked /> open_incidents</label>
+                    <label><input type="checkbox" name="itsmCustomReportMetric" value="open_changes" /> open_changes</label>
+                    <label><input type="checkbox" name="itsmCustomReportMetric" value="open_problems" /> open_problems</label>
+                    <label><input type="checkbox" name="itsmCustomReportMetric" value="sla_breaches" checked /> sla_breaches</label>
+                    <label><input type="checkbox" name="itsmCustomReportMetric" value="sla_at_risk" /> sla_at_risk</label>
+                    <label><input type="checkbox" name="itsmCustomReportMetric" value="pending_approvals" /> pending_approvals</label>
+                    <label><input type="checkbox" name="itsmCustomReportMetric" value="created_incidents" /> created_incidents</label>
+                    <label><input type="checkbox" name="itsmCustomReportMetric" value="resolved_incidents" /> resolved_incidents</label>
+                    <label><input type="checkbox" name="itsmCustomReportMetric" value="ticket_rows" checked /> ticket_rows</label>
+                  </fieldset>
+                  <fieldset class="itsm-check-fieldset itsm-check-fieldset-wide">
+                    <legend>Ticket columns</legend>
+                    <label><input type="checkbox" name="itsmCustomReportColumn" value="ticket_type" checked /> ticket_type</label>
+                    <label><input type="checkbox" name="itsmCustomReportColumn" value="ticket_id" checked /> ticket_id</label>
+                    <label><input type="checkbox" name="itsmCustomReportColumn" value="number" checked /> number</label>
+                    <label><input type="checkbox" name="itsmCustomReportColumn" value="title" checked /> title</label>
+                    <label><input type="checkbox" name="itsmCustomReportColumn" value="status" checked /> status</label>
+                    <label><input type="checkbox" name="itsmCustomReportColumn" value="priority" checked /> priority</label>
+                    <label><input type="checkbox" name="itsmCustomReportColumn" value="category" checked /> category</label>
+                    <label><input type="checkbox" name="itsmCustomReportColumn" value="service_tier" checked /> service_tier</label>
+                    <label><input type="checkbox" name="itsmCustomReportColumn" value="assignee_user_id" /> assignee_user_id</label>
+                    <label><input type="checkbox" name="itsmCustomReportColumn" value="created_at" checked /> created_at</label>
+                    <label><input type="checkbox" name="itsmCustomReportColumn" value="updated_at" /> updated_at</label>
+                  </fieldset>
+                </div>
+                <div class="itsm-form-actions">
+                  <button type="submit" id="btnSaveItsmCustomReport">Save report</button>
+                  <button type="button" id="btnCancelItsmCustomReport" class="secondary">Cancel</button>
+                </div>
+              </form>
+
+              <section id="itsmCustomReportRunPanel" class="itsm-custom-report-run" hidden>
+                <h4>Run result <span id="itsmCustomReportRunName"></span></h4>
+                <p class="hint" id="itsmCustomReportRunMeta"></p>
+                <div class="table-wrap">
+                  <table class="inventory" id="itsmCustomReportMetricsTable">
+                    <thead><tr><th>Metric</th><th>Value</th></tr></thead>
+                    <tbody></tbody>
+                  </table>
+                </div>
+                <div class="table-wrap" style="margin-top:0.75rem">
+                  <table class="inventory" id="itsmCustomReportTicketsTable">
+                    <thead></thead>
+                    <tbody></tbody>
+                  </table>
+                </div>
+              </section>
+            </section>
           </section>
         </section>
 
@@ -2787,18 +2898,18 @@
     </div>
   </div>
 
-  <script src="/static/js/cmdb.js?v=0.40.0"></script>
-  <script src="/static/js/itsm/api.js?v=0.40.0"></script>
-  <script src="/static/js/itsm/dashboard.js?v=0.40.0"></script>
-  <script src="/static/js/itsm/reports.js?v=0.40.0"></script>
-  <script src="/static/js/itsm/incidents.js?v=0.40.0"></script>
-  <script src="/static/js/itsm/changes.js?v=0.40.0"></script>
-  <script src="/static/js/itsm/problems.js?v=0.40.0"></script>
-  <script src="/static/js/itsm/approvals.js?v=0.40.0"></script>
-  <script src="/static/js/itsm/workflows.js?v=0.40.0"></script>
-  <script src="/static/js/itsm/sla.js?v=0.40.0"></script>
-  <script src="/static/js/itsm/knowledge.js?v=0.40.0"></script>
-  <script src="/static/js/itsm/notifications.js?v=0.40.0"></script>
-  <script src="/static/js/itsm/index.js?v=0.40.0"></script>
+  <script src="/static/js/cmdb.js?v=0.41.0"></script>
+  <script src="/static/js/itsm/api.js?v=0.41.0"></script>
+  <script src="/static/js/itsm/dashboard.js?v=0.41.0"></script>
+  <script src="/static/js/itsm/reports.js?v=0.41.0"></script>
+  <script src="/static/js/itsm/incidents.js?v=0.41.0"></script>
+  <script src="/static/js/itsm/changes.js?v=0.41.0"></script>
+  <script src="/static/js/itsm/problems.js?v=0.41.0"></script>
+  <script src="/static/js/itsm/approvals.js?v=0.41.0"></script>
+  <script src="/static/js/itsm/workflows.js?v=0.41.0"></script>
+  <script src="/static/js/itsm/sla.js?v=0.41.0"></script>
+  <script src="/static/js/itsm/knowledge.js?v=0.41.0"></script>
+  <script src="/static/js/itsm/notifications.js?v=0.41.0"></script>
+  <script src="/static/js/itsm/index.js?v=0.41.0"></script>
 </body>
 </html>

@@ -261,6 +261,9 @@
     if (window.SVRMON24ItsmProblems?.applyWriteGates) {
       window.SVRMON24ItsmProblems.applyWriteGates();
     }
+    if (window.SVRMON24ItsmReports?.applyWriteGates) {
+      window.SVRMON24ItsmReports.applyWriteGates();
+    }
   }
 
   function renderRolesSignedOut() {
@@ -2058,13 +2061,11 @@
     }
   }
 
-  async function downloadExport(format) {
-    const params = filterQueryParams();
-    params.set("format", format);
+  async function downloadBinary(path, fallbackFilename) {
     const headers = { Accept: "*/*" };
     const auth = authHeader();
     if (auth) headers.Authorization = auth;
-    const res = await fetch(resolveApiUrl(`/api/components/export?${params.toString()}`), {
+    const res = await fetch(resolveApiUrl(path), {
       headers,
       credentials: "include",
     });
@@ -2079,14 +2080,28 @@
       throw new Error(typeof detail === "string" ? detail : JSON.stringify(detail));
     }
     const blob = await res.blob();
+    let filename = fallbackFilename || "download.bin";
+    const disposition = res.headers.get("Content-Disposition") || "";
+    const match = /filename="([^"]+)"/i.exec(disposition);
+    if (match?.[1]) filename = match[1];
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
-    a.download = format === "xlsx" ? "svrmon24-inventory.xlsx" : "svrmon24-inventory.csv";
+    a.download = filename;
     document.body.appendChild(a);
     a.click();
     a.remove();
     URL.revokeObjectURL(url);
+    return res;
+  }
+
+  async function downloadExport(format) {
+    const params = filterQueryParams();
+    params.set("format", format);
+    const res = await downloadBinary(
+      `/api/components/export?${params.toString()}`,
+      format === "xlsx" ? "svrmon24-inventory.xlsx" : "svrmon24-inventory.csv"
+    );
     const count = res.headers.get("X-Export-Count");
     toast(`Exported ${count || "filtered"} row(s) as ${format.toUpperCase()}`);
   }
@@ -2830,8 +2845,12 @@
       );
     }
     if (name === "itsm-reports" && state.authenticated) {
+      window.SVRMON24ItsmReports?.applyWriteGates?.();
       window.SVRMON24ItsmReports?.loadItsmReports?.({ toast })?.catch?.((err) =>
         toast(err.message || "ITSM reports failed", true)
+      );
+      window.SVRMON24ItsmReports?.loadCustomReports?.()?.catch?.((err) =>
+        toast(err.message || "Custom reports failed", true)
       );
     }
     if (name === "itsm-notifications" && state.authenticated) {
@@ -5412,6 +5431,7 @@
         toast,
         escapeHtml,
         api,
+        downloadBinary,
         pageMeta: PAGE_META,
       });
     }

@@ -65,6 +65,8 @@ PERM_ITSM_KNOWLEDGE_READ = "itsm:knowledge:read"
 PERM_ITSM_KNOWLEDGE_WRITE = "itsm:knowledge:write"
 PERM_ITSM_NOTIFICATION_READ = "itsm:notification:read"
 PERM_ITSM_DASHBOARD_READ = "itsm:dashboard:read"
+PERM_ITSM_REPORTS_READ = "itsm:reports:read"
+PERM_ITSM_REPORTS_WRITE = "itsm:reports:write"
 
 ALL_PERMISSIONS: tuple[str, ...] = (
     PERM_CMDB_READ,
@@ -98,6 +100,8 @@ ALL_PERMISSIONS: tuple[str, ...] = (
     PERM_ITSM_KNOWLEDGE_WRITE,
     PERM_ITSM_NOTIFICATION_READ,
     PERM_ITSM_DASHBOARD_READ,
+    PERM_ITSM_REPORTS_READ,
+    PERM_ITSM_REPORTS_WRITE,
 )
 
 PERMISSION_LABELS: dict[str, str] = {
@@ -132,6 +136,8 @@ PERMISSION_LABELS: dict[str, str] = {
     PERM_ITSM_KNOWLEDGE_WRITE: "Author / publish ITSM knowledge articles",
     PERM_ITSM_NOTIFICATION_READ: "Read / manage own ITSM in-app notifications",
     PERM_ITSM_DASHBOARD_READ: "View ITSM dashboard aggregates",
+    PERM_ITSM_REPORTS_READ: "View / run / export ITSM reports",
+    PERM_ITSM_REPORTS_WRITE: "Create / update / delete custom ITSM report definitions",
 }
 
 _ITSM_VIEWER_PERMS: frozenset[str] = frozenset(
@@ -145,6 +151,7 @@ _ITSM_VIEWER_PERMS: frozenset[str] = frozenset(
         PERM_ITSM_KNOWLEDGE_READ,
         PERM_ITSM_NOTIFICATION_READ,
         PERM_ITSM_DASHBOARD_READ,
+        PERM_ITSM_REPORTS_READ,
     }
 )
 _ITSM_MEMBER_WRITE_PERMS: frozenset[str] = frozenset(
@@ -154,6 +161,7 @@ _ITSM_MEMBER_WRITE_PERMS: frozenset[str] = frozenset(
         PERM_ITSM_PROBLEM_WRITE,
         PERM_ITSM_APPROVAL_DECIDE,
         PERM_ITSM_KNOWLEDGE_WRITE,
+        PERM_ITSM_REPORTS_WRITE,
     }
 )
 _ITSM_ADMIN_PERMS: frozenset[str] = frozenset(
