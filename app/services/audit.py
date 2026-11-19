@@ -78,6 +78,8 @@ KNOWN_ACTIONS: frozenset[str] = frozenset(
         "itsm.workflow_execution.start",
         "itsm.workflow_execution.advance",
         "itsm.workflow_execution.cancel",
+        "itsm.sla.policy.create",
+        "itsm.sla.policy.update",
     }
 )
 

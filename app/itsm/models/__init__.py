@@ -40,6 +40,16 @@ from .problems import (
     ProblemTransition,
     ProblemUpdate,
 )
+from .sla import (
+    SLA_METRICS,
+    SLA_TRACKING_STATUSES,
+    SlaCalendar,
+    SlaPolicyCreate,
+    SlaPolicyUpdate,
+    SlaPriorityTarget,
+    SlaTarget,
+    SlaTrackingPause,
+)
 from .workflows import (
     EXECUTION_STATUSES,
     WORKFLOW_APPLIES_TO,
@@ -69,6 +79,8 @@ __all__ = [
     "PROBLEM_PRIORITIES",
     "PROBLEM_STATUSES",
     "PROBLEM_TRANSITIONS",
+    "SLA_METRICS",
+    "SLA_TRACKING_STATUSES",
     "TICKET_TYPES",
     "WORKFLOW_APPLIES_TO",
     "WORKFLOW_NODE_TYPES",
@@ -90,6 +102,12 @@ __all__ = [
     "ApprovalCreate",
     "ApprovalDecide",
     "ApprovalUpdate",
+    "SlaCalendar",
+    "SlaPolicyCreate",
+    "SlaPolicyUpdate",
+    "SlaPriorityTarget",
+    "SlaTarget",
+    "SlaTrackingPause",
     "WorkflowActivate",
     "WorkflowAdvance",
     "WorkflowCreate",

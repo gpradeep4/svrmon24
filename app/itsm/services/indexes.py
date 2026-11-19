@@ -18,6 +18,8 @@ COUNTERS = "itsm_counters"
 APPROVALS = "itsm_approvals"
 WORKFLOWS = "itsm_workflows"
 WORKFLOW_EXECUTIONS = "itsm_workflow_executions"
+SLA_POLICIES = "itsm_sla_policies"
+SLA_TRACKING = "itsm_sla_tracking"
 
 
 def _ticket_indexes(coll, *, id_field: str, prefix: str) -> list[str]:
@@ -188,6 +190,65 @@ def ensure_itsm_indexes(db: Database | None = None) -> dict[str, Any]:
         ),
     ]
     created[WORKFLOW_EXECUTIONS] = [str(n) for n in names]
+
+    sla_p = handle[SLA_POLICIES]
+    names = [
+        sla_p.create_index(
+            [("tenant_id", ASCENDING), ("policy_id", ASCENDING)],
+            unique=True,
+            name="tenant_sla_policy_id_unique",
+        ),
+        sla_p.create_index(
+            [
+                ("tenant_id", ASCENDING),
+                ("active", ASCENDING),
+                ("applies_to", ASCENDING),
+            ],
+            name="tenant_sla_policy_active_applies_idx",
+        ),
+        sla_p.create_index(
+            [("tenant_id", ASCENDING), ("updated_at", DESCENDING)],
+            name="tenant_sla_policy_updated_idx",
+        ),
+        sla_p.create_index(
+            [("tenant_id", ASCENDING)], name="tenant_sla_policy_tenant_id_idx"
+        ),
+    ]
+    created[SLA_POLICIES] = [str(n) for n in names]
+
+    sla_t = handle[SLA_TRACKING]
+    names = [
+        sla_t.create_index(
+            [("tenant_id", ASCENDING), ("tracking_id", ASCENDING)],
+            unique=True,
+            name="tenant_sla_tracking_id_unique",
+        ),
+        sla_t.create_index(
+            [
+                ("tenant_id", ASCENDING),
+                ("ticket_type", ASCENDING),
+                ("ticket_id", ASCENDING),
+                ("status", ASCENDING),
+            ],
+            name="tenant_sla_tracking_ticket_status_idx",
+        ),
+        sla_t.create_index(
+            [
+                ("tenant_id", ASCENDING),
+                ("status", ASCENDING),
+                ("due_at", ASCENDING),
+            ],
+            name="tenant_sla_tracking_status_due_idx",
+        ),
+        sla_t.create_index(
+            [("tenant_id", ASCENDING), ("policy_id", ASCENDING)],
+            name="tenant_sla_tracking_policy_idx",
+        ),
+        sla_t.create_index(
+            [("tenant_id", ASCENDING)], name="tenant_sla_tracking_tenant_id_idx"
+        ),
+    ]
+    created[SLA_TRACKING] = [str(n) for n in names]
 
     return {
         "ok": True,

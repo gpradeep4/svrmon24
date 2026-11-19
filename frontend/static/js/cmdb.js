@@ -542,6 +542,10 @@
       title: "Workflow Designer",
       subtitle: "Define graphs · activate · start executions · approval gates",
     },
+    "itsm-sla": {
+      title: "SLA",
+      subtitle: "Policies · tracking · response / resolution clocks · breach view",
+    },
   };
 
   function setTenantBanner(connected, tenantName = "", tenantId = "") {
@@ -2802,6 +2806,10 @@
       window.SVRMON24ItsmWorkflows?.loadWorkflows?.()?.catch?.((err) =>
         toast(err.message || "Workflows failed", true)
       );
+    }
+    if (name === "itsm-sla" && state.authenticated) {
+      window.SVRMON24ItsmSla?.applyWriteGates?.();
+      window.SVRMON24ItsmSla?.setView?.("policies");
     }
     if (name === "columns" && state.authenticated) {
       openColumnSettings($("#colGridKey")?.value || "inventory").catch((err) =>

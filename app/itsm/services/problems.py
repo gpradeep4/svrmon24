@@ -204,6 +204,7 @@ def create_problem(
         "ci_links": ci_links,
         "related_incident_ids": _clean_id_list(payload.related_incident_ids),
         "change_id": (payload.change_id or "").strip() or None,
+        "sla_tracking_ids": [],
         "resolved_at": now if status == "resolved" else None,
         "closed_at": now if status == "closed" else None,
         "created_at": now,
@@ -224,7 +225,18 @@ def create_problem(
         actor_username=who["username"],
         to_value=status,
     )
-    return serialize_document(doc)  # type: ignore[return-value]
+    from . import sla as sla_service
+
+    sla_service.notify_ticket_created(
+        tenant_id=tid,
+        ticket_type="problem",
+        ticket_id=problem_id,
+        priority=payload.priority,
+        status=status,
+        actor=actor,
+    )
+    refreshed = _coll().find_one({"tenant_id": tid, "problem_id": problem_id})
+    return serialize_document(refreshed or doc)  # type: ignore[return-value]
 
 
 def update_problem(
@@ -262,6 +274,11 @@ def update_problem(
 
     old_assignee = existing.get("assignee_user_id")
     new_assignee = updates.get("assignee_user_id", old_assignee)
+    old_priority = existing.get("priority")
+    priority_changed = (
+        "priority" in payload.model_dump(exclude_unset=True)
+        and updates.get("priority") != old_priority
+    )
 
     doc = _coll().find_one_and_update(
         {"tenant_id": tid, "problem_id": problem_id},
@@ -293,6 +310,20 @@ def update_problem(
             actor_user_id=who["user_id"],
             actor_username=who["username"],
         )
+    if priority_changed:
+        from . import sla as sla_service
+
+        sla_service.notify_priority_changed(
+            tenant_id=tid,
+            ticket_type="problem",
+            ticket_id=problem_id,
+            priority=str(doc.get("priority") or old_priority),
+            status=str(doc.get("status") or "new"),
+            actor=actor,
+        )
+        refreshed = _coll().find_one({"tenant_id": tid, "problem_id": problem_id})
+        if refreshed is not None:
+            doc = refreshed
     return serialize_document(doc)  # type: ignore[return-value]
 
 
@@ -358,6 +389,17 @@ def transition_problem(
         actor_username=who["username"],
         from_value=current,
         to_value=target,
+    )
+    from . import sla as sla_service
+
+    sla_service.notify_status_changed(
+        tenant_id=tid,
+        ticket_type="problem",
+        ticket_id=problem_id,
+        from_status=current,
+        to_status=target,
+        priority=str(doc.get("priority") or "p3"),
+        actor=actor,
     )
     return serialize_document(doc)  # type: ignore[return-value]
 

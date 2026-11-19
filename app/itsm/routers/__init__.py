@@ -5,7 +5,16 @@ from __future__ import annotations
 from fastapi import APIRouter, Depends
 
 from ...auth import require_user
-from . import activities, approvals, changes, dashboard, incidents, problems, workflows
+from . import (
+    activities,
+    approvals,
+    changes,
+    dashboard,
+    incidents,
+    problems,
+    sla,
+    workflows,
+)
 
 router = APIRouter(
     prefix="/api/itsm",
@@ -19,5 +28,6 @@ router.include_router(changes.router)
 router.include_router(problems.router)
 router.include_router(approvals.router)
 router.include_router(workflows.router)
+router.include_router(sla.router)
 router.include_router(dashboard.router)
 router.include_router(activities.router)

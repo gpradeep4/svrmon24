@@ -84,6 +84,7 @@ ACTIVITY_TYPES: tuple[str, ...] = (
     "system",
     "approval",
     "workflow",
+    "sla",
 )
 
 TicketType = Literal["incident", "change", "problem"]
@@ -121,6 +122,7 @@ ActivityType = Literal[
     "system",
     "approval",
     "workflow",
+    "sla",
 ]
 ActivityVisibility = Literal["public", "internal"]
 

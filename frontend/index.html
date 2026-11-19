@@ -4,7 +4,7 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <meta name="svrmon24-ui" content="login-enterprise-v13" />
-  <meta name="svrmon24-version" content="0.36.0" />
+  <meta name="svrmon24-version" content="0.37.0" />
   <title>SVRMON24</title>
   <link rel="icon" href="/static/img/svrmon-favicon.png" type="image/png" sizes="32x32" />
   <link rel="apple-touch-icon" href="/static/img/svrmon-apple-touch.png" sizes="180x180" />
@@ -15,10 +15,10 @@
     body.is-app .login-gate { display: none !important; }
     #authPanel, .auth-panel-legacy { display: none !important; }
   </style>
-  <link rel="stylesheet" href="/static/css/cmdb.css?v=0.36.0" />
-  <link rel="stylesheet" href="/static/css/itsm.css?v=0.36.0" />
-  <script src="/static/js/config.js?v=0.36.0"></script>
-  <script src="/static/js/brand.js?v=0.36.0"></script>
+  <link rel="stylesheet" href="/static/css/cmdb.css?v=0.37.0" />
+  <link rel="stylesheet" href="/static/css/itsm.css?v=0.37.0" />
+  <script src="/static/js/config.js?v=0.37.0"></script>
+  <script src="/static/js/brand.js?v=0.37.0"></script>
 </head>
 <body class="is-login">
   <!-- Enterprise login: showcase (left) + sign-in panel (right); stacks on small viewports -->
@@ -316,6 +316,10 @@
         <button type="button" class="nav-item" data-tab="itsm-workflows" data-itsm-nav="1" data-itsm-perm="itsm:workflow:read">
           <span class="nav-ico" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M6 6h4v4H6zM14 6h4v4h-4zM6 14h4v4H6zM14 14h4v4h-4z"/><path d="M10 8h4M8 10v4M16 10v4M10 16h4"/></svg></span>
           Workflows
+        </button>
+        <button type="button" class="nav-item" data-tab="itsm-sla" data-itsm-nav="1" data-itsm-perm="itsm:sla:read">
+          <span class="nav-ico" aria-hidden="true"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg></span>
+          SLA
         </button>
 
         <div class="nav-section">Configuration</div>
@@ -740,7 +744,7 @@
         <section id="tab-itsm-dashboard" class="tab-panel hidden" data-itsm-module="1">
           <section class="panel itsm-panel">
             <h2>ITSM Dashboard</h2>
-            <p class="hint">Open ticket aggregates for the current tenant. Approvals and Workflows are available in the ITSM nav; SLA arrives in a later slice.</p>
+            <p class="hint">Open ticket aggregates for the current tenant. Approvals, Workflows, and SLA are available in the ITSM nav.</p>
             <div class="itsm-kpi-row" id="itsmDashKpis">
               <div class="itsm-kpi"><span class="itsm-kpi-label">Open incidents</span><strong id="itsmKpiOpen">—</strong></div>
               <div class="itsm-kpi"><span class="itsm-kpi-label">P1 open</span><strong id="itsmKpiP1">—</strong></div>
@@ -817,6 +821,7 @@
                 <button type="button" id="btnCloseItsmIncDrawer" class="ghost" aria-label="Close detail">Close</button>
               </header>
               <div id="itsmIncDrawerDetail" class="itsm-drawer-detail hint">Select an incident.</div>
+              <div id="itsmIncSlaBadges" class="itsm-sla-badges" aria-label="SLA status"></div>
               <div class="itsm-drawer-actions" id="itsmIncTransitionBar"></div>
               <h4 class="itsm-drawer-section">Affected CIs</h4>
               <div class="itsm-ci-add">
@@ -899,6 +904,7 @@
                 <button type="button" id="btnCloseItsmChgDrawer" class="ghost" aria-label="Close detail">Close</button>
               </header>
               <div id="itsmChgDrawerDetail" class="itsm-drawer-detail hint">Select a change.</div>
+              <div id="itsmChgSlaBadges" class="itsm-sla-badges" aria-label="SLA status"></div>
               <div class="itsm-drawer-actions" id="itsmChgTransitionBar"></div>
               <h4 class="itsm-drawer-section">Affected CIs</h4>
               <div class="itsm-ci-add">
@@ -979,6 +985,7 @@
                 <button type="button" id="btnCloseItsmPrbDrawer" class="ghost" aria-label="Close detail">Close</button>
               </header>
               <div id="itsmPrbDrawerDetail" class="itsm-drawer-detail hint">Select a problem.</div>
+              <div id="itsmPrbSlaBadges" class="itsm-sla-badges" aria-label="SLA status"></div>
               <div class="itsm-drawer-actions" id="itsmPrbTransitionBar"></div>
               <h4 class="itsm-drawer-section">Affected CIs</h4>
               <div class="itsm-ci-add">
@@ -1162,6 +1169,127 @@
               </div>
             </div>
           </section>
+        </section>
+
+        <section id="tab-itsm-sla" class="tab-panel hidden" data-itsm-module="1">
+          <section class="panel itsm-panel">
+            <h2>SLA</h2>
+            <p class="hint">Define response and resolution policies with priority targets. Active policies auto-attach tracking when matching tickets are created or priority changes. Pause clocks on configured statuses (e.g. on_hold).</p>
+            <div class="itsm-sla-tabs">
+              <button type="button" id="btnItsmSlaTabPolicies" class="secondary active">Policies</button>
+              <button type="button" id="btnItsmSlaTabTracking" class="secondary">Tracking</button>
+            </div>
+
+            <div id="itsmSlaPoliciesPanel">
+              <div class="toolbar itsm-toolbar">
+                <label>Search
+                  <input id="itsmSlaPolSearch" placeholder="name, SLA-…" />
+                </label>
+                <label>Applies to
+                  <select id="itsmSlaPolApplies">
+                    <option value="">All</option>
+                    <option value="incident">incident</option>
+                    <option value="change">change</option>
+                    <option value="problem">problem</option>
+                  </select>
+                </label>
+                <label>Active
+                  <select id="itsmSlaPolActive">
+                    <option value="">All</option>
+                    <option value="true">active</option>
+                    <option value="false">inactive</option>
+                  </select>
+                </label>
+                <button type="button" id="btnRefreshItsmSlaPol" class="secondary">Refresh</button>
+                <button type="button" id="btnNewItsmSla">New policy</button>
+              </div>
+              <p class="hint" id="itsmSlaPolListMeta">No policies loaded yet.</p>
+              <div class="table-wrap">
+                <table class="inventory" id="itsmSlaPolTable">
+                  <thead>
+                    <tr>
+                      <th>ID</th>
+                      <th>Name</th>
+                      <th>Applies</th>
+                      <th>Active</th>
+                      <th>Metrics</th>
+                      <th>Updated</th>
+                      <th></th>
+                    </tr>
+                  </thead>
+                  <tbody id="itsmSlaPolBody">
+                    <tr><td colspan="7" class="hint">Sign in to load SLA policies.</td></tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            <div id="itsmSlaTrackingPanel" hidden>
+              <div class="toolbar itsm-toolbar">
+                <label>Search
+                  <input id="itsmSlaTrkSearch" placeholder="SLT-…, ticket id, policy…" />
+                </label>
+                <label>Status
+                  <select id="itsmSlaTrkStatus">
+                    <option value="">All</option>
+                    <option value="running">running</option>
+                    <option value="paused">paused</option>
+                    <option value="met">met</option>
+                    <option value="breached">breached</option>
+                    <option value="cancelled">cancelled</option>
+                  </select>
+                </label>
+                <label>Ticket type
+                  <select id="itsmSlaTrkTicketType">
+                    <option value="">All</option>
+                    <option value="incident">incident</option>
+                    <option value="change">change</option>
+                    <option value="problem">problem</option>
+                  </select>
+                </label>
+                <label>Ticket id
+                  <input id="itsmSlaTrkTicketId" placeholder="INC-… / CHG-… / PRB-…" />
+                </label>
+                <label class="itsm-sla-check"><input type="checkbox" id="itsmSlaTrkOverdue" /> Overdue / breached</label>
+                <button type="button" id="btnItsmSlaTrkFilter" class="secondary">Apply</button>
+                <button type="button" id="btnRefreshItsmSlaTrk" class="secondary">Refresh</button>
+              </div>
+              <p class="hint" id="itsmSlaTrkListMeta">No tracking loaded yet.</p>
+              <div class="table-wrap">
+                <table class="inventory" id="itsmSlaTrkTable">
+                  <thead>
+                    <tr>
+                      <th>ID</th>
+                      <th>Metric</th>
+                      <th>Status</th>
+                      <th>Ticket</th>
+                      <th>Policy</th>
+                      <th>Target</th>
+                      <th>Due</th>
+                      <th>Updated</th>
+                    </tr>
+                  </thead>
+                  <tbody id="itsmSlaTrkBody">
+                    <tr><td colspan="8" class="hint">Sign in to load SLA tracking.</td></tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </section>
+
+          <aside id="itsmSlaDrawer" class="itsm-drawer" hidden aria-hidden="true">
+            <div class="itsm-drawer-panel" role="dialog" aria-labelledby="itsmSlaDrawerTitle">
+              <header class="itsm-drawer-head">
+                <div>
+                  <h3 id="itsmSlaDrawerTitle">SLA policy</h3>
+                  <p class="hint" id="itsmSlaDrawerSub">Detail · targets</p>
+                </div>
+                <button type="button" id="btnCloseItsmSlaDrawer" class="ghost" aria-label="Close detail">Close</button>
+              </header>
+              <div id="itsmSlaDrawerDetail" class="itsm-drawer-detail hint">Select a policy.</div>
+              <div class="itsm-drawer-actions" id="itsmSlaDrawerActions"></div>
+            </div>
+          </aside>
         </section>
 
         <section id="tab-file-monitoring" class="tab-panel hidden" data-fm-module="1">
@@ -2106,6 +2234,50 @@
     </div>
   </div>
 
+  <div id="itsmSlaModal" class="modal-backdrop" role="dialog" aria-modal="true" aria-labelledby="itsmSlaModalTitle">
+    <div class="modal itsm-create-modal itsm-sla-modal">
+      <header>
+        <h3 id="itsmSlaModalTitle">New SLA policy</h3>
+        <button type="button" id="btnCloseItsmSlaModal" class="ghost">Close</button>
+      </header>
+      <form id="itsmSlaForm">
+        <input type="hidden" id="itsmSlaEditId" value="" />
+        <p class="hint itsm-create-lead">Priority targets are minutes (24×7 clock). Leave a priority blank to omit it from that metric.</p>
+        <div class="form-grid">
+          <label>Name<input id="itsmSlaFieldName" required maxlength="200" placeholder="Incident default SLA" /></label>
+          <label>Applies to
+            <select id="itsmSlaFieldAppliesTo">
+              <option value="incident">incident</option>
+              <option value="change">change</option>
+              <option value="problem">problem</option>
+            </select>
+          </label>
+          <label class="itsm-sla-check-inline"><input type="checkbox" id="itsmSlaFieldActive" checked /> Active</label>
+          <label>Pause on statuses<input id="itsmSlaFieldPause" maxlength="500" placeholder="on_hold (comma-separated)" /></label>
+          <label class="full">Description<textarea id="itsmSlaFieldDescription" rows="2" maxlength="4000"></textarea></label>
+        </div>
+        <h4 class="itsm-drawer-section">Response targets (minutes)</h4>
+        <div class="form-grid itsm-sla-priority-grid">
+          <label>p1<input id="itsmSlaresp_p1" type="number" min="1" step="1" /></label>
+          <label>p2<input id="itsmSlaresp_p2" type="number" min="1" step="1" /></label>
+          <label>p3<input id="itsmSlaresp_p3" type="number" min="1" step="1" /></label>
+          <label>p4<input id="itsmSlaresp_p4" type="number" min="1" step="1" /></label>
+        </div>
+        <h4 class="itsm-drawer-section">Resolution targets (minutes)</h4>
+        <div class="form-grid itsm-sla-priority-grid">
+          <label>p1<input id="itsmSlares_p1" type="number" min="1" step="1" /></label>
+          <label>p2<input id="itsmSlares_p2" type="number" min="1" step="1" /></label>
+          <label>p3<input id="itsmSlares_p3" type="number" min="1" step="1" /></label>
+          <label>p4<input id="itsmSlares_p4" type="number" min="1" step="1" /></label>
+        </div>
+        <footer class="modal-actions">
+          <button type="button" id="btnCancelItsmSlaModal" class="secondary">Cancel</button>
+          <button type="submit" id="btnSaveItsmSla">Save policy</button>
+        </footer>
+      </form>
+    </div>
+  </div>
+
   <div id="componentModal" class="modal-backdrop" role="dialog" aria-modal="true">
     <div class="modal">
       <header>
@@ -2326,14 +2498,15 @@
     </div>
   </div>
 
-  <script src="/static/js/cmdb.js?v=0.36.0"></script>
-  <script src="/static/js/itsm/api.js?v=0.36.0"></script>
-  <script src="/static/js/itsm/dashboard.js?v=0.36.0"></script>
-  <script src="/static/js/itsm/incidents.js?v=0.36.0"></script>
-  <script src="/static/js/itsm/changes.js?v=0.36.0"></script>
-  <script src="/static/js/itsm/problems.js?v=0.36.0"></script>
-  <script src="/static/js/itsm/approvals.js?v=0.36.0"></script>
-  <script src="/static/js/itsm/workflows.js?v=0.36.0"></script>
-  <script src="/static/js/itsm/index.js?v=0.36.0"></script>
+  <script src="/static/js/cmdb.js?v=0.37.0"></script>
+  <script src="/static/js/itsm/api.js?v=0.37.0"></script>
+  <script src="/static/js/itsm/dashboard.js?v=0.37.0"></script>
+  <script src="/static/js/itsm/incidents.js?v=0.37.0"></script>
+  <script src="/static/js/itsm/changes.js?v=0.37.0"></script>
+  <script src="/static/js/itsm/problems.js?v=0.37.0"></script>
+  <script src="/static/js/itsm/approvals.js?v=0.37.0"></script>
+  <script src="/static/js/itsm/workflows.js?v=0.37.0"></script>
+  <script src="/static/js/itsm/sla.js?v=0.37.0"></script>
+  <script src="/static/js/itsm/index.js?v=0.37.0"></script>
 </body>
 </html>

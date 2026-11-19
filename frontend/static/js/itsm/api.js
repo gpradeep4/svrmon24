@@ -135,5 +135,22 @@
         "POST",
         payload || {}
       ),
+    listSlaPolicies: (params) => {
+      const q = new URLSearchParams(params || {});
+      return itsmGet(`/sla/policies?${q.toString()}`);
+    },
+    getSlaPolicy: (id) => itsmGet(`/sla/policies/${encodeURIComponent(id)}`),
+    createSlaPolicy: (payload) => itsmSend("/sla/policies", "POST", payload),
+    updateSlaPolicy: (id, payload) =>
+      itsmSend(`/sla/policies/${encodeURIComponent(id)}`, "PATCH", payload),
+    listSlaTracking: (params) => {
+      const q = new URLSearchParams(params || {});
+      return itsmGet(`/sla/tracking?${q.toString()}`);
+    },
+    getSlaTracking: (id) => itsmGet(`/sla/tracking/${encodeURIComponent(id)}`),
+    slaSummary: (ticketType, ticketId) =>
+      itsmGet(
+        `/sla/summary/${encodeURIComponent(ticketType)}/${encodeURIComponent(ticketId)}`
+      ),
   };
 })(window);

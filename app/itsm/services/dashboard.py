@@ -6,7 +6,7 @@ from typing import Any
 
 from ...db import require_itsm_database
 from ...tenancy import require_tenant_id, tenant_filter
-from .indexes import CHANGES, INCIDENTS, PROBLEMS, ensure_itsm_indexes
+from .indexes import APPROVALS, CHANGES, INCIDENTS, PROBLEMS, SLA_TRACKING, ensure_itsm_indexes
 
 
 def summary(*, tenant_id: str) -> dict[str, Any]:
@@ -16,6 +16,8 @@ def summary(*, tenant_id: str) -> dict[str, Any]:
     inc = itsm[INCIDENTS]
     chg = itsm[CHANGES]
     prb = itsm[PROBLEMS]
+    apr = itsm[APPROVALS]
+    sla = itsm[SLA_TRACKING]
     base = tenant_filter(tid)
 
     open_inc_statuses = ["new", "in_progress", "on_hold"]
@@ -51,6 +53,9 @@ def summary(*, tenant_id: str) -> dict[str, Any]:
     ):
         by_priority[str(row["_id"])] = int(row["count"])
 
+    pending_approvals = apr.count_documents({**base, "status": "pending"})
+    sla_breaches = sla.count_documents({**base, "status": "breached"})
+
     return {
         "tenant_id": tid,
         "open_incidents": open_incidents,
@@ -58,10 +63,10 @@ def summary(*, tenant_id: str) -> dict[str, Any]:
         "open_problems": open_problems,
         "by_status": by_status,
         "open_by_priority": by_priority,
-        "pending_approvals": 0,  # Approvals product still out of scope
-        "sla_breaches": 0,  # SLA engine still out of scope
+        "pending_approvals": pending_approvals,
+        "sla_breaches": sla_breaches,
         "notes": (
-            "ITSM dashboard: incident / change / problem open counts. "
-            "Approvals and SLA engines are not enabled yet."
+            "ITSM dashboard: incident / change / problem open counts, "
+            "pending approvals, and SLA breach totals."
         ),
     }

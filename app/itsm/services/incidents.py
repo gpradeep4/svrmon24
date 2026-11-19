@@ -193,6 +193,7 @@ def create_incident(
         "resolution_notes": payload.resolution_notes,
         "problem_id": (payload.problem_id or "").strip() or None,
         "change_id": (payload.change_id or "").strip() or None,
+        "sla_tracking_ids": [],
         "resolved_at": now if payload.status == "resolved" else None,
         "closed_at": now if payload.status == "closed" else None,
         "created_at": now,
@@ -213,7 +214,18 @@ def create_incident(
         actor_username=who["username"],
         to_value=payload.status,
     )
-    return serialize_document(doc)  # type: ignore[return-value]
+    from . import sla as sla_service
+
+    sla_service.notify_ticket_created(
+        tenant_id=tid,
+        ticket_type="incident",
+        ticket_id=incident_id,
+        priority=payload.priority,
+        status=payload.status,
+        actor=actor,
+    )
+    refreshed = _coll().find_one({"tenant_id": tid, "incident_id": incident_id})
+    return serialize_document(refreshed or doc)  # type: ignore[return-value]
 
 
 def update_incident(
@@ -242,6 +254,11 @@ def update_incident(
     # Track assignment changes for activity.
     old_assignee = existing.get("assignee_user_id")
     new_assignee = updates.get("assignee_user_id", old_assignee)
+    old_priority = existing.get("priority")
+    priority_changed = (
+        "priority" in payload.model_dump(exclude_unset=True)
+        and updates.get("priority") != old_priority
+    )
 
     doc = _coll().find_one_and_update(
         {"tenant_id": tid, "incident_id": incident_id},
@@ -273,6 +290,20 @@ def update_incident(
             actor_user_id=who["user_id"],
             actor_username=who["username"],
         )
+    if priority_changed:
+        from . import sla as sla_service
+
+        sla_service.notify_priority_changed(
+            tenant_id=tid,
+            ticket_type="incident",
+            ticket_id=incident_id,
+            priority=str(doc.get("priority") or old_priority),
+            status=str(doc.get("status") or "new"),
+            actor=actor,
+        )
+        refreshed = _coll().find_one({"tenant_id": tid, "incident_id": incident_id})
+        if refreshed is not None:
+            doc = refreshed
     return serialize_document(doc)  # type: ignore[return-value]
 
 
@@ -334,6 +365,17 @@ def transition_incident(
         actor_username=who["username"],
         from_value=current,
         to_value=target,
+    )
+    from . import sla as sla_service
+
+    sla_service.notify_status_changed(
+        tenant_id=tid,
+        ticket_type="incident",
+        ticket_id=incident_id,
+        from_status=current,
+        to_status=target,
+        priority=str(doc.get("priority") or "p3"),
+        actor=actor,
     )
     return serialize_document(doc)  # type: ignore[return-value]
 
