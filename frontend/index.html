@@ -4,7 +4,7 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <meta name="svrmon24-ui" content="login-enterprise-v13" />
-  <meta name="svrmon24-version" content="0.35.0" />
+  <meta name="svrmon24-version" content="0.36.0" />
   <title>SVRMON24</title>
   <link rel="icon" href="/static/img/svrmon-favicon.png" type="image/png" sizes="32x32" />
   <link rel="apple-touch-icon" href="/static/img/svrmon-apple-touch.png" sizes="180x180" />
@@ -15,10 +15,10 @@
     body.is-app .login-gate { display: none !important; }
     #authPanel, .auth-panel-legacy { display: none !important; }
   </style>
-  <link rel="stylesheet" href="/static/css/cmdb.css?v=0.35.0" />
-  <link rel="stylesheet" href="/static/css/itsm.css?v=0.35.0" />
-  <script src="/static/js/config.js?v=0.35.0"></script>
-  <script src="/static/js/brand.js?v=0.35.0"></script>
+  <link rel="stylesheet" href="/static/css/cmdb.css?v=0.36.0" />
+  <link rel="stylesheet" href="/static/css/itsm.css?v=0.36.0" />
+  <script src="/static/js/config.js?v=0.36.0"></script>
+  <script src="/static/js/brand.js?v=0.36.0"></script>
 </head>
 <body class="is-login">
   <!-- Enterprise login: showcase (left) + sign-in panel (right); stacks on small viewports -->
@@ -308,6 +308,14 @@
         <button type="button" class="nav-item" data-tab="itsm-problems" data-itsm-nav="1" data-itsm-perm="itsm:problem:read">
           <span class="nav-ico" aria-hidden="true"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 8v5m0 3h.01"/></svg></span>
           Problems
+        </button>
+        <button type="button" class="nav-item" data-tab="itsm-approvals" data-itsm-nav="1" data-itsm-perm="itsm:approval:read">
+          <span class="nav-ico" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M9 12l2 2 4-4"/><circle cx="12" cy="12" r="9"/></svg></span>
+          Approvals
+        </button>
+        <button type="button" class="nav-item" data-tab="itsm-workflows" data-itsm-nav="1" data-itsm-perm="itsm:workflow:read">
+          <span class="nav-ico" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M6 6h4v4H6zM14 6h4v4h-4zM6 14h4v4H6zM14 14h4v4h-4z"/><path d="M10 8h4M8 10v4M16 10v4M10 16h4"/></svg></span>
+          Workflows
         </button>
 
         <div class="nav-section">Configuration</div>
@@ -732,7 +740,7 @@
         <section id="tab-itsm-dashboard" class="tab-panel hidden" data-itsm-module="1">
           <section class="panel itsm-panel">
             <h2>ITSM Dashboard</h2>
-            <p class="hint">Open-incident aggregates for the current tenant. Approvals / SLA / Change modules arrive in later slices.</p>
+            <p class="hint">Open ticket aggregates for the current tenant. Approvals and Workflows are available in the ITSM nav; SLA arrives in a later slice.</p>
             <div class="itsm-kpi-row" id="itsmDashKpis">
               <div class="itsm-kpi"><span class="itsm-kpi-label">Open incidents</span><strong id="itsmKpiOpen">—</strong></div>
               <div class="itsm-kpi"><span class="itsm-kpi-label">P1 open</span><strong id="itsmKpiP1">—</strong></div>
@@ -986,6 +994,174 @@
               <ul id="itsmPrbActivityList" class="itsm-activity-list"></ul>
             </div>
           </aside>
+        </section>
+
+        <section id="tab-itsm-approvals" class="tab-panel hidden" data-itsm-module="1">
+          <section class="panel itsm-panel">
+            <h2>Approvals</h2>
+            <p class="hint">Manual and workflow-driven approvals linked to incidents, changes, and problems. Approve or reject pending requests; decisions resume waiting workflow executions.</p>
+            <div class="toolbar itsm-toolbar">
+              <label>Search
+                <input id="itsmAprSearch" placeholder="title, APR-…, ticket id…" />
+              </label>
+              <label>Status
+                <select id="itsmAprStatus">
+                  <option value="">All</option>
+                  <option value="pending">pending</option>
+                  <option value="approved">approved</option>
+                  <option value="rejected">rejected</option>
+                  <option value="cancelled">cancelled</option>
+                </select>
+              </label>
+              <label>Ticket type
+                <select id="itsmAprTicketType">
+                  <option value="">All</option>
+                  <option value="incident">incident</option>
+                  <option value="change">change</option>
+                  <option value="problem">problem</option>
+                </select>
+              </label>
+              <button type="button" id="btnRefreshItsmApr" class="secondary">Refresh</button>
+              <button type="button" id="btnNewItsmApr">New approval</button>
+            </div>
+            <p class="hint" id="itsmAprListMeta">No approvals loaded yet.</p>
+            <div class="table-wrap">
+              <table class="inventory" id="itsmAprTable">
+                <thead>
+                  <tr>
+                    <th>ID</th>
+                    <th>Title</th>
+                    <th>Status</th>
+                    <th>Ticket</th>
+                    <th>Approvers</th>
+                    <th>Updated</th>
+                    <th></th>
+                  </tr>
+                </thead>
+                <tbody id="itsmAprBody">
+                  <tr><td colspan="7" class="hint">Sign in to load approvals.</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </section>
+
+          <aside id="itsmAprDrawer" class="itsm-drawer" hidden aria-hidden="true">
+            <div class="itsm-drawer-panel" role="dialog" aria-labelledby="itsmAprDrawerTitle">
+              <header class="itsm-drawer-head">
+                <div>
+                  <h3 id="itsmAprDrawerTitle">Approval</h3>
+                  <p class="hint" id="itsmAprDrawerSub">Detail · decide</p>
+                </div>
+                <button type="button" id="btnCloseItsmAprDrawer" class="ghost" aria-label="Close detail">Close</button>
+              </header>
+              <div id="itsmAprDrawerDetail" class="itsm-drawer-detail hint">Select an approval.</div>
+              <div class="itsm-drawer-actions" id="itsmAprDecideBar"></div>
+              <h4 class="itsm-drawer-section">Decision comment</h4>
+              <div class="itsm-comment-row">
+                <input id="itsmAprCommentInput" placeholder="Optional comment for approve/reject…" />
+              </div>
+              <h4 class="itsm-drawer-section">Ticket activity</h4>
+              <ul id="itsmAprActivityList" class="itsm-activity-list"></ul>
+            </div>
+          </aside>
+        </section>
+
+        <section id="tab-itsm-workflows" class="tab-panel hidden" data-itsm-module="1">
+          <section class="panel itsm-panel">
+            <h2>Workflow Designer</h2>
+            <p class="hint">Define graphs with start, status_change, approval, and end nodes. Activate a definition, start an execution on a ticket, and advance through approval gates.</p>
+            <div class="itsm-wf-layout">
+              <div class="itsm-wf-sidebar">
+                <div class="itsm-wf-sidebar-head">
+                  <h3>Definitions</h3>
+                  <button type="button" id="btnNewItsmWf" class="secondary">New</button>
+                </div>
+                <label class="itsm-wf-filter">Search
+                  <input id="itsmWfSearch" placeholder="name, WF-…" />
+                </label>
+                <ul id="itsmWfList" class="itsm-wf-list">
+                  <li class="hint">Sign in to load workflows.</li>
+                </ul>
+                <h3 class="itsm-wf-exec-heading">Executions</h3>
+                <div class="itsm-wf-exec-filters">
+                  <input id="itsmWxTicketId" placeholder="ticket_id filter" />
+                  <button type="button" id="btnRefreshItsmWx" class="secondary">Refresh</button>
+                </div>
+                <ul id="itsmWxList" class="itsm-wf-list itsm-wx-list">
+                  <li class="hint">No executions yet.</li>
+                </ul>
+              </div>
+              <div class="itsm-wf-main">
+                <div class="itsm-wf-toolbar">
+                  <input id="itsmWfName" placeholder="Workflow name" maxlength="200" />
+                  <select id="itsmWfAppliesTo" title="Applies to">
+                    <option value="generic">generic</option>
+                    <option value="incident">incident</option>
+                    <option value="change">change</option>
+                    <option value="problem">problem</option>
+                  </select>
+                  <select id="itsmWfTrigger" title="Trigger">
+                    <option value="manual">manual</option>
+                    <option value="on_create">on_create</option>
+                    <option value="on_status">on_status</option>
+                    <option value="schedule">schedule</option>
+                  </select>
+                  <span id="itsmWfMeta" class="hint">No workflow selected</span>
+                  <button type="button" id="btnSaveItsmWf">Save</button>
+                  <button type="button" id="btnActivateItsmWf" class="secondary">Activate</button>
+                  <button type="button" id="btnDeactivateItsmWf" class="secondary">Deactivate</button>
+                </div>
+                <div class="itsm-wf-palette">
+                  <span class="hint">Add node:</span>
+                  <button type="button" class="secondary itsm-wf-add-node" data-node-type="start">start</button>
+                  <button type="button" class="secondary itsm-wf-add-node" data-node-type="status_change">status_change</button>
+                  <button type="button" class="secondary itsm-wf-add-node" data-node-type="approval">approval</button>
+                  <button type="button" class="secondary itsm-wf-add-node" data-node-type="end">end</button>
+                  <button type="button" id="btnItsmWfConnect" class="secondary">Connect mode</button>
+                  <button type="button" id="btnItsmWfClearSel" class="ghost">Clear selection</button>
+                </div>
+                <div id="itsmWfCanvas" class="itsm-wf-canvas" tabindex="0" aria-label="Workflow graph canvas">
+                  <svg id="itsmWfEdges" class="itsm-wf-edges" aria-hidden="true"></svg>
+                  <div id="itsmWfNodes" class="itsm-wf-nodes"></div>
+                </div>
+                <div class="itsm-wf-inspector">
+                  <h4>Node inspector</h4>
+                  <p class="hint" id="itsmWfInspectorHint">Select a node to edit label / config. Click two nodes in Connect mode to add an edge.</p>
+                  <div id="itsmWfInspector" class="itsm-wf-inspector-body" hidden>
+                    <label>Label<input id="itsmWfNodeLabel" maxlength="200" /></label>
+                    <label id="itsmWfCfgStatusWrap" hidden>Target status<input id="itsmWfCfgStatus" maxlength="64" placeholder="e.g. submitted" /></label>
+                    <label id="itsmWfCfgTitleWrap" hidden>Approval title<input id="itsmWfCfgTitle" maxlength="200" /></label>
+                    <label id="itsmWfCfgApproversWrap" hidden>Approver user ids<input id="itsmWfCfgApprovers" placeholder="comma-separated" maxlength="500" /></label>
+                    <label id="itsmWfEdgeCondWrap" hidden>Edge condition (from selected edge)
+                      <select id="itsmWfEdgeCond">
+                        <option value="">(default)</option>
+                        <option value="approved">approved</option>
+                        <option value="rejected">rejected</option>
+                      </select>
+                    </label>
+                    <div class="itsm-drawer-actions">
+                      <button type="button" id="btnItsmWfApplyNode" class="secondary">Apply</button>
+                      <button type="button" id="btnItsmWfDeleteNode" class="ghost">Delete node</button>
+                      <button type="button" id="btnItsmWfDeleteEdge" class="ghost">Delete last edge</button>
+                    </div>
+                  </div>
+                </div>
+                <div class="itsm-wf-runbar">
+                  <h4>Start execution</h4>
+                  <div class="itsm-wf-run-row">
+                    <select id="itsmWfRunTicketType">
+                      <option value="change">change</option>
+                      <option value="incident">incident</option>
+                      <option value="problem">problem</option>
+                    </select>
+                    <input id="itsmWfRunTicketId" placeholder="ticket_id (e.g. CHG-…)" maxlength="128" />
+                    <button type="button" id="btnItsmWfStart">Start</button>
+                  </div>
+                  <div id="itsmWxDetail" class="itsm-wx-detail hint">Select an execution to view history.</div>
+                </div>
+              </div>
+            </div>
+          </section>
         </section>
 
         <section id="tab-file-monitoring" class="tab-panel hidden" data-fm-module="1">
@@ -1899,6 +2075,37 @@
     </div>
   </div>
 
+  <div id="itsmApprovalModal" class="modal-backdrop" role="dialog" aria-modal="true" aria-labelledby="itsmApprovalModalTitle">
+    <div class="modal itsm-create-modal">
+      <header>
+        <h3 id="itsmApprovalModalTitle">New approval</h3>
+        <button type="button" id="btnCloseItsmApprovalModal" class="ghost">Close</button>
+      </header>
+      <form id="itsmApprovalForm">
+        <p class="hint itsm-create-lead">Creates a pending approval linked to an existing incident, change, or problem ticket.</p>
+        <div class="form-grid">
+          <label>Title<input id="itsmAprFieldTitle" required maxlength="500" placeholder="CAB / manager approval" /></label>
+          <label>Ticket type
+            <select id="itsmAprFieldTicketType">
+              <option value="change">change</option>
+              <option value="incident">incident</option>
+              <option value="problem">problem</option>
+            </select>
+          </label>
+          <label>Ticket id<input id="itsmAprFieldTicketId" required maxlength="128" placeholder="CHG-… / INC-… / PRB-…" /></label>
+          <label>Approver user ids<input id="itsmAprFieldApprovers" placeholder="comma-separated" maxlength="500" /></label>
+          <label>Approver group<input id="itsmAprFieldGroup" maxlength="128" /></label>
+          <label>Policy<input id="itsmAprFieldPolicy" maxlength="128" placeholder="optional policy key" /></label>
+          <label class="full">Description<textarea id="itsmAprFieldDescription" rows="3" maxlength="8000"></textarea></label>
+        </div>
+        <footer class="modal-actions">
+          <button type="button" id="btnCancelItsmApproval" class="secondary">Cancel</button>
+          <button type="submit" id="btnSaveItsmApproval">Create approval</button>
+        </footer>
+      </form>
+    </div>
+  </div>
+
   <div id="componentModal" class="modal-backdrop" role="dialog" aria-modal="true">
     <div class="modal">
       <header>
@@ -2119,12 +2326,14 @@
     </div>
   </div>
 
-  <script src="/static/js/cmdb.js?v=0.35.0"></script>
-  <script src="/static/js/itsm/api.js?v=0.35.0"></script>
-  <script src="/static/js/itsm/dashboard.js?v=0.35.0"></script>
-  <script src="/static/js/itsm/incidents.js?v=0.35.0"></script>
-  <script src="/static/js/itsm/changes.js?v=0.35.0"></script>
-  <script src="/static/js/itsm/problems.js?v=0.35.0"></script>
-  <script src="/static/js/itsm/index.js?v=0.35.0"></script>
+  <script src="/static/js/cmdb.js?v=0.36.0"></script>
+  <script src="/static/js/itsm/api.js?v=0.36.0"></script>
+  <script src="/static/js/itsm/dashboard.js?v=0.36.0"></script>
+  <script src="/static/js/itsm/incidents.js?v=0.36.0"></script>
+  <script src="/static/js/itsm/changes.js?v=0.36.0"></script>
+  <script src="/static/js/itsm/problems.js?v=0.36.0"></script>
+  <script src="/static/js/itsm/approvals.js?v=0.36.0"></script>
+  <script src="/static/js/itsm/workflows.js?v=0.36.0"></script>
+  <script src="/static/js/itsm/index.js?v=0.36.0"></script>
 </body>
 </html>

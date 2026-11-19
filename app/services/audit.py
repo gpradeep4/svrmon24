@@ -67,6 +67,17 @@ KNOWN_ACTIONS: frozenset[str] = frozenset(
         "itsm.problem.ci_link_add",
         "itsm.problem.ci_link_remove",
         "itsm.activity.create",
+        "itsm.approval.create",
+        "itsm.approval.update",
+        "itsm.approval.decide",
+        "itsm.approval.cancel",
+        "itsm.workflow.create",
+        "itsm.workflow.update",
+        "itsm.workflow.activate",
+        "itsm.workflow.publish",
+        "itsm.workflow_execution.start",
+        "itsm.workflow_execution.advance",
+        "itsm.workflow_execution.cancel",
     }
 )
 

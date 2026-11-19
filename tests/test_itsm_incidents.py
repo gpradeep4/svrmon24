@@ -11,8 +11,8 @@ from tests.frontend_paths import FRONTEND_INDEX
 
 
 def test_version_bump_for_itsm() -> None:
-    # Shared package version — Change/Problem slice owns the 0.35.0 bump.
-    assert __version__ == "0.35.0"
+    # Shared package version — Change/Problem slice owns the 0.36.0 bump.
+    assert __version__ == "0.36.0"
 
 
 def test_dual_db_defaults_and_fallback(monkeypatch) -> None:
@@ -189,7 +189,7 @@ def test_cross_tenant_incident_is_404(
 
 def test_frontend_itsm_markers() -> None:
     html = FRONTEND_INDEX.read_text(encoding="utf-8")
-    assert 'content="0.35.0"' in html
+    assert 'content="0.36.0"' in html
     assert 'data-tab="itsm-incidents"' in html
     assert 'data-tab="itsm-dashboard"' in html
     assert 'id="navItsmSection"' in html

@@ -1,5 +1,12 @@
 """ITSM Pydantic models."""
 
+from .approvals import (
+    APPROVAL_STATUSES,
+    APPROVAL_TRANSITIONS,
+    ApprovalCreate,
+    ApprovalDecide,
+    ApprovalUpdate,
+)
 from .changes import (
     ChangeCiLinkCreate,
     ChangeCreate,
@@ -33,12 +40,29 @@ from .problems import (
     ProblemTransition,
     ProblemUpdate,
 )
+from .workflows import (
+    EXECUTION_STATUSES,
+    WORKFLOW_APPLIES_TO,
+    WORKFLOW_NODE_TYPES,
+    WORKFLOW_TRIGGERS,
+    WorkflowActivate,
+    WorkflowAdvance,
+    WorkflowCreate,
+    WorkflowEdge,
+    WorkflowGraph,
+    WorkflowNode,
+    WorkflowStartExecution,
+    WorkflowUpdate,
+)
 
 __all__ = [
     "ACTIVITY_TYPES",
+    "APPROVAL_STATUSES",
+    "APPROVAL_TRANSITIONS",
     "CHANGE_STATUSES",
     "CHANGE_TRANSITIONS",
     "CHANGE_TYPES",
+    "EXECUTION_STATUSES",
     "INCIDENT_PRIORITIES",
     "INCIDENT_STATUSES",
     "INCIDENT_TRANSITIONS",
@@ -46,6 +70,9 @@ __all__ = [
     "PROBLEM_STATUSES",
     "PROBLEM_TRANSITIONS",
     "TICKET_TYPES",
+    "WORKFLOW_APPLIES_TO",
+    "WORKFLOW_NODE_TYPES",
+    "WORKFLOW_TRIGGERS",
     "CiLink",
     "TicketActivityCreate",
     "IncidentCiLinkCreate",
@@ -60,4 +87,15 @@ __all__ = [
     "ProblemCreate",
     "ProblemTransition",
     "ProblemUpdate",
+    "ApprovalCreate",
+    "ApprovalDecide",
+    "ApprovalUpdate",
+    "WorkflowActivate",
+    "WorkflowAdvance",
+    "WorkflowCreate",
+    "WorkflowEdge",
+    "WorkflowGraph",
+    "WorkflowNode",
+    "WorkflowStartExecution",
+    "WorkflowUpdate",
 ]

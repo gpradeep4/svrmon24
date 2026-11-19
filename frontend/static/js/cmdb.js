@@ -534,6 +534,14 @@
       title: "Problems",
       subtitle: "Problem Management · known errors · related incidents · CI links",
     },
+    "itsm-approvals": {
+      title: "Approvals",
+      subtitle: "Manual and workflow approvals · approve / reject · ticket audit",
+    },
+    "itsm-workflows": {
+      title: "Workflow Designer",
+      subtitle: "Define graphs · activate · start executions · approval gates",
+    },
   };
 
   function setTenantBanner(connected, tenantName = "", tenantId = "") {
@@ -2781,6 +2789,18 @@
       window.SVRMON24ItsmProblems?.applyWriteGates?.();
       window.SVRMON24ItsmProblems?.loadProblems?.()?.catch?.((err) =>
         toast(err.message || "Problems failed", true)
+      );
+    }
+    if (name === "itsm-approvals" && state.authenticated) {
+      window.SVRMON24ItsmApprovals?.applyWriteGates?.();
+      window.SVRMON24ItsmApprovals?.loadApprovals?.()?.catch?.((err) =>
+        toast(err.message || "Approvals failed", true)
+      );
+    }
+    if (name === "itsm-workflows" && state.authenticated) {
+      window.SVRMON24ItsmWorkflows?.applyWriteGates?.();
+      window.SVRMON24ItsmWorkflows?.loadWorkflows?.()?.catch?.((err) =>
+        toast(err.message || "Workflows failed", true)
       );
     }
     if (name === "columns" && state.authenticated) {
