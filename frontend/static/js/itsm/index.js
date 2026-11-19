@@ -1,4 +1,4 @@
-/* global SVRMON24ItsmDashboard, SVRMON24ItsmIncidents */
+/* global SVRMON24ItsmDashboard, SVRMON24ItsmIncidents, SVRMON24ItsmChanges, SVRMON24ItsmProblems */
 (function (global) {
   "use strict";
 
@@ -8,7 +8,9 @@
       "itsm:incident:write",
       "itsm:dashboard:read",
       "itsm:change:read",
+      "itsm:change:write",
       "itsm:problem:read",
+      "itsm:problem:write",
       "itsm:workflow:read",
       "itsm:approval:read",
       "itsm:sla:read",
@@ -47,23 +49,25 @@
     if (pageMeta) {
       pageMeta["itsm-dashboard"] = {
         title: "ITSM Dashboard",
-        subtitle: "Open incidents and ITSM stub KPIs for the current tenant",
+        subtitle: "Open incidents, changes, and problems for the current tenant",
       };
       pageMeta["itsm-incidents"] = {
         title: "Incidents",
-        subtitle: "Incident Management · activities · CMDB CI links",
+        subtitle: "Create and manage incident tickets · activities · CMDB CI links",
       };
       pageMeta["itsm-changes"] = {
         title: "Changes",
-        subtitle: "Change Management — coming in a later slice",
+        subtitle: "Change Management · status transitions · related tickets · CI links",
       };
       pageMeta["itsm-problems"] = {
         title: "Problems",
-        subtitle: "Problem Management — coming in a later slice",
+        subtitle: "Problem Management · known errors · related incidents · CI links",
       };
     }
 
     SVRMON24ItsmIncidents.initItsmIncidents({ can, toast, escapeHtml });
+    SVRMON24ItsmChanges.initItsmChanges({ can, toast, escapeHtml });
+    SVRMON24ItsmProblems.initItsmProblems({ can, toast, escapeHtml });
 
     document.getElementById("btnRefreshItsmDash")?.addEventListener("click", () => {
       SVRMON24ItsmDashboard.loadItsmDashboard({ toast });
@@ -79,6 +83,14 @@
           SVRMON24ItsmIncidents.applyWriteGates();
           SVRMON24ItsmIncidents.loadIncidents();
         }
+        if (name === "itsm-changes") {
+          SVRMON24ItsmChanges.applyWriteGates();
+          SVRMON24ItsmChanges.loadChanges();
+        }
+        if (name === "itsm-problems") {
+          SVRMON24ItsmProblems.applyWriteGates();
+          SVRMON24ItsmProblems.loadProblems();
+        }
       });
     }
 
@@ -86,6 +98,8 @@
       onPermissionGates(() => {
         applyItsmNavGates(can);
         SVRMON24ItsmIncidents.applyWriteGates();
+        SVRMON24ItsmChanges.applyWriteGates();
+        SVRMON24ItsmProblems.applyWriteGates();
       });
     } else {
       applyItsmNavGates(can);

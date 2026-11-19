@@ -4,7 +4,7 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <meta name="svrmon24-ui" content="login-enterprise-v13" />
-  <meta name="svrmon24-version" content="0.34.0" />
+  <meta name="svrmon24-version" content="0.35.0" />
   <title>SVRMON24</title>
   <link rel="icon" href="/static/img/svrmon-favicon.png" type="image/png" sizes="32x32" />
   <link rel="apple-touch-icon" href="/static/img/svrmon-apple-touch.png" sizes="180x180" />
@@ -15,10 +15,10 @@
     body.is-app .login-gate { display: none !important; }
     #authPanel, .auth-panel-legacy { display: none !important; }
   </style>
-  <link rel="stylesheet" href="/static/css/cmdb.css?v=0.34.0" />
-  <link rel="stylesheet" href="/static/css/itsm.css?v=0.34.0" />
-  <script src="/static/js/config.js?v=0.34.0"></script>
-  <script src="/static/js/brand.js?v=0.34.0"></script>
+  <link rel="stylesheet" href="/static/css/cmdb.css?v=0.35.0" />
+  <link rel="stylesheet" href="/static/css/itsm.css?v=0.35.0" />
+  <script src="/static/js/config.js?v=0.35.0"></script>
+  <script src="/static/js/brand.js?v=0.35.0"></script>
 </head>
 <body class="is-login">
   <!-- Enterprise login: showcase (left) + sign-in panel (right); stacks on small viewports -->
@@ -301,11 +301,11 @@
           <span class="nav-ico" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M12 3 3 19h18L12 3zm0 6v5m0 3h.01"/></svg></span>
           Incidents
         </button>
-        <button type="button" class="nav-item itsm-nav-stub" data-tab="itsm-changes" data-itsm-nav="1" data-itsm-perm="itsm:change:read" title="Coming in a later slice">
+        <button type="button" class="nav-item" data-tab="itsm-changes" data-itsm-nav="1" data-itsm-perm="itsm:change:read">
           <span class="nav-ico" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M4 7h12M8 3v4M16 17H4M12 13v4"/><path d="M18 3v6h3l-4 6-4-6h3V3z"/></svg></span>
           Changes
         </button>
-        <button type="button" class="nav-item itsm-nav-stub" data-tab="itsm-problems" data-itsm-nav="1" data-itsm-perm="itsm:problem:read" title="Coming in a later slice">
+        <button type="button" class="nav-item" data-tab="itsm-problems" data-itsm-nav="1" data-itsm-perm="itsm:problem:read">
           <span class="nav-ico" aria-hidden="true"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 8v5m0 3h.01"/></svg></span>
           Problems
         </button>
@@ -736,8 +736,8 @@
             <div class="itsm-kpi-row" id="itsmDashKpis">
               <div class="itsm-kpi"><span class="itsm-kpi-label">Open incidents</span><strong id="itsmKpiOpen">—</strong></div>
               <div class="itsm-kpi"><span class="itsm-kpi-label">P1 open</span><strong id="itsmKpiP1">—</strong></div>
-              <div class="itsm-kpi"><span class="itsm-kpi-label">Pending approvals</span><strong id="itsmKpiApprovals">0</strong></div>
-              <div class="itsm-kpi"><span class="itsm-kpi-label">SLA breaches</span><strong id="itsmKpiSla">0</strong></div>
+              <div class="itsm-kpi"><span class="itsm-kpi-label">Open changes</span><strong id="itsmKpiChanges">—</strong></div>
+              <div class="itsm-kpi"><span class="itsm-kpi-label">Open problems</span><strong id="itsmKpiProblems">—</strong></div>
             </div>
             <p class="hint" id="itsmDashNotes">Sign in to load ITSM summary.</p>
             <div class="toolbar" style="grid-template-columns: auto;">
@@ -829,15 +829,163 @@
         <section id="tab-itsm-changes" class="tab-panel hidden" data-itsm-module="1">
           <section class="panel itsm-panel">
             <h2>Changes</h2>
-            <p class="hint itsm-stub-banner">Change Management is planned for a later ITSM slice. Incident Management is available now.</p>
+            <p class="hint">Tenant-scoped change tickets with type, risk, status transitions, related incident/problem ids, and CMDB CI links.</p>
+            <div class="toolbar itsm-toolbar">
+              <label>Search
+                <input id="itsmChgSearch" placeholder="title, CHG-…, justification…" />
+              </label>
+              <label>Status
+                <select id="itsmChgStatus">
+                  <option value="">All</option>
+                  <option value="draft">draft</option>
+                  <option value="submitted">submitted</option>
+                  <option value="approved">approved</option>
+                  <option value="scheduled">scheduled</option>
+                  <option value="implementing">implementing</option>
+                  <option value="review">review</option>
+                  <option value="closed">closed</option>
+                  <option value="rejected">rejected</option>
+                  <option value="cancelled">cancelled</option>
+                </select>
+              </label>
+              <label>Type
+                <select id="itsmChgType">
+                  <option value="">All</option>
+                  <option value="standard">standard</option>
+                  <option value="normal">normal</option>
+                  <option value="emergency">emergency</option>
+                </select>
+              </label>
+              <button type="button" id="btnRefreshItsmChg" class="secondary">Refresh</button>
+              <button type="button" id="btnNewItsmChg">New change</button>
+            </div>
+            <p class="hint" id="itsmChgListMeta">No changes loaded yet.</p>
+            <div class="table-wrap">
+              <table class="inventory" id="itsmChgTable">
+                <thead>
+                  <tr>
+                    <th>Number</th>
+                    <th>Title</th>
+                    <th>Status</th>
+                    <th>Type</th>
+                    <th>Priority</th>
+                    <th>CIs</th>
+                    <th>Updated</th>
+                    <th></th>
+                  </tr>
+                </thead>
+                <tbody id="itsmChgBody">
+                  <tr><td colspan="8" class="hint">Sign in to load changes.</td></tr>
+                </tbody>
+              </table>
+            </div>
           </section>
+
+          <aside id="itsmChgDrawer" class="itsm-drawer" hidden aria-hidden="true">
+            <div class="itsm-drawer-panel" role="dialog" aria-labelledby="itsmChgDrawerTitle">
+              <header class="itsm-drawer-head">
+                <div>
+                  <h3 id="itsmChgDrawerTitle">Change</h3>
+                  <p class="hint" id="itsmChgDrawerSub">Detail · activity · CIs</p>
+                </div>
+                <button type="button" id="btnCloseItsmChgDrawer" class="ghost" aria-label="Close detail">Close</button>
+              </header>
+              <div id="itsmChgDrawerDetail" class="itsm-drawer-detail hint">Select a change.</div>
+              <div class="itsm-drawer-actions" id="itsmChgTransitionBar"></div>
+              <h4 class="itsm-drawer-section">Affected CIs</h4>
+              <div class="itsm-ci-add">
+                <input id="itsmChgCiComponentId" placeholder="component_id" />
+                <button type="button" id="btnItsmChgAddCi" class="secondary">Link CI</button>
+              </div>
+              <ul id="itsmChgCiList" class="itsm-ci-list"></ul>
+              <h4 class="itsm-drawer-section">Activity</h4>
+              <div class="itsm-comment-row">
+                <input id="itsmChgCommentInput" placeholder="Add a comment…" />
+                <button type="button" id="btnItsmChgComment" class="secondary">Post</button>
+              </div>
+              <ul id="itsmChgActivityList" class="itsm-activity-list"></ul>
+            </div>
+          </aside>
         </section>
 
         <section id="tab-itsm-problems" class="tab-panel hidden" data-itsm-module="1">
           <section class="panel itsm-panel">
             <h2>Problems</h2>
-            <p class="hint itsm-stub-banner">Problem Management is planned for a later ITSM slice. Incident Management is available now.</p>
+            <p class="hint">Tenant-scoped problem tickets with root cause, workaround, known-error flag, related incidents, and CMDB CI links.</p>
+            <div class="toolbar itsm-toolbar">
+              <label>Search
+                <input id="itsmPrbSearch" placeholder="title, PRB-…, root cause…" />
+              </label>
+              <label>Status
+                <select id="itsmPrbStatus">
+                  <option value="">All</option>
+                  <option value="new">new</option>
+                  <option value="under_investigation">under_investigation</option>
+                  <option value="known_error">known_error</option>
+                  <option value="resolved">resolved</option>
+                  <option value="closed">closed</option>
+                  <option value="cancelled">cancelled</option>
+                </select>
+              </label>
+              <label>Priority
+                <select id="itsmPrbPriority">
+                  <option value="">All</option>
+                  <option value="p1">p1</option>
+                  <option value="p2">p2</option>
+                  <option value="p3">p3</option>
+                  <option value="p4">p4</option>
+                </select>
+              </label>
+              <button type="button" id="btnRefreshItsmPrb" class="secondary">Refresh</button>
+              <button type="button" id="btnNewItsmPrb">New problem</button>
+            </div>
+            <p class="hint" id="itsmPrbListMeta">No problems loaded yet.</p>
+            <div class="table-wrap">
+              <table class="inventory" id="itsmPrbTable">
+                <thead>
+                  <tr>
+                    <th>Number</th>
+                    <th>Title</th>
+                    <th>Status</th>
+                    <th>Priority</th>
+                    <th>Known error</th>
+                    <th>CIs</th>
+                    <th>Updated</th>
+                    <th></th>
+                  </tr>
+                </thead>
+                <tbody id="itsmPrbBody">
+                  <tr><td colspan="8" class="hint">Sign in to load problems.</td></tr>
+                </tbody>
+              </table>
+            </div>
           </section>
+
+          <aside id="itsmPrbDrawer" class="itsm-drawer" hidden aria-hidden="true">
+            <div class="itsm-drawer-panel" role="dialog" aria-labelledby="itsmPrbDrawerTitle">
+              <header class="itsm-drawer-head">
+                <div>
+                  <h3 id="itsmPrbDrawerTitle">Problem</h3>
+                  <p class="hint" id="itsmPrbDrawerSub">Detail · activity · CIs</p>
+                </div>
+                <button type="button" id="btnCloseItsmPrbDrawer" class="ghost" aria-label="Close detail">Close</button>
+              </header>
+              <div id="itsmPrbDrawerDetail" class="itsm-drawer-detail hint">Select a problem.</div>
+              <div class="itsm-drawer-actions" id="itsmPrbTransitionBar"></div>
+              <h4 class="itsm-drawer-section">Affected CIs</h4>
+              <div class="itsm-ci-add">
+                <input id="itsmPrbCiComponentId" placeholder="component_id" />
+                <button type="button" id="btnItsmPrbAddCi" class="secondary">Link CI</button>
+              </div>
+              <ul id="itsmPrbCiList" class="itsm-ci-list"></ul>
+              <h4 class="itsm-drawer-section">Activity</h4>
+              <div class="itsm-comment-row">
+                <input id="itsmPrbCommentInput" placeholder="Add a comment…" />
+                <button type="button" id="btnItsmPrbComment" class="secondary">Post</button>
+              </div>
+              <ul id="itsmPrbActivityList" class="itsm-activity-list"></ul>
+            </div>
+          </aside>
         </section>
 
         <section id="tab-file-monitoring" class="tab-panel hidden" data-fm-module="1">
@@ -1630,15 +1778,16 @@
     </div>
   </div>
 
-  <div id="itsmIncidentModal" class="modal-backdrop" role="dialog" aria-modal="true">
-    <div class="modal">
+  <div id="itsmIncidentModal" class="modal-backdrop" role="dialog" aria-modal="true" aria-labelledby="itsmIncidentModalTitle">
+    <div class="modal itsm-create-modal">
       <header>
-        <h3>New incident</h3>
+        <h3 id="itsmIncidentModalTitle">New incident</h3>
         <button type="button" id="btnCloseItsmIncidentModal" class="ghost">Close</button>
       </header>
       <form id="itsmIncidentForm">
+        <p class="hint itsm-create-lead">Creates an INC ticket in the ITSM database for this tenant. Optional CI and related problem/change ids are stored as references only.</p>
         <div class="form-grid">
-          <label>Title<input id="itsmFieldTitle" required maxlength="500" /></label>
+          <label>Title<input id="itsmFieldTitle" required maxlength="500" placeholder="Short summary of the issue" /></label>
           <label>Priority
             <select id="itsmFieldPriority">
               <option value="p1">p1</option>
@@ -1647,14 +1796,104 @@
               <option value="p4">p4</option>
             </select>
           </label>
+          <label>Urgency<input id="itsmFieldUrgency" maxlength="64" placeholder="e.g. high" /></label>
+          <label>Impact<input id="itsmFieldImpact" maxlength="64" placeholder="e.g. user / service" /></label>
           <label>Category<input id="itsmFieldCategory" maxlength="128" /></label>
           <label>Assignee user id<input id="itsmFieldAssignee" maxlength="128" /></label>
-          <label class="full">Description<textarea id="itsmFieldDescription" rows="4" maxlength="20000"></textarea></label>
-          <label>CI component_id<input id="itsmFieldCi" placeholder="optional" maxlength="128" /></label>
+          <label>Caller email<input id="itsmFieldCallerEmail" type="email" maxlength="320" /></label>
+          <label>CI component_id<input id="itsmFieldCi" placeholder="optional CMDB component_id" maxlength="128" /></label>
+          <label>Related problem id<input id="itsmFieldProblemId" placeholder="optional PRB-…" maxlength="128" /></label>
+          <label>Related change id<input id="itsmFieldChangeId" placeholder="optional CHG-…" maxlength="128" /></label>
+          <label class="full">Description<textarea id="itsmFieldDescription" rows="4" maxlength="20000" placeholder="What happened, who is affected, and any immediate impact"></textarea></label>
         </div>
         <footer class="modal-actions">
           <button type="button" id="btnCancelItsmIncident" class="secondary">Cancel</button>
-          <button type="submit" id="btnSaveItsmIncident">Create</button>
+          <button type="submit" id="btnSaveItsmIncident">Create incident</button>
+        </footer>
+      </form>
+    </div>
+  </div>
+
+  <div id="itsmChangeModal" class="modal-backdrop" role="dialog" aria-modal="true" aria-labelledby="itsmChangeModalTitle">
+    <div class="modal itsm-create-modal">
+      <header>
+        <h3 id="itsmChangeModalTitle">New change</h3>
+        <button type="button" id="btnCloseItsmChangeModal" class="ghost">Close</button>
+      </header>
+      <form id="itsmChangeForm">
+        <p class="hint itsm-create-lead">Creates a CHG ticket. Status starts as <code>draft</code>. Link related INC/PRB ids and a CMDB CI when known.</p>
+        <div class="form-grid">
+          <label>Title<input id="itsmChgFieldTitle" required maxlength="500" placeholder="Change summary" /></label>
+          <label>Type
+            <select id="itsmChgFieldType">
+              <option value="standard">standard</option>
+              <option value="normal" selected>normal</option>
+              <option value="emergency">emergency</option>
+            </select>
+          </label>
+          <label>Priority
+            <select id="itsmChgFieldPriority">
+              <option value="p1">p1</option>
+              <option value="p2">p2</option>
+              <option value="p3" selected>p3</option>
+              <option value="p4">p4</option>
+            </select>
+          </label>
+          <label>Risk<input id="itsmChgFieldRisk" maxlength="64" placeholder="low / medium / high" /></label>
+          <label>Impact<input id="itsmChgFieldImpact" maxlength="64" /></label>
+          <label>Assignee user id<input id="itsmChgFieldAssignee" maxlength="128" /></label>
+          <label>CI component_id<input id="itsmChgFieldCi" placeholder="optional" maxlength="128" /></label>
+          <label class="itsm-check-label">CAB required
+            <input type="checkbox" id="itsmChgFieldCab" />
+          </label>
+          <label>Related incident ids<input id="itsmChgFieldRelatedInc" placeholder="INC-… comma-separated" maxlength="500" /></label>
+          <label>Related problem ids<input id="itsmChgFieldRelatedPrb" placeholder="PRB-… comma-separated" maxlength="500" /></label>
+          <label class="full">Description<textarea id="itsmChgFieldDescription" rows="3" maxlength="20000"></textarea></label>
+          <label class="full">Justification<textarea id="itsmChgFieldJustification" rows="2" maxlength="20000"></textarea></label>
+          <label class="full">Implementation plan<textarea id="itsmChgFieldImpl" rows="2" maxlength="20000"></textarea></label>
+          <label class="full">Backout plan<textarea id="itsmChgFieldBackout" rows="2" maxlength="20000"></textarea></label>
+        </div>
+        <footer class="modal-actions">
+          <button type="button" id="btnCancelItsmChange" class="secondary">Cancel</button>
+          <button type="submit" id="btnSaveItsmChange">Create change</button>
+        </footer>
+      </form>
+    </div>
+  </div>
+
+  <div id="itsmProblemModal" class="modal-backdrop" role="dialog" aria-modal="true" aria-labelledby="itsmProblemModalTitle">
+    <div class="modal itsm-create-modal">
+      <header>
+        <h3 id="itsmProblemModalTitle">New problem</h3>
+        <button type="button" id="btnCloseItsmProblemModal" class="ghost">Close</button>
+      </header>
+      <form id="itsmProblemForm">
+        <p class="hint itsm-create-lead">Creates a PRB ticket for root-cause analysis. Optionally mark as known error and link related incidents or a change.</p>
+        <div class="form-grid">
+          <label>Title<input id="itsmPrbFieldTitle" required maxlength="500" placeholder="Problem summary" /></label>
+          <label>Priority
+            <select id="itsmPrbFieldPriority">
+              <option value="p1">p1</option>
+              <option value="p2">p2</option>
+              <option value="p3" selected>p3</option>
+              <option value="p4">p4</option>
+            </select>
+          </label>
+          <label>Category<input id="itsmPrbFieldCategory" maxlength="128" /></label>
+          <label>Assignee user id<input id="itsmPrbFieldAssignee" maxlength="128" /></label>
+          <label>CI component_id<input id="itsmPrbFieldCi" placeholder="optional" maxlength="128" /></label>
+          <label class="itsm-check-label">Known error
+            <input type="checkbox" id="itsmPrbFieldKnownError" />
+          </label>
+          <label>Related incident ids<input id="itsmPrbFieldRelatedInc" placeholder="INC-… comma-separated" maxlength="500" /></label>
+          <label>Linked change id<input id="itsmPrbFieldChangeId" placeholder="optional CHG-…" maxlength="128" /></label>
+          <label class="full">Description<textarea id="itsmPrbFieldDescription" rows="3" maxlength="20000"></textarea></label>
+          <label class="full">Root cause<textarea id="itsmPrbFieldRootCause" rows="2" maxlength="20000"></textarea></label>
+          <label class="full">Workaround<textarea id="itsmPrbFieldWorkaround" rows="2" maxlength="20000"></textarea></label>
+        </div>
+        <footer class="modal-actions">
+          <button type="button" id="btnCancelItsmProblem" class="secondary">Cancel</button>
+          <button type="submit" id="btnSaveItsmProblem">Create problem</button>
         </footer>
       </form>
     </div>
@@ -1880,10 +2119,12 @@
     </div>
   </div>
 
-  <script src="/static/js/cmdb.js?v=0.34.0"></script>
-  <script src="/static/js/itsm/api.js?v=0.34.0"></script>
-  <script src="/static/js/itsm/dashboard.js?v=0.34.0"></script>
-  <script src="/static/js/itsm/incidents.js?v=0.34.0"></script>
-  <script src="/static/js/itsm/index.js?v=0.34.0"></script>
+  <script src="/static/js/cmdb.js?v=0.35.0"></script>
+  <script src="/static/js/itsm/api.js?v=0.35.0"></script>
+  <script src="/static/js/itsm/dashboard.js?v=0.35.0"></script>
+  <script src="/static/js/itsm/incidents.js?v=0.35.0"></script>
+  <script src="/static/js/itsm/changes.js?v=0.35.0"></script>
+  <script src="/static/js/itsm/problems.js?v=0.35.0"></script>
+  <script src="/static/js/itsm/index.js?v=0.35.0"></script>
 </body>
 </html>

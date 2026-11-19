@@ -255,6 +255,12 @@
     if (window.SVRMON24ItsmIncidents?.applyWriteGates) {
       window.SVRMON24ItsmIncidents.applyWriteGates();
     }
+    if (window.SVRMON24ItsmChanges?.applyWriteGates) {
+      window.SVRMON24ItsmChanges.applyWriteGates();
+    }
+    if (window.SVRMON24ItsmProblems?.applyWriteGates) {
+      window.SVRMON24ItsmProblems.applyWriteGates();
+    }
   }
 
   function renderRolesSignedOut() {
@@ -514,19 +520,19 @@
     },
     "itsm-dashboard": {
       title: "ITSM Dashboard",
-      subtitle: "Open incidents and ITSM stub KPIs for the current tenant",
+      subtitle: "Open incidents, changes, and problems for the current tenant",
     },
     "itsm-incidents": {
       title: "Incidents",
-      subtitle: "Incident Management · activities · CMDB CI links",
+      subtitle: "Create and manage incident tickets · activities · CMDB CI links",
     },
     "itsm-changes": {
       title: "Changes",
-      subtitle: "Change Management — coming in a later slice",
+      subtitle: "Change Management · status transitions · related tickets · CI links",
     },
     "itsm-problems": {
       title: "Problems",
-      subtitle: "Problem Management — coming in a later slice",
+      subtitle: "Problem Management · known errors · related incidents · CI links",
     },
   };
 
@@ -2763,6 +2769,18 @@
       window.SVRMON24ItsmIncidents?.applyWriteGates?.();
       window.SVRMON24ItsmIncidents?.loadIncidents?.()?.catch?.((err) =>
         toast(err.message || "Incidents failed", true)
+      );
+    }
+    if (name === "itsm-changes" && state.authenticated) {
+      window.SVRMON24ItsmChanges?.applyWriteGates?.();
+      window.SVRMON24ItsmChanges?.loadChanges?.()?.catch?.((err) =>
+        toast(err.message || "Changes failed", true)
+      );
+    }
+    if (name === "itsm-problems" && state.authenticated) {
+      window.SVRMON24ItsmProblems?.applyWriteGates?.();
+      window.SVRMON24ItsmProblems?.loadProblems?.()?.catch?.((err) =>
+        toast(err.message || "Problems failed", true)
       );
     }
     if (name === "columns" && state.authenticated) {

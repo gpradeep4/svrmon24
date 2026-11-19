@@ -7,6 +7,8 @@ from __future__ import annotations
 
 ITSM_COLLECTIONS: tuple[str, ...] = (
     "itsm_incidents",
+    "itsm_changes",
+    "itsm_problems",
     "itsm_ticket_activities",
     "itsm_counters",
 )

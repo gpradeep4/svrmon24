@@ -7,31 +7,52 @@ from typing import Any
 from fastapi import APIRouter, Depends, HTTPException, Path, Query, Request
 
 from ...permissions import (
+    PERM_ITSM_CHANGE_READ,
+    PERM_ITSM_CHANGE_WRITE,
     PERM_ITSM_INCIDENT_READ,
     PERM_ITSM_INCIDENT_WRITE,
+    PERM_ITSM_PROBLEM_READ,
+    PERM_ITSM_PROBLEM_WRITE,
     assert_permission,
-    require_permission,
 )
 from ...services import audit as audit_service
 from ...tenant_context import TenantContext, require_tenant
 from ..models.common import TicketActivityCreate
 from ..services import activities as activities_service
+from ..services import changes as changes_service
 from ..services import incidents as incidents_service
+from ..services import problems as problems_service
 from ..services.activities import ActivityError
 
 router = APIRouter(tags=["itsm-activities"])
 
+_READ_PERM = {
+    "incident": PERM_ITSM_INCIDENT_READ,
+    "change": PERM_ITSM_CHANGE_READ,
+    "problem": PERM_ITSM_PROBLEM_READ,
+}
+_WRITE_PERM = {
+    "incident": PERM_ITSM_INCIDENT_WRITE,
+    "change": PERM_ITSM_CHANGE_WRITE,
+    "problem": PERM_ITSM_PROBLEM_WRITE,
+}
+
 
 def _ensure_ticket_exists(ticket_type: str, ticket_id: str, *, tenant_id: str) -> None:
-    if ticket_type != "incident":
-        raise HTTPException(
-            status_code=400,
-            detail="Only ticket_type=incident is supported in this slice",
-        )
-    doc = incidents_service.get_incident(ticket_id, tenant_id=tenant_id)
+    if ticket_type == "incident":
+        doc = incidents_service.get_incident(ticket_id, tenant_id=tenant_id)
+        label = "Incident"
+    elif ticket_type == "change":
+        doc = changes_service.get_change(ticket_id, tenant_id=tenant_id)
+        label = "Change"
+    elif ticket_type == "problem":
+        doc = problems_service.get_problem(ticket_id, tenant_id=tenant_id)
+        label = "Problem"
+    else:
+        raise HTTPException(status_code=400, detail=f"Unsupported ticket_type '{ticket_type}'")
     if doc is None:
         raise HTTPException(
-            status_code=404, detail=f"Incident '{ticket_id}' not found"
+            status_code=404, detail=f"{label} '{ticket_id}' not found"
         )
 
 
@@ -41,8 +62,9 @@ def list_activities(
     ticket_type: str = Path(pattern="^(incident|change|problem)$"),
     page: int = Query(default=1, ge=1),
     page_size: int = Query(default=50, ge=1, le=200),
-    tenant: TenantContext = Depends(require_permission(PERM_ITSM_INCIDENT_READ)),
+    tenant: TenantContext = Depends(require_tenant),
 ) -> dict[str, Any]:
+    assert_permission(tenant, _READ_PERM[ticket_type])
     _ensure_ticket_exists(ticket_type, ticket_id, tenant_id=tenant.tenant_id)
     return activities_service.list_activities(
         tenant_id=tenant.tenant_id,
@@ -61,10 +83,9 @@ def create_activity(
     ticket_type: str = Path(pattern="^(incident|change|problem)$"),
     tenant: TenantContext = Depends(require_tenant),
 ) -> dict[str, Any]:
-    assert_permission(tenant, PERM_ITSM_INCIDENT_WRITE)
+    assert_permission(tenant, _WRITE_PERM[ticket_type])
     _ensure_ticket_exists(ticket_type, ticket_id, tenant_id=tenant.tenant_id)
     if payload.activity_type not in {"comment", "system"}:
-        # Clients may only post comments; lifecycle events are service-owned.
         if payload.activity_type != "comment":
             raise HTTPException(
                 status_code=400,

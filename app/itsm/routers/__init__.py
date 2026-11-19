@@ -5,7 +5,7 @@ from __future__ import annotations
 from fastapi import APIRouter, Depends
 
 from ...auth import require_user
-from . import activities, dashboard, incidents
+from . import activities, changes, dashboard, incidents, problems
 
 router = APIRouter(
     prefix="/api/itsm",
@@ -15,5 +15,7 @@ router = APIRouter(
 
 # Register static prefixes before the polymorphic /{ticket_type}/... activity routes.
 router.include_router(incidents.router)
+router.include_router(changes.router)
+router.include_router(problems.router)
 router.include_router(dashboard.router)
 router.include_router(activities.router)
