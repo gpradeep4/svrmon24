@@ -91,5 +91,49 @@
         "POST",
         { message, activity_type: "comment", visibility: "public" }
       ),
+    listApprovals: (params) => {
+      const q = new URLSearchParams(params || {});
+      return itsmGet(`/approvals?${q.toString()}`);
+    },
+    getApproval: (id) => itsmGet(`/approvals/${encodeURIComponent(id)}`),
+    createApproval: (payload) => itsmSend("/approvals", "POST", payload),
+    updateApproval: (id, payload) =>
+      itsmSend(`/approvals/${encodeURIComponent(id)}`, "PATCH", payload),
+    decideApproval: (id, payload) =>
+      itsmSend(`/approvals/${encodeURIComponent(id)}/decide`, "POST", payload),
+    cancelApproval: (id, payload) =>
+      itsmSend(`/approvals/${encodeURIComponent(id)}/cancel`, "POST", payload || {}),
+    listWorkflows: (params) => {
+      const q = new URLSearchParams(params || {});
+      return itsmGet(`/workflows?${q.toString()}`);
+    },
+    getWorkflow: (id) => itsmGet(`/workflows/${encodeURIComponent(id)}`),
+    createWorkflow: (payload) => itsmSend("/workflows", "POST", payload),
+    updateWorkflow: (id, payload) =>
+      itsmSend(`/workflows/${encodeURIComponent(id)}`, "PATCH", payload),
+    activateWorkflow: (id, payload) =>
+      itsmSend(`/workflows/${encodeURIComponent(id)}/activate`, "POST", payload),
+    publishWorkflow: (id) =>
+      itsmSend(`/workflows/${encodeURIComponent(id)}/publish`, "POST", {}),
+    startWorkflow: (id, payload) =>
+      itsmSend(`/workflows/${encodeURIComponent(id)}/start`, "POST", payload),
+    listWorkflowExecutions: (params) => {
+      const q = new URLSearchParams(params || {});
+      return itsmGet(`/workflow-executions?${q.toString()}`);
+    },
+    getWorkflowExecution: (id) =>
+      itsmGet(`/workflow-executions/${encodeURIComponent(id)}`),
+    advanceWorkflowExecution: (id, payload) =>
+      itsmSend(
+        `/workflow-executions/${encodeURIComponent(id)}/advance`,
+        "POST",
+        payload || {}
+      ),
+    cancelWorkflowExecution: (id, payload) =>
+      itsmSend(
+        `/workflow-executions/${encodeURIComponent(id)}/cancel`,
+        "POST",
+        payload || {}
+      ),
   };
 })(window);

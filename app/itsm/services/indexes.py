@@ -15,6 +15,9 @@ CHANGES = "itsm_changes"
 PROBLEMS = "itsm_problems"
 ACTIVITIES = "itsm_ticket_activities"
 COUNTERS = "itsm_counters"
+APPROVALS = "itsm_approvals"
+WORKFLOWS = "itsm_workflows"
+WORKFLOW_EXECUTIONS = "itsm_workflow_executions"
 
 
 def _ticket_indexes(coll, *, id_field: str, prefix: str) -> list[str]:
@@ -94,6 +97,97 @@ def ensure_itsm_indexes(db: Database | None = None) -> dict[str, Any]:
         ),
     ]
     created[COUNTERS] = [str(n) for n in names]
+
+    apr = handle[APPROVALS]
+    names = [
+        apr.create_index(
+            [("tenant_id", ASCENDING), ("approval_id", ASCENDING)],
+            unique=True,
+            name="tenant_approval_id_unique",
+        ),
+        apr.create_index(
+            [
+                ("tenant_id", ASCENDING),
+                ("status", ASCENDING),
+                ("updated_at", DESCENDING),
+            ],
+            name="tenant_approval_status_updated_idx",
+        ),
+        apr.create_index(
+            [
+                ("tenant_id", ASCENDING),
+                ("ticket_type", ASCENDING),
+                ("ticket_id", ASCENDING),
+            ],
+            name="tenant_approval_ticket_idx",
+        ),
+        apr.create_index(
+            [("tenant_id", ASCENDING), ("workflow_execution_id", ASCENDING)],
+            name="tenant_approval_execution_idx",
+        ),
+        apr.create_index([("tenant_id", ASCENDING)], name="tenant_approval_tenant_id_idx"),
+    ]
+    created[APPROVALS] = [str(n) for n in names]
+
+    wf = handle[WORKFLOWS]
+    names = [
+        wf.create_index(
+            [("tenant_id", ASCENDING), ("workflow_id", ASCENDING)],
+            unique=True,
+            name="tenant_workflow_id_unique",
+        ),
+        wf.create_index(
+            [
+                ("tenant_id", ASCENDING),
+                ("active", ASCENDING),
+                ("applies_to", ASCENDING),
+            ],
+            name="tenant_workflow_active_applies_idx",
+        ),
+        wf.create_index(
+            [("tenant_id", ASCENDING), ("updated_at", DESCENDING)],
+            name="tenant_workflow_updated_idx",
+        ),
+        wf.create_index([("tenant_id", ASCENDING)], name="tenant_workflow_tenant_id_idx"),
+    ]
+    created[WORKFLOWS] = [str(n) for n in names]
+
+    wx = handle[WORKFLOW_EXECUTIONS]
+    names = [
+        wx.create_index(
+            [("tenant_id", ASCENDING), ("execution_id", ASCENDING)],
+            unique=True,
+            name="tenant_execution_id_unique",
+        ),
+        wx.create_index(
+            [
+                ("tenant_id", ASCENDING),
+                ("workflow_id", ASCENDING),
+                ("updated_at", DESCENDING),
+            ],
+            name="tenant_execution_workflow_updated_idx",
+        ),
+        wx.create_index(
+            [
+                ("tenant_id", ASCENDING),
+                ("ticket_type", ASCENDING),
+                ("ticket_id", ASCENDING),
+            ],
+            name="tenant_execution_ticket_idx",
+        ),
+        wx.create_index(
+            [
+                ("tenant_id", ASCENDING),
+                ("status", ASCENDING),
+                ("updated_at", DESCENDING),
+            ],
+            name="tenant_execution_status_updated_idx",
+        ),
+        wx.create_index(
+            [("tenant_id", ASCENDING)], name="tenant_execution_tenant_id_idx"
+        ),
+    ]
+    created[WORKFLOW_EXECUTIONS] = [str(n) for n in names]
 
     return {
         "ok": True,

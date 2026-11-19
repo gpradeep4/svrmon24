@@ -11,4 +11,7 @@ ITSM_COLLECTIONS: tuple[str, ...] = (
     "itsm_problems",
     "itsm_ticket_activities",
     "itsm_counters",
+    "itsm_approvals",
+    "itsm_workflows",
+    "itsm_workflow_executions",
 )

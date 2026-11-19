@@ -1,4 +1,4 @@
-/* global SVRMON24ItsmDashboard, SVRMON24ItsmIncidents, SVRMON24ItsmChanges, SVRMON24ItsmProblems */
+/* global SVRMON24ItsmDashboard, SVRMON24ItsmIncidents, SVRMON24ItsmChanges, SVRMON24ItsmProblems, SVRMON24ItsmApprovals, SVRMON24ItsmWorkflows */
 (function (global) {
   "use strict";
 
@@ -12,7 +12,9 @@
       "itsm:problem:read",
       "itsm:problem:write",
       "itsm:workflow:read",
+      "itsm:workflow:admin",
       "itsm:approval:read",
+      "itsm:approval:decide",
       "itsm:sla:read",
       "itsm:knowledge:read",
       "itsm:notification:read",
@@ -63,11 +65,21 @@
         title: "Problems",
         subtitle: "Problem Management · known errors · related incidents · CI links",
       };
+      pageMeta["itsm-approvals"] = {
+        title: "Approvals",
+        subtitle: "Manual and workflow approvals · approve / reject · ticket audit",
+      };
+      pageMeta["itsm-workflows"] = {
+        title: "Workflow Designer",
+        subtitle: "Define graphs · activate · start executions · approval gates",
+      };
     }
 
     SVRMON24ItsmIncidents.initItsmIncidents({ can, toast, escapeHtml });
     SVRMON24ItsmChanges.initItsmChanges({ can, toast, escapeHtml });
     SVRMON24ItsmProblems.initItsmProblems({ can, toast, escapeHtml });
+    SVRMON24ItsmApprovals.initItsmApprovals({ can, toast, escapeHtml });
+    SVRMON24ItsmWorkflows.initItsmWorkflows({ can, toast, escapeHtml });
 
     document.getElementById("btnRefreshItsmDash")?.addEventListener("click", () => {
       SVRMON24ItsmDashboard.loadItsmDashboard({ toast });
@@ -91,6 +103,14 @@
           SVRMON24ItsmProblems.applyWriteGates();
           SVRMON24ItsmProblems.loadProblems();
         }
+        if (name === "itsm-approvals") {
+          SVRMON24ItsmApprovals.applyWriteGates();
+          SVRMON24ItsmApprovals.loadApprovals();
+        }
+        if (name === "itsm-workflows") {
+          SVRMON24ItsmWorkflows.applyWriteGates();
+          SVRMON24ItsmWorkflows.loadWorkflows();
+        }
       });
     }
 
@@ -100,6 +120,8 @@
         SVRMON24ItsmIncidents.applyWriteGates();
         SVRMON24ItsmChanges.applyWriteGates();
         SVRMON24ItsmProblems.applyWriteGates();
+        SVRMON24ItsmApprovals.applyWriteGates();
+        SVRMON24ItsmWorkflows.applyWriteGates();
       });
     } else {
       applyItsmNavGates(can);
