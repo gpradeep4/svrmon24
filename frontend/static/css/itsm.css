@@ -781,6 +781,107 @@
   white-space: nowrap;
 }
 
+.itsm-custom-reports {
+  margin-top: 1.75rem;
+  padding-top: 1.25rem;
+  border-top: 1px solid var(--border, #e2e8f0);
+}
+
+.itsm-custom-reports h3,
+.itsm-custom-reports h4 {
+  margin: 0 0 0.35rem;
+}
+
+.itsm-custom-report-toolbar {
+  margin: 0.75rem 0;
+}
+
+.itsm-custom-report-form {
+  margin: 1rem 0;
+  padding: 1rem;
+  border: 1px solid var(--border, #e2e8f0);
+  border-radius: 8px;
+  background: linear-gradient(180deg, #ffffff 0%, #f8fafc 100%);
+}
+
+.itsm-form-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.85rem 1rem;
+}
+
+.itsm-form-grid label {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  font-size: 0.85rem;
+  color: var(--muted, #64748b);
+}
+
+.itsm-form-grid input[type="text"],
+.itsm-form-grid select {
+  font: inherit;
+  color: var(--ink, #0f172a);
+  border: 1px solid var(--border, #cbd5e1);
+  border-radius: 6px;
+  padding: 0.45rem 0.55rem;
+  background: #fff;
+}
+
+.itsm-check-fieldset {
+  border: 1px solid var(--border, #e2e8f0);
+  border-radius: 6px;
+  padding: 0.55rem 0.75rem;
+  margin: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.45rem 0.85rem;
+}
+
+.itsm-check-fieldset legend {
+  padding: 0 0.25rem;
+  font-size: 0.8rem;
+  color: var(--muted, #64748b);
+}
+
+.itsm-check-fieldset label {
+  flex-direction: row;
+  align-items: center;
+  gap: 0.35rem;
+  font-size: 0.82rem;
+  color: var(--ink, #0f172a);
+}
+
+.itsm-check-fieldset-wide {
+  grid-column: 1 / -1;
+}
+
+.itsm-form-actions {
+  display: flex;
+  gap: 0.65rem;
+  margin-top: 1rem;
+}
+
+.itsm-report-actions {
+  white-space: nowrap;
+}
+
+.itsm-mini-btn {
+  padding: 0.25rem 0.55rem;
+  font-size: 0.78rem;
+  margin: 0.1rem;
+}
+
+.itsm-metric-cell {
+  font-size: 0.8rem;
+  max-width: 18rem;
+  word-break: break-word;
+}
+
+.itsm-custom-report-run {
+  margin-top: 1.25rem;
+}
+
 @media (max-width: 1100px) {
   .itsm-kpi-row-wide {
     grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -816,6 +917,10 @@
 
   .itsm-wf-inspector-body,
   .itsm-wf-run-row {
+    grid-template-columns: 1fr;
+  }
+
+  .itsm-form-grid {
     grid-template-columns: 1fr;
   }
 }

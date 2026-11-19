@@ -18,6 +18,8 @@
       "itsm:sla:read",
       "itsm:knowledge:read",
       "itsm:notification:read",
+      "itsm:reports:read",
+      "itsm:reports:write",
     ];
     return keys.some((k) => can(k));
   }
@@ -40,12 +42,13 @@
       escapeHtml,
       pageMeta,
       api,
+      downloadBinary,
       onShowTab,
       onPermissionGates,
     } = hooks || {};
 
     if (api && global.SVRMON24ItsmApi?.bindApi) {
-      global.SVRMON24ItsmApi.bindApi(api);
+      global.SVRMON24ItsmApi.bindApi(api, { downloadBinary });
     }
 
     if (pageMeta) {
@@ -55,7 +58,7 @@
       };
       pageMeta["itsm-reports"] = {
         title: "Reports & Analytics",
-        subtitle: "Time-window volume charts and open-work breakdowns",
+        subtitle: "Volume charts, CSV/Excel download, and custom report definitions",
       };
       pageMeta["itsm-incidents"] = {
         title: "Incidents",
@@ -92,7 +95,7 @@
     }
 
     SVRMON24ItsmDashboard.initItsmDashboard({ toast });
-    SVRMON24ItsmReports.initItsmReports({ toast });
+    SVRMON24ItsmReports.initItsmReports({ toast, escapeHtml, can });
     SVRMON24ItsmIncidents.initItsmIncidents({ can, toast, escapeHtml });
     SVRMON24ItsmChanges.initItsmChanges({ can, toast, escapeHtml });
     SVRMON24ItsmProblems.initItsmProblems({ can, toast, escapeHtml });
@@ -116,7 +119,9 @@
           SVRMON24ItsmDashboard.loadItsmDashboard({ toast });
         }
         if (name === "itsm-reports") {
+          SVRMON24ItsmReports.applyWriteGates();
           SVRMON24ItsmReports.loadItsmReports({ toast });
+          SVRMON24ItsmReports.loadCustomReports();
         }
         if (name === "itsm-incidents") {
           SVRMON24ItsmIncidents.applyWriteGates();
@@ -162,6 +167,7 @@
         SVRMON24ItsmWorkflows.applyWriteGates();
         SVRMON24ItsmSla.applyWriteGates();
         SVRMON24ItsmKnowledge.applyWriteGates();
+        SVRMON24ItsmReports.applyWriteGates();
         if (can("itsm:notification:read")) {
           SVRMON24ItsmNotifications.startBadgePolling();
         } else {

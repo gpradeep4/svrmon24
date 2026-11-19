@@ -22,6 +22,7 @@ SLA_POLICIES = "itsm_sla_policies"
 SLA_TRACKING = "itsm_sla_tracking"
 KNOWLEDGE_ARTICLES = "itsm_knowledge_articles"
 NOTIFICATIONS = "itsm_notifications"
+REPORT_DEFINITIONS = "itsm_report_definitions"
 
 
 def _ticket_indexes(coll, *, id_field: str, prefix: str) -> list[str]:
@@ -339,6 +340,27 @@ def ensure_itsm_indexes(db: Database | None = None) -> dict[str, Any]:
         ),
     ]
     created[NOTIFICATIONS] = [str(n) for n in names]
+
+    rpt = handle[REPORT_DEFINITIONS]
+    names = [
+        rpt.create_index(
+            [("tenant_id", ASCENDING), ("report_id", ASCENDING)],
+            unique=True,
+            name="tenant_report_id_unique",
+        ),
+        rpt.create_index(
+            [("tenant_id", ASCENDING), ("updated_at", DESCENDING)],
+            name="tenant_report_updated_idx",
+        ),
+        rpt.create_index(
+            [("tenant_id", ASCENDING), ("name", ASCENDING)],
+            name="tenant_report_name_idx",
+        ),
+        rpt.create_index(
+            [("tenant_id", ASCENDING)], name="tenant_report_tenant_id_idx"
+        ),
+    ]
+    created[REPORT_DEFINITIONS] = [str(n) for n in names]
 
     return {
         "ok": True,

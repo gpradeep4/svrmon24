@@ -2,9 +2,13 @@
   "use strict";
 
   let request = null;
+  let downloadFn = null;
 
-  function bindApi(apiFn) {
+  function bindApi(apiFn, helpers) {
     request = apiFn;
+    if (helpers && typeof helpers.downloadBinary === "function") {
+      downloadFn = helpers.downloadBinary;
+    }
   }
 
   async function itsmGet(path) {
@@ -21,8 +25,14 @@
     });
   }
 
+  async function downloadBinary(path, fallbackFilename) {
+    if (!downloadFn) throw new Error("ITSM download helper not bound");
+    return downloadFn(`/api/itsm${path}`, fallbackFilename);
+  }
+
   global.SVRMON24ItsmApi = {
     bindApi,
+    downloadBinary,
     dashboardSummary: (params) => {
       const q = new URLSearchParams(params || {});
       const suffix = q.toString() ? `?${q.toString()}` : "";
@@ -198,5 +208,19 @@
       itsmSend(`/notifications/${encodeURIComponent(id)}/unread`, "POST"),
     markNotificationArchive: (id) =>
       itsmSend(`/notifications/${encodeURIComponent(id)}/archive`, "POST"),
+    listReportDefinitions: (params) => {
+      const q = new URLSearchParams(params || {});
+      return itsmGet(`/reports/definitions?${q.toString()}`);
+    },
+    getReportDefinition: (id) =>
+      itsmGet(`/reports/definitions/${encodeURIComponent(id)}`),
+    createReportDefinition: (payload) =>
+      itsmSend("/reports/definitions", "POST", payload),
+    updateReportDefinition: (id, payload) =>
+      itsmSend(`/reports/definitions/${encodeURIComponent(id)}`, "PATCH", payload),
+    deleteReportDefinition: (id) =>
+      itsmSend(`/reports/definitions/${encodeURIComponent(id)}`, "DELETE"),
+    runReportDefinition: (id) =>
+      itsmSend(`/reports/definitions/${encodeURIComponent(id)}/run`, "POST"),
   };
 })(window);

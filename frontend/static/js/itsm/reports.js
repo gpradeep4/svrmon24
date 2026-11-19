@@ -2,6 +2,15 @@
 (function (global) {
   "use strict";
 
+  let toastFn = null;
+  let escapeHtmlFn = (s) => String(s ?? "");
+  let canFn = () => false;
+  let editingId = null;
+
+  function toast(msg, isErr) {
+    if (toastFn) toastFn(msg, isErr);
+  }
+
   function setText(id, value) {
     const el = document.getElementById(id);
     if (el) el.textContent = value == null ? "—" : String(value);
@@ -11,6 +20,27 @@
     const el = document.getElementById("itsmReportsWindow");
     const raw = el ? el.value : "30";
     return raw === "7" ? 7 : 30;
+  }
+
+  function canReadReports() {
+    return canFn("itsm:reports:read") || canFn("itsm:dashboard:read");
+  }
+
+  function canWriteReports() {
+    return canFn("itsm:reports:write");
+  }
+
+  function applyWriteGates() {
+    const write = canWriteReports();
+    document.querySelectorAll("[data-itsm-reports-write='1']").forEach((el) => {
+      el.hidden = !write;
+      if ("disabled" in el) el.disabled = !write;
+    });
+    const read = canReadReports();
+    document.querySelectorAll("[data-itsm-reports-read='1']").forEach((el) => {
+      el.hidden = !read;
+      if ("disabled" in el) el.disabled = !read;
+    });
   }
 
   function renderSparkline(containerId, series) {
@@ -94,7 +124,9 @@
     if (notes) notes.textContent = data.notes || "ITSM reports loaded.";
   }
 
-  async function loadItsmReports({ toast } = {}) {
+  async function loadItsmReports({ toast: t } = {}) {
+    if (t) toastFn = t;
+    applyWriteGates();
     const windowDays = selectedWindow();
     try {
       const data = await SVRMON24ItsmApi.dashboardReports({ window_days: windowDays });
@@ -102,18 +134,366 @@
     } catch (err) {
       const notes = document.getElementById("itsmReportsNotes");
       if (notes) notes.textContent = err.message || "Failed to load ITSM reports";
-      if (toast) toast(err.message || "ITSM reports failed", true);
+      toast(err.message || "ITSM reports failed", true);
     }
   }
 
-  function initItsmReports({ toast } = {}) {
-    document.getElementById("itsmReportsWindow")?.addEventListener("change", () => {
-      loadItsmReports({ toast });
+  async function downloadDashboardExport(format) {
+    if (!canReadReports()) {
+      toast("Missing itsm:reports:read permission", true);
+      return;
+    }
+    const windowDays = selectedWindow();
+    try {
+      const q = new URLSearchParams({
+        format,
+        window_days: String(windowDays),
+        include_tickets: "true",
+      });
+      await SVRMON24ItsmApi.downloadBinary(
+        `/dashboard/export?${q.toString()}`,
+        format === "xlsx" ? `itsm-reports-${windowDays}d.xlsx` : `itsm-reports-${windowDays}d.csv`
+      );
+      toast(`Exported ITSM reports as ${format.toUpperCase()}`);
+    } catch (err) {
+      toast(err.message || "Export failed", true);
+    }
+  }
+
+  function checkedValues(name) {
+    return Array.from(document.querySelectorAll(`input[name="${name}"]:checked`)).map(
+      (el) => el.value
+    );
+  }
+
+  function setCheckedValues(name, values) {
+    const set = new Set(values || []);
+    document.querySelectorAll(`input[name="${name}"]`).forEach((el) => {
+      el.checked = set.has(el.value);
     });
+  }
+
+  function splitCsv(raw) {
+    return String(raw || "")
+      .split(",")
+      .map((s) => s.trim())
+      .filter(Boolean);
+  }
+
+  function resetCustomForm() {
+    editingId = null;
+    const form = document.getElementById("itsmCustomReportForm");
+    if (form) form.hidden = true;
+    setText("itsmCustomReportFormTitle", "New custom report");
+    const idEl = document.getElementById("itsmCustomReportId");
+    if (idEl) idEl.value = "";
+    const name = document.getElementById("itsmCustomReportName");
+    if (name) name.value = "";
+    const desc = document.getElementById("itsmCustomReportDesc");
+    if (desc) desc.value = "";
+    const win = document.getElementById("itsmCustomReportWindow");
+    if (win) win.value = "30";
+    const cat = document.getElementById("itsmCustomReportCategory");
+    if (cat) cat.value = "";
+    const tier = document.getElementById("itsmCustomReportTier");
+    if (tier) tier.value = "";
+    const pri = document.getElementById("itsmCustomReportPriorities");
+    if (pri) pri.value = "";
+    const st = document.getElementById("itsmCustomReportStatuses");
+    if (st) st.value = "";
+    setCheckedValues("itsmCustomReportType", ["incident", "change", "problem"]);
+    setCheckedValues("itsmCustomReportMetric", [
+      "open_incidents",
+      "sla_breaches",
+      "ticket_rows",
+    ]);
+    setCheckedValues("itsmCustomReportColumn", [
+      "ticket_type",
+      "ticket_id",
+      "number",
+      "title",
+      "status",
+      "priority",
+      "category",
+      "service_tier",
+      "created_at",
+    ]);
+  }
+
+  function showCustomForm(doc) {
+    const form = document.getElementById("itsmCustomReportForm");
+    if (!form) return;
+    form.hidden = false;
+    if (!doc) {
+      resetCustomForm();
+      form.hidden = false;
+      editingId = null;
+      setText("itsmCustomReportFormTitle", "New custom report");
+      return;
+    }
+    editingId = doc.report_id;
+    setText("itsmCustomReportFormTitle", `Edit ${doc.name || doc.report_id}`);
+    const idEl = document.getElementById("itsmCustomReportId");
+    if (idEl) idEl.value = doc.report_id || "";
+    const name = document.getElementById("itsmCustomReportName");
+    if (name) name.value = doc.name || "";
+    const desc = document.getElementById("itsmCustomReportDesc");
+    if (desc) desc.value = doc.description || "";
+    const filters = doc.filters || {};
+    const win = document.getElementById("itsmCustomReportWindow");
+    if (win) win.value = filters.window_days == null ? "" : String(filters.window_days);
+    const cat = document.getElementById("itsmCustomReportCategory");
+    if (cat) cat.value = filters.category || "";
+    const tier = document.getElementById("itsmCustomReportTier");
+    if (tier) tier.value = filters.service_tier || "";
+    const pri = document.getElementById("itsmCustomReportPriorities");
+    if (pri) pri.value = (filters.priorities || []).join(",");
+    const st = document.getElementById("itsmCustomReportStatuses");
+    if (st) st.value = (filters.statuses || []).join(",");
+    setCheckedValues("itsmCustomReportType", filters.ticket_types || ["incident", "change", "problem"]);
+    setCheckedValues("itsmCustomReportMetric", doc.metrics || []);
+    setCheckedValues("itsmCustomReportColumn", doc.columns || []);
+  }
+
+  function buildPayloadFromForm() {
+    const name = document.getElementById("itsmCustomReportName")?.value?.trim();
+    if (!name) throw new Error("Name is required");
+    const metrics = checkedValues("itsmCustomReportMetric");
+    if (!metrics.length) throw new Error("Select at least one metric");
+    const columns = checkedValues("itsmCustomReportColumn");
+    const types = checkedValues("itsmCustomReportType");
+    if (!types.length) throw new Error("Select at least one ticket type");
+    const winRaw = document.getElementById("itsmCustomReportWindow")?.value;
+    const windowDays = winRaw === "" ? null : Number(winRaw);
+    return {
+      name,
+      description: document.getElementById("itsmCustomReportDesc")?.value?.trim() || null,
+      metrics,
+      columns: columns.length ? columns : undefined,
+      filters: {
+        ticket_types: types,
+        statuses: splitCsv(document.getElementById("itsmCustomReportStatuses")?.value),
+        priorities: splitCsv(document.getElementById("itsmCustomReportPriorities")?.value),
+        category: document.getElementById("itsmCustomReportCategory")?.value?.trim() || null,
+        service_tier: document.getElementById("itsmCustomReportTier")?.value?.trim() || null,
+        window_days: windowDays,
+      },
+    };
+  }
+
+  async function loadCustomReports() {
+    applyWriteGates();
+    if (!canFn("itsm:reports:read")) {
+      setText("itsmCustomReportListMeta", "Custom reports require itsm:reports:read.");
+      const tbody = document.querySelector("#itsmCustomReportTable tbody");
+      if (tbody) tbody.innerHTML = "";
+      return;
+    }
+    try {
+      const data = await SVRMON24ItsmApi.listReportDefinitions({ page: 1, page_size: 100 });
+      const items = data.items || [];
+      setText(
+        "itsmCustomReportListMeta",
+        items.length ? `${data.total} saved report(s)` : "No custom reports yet."
+      );
+      const tbody = document.querySelector("#itsmCustomReportTable tbody");
+      if (!tbody) return;
+      const write = canWriteReports();
+      tbody.innerHTML = items
+        .map((row) => {
+          const metrics = (row.metrics || []).join(", ");
+          const win =
+            row.filters?.window_days == null ? "—" : `${row.filters.window_days}d`;
+          const updated = row.updated_at
+            ? String(row.updated_at).replace("T", " ").slice(0, 19)
+            : "—";
+          const id = escapeHtmlFn(row.report_id);
+          const editBtn = write
+            ? `<button type="button" class="secondary itsm-mini-btn" data-rpt-edit="${id}">Edit</button>`
+            : "";
+          const delBtn = write
+            ? `<button type="button" class="secondary itsm-mini-btn" data-rpt-del="${id}">Delete</button>`
+            : "";
+          return `<tr>
+            <td><strong>${escapeHtmlFn(row.name)}</strong><div class="hint">${id}</div></td>
+            <td class="itsm-metric-cell">${escapeHtmlFn(metrics)}</td>
+            <td>${escapeHtmlFn(win)}</td>
+            <td>${escapeHtmlFn(updated)}</td>
+            <td class="itsm-report-actions">
+              <button type="button" class="secondary itsm-mini-btn" data-rpt-run="${id}">Run</button>
+              <button type="button" class="secondary itsm-mini-btn" data-rpt-csv="${id}">CSV</button>
+              <button type="button" class="secondary itsm-mini-btn" data-rpt-xlsx="${id}">Excel</button>
+              ${editBtn}${delBtn}
+            </td>
+          </tr>`;
+        })
+        .join("");
+    } catch (err) {
+      setText("itsmCustomReportListMeta", err.message || "Failed to load custom reports");
+      toast(err.message || "Custom reports failed", true);
+    }
+  }
+
+  function renderRunResult(result) {
+    const panel = document.getElementById("itsmCustomReportRunPanel");
+    if (panel) panel.hidden = false;
+    setText("itsmCustomReportRunName", result.name ? `· ${result.name}` : "");
+    setText(
+      "itsmCustomReportRunMeta",
+      `${result.ticket_row_count || 0} ticket row(s) · generated ${result.generated_at || ""}`
+    );
+    const mbody = document.querySelector("#itsmCustomReportMetricsTable tbody");
+    if (mbody) {
+      const rows = result.summary_metrics || [];
+      mbody.innerHTML = rows.length
+        ? rows
+            .map(
+              (r) =>
+                `<tr><td>${escapeHtmlFn(r.metric)}</td><td>${escapeHtmlFn(r.value)}</td></tr>`
+            )
+            .join("")
+        : `<tr><td colspan="2">No summary metrics</td></tr>`;
+    }
+    const thead = document.querySelector("#itsmCustomReportTicketsTable thead");
+    const tbody = document.querySelector("#itsmCustomReportTicketsTable tbody");
+    const cols = result.columns || [];
+    if (thead) {
+      thead.innerHTML = `<tr>${cols.map((c) => `<th>${escapeHtmlFn(c)}</th>`).join("")}</tr>`;
+    }
+    if (tbody) {
+      const rows = result.ticket_rows || [];
+      tbody.innerHTML = rows.length
+        ? rows
+            .map(
+              (row) =>
+                `<tr>${cols
+                  .map((c) => `<td>${escapeHtmlFn(row[c] ?? "")}</td>`)
+                  .join("")}</tr>`
+            )
+            .join("")
+        : `<tr><td colspan="${Math.max(cols.length, 1)}">No ticket rows</td></tr>`;
+    }
+  }
+
+  async function runCustomReport(reportId) {
+    try {
+      const result = await SVRMON24ItsmApi.runReportDefinition(reportId);
+      renderRunResult(result);
+      toast(`Ran report ${result.name || reportId}`);
+    } catch (err) {
+      toast(err.message || "Run failed", true);
+    }
+  }
+
+  async function exportCustomReport(reportId, format) {
+    try {
+      await SVRMON24ItsmApi.downloadBinary(
+        `/reports/definitions/${encodeURIComponent(reportId)}/export?format=${format}`,
+        format === "xlsx"
+          ? `itsm-report-${reportId}.xlsx`
+          : `itsm-report-${reportId}.csv`
+      );
+      toast(`Downloaded ${format.toUpperCase()}`);
+    } catch (err) {
+      toast(err.message || "Download failed", true);
+    }
+  }
+
+  async function saveCustomReport(ev) {
+    ev?.preventDefault?.();
+    if (!canWriteReports()) {
+      toast("Missing itsm:reports:write permission", true);
+      return;
+    }
+    try {
+      const payload = buildPayloadFromForm();
+      const id = editingId || document.getElementById("itsmCustomReportId")?.value;
+      if (id) {
+        await SVRMON24ItsmApi.updateReportDefinition(id, payload);
+        toast("Report updated");
+      } else {
+        await SVRMON24ItsmApi.createReportDefinition(payload);
+        toast("Report created");
+      }
+      resetCustomForm();
+      const form = document.getElementById("itsmCustomReportForm");
+      if (form) form.hidden = true;
+      await loadCustomReports();
+    } catch (err) {
+      toast(err.message || "Save failed", true);
+    }
+  }
+
+  async function deleteCustomReport(reportId) {
+    if (!canWriteReports()) return;
+    if (!global.confirm(`Delete custom report ${reportId}?`)) return;
+    try {
+      await SVRMON24ItsmApi.deleteReportDefinition(reportId);
+      toast("Report deleted");
+      await loadCustomReports();
+    } catch (err) {
+      toast(err.message || "Delete failed", true);
+    }
+  }
+
+  async function editCustomReport(reportId) {
+    try {
+      const doc = await SVRMON24ItsmApi.getReportDefinition(reportId);
+      showCustomForm(doc);
+    } catch (err) {
+      toast(err.message || "Load failed", true);
+    }
+  }
+
+  function onCustomTableClick(ev) {
+    const btn = ev.target.closest("button[data-rpt-run],button[data-rpt-csv],button[data-rpt-xlsx],button[data-rpt-edit],button[data-rpt-del]");
+    if (!btn) return;
+    const run = btn.getAttribute("data-rpt-run");
+    const csv = btn.getAttribute("data-rpt-csv");
+    const xlsx = btn.getAttribute("data-rpt-xlsx");
+    const edit = btn.getAttribute("data-rpt-edit");
+    const del = btn.getAttribute("data-rpt-del");
+    if (run) runCustomReport(run);
+    else if (csv) exportCustomReport(csv, "csv");
+    else if (xlsx) exportCustomReport(xlsx, "xlsx");
+    else if (edit) editCustomReport(edit);
+    else if (del) deleteCustomReport(del);
+  }
+
+  function initItsmReports({ toast: t, escapeHtml, can } = {}) {
+    if (t) toastFn = t;
+    if (escapeHtml) escapeHtmlFn = escapeHtml;
+    if (can) canFn = can;
+
+    document.getElementById("itsmReportsWindow")?.addEventListener("change", () => {
+      loadItsmReports({ toast: toastFn });
+    });
+    document.getElementById("btnExportItsmReportsCsv")?.addEventListener("click", () => {
+      downloadDashboardExport("csv");
+    });
+    document.getElementById("btnExportItsmReportsXlsx")?.addEventListener("click", () => {
+      downloadDashboardExport("xlsx");
+    });
+    document.getElementById("btnRefreshItsmCustomReports")?.addEventListener("click", () => {
+      loadCustomReports();
+    });
+    document.getElementById("btnNewItsmCustomReport")?.addEventListener("click", () => {
+      showCustomForm(null);
+    });
+    document.getElementById("btnCancelItsmCustomReport")?.addEventListener("click", () => {
+      resetCustomForm();
+      const form = document.getElementById("itsmCustomReportForm");
+      if (form) form.hidden = true;
+    });
+    document.getElementById("itsmCustomReportForm")?.addEventListener("submit", saveCustomReport);
+    document.getElementById("itsmCustomReportTable")?.addEventListener("click", onCustomTableClick);
+    applyWriteGates();
   }
 
   global.SVRMON24ItsmReports = {
     loadItsmReports,
+    loadCustomReports,
     initItsmReports,
+    applyWriteGates,
   };
 })(window);
