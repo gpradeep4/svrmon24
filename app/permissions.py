@@ -128,8 +128,8 @@ PERMISSION_LABELS: dict[str, str] = {
     PERM_ITSM_APPROVAL_DECIDE: "Create / decide ITSM approvals",
     PERM_ITSM_SLA_READ: "View ITSM SLA policies / tracking",
     PERM_ITSM_SLA_ADMIN: "Manage ITSM SLA policies",
-    PERM_ITSM_KNOWLEDGE_READ: "View ITSM knowledge articles (reserved)",
-    PERM_ITSM_KNOWLEDGE_WRITE: "Author ITSM knowledge articles (reserved)",
+    PERM_ITSM_KNOWLEDGE_READ: "View ITSM knowledge articles",
+    PERM_ITSM_KNOWLEDGE_WRITE: "Author / publish ITSM knowledge articles",
     PERM_ITSM_NOTIFICATION_READ: "Read own ITSM in-app notifications (reserved)",
     PERM_ITSM_DASHBOARD_READ: "View ITSM dashboard aggregates",
 }

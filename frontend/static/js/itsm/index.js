@@ -1,4 +1,4 @@
-/* global SVRMON24ItsmDashboard, SVRMON24ItsmIncidents, SVRMON24ItsmChanges, SVRMON24ItsmProblems, SVRMON24ItsmApprovals, SVRMON24ItsmWorkflows, SVRMON24ItsmSla */
+/* global SVRMON24ItsmDashboard, SVRMON24ItsmIncidents, SVRMON24ItsmChanges, SVRMON24ItsmProblems, SVRMON24ItsmApprovals, SVRMON24ItsmWorkflows, SVRMON24ItsmSla, SVRMON24ItsmKnowledge */
 (function (global) {
   "use strict";
 
@@ -77,6 +77,10 @@
         title: "SLA",
         subtitle: "Policies · tracking · response / resolution clocks · breach view",
       };
+      pageMeta["itsm-knowledge"] = {
+        title: "Knowledge Base",
+        subtitle: "Articles · publish / retire · related ticket and CI refs · search",
+      };
     }
 
     SVRMON24ItsmIncidents.initItsmIncidents({ can, toast, escapeHtml });
@@ -85,6 +89,7 @@
     SVRMON24ItsmApprovals.initItsmApprovals({ can, toast, escapeHtml });
     SVRMON24ItsmWorkflows.initItsmWorkflows({ can, toast, escapeHtml });
     SVRMON24ItsmSla.initItsmSla({ can, toast, escapeHtml });
+    SVRMON24ItsmKnowledge.initItsmKnowledge({ can, toast, escapeHtml });
 
     document.getElementById("btnRefreshItsmDash")?.addEventListener("click", () => {
       SVRMON24ItsmDashboard.loadItsmDashboard({ toast });
@@ -120,6 +125,10 @@
           SVRMON24ItsmSla.applyWriteGates();
           SVRMON24ItsmSla.setView("policies");
         }
+        if (name === "itsm-knowledge") {
+          SVRMON24ItsmKnowledge.applyWriteGates();
+          SVRMON24ItsmKnowledge.loadArticles();
+        }
       });
     }
 
@@ -132,6 +141,7 @@
         SVRMON24ItsmApprovals.applyWriteGates();
         SVRMON24ItsmWorkflows.applyWriteGates();
         SVRMON24ItsmSla.applyWriteGates();
+        SVRMON24ItsmKnowledge.applyWriteGates();
       });
     } else {
       applyItsmNavGates(can);

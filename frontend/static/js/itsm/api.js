@@ -152,5 +152,29 @@
       itsmGet(
         `/sla/summary/${encodeURIComponent(ticketType)}/${encodeURIComponent(ticketId)}`
       ),
+    listKnowledgeArticles: (params) => {
+      const q = new URLSearchParams(params || {});
+      return itsmGet(`/knowledge/articles?${q.toString()}`);
+    },
+    getKnowledgeArticle: (id) =>
+      itsmGet(`/knowledge/articles/${encodeURIComponent(id)}`),
+    createKnowledgeArticle: (payload) =>
+      itsmSend("/knowledge/articles", "POST", payload),
+    updateKnowledgeArticle: (id, payload) =>
+      itsmSend(`/knowledge/articles/${encodeURIComponent(id)}`, "PATCH", payload),
+    transitionKnowledgeArticle: (id, payload) =>
+      itsmSend(
+        `/knowledge/articles/${encodeURIComponent(id)}/transition`,
+        "POST",
+        payload
+      ),
+    listKnowledgeActivities: (id) =>
+      itsmGet(
+        `/knowledge/articles/${encodeURIComponent(id)}/activities?page=1&page_size=50`
+      ),
+    suggestKnowledgeArticles: (params) => {
+      const q = new URLSearchParams(params || {});
+      return itsmGet(`/knowledge/articles/suggest?${q.toString()}`);
+    },
   };
 })(window);

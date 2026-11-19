@@ -4,7 +4,7 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <meta name="svrmon24-ui" content="login-enterprise-v13" />
-  <meta name="svrmon24-version" content="0.37.1" />
+  <meta name="svrmon24-version" content="0.38.0" />
   <title>SVRMON24</title>
   <link rel="icon" href="/static/img/svrmon-favicon.png" type="image/png" sizes="32x32" />
   <link rel="apple-touch-icon" href="/static/img/svrmon-apple-touch.png" sizes="180x180" />
@@ -15,10 +15,10 @@
     body.is-app .login-gate { display: none !important; }
     #authPanel, .auth-panel-legacy { display: none !important; }
   </style>
-  <link rel="stylesheet" href="/static/css/cmdb.css?v=0.37.1" />
-  <link rel="stylesheet" href="/static/css/itsm.css?v=0.37.1" />
-  <script src="/static/js/config.js?v=0.37.1"></script>
-  <script src="/static/js/brand.js?v=0.37.1"></script>
+  <link rel="stylesheet" href="/static/css/cmdb.css?v=0.38.0" />
+  <link rel="stylesheet" href="/static/css/itsm.css?v=0.38.0" />
+  <script src="/static/js/config.js?v=0.38.0"></script>
+  <script src="/static/js/brand.js?v=0.38.0"></script>
 </head>
 <body class="is-login">
   <!-- Enterprise login: showcase (left) + sign-in panel (right); stacks on small viewports -->
@@ -320,6 +320,10 @@
         <button type="button" class="nav-item" data-tab="itsm-sla" data-itsm-nav="1" data-itsm-perm="itsm:sla:read">
           <span class="nav-ico" aria-hidden="true"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg></span>
           SLA
+        </button>
+        <button type="button" class="nav-item" data-tab="itsm-knowledge" data-itsm-nav="1" data-itsm-perm="itsm:knowledge:read">
+          <span class="nav-ico" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M4 5h7a3 3 0 0 1 3 3v11H7a3 3 0 0 0-3 3V5z"/><path d="M20 5h-7a3 3 0 0 0-3 3v11h7a3 3 0 0 1 3 3V5z"/></svg></span>
+          Knowledge
         </button>
 
         <div class="nav-section">Configuration</div>
@@ -829,6 +833,8 @@
                 <button type="button" id="btnItsmAddCi" class="secondary">Link CI</button>
               </div>
               <ul id="itsmCiList" class="itsm-ci-list"></ul>
+              <h4 class="itsm-drawer-section">Related knowledge</h4>
+              <ul id="itsmIncKbSuggest" class="itsm-kb-suggest" aria-label="Suggested knowledge articles"></ul>
               <h4 class="itsm-drawer-section">Activity</h4>
               <div class="itsm-comment-row">
                 <input id="itsmCommentInput" placeholder="Add a comment…" />
@@ -1169,6 +1175,72 @@
               </div>
             </div>
           </section>
+        </section>
+
+        <section id="tab-itsm-knowledge" class="tab-panel hidden" data-itsm-module="1">
+          <section class="panel itsm-panel">
+            <h2>Knowledge Base</h2>
+            <p class="hint">Author and publish knowledge articles. Link related incidents, problems, and CMDB component ids. Search by title, body, category, or tags.</p>
+            <div class="toolbar itsm-toolbar itsm-kb-toolbar">
+              <label>Search
+                <input id="itsmKbSearch" placeholder="title, KB-…, tags…" />
+              </label>
+              <label>Status
+                <select id="itsmKbStatus">
+                  <option value="">All (writers) / published</option>
+                  <option value="draft">draft</option>
+                  <option value="published">published</option>
+                  <option value="retired">retired</option>
+                </select>
+              </label>
+              <label>Category
+                <input id="itsmKbCategory" placeholder="category" />
+              </label>
+              <label>Tag
+                <input id="itsmKbTag" placeholder="tag" />
+              </label>
+              <button type="button" id="btnRefreshItsmKb" class="secondary">Refresh</button>
+              <button type="button" id="btnNewItsmKb">New article</button>
+            </div>
+            <p class="hint" id="itsmKbListMeta">No articles loaded yet.</p>
+            <div class="table-wrap">
+              <table class="inventory" id="itsmKbTable">
+                <thead>
+                  <tr>
+                    <th>Number</th>
+                    <th>Title</th>
+                    <th>Status</th>
+                    <th>Category</th>
+                    <th>Tags</th>
+                    <th>Updated</th>
+                    <th></th>
+                  </tr>
+                </thead>
+                <tbody id="itsmKbBody">
+                  <tr><td colspan="7" class="hint">Sign in to load knowledge articles.</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </section>
+
+          <aside id="itsmKbDrawer" class="itsm-drawer" hidden aria-hidden="true">
+            <div class="itsm-drawer-panel" role="dialog" aria-labelledby="itsmKbDrawerTitle">
+              <header class="itsm-drawer-head">
+                <div>
+                  <h3 id="itsmKbDrawerTitle">Article</h3>
+                  <p class="hint" id="itsmKbDrawerSub">Detail · publish · related refs</p>
+                </div>
+                <button type="button" id="btnCloseItsmKbDrawer" class="ghost" aria-label="Close detail">Close</button>
+              </header>
+              <div id="itsmKbDrawerDetail" class="itsm-drawer-detail hint">Select an article.</div>
+              <div class="itsm-drawer-actions" id="itsmKbTransitionBar"></div>
+              <div class="itsm-drawer-actions" id="itsmKbEditBar"></div>
+              <h4 class="itsm-drawer-section">Related refs</h4>
+              <div id="itsmKbRelated" class="hint">—</div>
+              <h4 class="itsm-drawer-section">Activity</h4>
+              <ul id="itsmKbActivityList" class="itsm-activity-list"></ul>
+            </div>
+          </aside>
         </section>
 
         <section id="tab-itsm-sla" class="tab-panel hidden" data-itsm-module="1">
@@ -2235,6 +2307,32 @@
     </div>
   </div>
 
+  <div id="itsmKnowledgeModal" class="modal-backdrop" role="dialog" aria-modal="true" aria-labelledby="itsmKnowledgeModalTitle">
+    <div class="modal itsm-create-modal itsm-kb-modal">
+      <header>
+        <h3 id="itsmKnowledgeModalTitle">New knowledge article</h3>
+        <button type="button" id="btnCloseItsmKnowledgeModal" class="ghost">Close</button>
+      </header>
+      <form id="itsmKnowledgeForm">
+        <p class="hint itsm-create-lead">Creates a KB article. Related incident / problem / component fields store ids only (no CMDB writes).</p>
+        <input type="hidden" id="itsmKbEditId" value="" />
+        <div class="form-grid">
+          <label class="full">Title<input id="itsmKbFieldTitle" required maxlength="500" placeholder="How to restart the edge gateway" /></label>
+          <label>Category<input id="itsmKbFieldCategory" maxlength="128" placeholder="network" /></label>
+          <label>Tags<input id="itsmKbFieldTags" maxlength="500" placeholder="vpn, gateway, outage" /></label>
+          <label>Related incident ids<input id="itsmKbFieldIncidents" placeholder="INC-… comma-separated" maxlength="500" /></label>
+          <label>Related problem ids<input id="itsmKbFieldProblems" placeholder="PRB-… comma-separated" maxlength="500" /></label>
+          <label class="full">Related component ids<input id="itsmKbFieldComponents" placeholder="component_id comma-separated" maxlength="500" /></label>
+          <label class="full">Body<textarea id="itsmKbFieldBody" required rows="8" maxlength="200000" placeholder="Article body (markdown/plain)"></textarea></label>
+        </div>
+        <footer class="modal-actions">
+          <button type="button" id="btnCancelItsmKnowledge" class="secondary">Cancel</button>
+          <button type="submit" id="btnSaveItsmKnowledge">Save article</button>
+        </footer>
+      </form>
+    </div>
+  </div>
+
   <div id="itsmSlaModal" class="modal-backdrop" role="dialog" aria-modal="true" aria-labelledby="itsmSlaModalTitle">
     <div class="modal itsm-create-modal itsm-sla-modal">
       <header>
@@ -2535,15 +2633,16 @@
     </div>
   </div>
 
-  <script src="/static/js/cmdb.js?v=0.37.1"></script>
-  <script src="/static/js/itsm/api.js?v=0.37.1"></script>
-  <script src="/static/js/itsm/dashboard.js?v=0.37.1"></script>
-  <script src="/static/js/itsm/incidents.js?v=0.37.1"></script>
-  <script src="/static/js/itsm/changes.js?v=0.37.1"></script>
-  <script src="/static/js/itsm/problems.js?v=0.37.1"></script>
-  <script src="/static/js/itsm/approvals.js?v=0.37.1"></script>
-  <script src="/static/js/itsm/workflows.js?v=0.37.1"></script>
-  <script src="/static/js/itsm/sla.js?v=0.37.1"></script>
-  <script src="/static/js/itsm/index.js?v=0.37.1"></script>
+  <script src="/static/js/cmdb.js?v=0.38.0"></script>
+  <script src="/static/js/itsm/api.js?v=0.38.0"></script>
+  <script src="/static/js/itsm/dashboard.js?v=0.38.0"></script>
+  <script src="/static/js/itsm/incidents.js?v=0.38.0"></script>
+  <script src="/static/js/itsm/changes.js?v=0.38.0"></script>
+  <script src="/static/js/itsm/problems.js?v=0.38.0"></script>
+  <script src="/static/js/itsm/approvals.js?v=0.38.0"></script>
+  <script src="/static/js/itsm/workflows.js?v=0.38.0"></script>
+  <script src="/static/js/itsm/sla.js?v=0.38.0"></script>
+  <script src="/static/js/itsm/knowledge.js?v=0.38.0"></script>
+  <script src="/static/js/itsm/index.js?v=0.38.0"></script>
 </body>
 </html>

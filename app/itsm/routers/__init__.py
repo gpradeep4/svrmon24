@@ -11,6 +11,7 @@ from . import (
     changes,
     dashboard,
     incidents,
+    knowledge,
     problems,
     sla,
     workflows,
@@ -29,5 +30,6 @@ router.include_router(problems.router)
 router.include_router(approvals.router)
 router.include_router(workflows.router)
 router.include_router(sla.router)
+router.include_router(knowledge.router)
 router.include_router(dashboard.router)
 router.include_router(activities.router)
