@@ -91,7 +91,7 @@ def test_cmdb_smoke_reads_writes_configured_database(
 
     listed = client.get("/api/components", headers=auth_headers)
     assert listed.status_code == 200, listed.text
-    ids = {row["component_id"] for row in listed.json()}
+    ids = {row["component_id"] for row in listed.json()["items"]}
     assert component_id in ids
 
     # Document lives on CMDB handle, not ITSM.
