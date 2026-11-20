@@ -1,134 +1,19 @@
-"""Dependency traversal and impact analysis APIs (tenant-scoped)."""
+"""Compatibility shim. Canonical module: app.cmdb.routers.dependencies."""
 
 from __future__ import annotations
 
-from typing import Any
+import importlib as _importlib
 
-from fastapi import APIRouter, Depends, HTTPException, Query
-
-from ..auth import require_user
-from ..services import dependencies as dependencies_service
-from ..services.dependencies import DependencyError
-from ..tenant_context import TenantContext, require_tenant
-
-router = APIRouter(
-    prefix="/api/dependencies",
-    tags=["cmdb-dependencies"],
-    dependencies=[Depends(require_user)],
-)
+_canonical = _importlib.import_module("app.cmdb.routers.dependencies")
 
 
-def _raise(exc: DependencyError) -> None:
-    raise HTTPException(status_code=exc.status_code, detail=exc.message) from exc
+def __getattr__(name: str):
+    return getattr(_canonical, name)
 
 
-@router.get("/{component_id}/upstream")
-def upstream(
-    component_id: str,
-    depth: int = Query(default=5, ge=0, le=50),
-    environment: str | None = Query(default=None),
-    status: str | None = Query(default=None),
-    table: str | None = Query(
-        default=None,
-        description="Optional CMDB type or custom table_key for the starting entity",
-    ),
-    direct_only: bool = Query(default=False),
-    tenant: TenantContext = Depends(require_tenant),
-) -> dict[str, Any]:
-    """Upstream dependencies (follow source → target outgoing edges)."""
-    try:
-        effective_depth = 1 if direct_only else depth
-        return dependencies_service.get_upstream(
-            component_id,
-            tenant_id=tenant.tenant_id,
-            depth=effective_depth,
-            environment=environment,
-            status=status,
-            table=table,
-        )
-    except DependencyError as exc:
-        _raise(exc)
-        raise  # pragma: no cover
+def __dir__() -> list[str]:
+    return sorted(dir(_canonical))
 
 
-@router.get("/{component_id}/downstream")
-def downstream(
-    component_id: str,
-    depth: int = Query(default=5, ge=0, le=50),
-    environment: str | None = Query(default=None),
-    status: str | None = Query(default=None),
-    table: str | None = Query(
-        default=None,
-        description="Optional CMDB type or custom table_key for the starting entity",
-    ),
-    direct_only: bool = Query(default=False),
-    tenant: TenantContext = Depends(require_tenant),
-) -> dict[str, Any]:
-    """Downstream dependants (follow incoming edges where component is target)."""
-    try:
-        effective_depth = 1 if direct_only else depth
-        return dependencies_service.get_downstream(
-            component_id,
-            tenant_id=tenant.tenant_id,
-            depth=effective_depth,
-            environment=environment,
-            status=status,
-            table=table,
-        )
-    except DependencyError as exc:
-        _raise(exc)
-        raise  # pragma: no cover
-
-
-@router.get("/{component_id}/impact")
-def impact(
-    component_id: str,
-    depth: int = Query(default=10, ge=0, le=50),
-    environment: str | None = Query(default=None),
-    status: str | None = Query(default=None),
-    table: str | None = Query(
-        default=None,
-        description="Optional CMDB type or custom table_key for the starting entity",
-    ),
-    tenant: TenantContext = Depends(require_tenant),
-) -> dict[str, Any]:
-    """Potentially affected applications if this component becomes unavailable."""
-    try:
-        return dependencies_service.analyze_impact(
-            component_id,
-            tenant_id=tenant.tenant_id,
-            depth=depth,
-            environment=environment,
-            status=status,
-            table=table,
-        )
-    except DependencyError as exc:
-        _raise(exc)
-        raise  # pragma: no cover
-
-
-@router.get("/{component_id}")
-def dependency_overview(
-    component_id: str,
-    depth: int = Query(default=5, ge=0, le=50),
-    environment: str | None = Query(default=None),
-    status: str | None = Query(default=None),
-    table: str | None = Query(
-        default=None,
-        description="Optional CMDB type or custom table_key for the starting entity",
-    ),
-    tenant: TenantContext = Depends(require_tenant),
-) -> dict[str, Any]:
-    """Combined upstream, downstream, impact, and graph payload for the UI."""
-    try:
-        return dependencies_service.dependency_bundle(
-            component_id,
-            tenant_id=tenant.tenant_id,
-            depth=depth,
-            environment=environment,
-            status=status,
-            table=table,
-        )
-    except DependencyError as exc:
-        _raise(exc)
-        raise  # pragma: no cover
+globals().update({k: v for k, v in vars(_canonical).items() if not k.startswith("__")})
+__all__ = getattr(_canonical, "__all__", [k for k in vars(_canonical) if not k.startswith("_")])

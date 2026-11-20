@@ -1,28 +1,19 @@
-"""Dashboard summary API — live aggregates for the UI (tenant-scoped)."""
+"""Compatibility shim. Canonical module: app.cmdb.routers.dashboard."""
 
 from __future__ import annotations
 
-from typing import Any
+import importlib as _importlib
 
-from fastapi import APIRouter, Depends, Query
-
-from ..auth import require_user
-from ..services import dashboard as dashboard_service
-from ..tenant_context import TenantContext, require_tenant
-
-router = APIRouter(
-    prefix="/api/dashboard",
-    tags=["dashboard"],
-    dependencies=[Depends(require_user)],
-)
+_canonical = _importlib.import_module("app.cmdb.routers.dashboard")
 
 
-@router.get("/summary")
-def dashboard_summary(
-    recent_limit: int = Query(default=8, ge=1, le=50),
-    tenant: TenantContext = Depends(require_tenant),
-) -> dict[str, Any]:
-    """Return live dashboard widget data (no hardcoded counts)."""
-    return dashboard_service.get_dashboard_summary(
-        tenant_id=tenant.tenant_id, recent_limit=recent_limit
-    )
+def __getattr__(name: str):
+    return getattr(_canonical, name)
+
+
+def __dir__() -> list[str]:
+    return sorted(dir(_canonical))
+
+
+globals().update({k: v for k, v in vars(_canonical).items() if not k.startswith("__")})
+__all__ = getattr(_canonical, "__all__", [k for k in vars(_canonical) if not k.startswith("_")])

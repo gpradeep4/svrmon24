@@ -1,5 +1,19 @@
-"""SVRMON24 diagnostic engine — DEMO/SIMULATED mode only."""
+"""Compatibility shim. Canonical module: app.cmdb.diagnostics."""
 
-from .profiles import BASIC_HEALTH_PROFILE, get_profile, list_profiles
+from __future__ import annotations
 
-__all__ = ["BASIC_HEALTH_PROFILE", "get_profile", "list_profiles"]
+import importlib as _importlib
+
+_canonical = _importlib.import_module("app.cmdb.diagnostics")
+
+
+def __getattr__(name: str):
+    return getattr(_canonical, name)
+
+
+def __dir__() -> list[str]:
+    return sorted(dir(_canonical))
+
+
+globals().update({k: v for k, v in vars(_canonical).items() if not k.startswith("__")})
+__all__ = getattr(_canonical, "__all__", [k for k in vars(_canonical) if not k.startswith("_")])
