@@ -1,4 +1,4 @@
-"""Sidebar IA — expandable Operations / CMDB / Custom tables / ITSM / Configuration / Administration (0.61.0)."""
+"""Sidebar IA — CMDB Dashboard under expandable CMDB; no Operations section (0.62.0)."""
 
 from __future__ import annotations
 
@@ -13,31 +13,35 @@ ITSM_INDEX_JS = Path("frontend/static/js/itsm/index.js")
 CMDB_CSS = Path("frontend/static/css/cmdb.css")
 
 
-def test_version_bump_for_sidebar_expandable_sections() -> None:
-    assert __version__ == "0.61.0"
+def test_version_bump_for_sidebar_cmdb_dashboard() -> None:
+    assert __version__ == "0.62.0"
 
 
 def test_frontend_sidebar_section_markers() -> None:
     html = FRONTEND_INDEX.read_text(encoding="utf-8")
-    assert 'content="0.61.0"' in html
+    assert 'content="0.62.0"' in html
 
-    # Operations — platform Dashboard only (inventory lives under CMDB).
-    assert 'id="navOperationsSection"' in html
-    assert 'data-nav-collapse="operations"' in html
-    assert 'id="navOperationsGroup"' in html
-    assert 'data-nav-group="operations"' in html
-    ops_group_i = html.index('id="navOperationsGroup"')
-    cmdb_i = html.index('id="navCmdbSection"')
-    dash_i = html.index('data-tab="dashboard"')
-    assert ops_group_i < dash_i < cmdb_i
+    # No thin Operations section (Dashboard moved under CMDB).
+    assert 'id="navOperationsSection"' not in html
+    assert 'data-nav-collapse="operations"' not in html
+    assert 'id="navOperationsGroup"' not in html
+    assert 'data-nav-group="operations"' not in html
+    assert ">Operations<" not in html
 
-    # CMDB — typed inventory + catalog (not under Operations).
+    # CMDB — Dashboard first, then typed inventory + catalog.
     assert 'id="navCmdbSection"' in html
     assert 'data-nav-collapse="cmdb"' in html
     assert 'id="navCmdbGroup"' in html
     assert 'data-nav-group="cmdb"' in html
     cmdb_group_i = html.index('id="navCmdbGroup"')
     custom_i = html.index('id="navCustomTablesSection"')
+    dash_i = html.index('data-tab="dashboard"')
+    assert cmdb_group_i < dash_i < custom_i
+    # Label is CMDB Dashboard; deep-link tab id stays dashboard.
+    assert "CMDB Dashboard" in html[dash_i : dash_i + 500]
+    servers_i = html.index('data-tab="servers"')
+    assert dash_i < servers_i < custom_i
+
     for tab in (
         "servers",
         "network",
@@ -58,12 +62,13 @@ def test_frontend_sidebar_section_markers() -> None:
     assert 'id="navCustomTables"' in html
     assert 'data-nav-group="custom-tables"' in html
 
-    # ITSM — expandable; permission-gated.
+    # ITSM — expandable; permission-gated; ITSM Dashboard mirrors CMDB Dashboard placement.
     assert 'id="navItsmSection"' in html
     assert 'data-nav-collapse="itsm"' in html
     assert 'id="navItsmGroup"' in html
     assert 'data-nav-group="itsm"' in html
     assert 'data-itsm-nav-group="1"' in html
+    assert "ITSM Dashboard" in html
 
     # Configuration + Administration — click-to-expand section headers.
     assert 'id="navConfigurationSection"' in html
@@ -75,13 +80,13 @@ def test_frontend_sidebar_section_markers() -> None:
     assert 'id="navAdministrationGroup"' in html
     assert 'data-nav-group="administration"' in html
 
-    # Order: Operations → CMDB → Custom tables → ITSM → Configuration → Administration
-    ops_i = html.index('id="navOperationsSection"')
+    # Order: CMDB → Custom tables → ITSM → Configuration → Administration
+    cmdb_i = html.index('id="navCmdbSection"')
     itsm_i = html.index('id="navItsmSection"')
     itsm_group_i = html.index('id="navItsmGroup"')
     config_i = html.index('id="navConfigurationSection"')
     admin_i = html.index('id="navAdministrationSection"')
-    assert ops_i < cmdb_i < custom_i < itsm_i < itsm_group_i < config_i < admin_i
+    assert cmdb_i < custom_i < itsm_i < itsm_group_i < config_i < admin_i
 
     # ITSM items live inside the ITSM group, not after Configuration.
     for tab in (
@@ -116,19 +121,25 @@ def test_frontend_sidebar_section_markers() -> None:
     bare = [line for line in html.splitlines() if '<div class="nav-section">' in line]
     assert bare == [], bare
 
+    # Panel copy no longer says Operations-only home.
+    assert "Operations dashboard" not in html
+    assert "CMDB dashboard" in html
+
 
 def test_nav_accordion_js_and_css_markers() -> None:
     cmdb = CMDB_JS.read_text(encoding="utf-8")
     assert 'NAV_EXPAND_KEY = "svrmon24.nav.expand"' in cmdb
     assert "NAV_EXPAND_DEFAULTS" in cmdb
     assert "NAV_TAB_GROUP" in cmdb
-    assert "operations: true" in cmdb
+    assert "operations: true" not in cmdb
+    assert 'dashboard: "cmdb"' in cmdb
     assert "cmdb: true" in cmdb
     assert "configuration: true" in cmdb
     assert "administration: true" in cmdb
     assert "initNavAccordions" in cmdb
     assert "expandNavGroupForTab" in cmdb
     assert "setNavGroupExpanded" in cmdb
+    assert 'title: "CMDB Dashboard"' in cmdb
 
     itsm = ITSM_INDEX_JS.read_text(encoding="utf-8")
     assert 'getElementById("navItsmGroup")' in itsm

@@ -3,7 +3,6 @@
   const ACCENT_KEY = "svrmon24.accent";
   const NAV_EXPAND_KEY = "svrmon24.nav.expand";
   const NAV_EXPAND_DEFAULTS = {
-    operations: true,
     cmdb: true,
     "custom-tables": true,
     itsm: true,
@@ -11,7 +10,7 @@
     administration: true,
   };
   const NAV_TAB_GROUP = {
-    dashboard: "operations",
+    dashboard: "cmdb",
     servers: "cmdb",
     network: "cmdb",
     applications: "cmdb",
@@ -575,7 +574,7 @@
   }
 
   const PAGE_META = {
-    dashboard: { title: "Dashboard", subtitle: "Live CMDB and diagnostic overview" },
+    dashboard: { title: "CMDB Dashboard", subtitle: "Live CMDB and diagnostic overview" },
     servers: { title: "Servers", subtitle: "Server inventory filtered by component_type=Server" },
     network: { title: "Network", subtitle: "Network devices filtered by component_type=Network" },
     applications: { title: "Applications", subtitle: "Applications filtered by component_type=Application" },
