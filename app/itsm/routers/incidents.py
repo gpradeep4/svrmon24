@@ -140,6 +140,24 @@ def incident_ai_summarize(
         raise  # pragma: no cover
 
 
+@router.post("/{incident_id}/ai/similar")
+def incident_ai_similar(
+    incident_id: str,
+    payload: IncidentAiRequest | None = None,
+    tenant: TenantContext = Depends(require_permission(PERM_ITSM_INCIDENT_READ)),
+) -> dict[str, Any]:
+    """Assist-only similar tickets + KB. Never auto-links."""
+    try:
+        return ai_assist_service.suggest_similar_and_kb(
+            incident_id,
+            tenant_id=tenant.tenant_id,
+            force_fallback=bool(payload.force_fallback) if payload else False,
+        )
+    except IncidentError as exc:
+        _raise(exc)
+        raise  # pragma: no cover
+
+
 @router.patch("/{incident_id}")
 def update_incident(
     incident_id: str,

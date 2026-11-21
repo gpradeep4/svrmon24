@@ -120,6 +120,11 @@
     if (box) box.innerHTML = html || "";
   }
 
+  function renderSimilarAssist(html) {
+    const box = $("#itsmIncSimilarAssist");
+    if (box) box.innerHTML = html || "";
+  }
+
   async function runTriageAssist() {
     if (!selectedId) return deps.toast("Open an incident first", true);
     try {
@@ -175,6 +180,67 @@
     }
   }
 
+  async function runSimilarAssist() {
+    if (!selectedId) return deps.toast("Open an incident first", true);
+    try {
+      const result = await SVRMON24ItsmApi.similarIncident(selectedId, {
+        force_fallback: false,
+      });
+      const tickets = (result.similar_tickets || [])
+        .slice(0, 5)
+        .map(
+          (row) =>
+            `<li><code>${esc(row.number_display || row.ticket_id)}</code> ` +
+            `${esc(row.title || "")} ` +
+            `<span class="hint">(${esc(row.ticket_type)} · score ${esc(
+              row.match_score
+            )} · ${esc(row.match_reason || "")})</span></li>`
+        )
+        .join("");
+      const kb = (result.knowledge_articles || [])
+        .slice(0, 5)
+        .map(
+          (row) =>
+            `<li><code>${esc(row.number_display || row.article_id)}</code> ` +
+            `${esc(row.title || "")} ` +
+            `<span class="hint">(score ${esc(row.match_score)} · ${esc(
+              row.match_reason || ""
+            )})</span></li>`
+        )
+        .join("");
+      renderSimilarAssist(
+        `<strong>Similar (${esc(result.source)}):</strong>` +
+          (tickets
+            ? `<ul class="itsm-ci-list">${tickets}</ul>`
+            : `<p class="hint">No similar resolved tickets.</p>`) +
+          `<strong>Knowledge:</strong>` +
+          (kb
+            ? `<ul class="itsm-ci-list">${kb}</ul>`
+            : `<p class="hint">No matching published articles.</p>`) +
+          `<span class="hint">Assist only — no auto-link. Open tickets/KB manually.</span>`
+      );
+      // Also refresh the related-knowledge list when present
+      const kbBox = $("#itsmIncKbSuggest");
+      if (kbBox && result.knowledge_articles?.length) {
+        kbBox.innerHTML = (result.knowledge_articles || [])
+          .slice(0, 5)
+          .map(
+            (row) =>
+              `<li><span>${esc(row.number_display || row.article_id)} · ${esc(
+                row.title || ""
+              )}</span> <span class="hint">${esc(
+                row.match_reason || ""
+              )}</span></li>`
+          )
+          .join("");
+      }
+      deps.toast(`Similar/KB ready (${result.source})`);
+    } catch (err) {
+      renderSimilarAssist("");
+      deps.toast(err.message || "Similar search failed", true);
+    }
+  }
+
   async function applyLastTriage() {
     if (!selectedId || !lastTriage?.apply_fields) {
       return deps.toast("Run Triage first", true);
@@ -198,6 +264,7 @@
     const applyBtn = $("#btnItsmIncApplyTriage");
     if (applyBtn) applyBtn.hidden = true;
     renderAiAssist("");
+    renderSimilarAssist("");
     openDrawer();
     const detail = $("#itsmIncDrawerDetail");
     const title = $("#itsmIncDrawerTitle");
@@ -530,6 +597,9 @@
     });
     $("#btnItsmIncSummarize")?.addEventListener("click", () => {
       runSummarizeAssist();
+    });
+    $("#btnItsmIncSimilar")?.addEventListener("click", () => {
+      runSimilarAssist();
     });
     $("#btnItsmIncApplyTriage")?.addEventListener("click", () => {
       applyLastTriage();

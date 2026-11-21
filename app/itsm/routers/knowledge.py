@@ -97,6 +97,9 @@ def suggest_articles(
     tags: str | None = Query(
         default=None, description="Comma-separated tags to match"
     ),
+    q: str | None = Query(
+        default=None, description="Free-text query for token overlap"
+    ),
     exclude_article_id: str | None = Query(default=None),
     limit: int = Query(default=5, ge=1, le=25),
     tenant: TenantContext = Depends(require_permission(PERM_ITSM_KNOWLEDGE_READ)),
@@ -106,6 +109,7 @@ def suggest_articles(
         tenant_id=tenant.tenant_id,
         category=category,
         tags=tag_list,
+        q=q,
         exclude_article_id=exclude_article_id,
         limit=limit,
     )

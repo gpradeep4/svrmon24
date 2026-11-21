@@ -1,6 +1,6 @@
-"""ITSM AI assists — incident triage (I1) and summarization (I2).
+"""ITSM AI assists — triage (I1), summarization (I2), similar+KB (I3).
 
-Assist / suggestion only. Apply via IncidentUpdate / transition APIs.
+Assist / suggestion only. Apply via IncidentUpdate / transitions / manual links.
 AI errors never fail ticket mutations (facade safe path + callers treat as side-call).
 """
 
@@ -8,17 +8,55 @@ from __future__ import annotations
 
 import json
 import logging
+import re
 from typing import Any
 
+from pymongo import DESCENDING
+
+from ...db import require_itsm_database
+from ...serialization import serialize_document
 from ...services import ai_facade as ai_facade_service
 from ...services.ai_providers import SOURCE_CLOUD, SOURCE_OLLAMA, SOURCE_RULE
-from ...tenancy import require_tenant_id
+from ...tenancy import merge_tenant_filter, require_tenant_id
 from ..models.common import INCIDENT_PRIORITIES, INCIDENT_TRANSITIONS
 from . import activities as activities_service
 from . import incidents as incidents_service
+from . import knowledge as knowledge_service
 from .incidents import IncidentError
+from .indexes import INCIDENTS, PROBLEMS, ensure_itsm_indexes
 
 logger = logging.getLogger(__name__)
+
+_STOPWORDS = frozenset(
+    {
+        "the",
+        "and",
+        "for",
+        "with",
+        "from",
+        "this",
+        "that",
+        "have",
+        "been",
+        "were",
+        "are",
+        "was",
+        "not",
+        "but",
+        "can",
+        "all",
+        "any",
+        "user",
+        "users",
+        "issue",
+        "incident",
+        "please",
+        "help",
+        "when",
+        "into",
+        "about",
+    }
+)
 
 _CATEGORY_KEYWORDS: list[tuple[str, tuple[str, ...]]] = [
     ("network", ("network", "dns", "vpn", "firewall", "latency", "packet", "wifi")),
@@ -413,4 +451,393 @@ def summarize_incident(
     payload = result.payload
     if isinstance(payload, dict) and payload.get("timeline_summary"):
         return payload
+    return _fallback(result.fallback_reason or "rule_based_fallback")
+
+
+def _tokenize(*parts: Any) -> list[str]:
+    blob = " ".join(str(p) for p in parts if p is not None)
+    tokens = re.findall(r"[a-z0-9]{3,}", blob.lower())
+    out: list[str] = []
+    seen: set[str] = set()
+    for tok in tokens:
+        if tok in _STOPWORDS or tok in seen:
+            continue
+        seen.add(tok)
+        out.append(tok)
+        if len(out) >= 28:
+            break
+    return out
+
+
+def _score_ticket(
+    doc: dict[str, Any],
+    *,
+    tokens: set[str],
+    category: str | None,
+    ci_ids: set[str],
+) -> tuple[int, str]:
+    score = 0
+    reasons: list[str] = []
+    doc_cat = str(doc.get("category") or "").strip().lower()
+    if category and doc_cat == category:
+        score += 8
+        reasons.append("category")
+    blob = " ".join(
+        [
+            str(doc.get("title") or ""),
+            str(doc.get("description") or "")[:2500],
+            str(doc.get("resolution_notes") or "")[:1000],
+            str(doc.get("root_cause") or "")[:1000],
+            str(doc.get("category") or ""),
+            str(doc.get("subcategory") or ""),
+        ]
+    ).lower()
+    hits = [t for t in tokens if t in blob]
+    if hits:
+        score += len(hits) * 3
+        reasons.append(f"tokens:{','.join(hits[:5])}")
+    doc_cis = {
+        str(link.get("component_id"))
+        for link in (doc.get("ci_links") or [])
+        if isinstance(link, dict) and link.get("component_id")
+    }
+    ci_overlap = ci_ids & doc_cis
+    if ci_overlap:
+        score += len(ci_overlap) * 5
+        reasons.append(f"ci×{len(ci_overlap)}")
+    return score, "; ".join(reasons) or "overlap"
+
+
+def _candidate_row(
+    doc: dict[str, Any],
+    *,
+    ticket_type: str,
+    score: int,
+    reason: str,
+) -> dict[str, Any]:
+    tid_field = "incident_id" if ticket_type == "incident" else "problem_id"
+    return {
+        "ticket_type": ticket_type,
+        "ticket_id": doc.get(tid_field),
+        "number_display": doc.get("number_display") or doc.get(tid_field),
+        "title": doc.get("title"),
+        "status": doc.get("status"),
+        "priority": doc.get("priority"),
+        "category": doc.get("category"),
+        "match_score": score,
+        "match_reason": reason,
+    }
+
+
+def build_similar_fallback(
+    incident: dict[str, Any],
+    *,
+    tenant_id: str,
+    reason: str,
+    limit: int = 5,
+) -> dict[str, Any]:
+    tid = require_tenant_id(tenant_id)
+    ensure_itsm_indexes()
+    tokens = _tokenize(
+        incident.get("title"),
+        incident.get("description"),
+        incident.get("category"),
+        incident.get("subcategory"),
+    )
+    token_set = set(tokens)
+    category = str(incident.get("category") or "").strip().lower() or None
+    ci_ids = {
+        str(link.get("component_id"))
+        for link in (incident.get("ci_links") or [])
+        if isinstance(link, dict) and link.get("component_id")
+    }
+    exclude_id = incident.get("incident_id")
+
+    or_clauses: list[dict[str, Any]] = []
+    if category:
+        or_clauses.append(
+            {"category": {"$regex": f"^{re.escape(category)}$", "$options": "i"}}
+        )
+    for tok in tokens[:8]:
+        rx = {"$regex": re.escape(tok), "$options": "i"}
+        or_clauses.append({"title": rx})
+        or_clauses.append({"description": rx})
+    if ci_ids:
+        or_clauses.append({"ci_links.component_id": {"$in": list(ci_ids)}})
+
+    similar_tickets: list[dict[str, Any]] = []
+    if or_clauses and tid:
+        itsm = require_itsm_database()
+        # Recent resolved/closed incidents
+        inc_q: dict[str, Any] = {
+            "status": {"$in": ["resolved", "closed"]},
+            "incident_id": {"$ne": exclude_id},
+            "$or": or_clauses,
+        }
+        scoped_inc = merge_tenant_filter(inc_q, tid)
+        inc_docs = list(
+            itsm[INCIDENTS]
+            .find(scoped_inc)
+            .sort([("updated_at", DESCENDING)])
+            .limit(limit * 6)
+        )
+        scored: list[tuple[int, dict[str, Any]]] = []
+        for raw in inc_docs:
+            doc = serialize_document(raw) or raw
+            score, match_reason = _score_ticket(
+                doc, tokens=token_set, category=category, ci_ids=ci_ids
+            )
+            if score > 0:
+                scored.append(
+                    (
+                        score,
+                        _candidate_row(
+                            doc,
+                            ticket_type="incident",
+                            score=score,
+                            reason=match_reason,
+                        ),
+                    )
+                )
+
+        prb_q: dict[str, Any] = {
+            "status": {"$in": ["resolved", "closed", "known_error"]},
+            "$or": or_clauses,
+        }
+        # known_error may not exist in all tenants — also allow root_cause populated
+        scoped_prb = merge_tenant_filter(prb_q, tid)
+        try:
+            prb_docs = list(
+                itsm[PROBLEMS]
+                .find(scoped_prb)
+                .sort([("updated_at", DESCENDING)])
+                .limit(limit * 4)
+            )
+        except Exception:  # pragma: no cover - defensive
+            prb_docs = []
+        for raw in prb_docs:
+            doc = serialize_document(raw) or raw
+            score, match_reason = _score_ticket(
+                doc, tokens=token_set, category=category, ci_ids=ci_ids
+            )
+            if score > 0:
+                scored.append(
+                    (
+                        score,
+                        _candidate_row(
+                            doc,
+                            ticket_type="problem",
+                            score=score,
+                            reason=match_reason,
+                        ),
+                    )
+                )
+        scored.sort(key=lambda p: (-p[0], str(p[1].get("number_display") or "")))
+        similar_tickets = [row for _, row in scored[:limit]]
+
+    tags = []
+    if incident.get("category"):
+        tags.append(str(incident["category"]).lower())
+    if incident.get("subcategory"):
+        tags.append(str(incident["subcategory"]).lower())
+    tags.extend(tokens[:6])
+    kb = knowledge_service.suggest_articles(
+        tenant_id=tid,
+        category=incident.get("category"),
+        tags=tags,
+        q=" ".join(
+            [
+                str(incident.get("title") or ""),
+                str(incident.get("description") or "")[:500],
+            ]
+        ),
+        limit=limit,
+    )
+    kb_items = []
+    for row in kb.get("items") or []:
+        kb_items.append(
+            {
+                "article_id": row.get("article_id"),
+                "number_display": row.get("number_display") or row.get("article_id"),
+                "title": row.get("title"),
+                "category": row.get("category"),
+                "match_score": row.get("match_score"),
+                "match_reason": row.get("match_reason") or "kb overlap",
+            }
+        )
+
+    return {
+        "source": SOURCE_RULE,
+        "fallback_reason": reason,
+        "model": None,
+        "query_tokens": tokens,
+        "similar_tickets": similar_tickets,
+        "knowledge_articles": kb_items,
+        "safety": {
+            "assist_only": True,
+            "auto_link": False,
+            "no_auto_link": True,
+            "human_must_confirm": True,
+        },
+    }
+
+
+def _normalize_similar(
+    raw: dict[str, Any],
+    *,
+    fallback: dict[str, Any],
+    source: str,
+    model: str | None,
+    fallback_reason: str | None = None,
+) -> dict[str, Any]:
+    """Re-order fallback candidates by LLM-provided id preference; never invent ids."""
+    allowed_tickets = {
+        (str(r.get("ticket_type")), str(r.get("ticket_id"))): r
+        for r in (fallback.get("similar_tickets") or [])
+        if r.get("ticket_id")
+    }
+    allowed_kb = {
+        str(r.get("article_id")): r
+        for r in (fallback.get("knowledge_articles") or [])
+        if r.get("article_id")
+    }
+    ordered_tickets: list[dict[str, Any]] = []
+    for item in raw.get("similar_tickets") or []:
+        if not isinstance(item, dict):
+            continue
+        key = (
+            str(item.get("ticket_type") or "incident"),
+            str(item.get("ticket_id") or ""),
+        )
+        base = allowed_tickets.get(key)
+        if not base:
+            continue
+        row = dict(base)
+        if item.get("match_reason"):
+            row["match_reason"] = str(item.get("match_reason"))[:240]
+        ordered_tickets.append(row)
+    if not ordered_tickets:
+        ordered_tickets = list(fallback.get("similar_tickets") or [])
+
+    ordered_kb: list[dict[str, Any]] = []
+    for item in raw.get("knowledge_articles") or []:
+        if not isinstance(item, dict):
+            continue
+        base = allowed_kb.get(str(item.get("article_id") or ""))
+        if not base:
+            continue
+        row = dict(base)
+        if item.get("match_reason"):
+            row["match_reason"] = str(item.get("match_reason"))[:240]
+        ordered_kb.append(row)
+    if not ordered_kb:
+        ordered_kb = list(fallback.get("knowledge_articles") or [])
+
+    out: dict[str, Any] = {
+        "source": source,
+        "model": model,
+        "query_tokens": list(fallback.get("query_tokens") or []),
+        "similar_tickets": ordered_tickets,
+        "knowledge_articles": ordered_kb,
+        "safety": {
+            "assist_only": True,
+            "auto_link": False,
+            "no_auto_link": True,
+            "human_must_confirm": True,
+        },
+    }
+    if fallback_reason:
+        out["fallback_reason"] = fallback_reason
+    return out
+
+
+def _validate_similar(raw: dict[str, Any]) -> None:
+    if "similar_tickets" not in raw and "knowledge_articles" not in raw:
+        raise ValueError("similar JSON missing ranked lists")
+
+
+def suggest_similar_and_kb(
+    incident_id: str,
+    *,
+    tenant_id: str,
+    force_fallback: bool = False,
+    limit: int = 5,
+) -> dict[str, Any]:
+    """Retrieve-then-explain similar INC/PRB + KB. Never auto-links."""
+    tid = require_tenant_id(tenant_id)
+    incident = incidents_service.get_incident(incident_id, tenant_id=tid)
+    if incident is None:
+        raise IncidentError(f"Incident '{incident_id}' not found", status_code=404)
+
+    limit = min(max(1, int(limit)), 10)
+
+    def _fallback(reason: str) -> dict[str, Any]:
+        return build_similar_fallback(
+            incident, tenant_id=tid, reason=reason, limit=limit
+        )
+
+    base = _fallback("rule_based_fallback")
+
+    prompt = {
+        "incident": {
+            "incident_id": incident.get("incident_id"),
+            "title": incident.get("title"),
+            "description": (incident.get("description") or "")[:1500],
+            "category": incident.get("category"),
+        },
+        "candidates": {
+            "similar_tickets": base.get("similar_tickets") or [],
+            "knowledge_articles": base.get("knowledge_articles") or [],
+        },
+        "instruction": (
+            "Re-rank only the provided candidate ids. Do not invent new ticket_id "
+            "or article_id values. Return match_reason strings."
+        ),
+    }
+    system = (
+        "You are an ITSM similar-ticket and knowledge assist for SVRMON24. "
+        "Respond with a single JSON object only. "
+        "Re-rank the given candidates; never invent ids; never auto-link. "
+        "Required keys: similar_tickets (array of {ticket_type, ticket_id, match_reason}), "
+        "knowledge_articles (array of {article_id, match_reason})."
+    )
+    result = ai_facade_service.safe_run_structured_task(
+        task_key="itsm.similar_kb",
+        tenant_id=tid,
+        messages=[
+            {"role": "system", "content": system},
+            {
+                "role": "user",
+                "content": "Re-rank these similar/KB candidates as JSON:\n"
+                + json.dumps(prompt, default=str),
+            },
+        ],
+        fallback_builder=lambda reason: base
+        if reason == "rule_based_fallback"
+        else _fallback(reason),
+        validate_fn=_validate_similar,
+        force_fallback=force_fallback,
+        record_usage=True,
+    )
+    if result.source in {SOURCE_OLLAMA, SOURCE_CLOUD}:
+        return _normalize_similar(
+            result.payload if isinstance(result.payload, dict) else {},
+            fallback=base,
+            source=result.source,
+            model=result.model,
+        )
+    payload = result.payload
+    if isinstance(payload, dict) and (
+        payload.get("similar_tickets") is not None
+        or payload.get("knowledge_articles") is not None
+    ):
+        if payload.get("safety"):
+            return payload
+        return _normalize_similar(
+            payload,
+            fallback=base,
+            source=SOURCE_RULE,
+            model=None,
+            fallback_reason=result.fallback_reason or "rule_based_fallback",
+        )
     return _fallback(result.fallback_reason or "rule_based_fallback")

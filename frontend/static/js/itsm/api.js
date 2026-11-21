@@ -63,6 +63,12 @@
         "POST",
         payload || {}
       ),
+    similarIncident: (id, payload) =>
+      itsmSend(
+        `/incidents/${encodeURIComponent(id)}/ai/similar`,
+        "POST",
+        payload || {}
+      ),
     transitionIncident: (id, payload) =>
       itsmSend(`/incidents/${encodeURIComponent(id)}/transition`, "POST", payload),
     addCiLink: (id, componentId) =>
