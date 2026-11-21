@@ -17,6 +17,8 @@ from app.permissions import (
     PERM_ITSM_PROBLEM_WRITE,
     PERM_ITSM_REPORTS_READ,
     PERM_ITSM_REPORTS_WRITE,
+    PERM_ITSM_NOTIFICATION_ADMIN,
+    PERM_ITSM_NOTIFICATION_READ,
     PERM_ITSM_SLA_ADMIN,
     PERM_ITSM_SLA_READ,
     PERM_ITSM_WORKFLOW_ADMIN,
@@ -49,6 +51,8 @@ def test_itsm_permissions_in_catalog() -> None:
     assert PERM_ITSM_KNOWLEDGE_WRITE in ALL_PERMISSIONS
     assert PERM_ITSM_REPORTS_READ in ALL_PERMISSIONS
     assert PERM_ITSM_REPORTS_WRITE in ALL_PERMISSIONS
+    assert PERM_ITSM_NOTIFICATION_READ in ALL_PERMISSIONS
+    assert PERM_ITSM_NOTIFICATION_ADMIN in ALL_PERMISSIONS
 
 
 def test_role_grants_for_itsm() -> None:
@@ -87,6 +91,10 @@ def test_role_grants_for_itsm() -> None:
     assert PERM_ITSM_WORKFLOW_ADMIN in owner
     assert PERM_ITSM_SLA_ADMIN in admin
     assert PERM_ITSM_SLA_ADMIN in owner
+    assert PERM_ITSM_NOTIFICATION_ADMIN in admin
+    assert PERM_ITSM_NOTIFICATION_ADMIN in owner
+    assert PERM_ITSM_NOTIFICATION_ADMIN not in member
+    assert PERM_ITSM_NOTIFICATION_READ in viewer
     assert PERM_ITSM_APPROVAL_DECIDE in admin
     assert PERM_ITSM_KNOWLEDGE_WRITE in admin
     assert PERM_ITSM_KNOWLEDGE_WRITE in owner

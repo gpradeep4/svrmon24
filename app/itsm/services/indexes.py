@@ -22,6 +22,8 @@ SLA_POLICIES = "itsm_sla_policies"
 SLA_TRACKING = "itsm_sla_tracking"
 KNOWLEDGE_ARTICLES = "itsm_knowledge_articles"
 NOTIFICATIONS = "itsm_notifications"
+NOTIFICATION_CHANNEL_SETTINGS = "itsm_notification_channel_settings"
+NOTIFICATION_DELIVERIES = "itsm_notification_deliveries"
 REPORT_DEFINITIONS = "itsm_report_definitions"
 
 
@@ -340,6 +342,57 @@ def ensure_itsm_indexes(db: Database | None = None) -> dict[str, Any]:
         ),
     ]
     created[NOTIFICATIONS] = [str(n) for n in names]
+
+    ch = handle[NOTIFICATION_CHANNEL_SETTINGS]
+    names = [
+        ch.create_index(
+            [("tenant_id", ASCENDING), ("channel", ASCENDING)],
+            unique=True,
+            name="tenant_channel_unique",
+        ),
+        ch.create_index(
+            [("tenant_id", ASCENDING)], name="tenant_channel_settings_tenant_id_idx"
+        ),
+    ]
+    created[NOTIFICATION_CHANNEL_SETTINGS] = [str(n) for n in names]
+
+    dlv = handle[NOTIFICATION_DELIVERIES]
+    names = [
+        dlv.create_index(
+            [("tenant_id", ASCENDING), ("delivery_id", ASCENDING)],
+            unique=True,
+            name="tenant_delivery_id_unique",
+        ),
+        dlv.create_index(
+            [
+                ("tenant_id", ASCENDING),
+                ("channel", ASCENDING),
+                ("status", ASCENDING),
+                ("created_at", DESCENDING),
+            ],
+            name="tenant_delivery_channel_status_idx",
+        ),
+        dlv.create_index(
+            [
+                ("tenant_id", ASCENDING),
+                ("notification_id", ASCENDING),
+                ("created_at", DESCENDING),
+            ],
+            name="tenant_delivery_notification_idx",
+        ),
+        dlv.create_index(
+            [
+                ("tenant_id", ASCENDING),
+                ("status", ASCENDING),
+                ("next_retry_at", ASCENDING),
+            ],
+            name="tenant_delivery_retry_idx",
+        ),
+        dlv.create_index(
+            [("tenant_id", ASCENDING)], name="tenant_delivery_tenant_id_idx"
+        ),
+    ]
+    created[NOTIFICATION_DELIVERIES] = [str(n) for n in names]
 
     rpt = handle[REPORT_DEFINITIONS]
     names = [

@@ -18,5 +18,7 @@ ITSM_COLLECTIONS: tuple[str, ...] = (
     "itsm_sla_tracking",
     "itsm_knowledge_articles",
     "itsm_notifications",
+    "itsm_notification_channel_settings",
+    "itsm_notification_deliveries",
     "itsm_report_definitions",
 )
