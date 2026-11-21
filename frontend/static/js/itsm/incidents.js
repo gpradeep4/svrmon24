@@ -180,6 +180,36 @@
     }
   }
 
+  async function runSlaAtRiskAssist() {
+    if (!selectedId) return deps.toast("Open an incident first", true);
+    try {
+      const result = await SVRMON24ItsmApi.slaAtRiskAssist({
+        ticket_type: "incident",
+        ticket_id: selectedId,
+        force_fallback: false,
+      });
+      const items = (result.items || [])
+        .slice(0, 4)
+        .map(
+          (row) =>
+            `<li><code>${esc(row.metric)}</code> · ${esc(row.status)} · ` +
+            `at_risk=${esc(row.at_risk)} · ${esc(row.reason || "")}</li>`
+        )
+        .join("");
+      renderAiAssist(
+        `<strong>SLA (${esc(result.source)}):</strong> ${esc(
+          result.summary || ""
+        )}` +
+          (items ? `<ul class="itsm-ci-list">${items}</ul>` : "") +
+          `<span class="hint">Assist only — clocks not mutated.</span>`
+      );
+      deps.toast(`SLA assist ready (${result.source})`);
+    } catch (err) {
+      renderAiAssist("");
+      deps.toast(err.message || "SLA assist failed", true);
+    }
+  }
+
   async function runSimilarAssist() {
     if (!selectedId) return deps.toast("Open an incident first", true);
     try {
@@ -600,6 +630,9 @@
     });
     $("#btnItsmIncSimilar")?.addEventListener("click", () => {
       runSimilarAssist();
+    });
+    $("#btnItsmIncSlaRisk")?.addEventListener("click", () => {
+      runSlaAtRiskAssist();
     });
     $("#btnItsmIncApplyTriage")?.addEventListener("click", () => {
       applyLastTriage();

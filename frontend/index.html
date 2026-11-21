@@ -4,7 +4,7 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <meta name="svrmon24-ui" content="login-enterprise-v13" />
-  <meta name="svrmon24-version" content="0.57.0" />
+  <meta name="svrmon24-version" content="0.58.0" />
   <title>SVRMON24</title>
   <link rel="icon" href="/static/img/svrmon-favicon.png" type="image/png" sizes="32x32" />
   <link rel="apple-touch-icon" href="/static/img/svrmon-apple-touch.png" sizes="180x180" />
@@ -15,10 +15,10 @@
     body.is-app .login-gate { display: none !important; }
     #authPanel, .auth-panel-legacy { display: none !important; }
   </style>
-  <link rel="stylesheet" href="/static/css/cmdb.css?v=0.57.0" />
-  <link rel="stylesheet" href="/static/css/itsm.css?v=0.57.0" />
-  <script src="/static/js/config.js?v=0.57.0"></script>
-  <script src="/static/js/brand.js?v=0.57.0"></script>
+  <link rel="stylesheet" href="/static/css/cmdb.css?v=0.58.0" />
+  <link rel="stylesheet" href="/static/css/itsm.css?v=0.58.0" />
+  <script src="/static/js/config.js?v=0.58.0"></script>
+  <script src="/static/js/brand.js?v=0.58.0"></script>
 </head>
 <body class="is-login">
   <!-- Enterprise login: showcase (left) + sign-in panel (right); stacks on small viewports -->
@@ -887,6 +887,7 @@
                 <button type="button" id="btnItsmIncTriage" class="secondary" title="Suggest priority/category/group">Triage</button>
                 <button type="button" id="btnItsmIncSummarize" class="secondary" title="Timeline summary + resolution draft">Summarize</button>
                 <button type="button" id="btnItsmIncSimilar" class="secondary" title="Similar tickets + knowledge articles">Find similar</button>
+                <button type="button" id="btnItsmIncSlaRisk" class="secondary" title="SLA at-risk assist — never mutates clocks">SLA at-risk</button>
                 <button type="button" id="btnItsmIncApplyTriage" class="secondary" hidden title="Apply last triage via PATCH">Apply triage</button>
               </div>
               <div id="itsmIncAiAssist" class="hint" aria-live="polite"></div>
@@ -991,6 +992,12 @@
               <div id="itsmChgDrawerDetail" class="itsm-drawer-detail hint">Select a change.</div>
               <div id="itsmChgSlaBadges" class="itsm-sla-badges" aria-label="SLA status"></div>
               <div class="itsm-drawer-actions" id="itsmChgTransitionBar"></div>
+              <h4 class="itsm-drawer-section">AI assist</h4>
+              <div class="itsm-ci-add" style="flex-wrap:wrap">
+                <button type="button" id="btnItsmChgRisk" class="secondary" title="Risk narrative from change + CMDB impact">Change risk</button>
+                <button type="button" id="btnItsmChgSlaRisk" class="secondary" title="SLA at-risk assist — never mutates clocks">SLA at-risk</button>
+              </div>
+              <div id="itsmChgAiAssist" class="hint" aria-live="polite"></div>
               <h4 class="itsm-drawer-section">Affected CIs</h4>
               <div class="itsm-ci-add">
                 <input id="itsmChgCiComponentId" list="itsmCiPickerList" placeholder="Pick or type component_id" />
@@ -3126,21 +3133,21 @@
     </div>
   </div>
 
-  <script src="/static/js/cmdb.js?v=0.57.0"></script>
-  <script src="/static/js/itsm/api.js?v=0.57.0"></script>
-  <script src="/static/js/itsm/routing.js?v=0.57.0"></script>
-  <script src="/static/js/itsm/deeplinks.js?v=0.57.0"></script>
-  <script src="/static/js/itsm/dashboard.js?v=0.57.0"></script>
-  <script src="/static/js/itsm/reports.js?v=0.57.0"></script>
-  <script src="/static/js/itsm/incidents.js?v=0.57.0"></script>
-  <script src="/static/js/itsm/changes.js?v=0.57.0"></script>
-  <script src="/static/js/itsm/problems.js?v=0.57.0"></script>
-  <script src="/static/js/itsm/approvals.js?v=0.57.0"></script>
-  <script src="/static/js/itsm/workflows.js?v=0.57.0"></script>
-  <script src="/static/js/itsm/sla.js?v=0.57.0"></script>
-  <script src="/static/js/itsm/knowledge.js?v=0.57.0"></script>
-  <script src="/static/js/itsm/notifications.js?v=0.57.0"></script>
-  <script src="/static/js/itsm/groups.js?v=0.57.0"></script>
-  <script src="/static/js/itsm/index.js?v=0.57.0"></script>
+  <script src="/static/js/cmdb.js?v=0.58.0"></script>
+  <script src="/static/js/itsm/api.js?v=0.58.0"></script>
+  <script src="/static/js/itsm/routing.js?v=0.58.0"></script>
+  <script src="/static/js/itsm/deeplinks.js?v=0.58.0"></script>
+  <script src="/static/js/itsm/dashboard.js?v=0.58.0"></script>
+  <script src="/static/js/itsm/reports.js?v=0.58.0"></script>
+  <script src="/static/js/itsm/incidents.js?v=0.58.0"></script>
+  <script src="/static/js/itsm/changes.js?v=0.58.0"></script>
+  <script src="/static/js/itsm/problems.js?v=0.58.0"></script>
+  <script src="/static/js/itsm/approvals.js?v=0.58.0"></script>
+  <script src="/static/js/itsm/workflows.js?v=0.58.0"></script>
+  <script src="/static/js/itsm/sla.js?v=0.58.0"></script>
+  <script src="/static/js/itsm/knowledge.js?v=0.58.0"></script>
+  <script src="/static/js/itsm/notifications.js?v=0.58.0"></script>
+  <script src="/static/js/itsm/groups.js?v=0.58.0"></script>
+  <script src="/static/js/itsm/index.js?v=0.58.0"></script>
 </body>
 </html>

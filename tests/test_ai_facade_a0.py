@@ -304,6 +304,6 @@ def test_analyze_still_falls_back_when_disabled(
 def test_version_marker(client: TestClient, auth_headers: dict[str, str]) -> None:
     from app import __version__
 
-    assert __version__ == "0.57.0"
+    assert __version__ == "0.58.0"
     html = client.get("/", headers=auth_headers).text
     assert __version__ in html

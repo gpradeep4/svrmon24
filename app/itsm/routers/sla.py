@@ -5,6 +5,7 @@ from __future__ import annotations
 from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
+from pydantic import BaseModel, Field
 
 from ...permissions import (
     PERM_ITSM_SLA_ADMIN,
@@ -14,6 +15,7 @@ from ...permissions import (
 from ...services import audit as audit_service
 from ...tenant_context import TenantContext
 from ..models.sla import SlaPolicyCreate, SlaPolicyUpdate
+from ..services import ai_risk_assist as ai_risk_assist_service
 from ..services import sla as sla_service
 from ..services.sla import SlaError
 
@@ -26,6 +28,12 @@ def _raise(exc: SlaError) -> None:
 
 def _actor(tenant: TenantContext) -> dict[str, Any]:
     return audit_service.actor_from_tenant(tenant)
+
+
+class SlaAtRiskAiRequest(BaseModel):
+    ticket_type: str = Field(min_length=1, max_length=32)
+    ticket_id: str = Field(min_length=1, max_length=128)
+    force_fallback: bool = Field(default=False)
 
 
 @router.get("/policies")
@@ -124,6 +132,24 @@ def update_policy(
         request_path=str(request.url.path),
     )
     return doc
+
+
+@router.post("/ai/at-risk")
+def sla_ai_at_risk(
+    payload: SlaAtRiskAiRequest,
+    tenant: TenantContext = Depends(require_permission(PERM_ITSM_SLA_READ)),
+) -> dict[str, Any]:
+    """Assist-only SLA at-risk narrative. Never mutates clocks or statuses."""
+    try:
+        return ai_risk_assist_service.suggest_sla_at_risk(
+            tenant_id=tenant.tenant_id,
+            ticket_type=payload.ticket_type,
+            ticket_id=payload.ticket_id,
+            force_fallback=bool(payload.force_fallback),
+        )
+    except SlaError as exc:
+        _raise(exc)
+        raise  # pragma: no cover
 
 
 @router.get("/tracking")
