@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from pymongo import ASCENDING
+from pymongo import ASCENDING, DESCENDING, TEXT
 from pymongo.database import Database
 
 from ...db import require_monitor_database
@@ -14,6 +14,9 @@ FILE_TARGETS_COLLECTION = "file_watch_targets"
 FILE_EVENTS_COLLECTION = "file_version_events"
 MONITOR_TARGETS_COLLECTION = "monitor_targets"
 METRIC_SAMPLES_COLLECTION = "metric_samples"
+LOG_STREAMS_COLLECTION = "log_streams"
+LOG_EVENTS_COLLECTION = "log_events"
+SIMULATE_TICKS_COLLECTION = "monitor_simulate_ticks"
 
 
 def ensure_monitor_indexes(db: Database | None = None) -> dict[str, Any]:
@@ -146,6 +149,89 @@ def ensure_monitor_indexes(db: Database | None = None) -> dict[str, Any]:
                     ("metric_name", ASCENDING),
                 ],
                 name="tenant_component_metric_idx",
+            )
+        ),
+    ]
+
+    streams = handle[LOG_STREAMS_COLLECTION]
+    created[LOG_STREAMS_COLLECTION] = [
+        str(
+            streams.create_index(
+                [("tenant_id", ASCENDING), ("stream_id", ASCENDING)],
+                unique=True,
+                name="tenant_stream_id_unique",
+            )
+        ),
+        str(
+            streams.create_index(
+                [("tenant_id", ASCENDING), ("component_id", ASCENDING)],
+                name="tenant_stream_component_idx",
+            )
+        ),
+        str(
+            streams.create_index(
+                [
+                    ("tenant_id", ASCENDING),
+                    ("source_kind", ASCENDING),
+                    ("status", ASCENDING),
+                ],
+                name="tenant_stream_kind_status_idx",
+            )
+        ),
+    ]
+
+    events = handle[LOG_EVENTS_COLLECTION]
+    created[LOG_EVENTS_COLLECTION] = [
+        str(
+            events.create_index(
+                [("tenant_id", ASCENDING), ("event_id", ASCENDING)],
+                unique=True,
+                name="tenant_log_event_id_unique",
+            )
+        ),
+        str(
+            events.create_index(
+                [
+                    ("tenant_id", ASCENDING),
+                    ("stream_id", ASCENDING),
+                    ("observed_at", DESCENDING),
+                ],
+                name="tenant_stream_observed_idx",
+            )
+        ),
+        str(
+            events.create_index(
+                [
+                    ("tenant_id", ASCENDING),
+                    ("component_id", ASCENDING),
+                    ("severity", ASCENDING),
+                    ("observed_at", DESCENDING),
+                ],
+                name="tenant_component_severity_idx",
+            )
+        ),
+        str(
+            events.create_index(
+                [("tenant_id", ASCENDING), ("observed_at", ASCENDING)],
+                name="tenant_log_observed_asc_idx",
+            )
+        ),
+        str(
+            events.create_index(
+                [("message", TEXT)],
+                name="log_message_text_idx",
+                default_language="english",
+            )
+        ),
+    ]
+
+    ticks = handle[SIMULATE_TICKS_COLLECTION]
+    created[SIMULATE_TICKS_COLLECTION] = [
+        str(
+            ticks.create_index(
+                [("tenant_id", ASCENDING), ("day", ASCENDING)],
+                unique=True,
+                name="tenant_simulate_day_unique",
             )
         ),
     ]

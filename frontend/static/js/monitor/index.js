@@ -1,4 +1,4 @@
-/* global SVRMON24MonitorDashboard, SVRMON24MonitorTargets */
+/* global SVRMON24MonitorDashboard, SVRMON24MonitorTargets, SVRMON24MonitorLogs */
 (function (global) {
   "use strict";
 
@@ -33,6 +33,17 @@
     return can(perm);
   }
 
+  function applyMonitorActionGates(can) {
+    document.querySelectorAll("[data-monitor-perm-write]").forEach((btn) => {
+      const perm = btn.getAttribute("data-monitor-perm-write");
+      if (perm) btn.hidden = !can(perm);
+    });
+    document.querySelectorAll("[data-monitor-perm-admin]").forEach((btn) => {
+      const perm = btn.getAttribute("data-monitor-perm-admin");
+      if (perm) btn.hidden = !can(perm);
+    });
+  }
+
   function applyMonitorNavGates(can) {
     const section = document.getElementById("navMonitoringSection");
     const group = document.getElementById("navMonitoringGroup");
@@ -54,6 +65,7 @@
       }
       btn.hidden = !allowed;
     });
+    applyMonitorActionGates(can);
   }
 
   function registerMonitorHooks(hooks) {
@@ -65,6 +77,10 @@
     if (api && global.SVRMON24MonitorTargets?.bindApi) {
       global.SVRMON24MonitorTargets.bindApi(api, { toast, can });
       global.SVRMON24MonitorTargets.initTargetsUi();
+    }
+    if (api && global.SVRMON24MonitorLogs?.bindApi) {
+      global.SVRMON24MonitorLogs.bindApi(api, { toast, can });
+      global.SVRMON24MonitorLogs.initLogsUi();
     }
 
     if (pageMeta) {
@@ -90,7 +106,7 @@
       };
       pageMeta["monitor-logs"] = {
         title: "Logs",
-        subtitle: "Placeholder — SIMULATED log streams (later slice)",
+        subtitle: "SIMULATED log streams · search · no live ingest",
       };
       pageMeta["monitor-alerts"] = {
         title: "Alerts",
@@ -133,16 +149,11 @@
         if (global.SVRMON24MonitorTargets?.onShowTab) {
           global.SVRMON24MonitorTargets.onShowTab(name);
         }
+        if (global.SVRMON24MonitorLogs?.onShowTab) {
+          global.SVRMON24MonitorLogs.onShowTab(name);
+        }
       });
     }
-
-    // Hide Sync buttons without write permission.
-    document.querySelectorAll("[data-monitor-perm-write]").forEach((btn) => {
-      const perm = btn.getAttribute("data-monitor-perm-write");
-      if (perm && typeof can === "function") {
-        btn.hidden = !can(perm);
-      }
-    });
 
     if (typeof onPermissionGates === "function") {
       onPermissionGates(() => applyMonitorNavGates(can));
@@ -154,6 +165,7 @@
   global.SVRMON24Monitor = {
     registerMonitorHooks,
     applyMonitorNavGates,
+    applyMonitorActionGates,
     anyMonitorPermission,
   };
 })(window);

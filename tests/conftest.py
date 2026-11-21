@@ -127,6 +127,9 @@ def clean_db(client: TestClient) -> Generator[None, None, None]:
         "file_version_events",
         "monitor_targets",
         "metric_samples",
+        "log_streams",
+        "log_events",
+        "monitor_simulate_ticks",
     )
     for name in collections:
         db[name].delete_many({})

@@ -45,7 +45,8 @@
   border-color: #fdba74;
 }
 
-.monitor-targets-toolbar {
+.monitor-targets-toolbar,
+.monitor-logs-toolbar {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
   gap: 10px;
@@ -53,7 +54,8 @@
   margin-top: 12px;
 }
 
-.monitor-targets-toolbar button {
+.monitor-targets-toolbar button,
+.monitor-logs-toolbar button {
   justify-self: start;
   white-space: nowrap;
 }
