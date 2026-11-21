@@ -1,4 +1,4 @@
-"""Sidebar IA — separate CMDB / Custom tables / expandable ITSM (0.60.0)."""
+"""Sidebar IA — expandable Operations / CMDB / Custom tables / ITSM / Configuration / Administration (0.61.0)."""
 
 from __future__ import annotations
 
@@ -13,41 +13,75 @@ ITSM_INDEX_JS = Path("frontend/static/js/itsm/index.js")
 CMDB_CSS = Path("frontend/static/css/cmdb.css")
 
 
-def test_version_bump_for_sidebar_itsm_section() -> None:
-    assert __version__ == "0.60.0"
+def test_version_bump_for_sidebar_expandable_sections() -> None:
+    assert __version__ == "0.61.0"
 
 
 def test_frontend_sidebar_section_markers() -> None:
     html = FRONTEND_INDEX.read_text(encoding="utf-8")
-    assert 'content="0.60.0"' in html
+    assert 'content="0.61.0"' in html
 
-    # Distinct section headers / groups — ITSM must not sit under Custom tables.
-    assert 'id="navCustomTablesSection"' in html
+    # Operations — platform Dashboard only (inventory lives under CMDB).
+    assert 'id="navOperationsSection"' in html
+    assert 'data-nav-collapse="operations"' in html
+    assert 'id="navOperationsGroup"' in html
+    assert 'data-nav-group="operations"' in html
+    ops_group_i = html.index('id="navOperationsGroup"')
+    cmdb_i = html.index('id="navCmdbSection"')
+    dash_i = html.index('data-tab="dashboard"')
+    assert ops_group_i < dash_i < cmdb_i
+
+    # CMDB — typed inventory + catalog (not under Operations).
+    assert 'id="navCmdbSection"' in html
+    assert 'data-nav-collapse="cmdb"' in html
+    assert 'id="navCmdbGroup"' in html
+    assert 'data-nav-group="cmdb"' in html
+    cmdb_group_i = html.index('id="navCmdbGroup"')
+    custom_i = html.index('id="navCustomTablesSection"')
+    for tab in (
+        "servers",
+        "network",
+        "applications",
+        "middleware",
+        "databases",
+        "relationships",
+        "dependencies",
+        "diagnostics",
+        "file-monitoring",
+    ):
+        marker = f'data-tab="{tab}"'
+        pos = html.index(marker)
+        assert cmdb_group_i < pos < custom_i, tab
+
+    # Custom tables — expandable; dynamic entity tables only.
     assert 'data-nav-collapse="custom-tables"' in html
     assert 'id="navCustomTables"' in html
     assert 'data-nav-group="custom-tables"' in html
 
-    assert 'id="navCmdbSection"' in html
-    assert ">CMDB<" in html
-    assert 'id="navCmdbGroup"' in html
-    assert 'data-tab="relationships"' in html
-    assert 'data-tab="dependencies"' in html
-    assert 'data-tab="diagnostics"' in html
-    assert 'data-tab="file-monitoring"' in html
-
+    # ITSM — expandable; permission-gated.
     assert 'id="navItsmSection"' in html
     assert 'data-nav-collapse="itsm"' in html
     assert 'id="navItsmGroup"' in html
     assert 'data-nav-group="itsm"' in html
     assert 'data-itsm-nav-group="1"' in html
 
-    # Order: Custom tables section → CMDB → ITSM → Configuration
-    custom_i = html.index('id="navCustomTablesSection"')
-    cmdb_i = html.index('id="navCmdbSection"')
+    # Configuration + Administration — click-to-expand section headers.
+    assert 'id="navConfigurationSection"' in html
+    assert 'data-nav-collapse="configuration"' in html
+    assert 'id="navConfigurationGroup"' in html
+    assert 'data-nav-group="configuration"' in html
+    assert 'id="navAdministrationSection"' in html
+    assert 'data-nav-collapse="administration"' in html
+    assert 'id="navAdministrationGroup"' in html
+    assert 'data-nav-group="administration"' in html
+
+    # Order: Operations → CMDB → Custom tables → ITSM → Configuration → Administration
+    ops_i = html.index('id="navOperationsSection"')
     itsm_i = html.index('id="navItsmSection"')
     itsm_group_i = html.index('id="navItsmGroup"')
-    config_i = html.index('<div class="nav-section">Configuration</div>')
-    assert custom_i < cmdb_i < itsm_i < itsm_group_i < config_i
+    config_i = html.index('id="navConfigurationSection"')
+    admin_i = html.index('id="navAdministrationSection"')
+    assert ops_i < cmdb_i < custom_i < itsm_i < itsm_group_i < config_i < admin_i
 
     # ITSM items live inside the ITSM group, not after Configuration.
     for tab in (
@@ -68,10 +102,30 @@ def test_frontend_sidebar_section_markers() -> None:
         assert itsm_group_i < pos < config_i, tab
         assert 'data-itsm-nav="1"' in html[pos - 80 : pos + 120]
 
+    # Configuration + Administration children stay in their groups.
+    config_group_i = html.index('id="navConfigurationGroup"')
+    admin_group_i = html.index('id="navAdministrationGroup"')
+    for tab in ("custom", "custom-tables", "columns"):
+        pos = html.index(f'data-tab="{tab}"')
+        assert config_group_i < pos < admin_i, tab
+    for tab in ("users", "roles", "organizations", "plans", "settings", "audit"):
+        pos = html.index(f'data-tab="{tab}"')
+        assert admin_group_i < pos, tab
+
+    # No bare (non-toggle) section headers remain in the primary nav.
+    bare = [line for line in html.splitlines() if '<div class="nav-section">' in line]
+    assert bare == [], bare
+
 
 def test_nav_accordion_js_and_css_markers() -> None:
     cmdb = CMDB_JS.read_text(encoding="utf-8")
     assert 'NAV_EXPAND_KEY = "svrmon24.nav.expand"' in cmdb
+    assert "NAV_EXPAND_DEFAULTS" in cmdb
+    assert "NAV_TAB_GROUP" in cmdb
+    assert "operations: true" in cmdb
+    assert "cmdb: true" in cmdb
+    assert "configuration: true" in cmdb
+    assert "administration: true" in cmdb
     assert "initNavAccordions" in cmdb
     assert "expandNavGroupForTab" in cmdb
     assert "setNavGroupExpanded" in cmdb
