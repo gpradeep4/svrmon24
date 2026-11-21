@@ -55,6 +55,13 @@
     }
     setAllCiFilters(cid);
     const tab = preferredTab || "itsm-incidents";
+    if (global.SVRMON24ItsmRouting?.navigateTo) {
+      global.SVRMON24ItsmRouting.navigateTo(
+        { tab, component_id: cid },
+        { replace: false }
+      );
+      return;
+    }
     showTab(tab);
     window.setTimeout(() => {
       if (tab === "itsm-incidents") {

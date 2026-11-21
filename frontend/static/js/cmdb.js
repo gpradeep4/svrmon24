@@ -1544,7 +1544,13 @@
     if ($("#diagComponentId") && !$("#diagComponentId").value && state.componentIds[0]) {
       $("#diagComponentId").value = state.componentIds[0];
     }
-    showTab("dashboard");
+    const route =
+      window.SVRMON24ItsmRouting?.resolveInitialTab?.() || { tab: null };
+    if (route.tab) {
+      await window.SVRMON24ItsmRouting.applyRoute(route, { write: true });
+    } else {
+      showTab("dashboard");
+    }
   }
 
   async function connect() {
@@ -2774,6 +2780,12 @@
     panel.classList.remove("hidden");
     btn.classList.add("active");
     state.activeNav = name;
+    if (
+      window.SVRMON24ItsmRouting?.syncTabHash &&
+      !window.SVRMON24ItsmRouting.isApplying
+    ) {
+      window.SVRMON24ItsmRouting.syncTabHash(name);
+    }
     applyInventoryTypeLock(inventoryType);
     const customTableMeta = customTableKey
       ? (state.customTables || []).find((t) => t.table_key === customTableKey)
@@ -5472,6 +5484,12 @@
     restoreAccent();
     loadAuthIntoForm();
     wireEvents();
+    if (window.SVRMON24ItsmRouting?.bindRouting) {
+      window.SVRMON24ItsmRouting.bindRouting({
+        showTab,
+        onApplied: (route) => window.SVRMON24ItsmRouting.applyDeepLinkExtras(route),
+      });
+    }
     if (window.SVRMON24Itsm?.registerItsmHooks) {
       window.SVRMON24Itsm.registerItsmHooks({
         can,
