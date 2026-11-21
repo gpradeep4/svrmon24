@@ -30,7 +30,7 @@ def main(argv: list[str] | None = None) -> int:
     _ = argv
     from app.config import get_settings
     from app.db import get_database, ping_database
-    from app.services.cmdb_collections import (
+    from app.cmdb.services.cmdb_collections import (
         collection_name_for_type,
     )
     from app.tenancy import (

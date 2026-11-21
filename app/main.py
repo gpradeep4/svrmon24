@@ -19,20 +19,20 @@ from .config import Settings, get_settings
 from .db import close_client, ping_database
 from .exceptions import register_exception_handlers
 from .logging_config import configure_logging
+from .cmdb.routers import column_configs as column_configs_router
+from .cmdb.routers import components as components_router
+from .cmdb.routers import custom_fields as custom_fields_router
+from .cmdb.routers import custom_tables as custom_tables_router
+from .cmdb.routers import dashboard as dashboard_router
+from .cmdb.routers import dependencies as dependencies_router
+from .cmdb.routers import diagnostics as diagnostics_router
+from .cmdb.routers import file_monitoring as file_monitoring_router
+from .cmdb.routers import relationships as relationships_router
 from .routers import audit as audit_router
 from .routers import auth_routes
-from .routers import column_configs as column_configs_router
-from .routers import components as components_router
-from .routers import custom_fields as custom_fields_router
-from .routers import custom_tables as custom_tables_router
-from .routers import dashboard as dashboard_router
-from .routers import dependencies as dependencies_router
-from .routers import diagnostics as diagnostics_router
 from .routers import entitlements as entitlements_router
-from .routers import file_monitoring as file_monitoring_router
 from .routers import org_admin as org_admin_router
 from .routers import platform as platform_router
-from .routers import relationships as relationships_router
 from .routers import tenants as tenants_router
 from .itsm.routers import router as itsm_router
 from .serialization import serialize_document

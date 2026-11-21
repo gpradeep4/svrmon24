@@ -25,7 +25,7 @@ if str(ROOT) not in sys.path:
 from app.config import get_settings
 from app.db import ping_database, reset_client_for_tests, get_database
 from app.services.bootstrap import ensure_tenancy_ready
-from app.services.cmdb_migrate import migrate_components_to_typed
+from app.cmdb.services.cmdb_migrate import migrate_components_to_typed
 from app.tenancy import MIGRATION_TENANT_ID
 
 

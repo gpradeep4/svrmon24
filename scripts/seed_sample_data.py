@@ -26,20 +26,20 @@ if str(ROOT) not in sys.path:
 
 from app.config import get_settings
 from app.db import ping_database, reset_client_for_tests
-from app.models.components import ComponentCreate
-from app.models.custom_fields import CustomFieldCreate
-from app.models.diagnostics import DiagnosticStartRequest
-from app.models.relationships import RelationshipCreate
-from app.services import ai_analysis as ai_analysis_service
-from app.services import components as components_service
-from app.services import custom_fields as custom_fields_service
-from app.services import diagnostics as diagnostics_service
-from app.services import file_monitoring as file_monitoring_service
-from app.services import relationships as relationships_service
+from app.cmdb.models.components import ComponentCreate
+from app.cmdb.models.custom_fields import CustomFieldCreate
+from app.cmdb.models.diagnostics import DiagnosticStartRequest
+from app.cmdb.models.relationships import RelationshipCreate
+from app.cmdb.services import ai_analysis as ai_analysis_service
+from app.cmdb.services import components as components_service
+from app.cmdb.services import custom_fields as custom_fields_service
+from app.cmdb.services import diagnostics as diagnostics_service
+from app.cmdb.services import file_monitoring as file_monitoring_service
+from app.cmdb.services import relationships as relationships_service
 from app.services.bootstrap import ensure_tenancy_ready
-from app.services.components import ComponentError
-from app.services.custom_fields import CustomFieldError
-from app.services.relationships import RelationshipError
+from app.cmdb.services.components import ComponentError
+from app.cmdb.services.custom_fields import CustomFieldError
+from app.cmdb.services.relationships import RelationshipError
 from app.tenancy import MIGRATION_TENANT_ID
 
 

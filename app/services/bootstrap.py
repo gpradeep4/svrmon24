@@ -7,9 +7,9 @@ from typing import Any
 
 from ..db import DatabaseUnavailableError, get_database, ping_database
 from ..tenancy import ISOLATION_ENFORCED, MIGRATION_TENANT_ID
+from ..cmdb.services import cmdb_migrate
+from ..cmdb.services import field_defs_migrate
 from . import audit as audit_service
-from . import cmdb_migrate
-from . import field_defs_migrate
 from . import memberships as memberships_service
 from . import tenant_indexes
 from . import tenants as tenants_service
