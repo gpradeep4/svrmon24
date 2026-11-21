@@ -2,7 +2,36 @@
   const STORAGE_KEY = "svrmon24.basicAuth";
   const ACCENT_KEY = "svrmon24.accent";
   const NAV_EXPAND_KEY = "svrmon24.nav.expand";
-  const NAV_EXPAND_DEFAULTS = { itsm: true, "custom-tables": true };
+  const NAV_EXPAND_DEFAULTS = {
+    operations: true,
+    cmdb: true,
+    "custom-tables": true,
+    itsm: true,
+    configuration: true,
+    administration: true,
+  };
+  const NAV_TAB_GROUP = {
+    dashboard: "operations",
+    servers: "cmdb",
+    network: "cmdb",
+    applications: "cmdb",
+    middleware: "cmdb",
+    databases: "cmdb",
+    inventory: "cmdb",
+    relationships: "cmdb",
+    dependencies: "cmdb",
+    diagnostics: "cmdb",
+    "file-monitoring": "cmdb",
+    custom: "configuration",
+    "custom-tables": "configuration",
+    columns: "configuration",
+    users: "administration",
+    roles: "administration",
+    organizations: "administration",
+    plans: "administration",
+    settings: "administration",
+    audit: "administration",
+  };
   /* In-memory Basic credentials for the active SPA lifetime (API Authorization header).
      sessionStorage is only written when Remember me is checked (same-tab refresh resume). */
   let basicCredentials = null;
@@ -525,7 +554,10 @@
     }
     if (tabName.startsWith("ct:")) {
       setNavGroupExpanded("custom-tables", true);
+      return;
     }
+    const group = NAV_TAB_GROUP[tabName];
+    if (group) setNavGroupExpanded(group, true);
   }
 
   function initNavAccordions() {
