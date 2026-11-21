@@ -5,6 +5,7 @@
   const NAV_EXPAND_DEFAULTS = {
     cmdb: true,
     "custom-tables": true,
+    monitoring: true,
     itsm: true,
     configuration: true,
     administration: true,
@@ -19,8 +20,17 @@
     inventory: "cmdb",
     relationships: "cmdb",
     dependencies: "cmdb",
-    diagnostics: "cmdb",
-    "file-monitoring": "cmdb",
+    "cmdb-redirect-file-monitoring": "cmdb",
+    "cmdb-redirect-diagnostics": "cmdb",
+    "monitor-dashboard": "monitoring",
+    "monitor-servers": "monitoring",
+    "monitor-network": "monitoring",
+    "monitor-applications": "monitoring",
+    "monitor-databases": "monitoring",
+    "monitor-logs": "monitoring",
+    "monitor-alerts": "monitoring",
+    diagnostics: "monitoring",
+    "file-monitoring": "monitoring",
     custom: "configuration",
     "custom-tables": "configuration",
     columns: "configuration",
@@ -278,6 +288,9 @@
     if (usersNav && !readUsers && !state.isPlatformAdmin) {
       // Users page still shows "my memberships"; keep reachable.
       usersNav.title = "Member list requires users:read";
+    }
+    if (window.SVRMON24Monitor?.applyMonitorNavGates) {
+      window.SVRMON24Monitor.applyMonitorNavGates(can);
     }
     if (window.SVRMON24Itsm?.applyItsmNavGates) {
       window.SVRMON24Itsm.applyItsmNavGates(can);
@@ -551,6 +564,14 @@
       setNavGroupExpanded("itsm", true);
       return;
     }
+    if (
+      tabName.startsWith("monitor-") ||
+      tabName === "file-monitoring" ||
+      tabName === "diagnostics"
+    ) {
+      setNavGroupExpanded("monitoring", true);
+      return;
+    }
     if (tabName.startsWith("ct:")) {
       setNavGroupExpanded("custom-tables", true);
       return;
@@ -587,6 +608,42 @@
     "file-monitoring": {
       title: "File Monitoring",
       subtitle: "DEMO / SIMULATED watched paths + version history — no live filesystem watching",
+    },
+    "monitor-dashboard": {
+      title: "Monitoring Dashboard",
+      subtitle: "SIMULATED health overview — live probes off",
+    },
+    "monitor-servers": {
+      title: "Servers (Monitoring)",
+      subtitle: "Placeholder — SIMULATED server health (later slice)",
+    },
+    "monitor-network": {
+      title: "Network (Monitoring)",
+      subtitle: "Placeholder — SIMULATED network health (later slice)",
+    },
+    "monitor-applications": {
+      title: "Applications (Monitoring)",
+      subtitle: "Placeholder — SIMULATED application health (later slice)",
+    },
+    "monitor-databases": {
+      title: "Databases (Monitoring)",
+      subtitle: "Placeholder — SIMULATED database health (later slice)",
+    },
+    "monitor-logs": {
+      title: "Logs",
+      subtitle: "Placeholder — SIMULATED log streams (later slice)",
+    },
+    "monitor-alerts": {
+      title: "Alerts",
+      subtitle: "Placeholder — SIMULATED alert rules / instances (later slice)",
+    },
+    "cmdb-redirect-file-monitoring": {
+      title: "File Monitoring moved",
+      subtitle: "Rehomed under Monitoring — use the Open button below",
+    },
+    "cmdb-redirect-diagnostics": {
+      title: "Diagnostics moved",
+      subtitle: "Rehomed under Monitoring — use the Open button below",
     },
     custom: { title: "Custom Fields", subtitle: "Extend inventory forms with typed definitions" },
     "custom-tables": {
@@ -3041,6 +3098,11 @@
     if (name === "file-monitoring" && state.authenticated) {
       loadFileMonitoringTargets().catch((err) =>
         toast(err.message || "File monitoring failed", true)
+      );
+    }
+    if (name === "monitor-dashboard" && state.authenticated) {
+      window.SVRMON24MonitorDashboard?.loadMonitorDashboard?.({ toast })?.catch?.((err) =>
+        toast(err.message || "Monitoring dashboard failed", true)
       );
     }
     if (name === "itsm-dashboard" && state.authenticated) {
@@ -5800,6 +5862,15 @@
       window.SVRMON24ItsmRouting.bindRouting({
         showTab,
         onApplied: (route) => window.SVRMON24ItsmRouting.applyDeepLinkExtras(route),
+      });
+    }
+    if (window.SVRMON24Monitor?.registerMonitorHooks) {
+      window.SVRMON24Monitor.registerMonitorHooks({
+        can,
+        toast,
+        api,
+        pageMeta: PAGE_META,
+        showTab,
       });
     }
     if (window.SVRMON24Itsm?.registerItsmHooks) {

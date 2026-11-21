@@ -1,0 +1,46 @@
+/* Monitoring module shell (M2) — light SaaS accents; reuses demo-banner / KPI patterns. */
+
+.monitor-panel h2 {
+  margin-top: 0;
+}
+
+.monitor-kpi-row {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 12px;
+  margin: 14px 0 8px;
+}
+
+.monitor-kpi {
+  border: 1px solid color-mix(in srgb, var(--accent) 18%, #e2e8f0);
+  background: linear-gradient(180deg, #ffffff, #f8fafc);
+  border-radius: 12px;
+  padding: 12px 14px;
+}
+
+.monitor-kpi-label {
+  display: block;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: #64748b;
+  margin-bottom: 6px;
+}
+
+.monitor-kpi strong {
+  font-size: 1.05rem;
+  color: #0f172a;
+  word-break: break-word;
+}
+
+.monitor-placeholder-note {
+  margin-top: 10px;
+  color: #475569;
+}
+
+.nav-item .coming.moved {
+  background: #fff7ed;
+  color: #9a3412;
+  border-color: #fdba74;
+}

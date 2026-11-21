@@ -4,7 +4,7 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <meta name="svrmon24-ui" content="login-enterprise-v13" />
-  <meta name="svrmon24-version" content="0.64.0" />
+  <meta name="svrmon24-version" content="0.65.0" />
   <title>SVRMON24</title>
   <link rel="icon" href="/static/img/svrmon-favicon.png" type="image/png" sizes="32x32" />
   <link rel="apple-touch-icon" href="/static/img/svrmon-apple-touch.png" sizes="180x180" />
@@ -15,10 +15,11 @@
     body.is-app .login-gate { display: none !important; }
     #authPanel, .auth-panel-legacy { display: none !important; }
   </style>
-  <link rel="stylesheet" href="/static/css/cmdb.css?v=0.64.0" />
-  <link rel="stylesheet" href="/static/css/itsm.css?v=0.64.0" />
-  <script src="/static/js/config.js?v=0.64.0"></script>
-  <script src="/static/js/brand.js?v=0.64.0"></script>
+  <link rel="stylesheet" href="/static/css/cmdb.css?v=0.65.0" />
+  <link rel="stylesheet" href="/static/css/itsm.css?v=0.65.0" />
+  <link rel="stylesheet" href="/static/css/monitor.css?v=0.65.0" />
+  <script src="/static/js/config.js?v=0.65.0"></script>
+  <script src="/static/js/brand.js?v=0.65.0"></script>
 </head>
 <body class="is-login">
   <!-- Enterprise login: showcase (left) + sign-in panel (right); stacks on small viewports -->
@@ -285,13 +286,13 @@
             <span class="nav-ico" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M5 6h6v6H5zM13 12h6v6h-6z"/><path d="M11 9h4v4"/></svg></span>
             Dependencies
           </button>
-          <button type="button" class="nav-item" data-tab="diagnostics">
-            <span class="nav-ico" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M9 18h6M10 21h4"/><path d="M8 14a6 6 0 1 1 8 0"/><path d="M12 3v2"/></svg></span>
-            Diagnostics
-          </button>
-          <button type="button" class="nav-item" data-tab="file-monitoring" data-fm-nav="1">
+          <button type="button" class="nav-item" data-tab="cmdb-redirect-file-monitoring" data-cmdb-monitor-redirect="file-monitoring">
             <span class="nav-ico" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M4 4h7l2 2h7v14H4z"/><path d="M8 12h8M8 16h5"/></svg></span>
-            File Monitoring
+            File Monitoring <span class="coming moved">Moved</span>
+          </button>
+          <button type="button" class="nav-item" data-tab="cmdb-redirect-diagnostics" data-cmdb-monitor-redirect="diagnostics">
+            <span class="nav-ico" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M9 18h6M10 21h4"/><path d="M8 14a6 6 0 1 1 8 0"/><path d="M12 3v2"/></svg></span>
+            Diagnostics <span class="coming moved">Moved</span>
           </button>
         </div>
 
@@ -300,6 +301,49 @@
           <span class="nav-chevron" aria-hidden="true"></span>
         </button>
         <div class="nav-group" id="navCustomTables" data-nav-group="custom-tables" role="group" aria-label="Custom tables"></div>
+
+        <button type="button" class="nav-section nav-section-toggle" id="navMonitoringSection" data-monitor-nav-section="1" data-nav-collapse="monitoring" aria-expanded="true" aria-controls="navMonitoringGroup">
+          <span class="nav-section-label">Monitoring</span>
+          <span class="nav-chevron" aria-hidden="true"></span>
+        </button>
+        <div class="nav-group" id="navMonitoringGroup" data-nav-group="monitoring" data-monitor-nav-group="1" role="group" aria-label="Monitoring">
+          <button type="button" class="nav-item" data-tab="monitor-dashboard" data-monitor-nav="1" data-monitor-perm="monitor:dashboard:read">
+            <span class="nav-ico" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M4 19V5h4v14H4zm6 0V9h4v10h-4zm6 0v-7h4v7h-4z"/></svg></span>
+            Monitoring Dashboard
+          </button>
+          <button type="button" class="nav-item" data-tab="monitor-servers" data-monitor-nav="1" data-monitor-perm="monitor:targets:read">
+            <span class="nav-ico" aria-hidden="true"><svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="6" rx="1.5"/><rect x="3" y="14" width="18" height="6" rx="1.5"/><circle cx="7" cy="7" r="1"/><circle cx="7" cy="17" r="1"/></svg></span>
+            Servers
+          </button>
+          <button type="button" class="nav-item" data-tab="monitor-network" data-monitor-nav="1" data-monitor-perm="monitor:targets:read">
+            <span class="nav-ico" aria-hidden="true"><svg viewBox="0 0 24 24"><circle cx="12" cy="5" r="2.5"/><circle cx="5" cy="19" r="2.5"/><circle cx="19" cy="19" r="2.5"/><path d="M12 7.5v4M12 11.5L5.8 17M12 11.5l6.2 5.5"/></svg></span>
+            Network
+          </button>
+          <button type="button" class="nav-item" data-tab="monitor-applications" data-monitor-nav="1" data-monitor-perm="monitor:targets:read">
+            <span class="nav-ico" aria-hidden="true"><svg viewBox="0 0 24 24"><rect x="4" y="3" width="16" height="18" rx="2"/><path d="M8 8h8M8 12h8M8 16h5"/></svg></span>
+            Applications
+          </button>
+          <button type="button" class="nav-item" data-tab="monitor-databases" data-monitor-nav="1" data-monitor-perm="monitor:targets:read">
+            <span class="nav-ico" aria-hidden="true"><svg viewBox="0 0 24 24"><ellipse cx="12" cy="6" rx="7" ry="3"/><path d="M5 6v6c0 1.7 3.1 3 7 3s7-1.3 7-3V6"/><path d="M5 12v6c0 1.7 3.1 3 7 3s7-1.3 7-3v-6"/></svg></span>
+            Databases
+          </button>
+          <button type="button" class="nav-item" data-tab="monitor-logs" data-monitor-nav="1" data-monitor-perm="monitor:logs:read">
+            <span class="nav-ico" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M5 4h14v16H5z"/><path d="M8 8h8M8 12h8M8 16h5"/></svg></span>
+            Logs
+          </button>
+          <button type="button" class="nav-item" data-tab="file-monitoring" data-monitor-nav="1" data-fm-nav="1">
+            <span class="nav-ico" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M4 4h7l2 2h7v14H4z"/><path d="M8 12h8M8 16h5"/></svg></span>
+            File Monitoring
+          </button>
+          <button type="button" class="nav-item" data-tab="diagnostics" data-monitor-nav="1">
+            <span class="nav-ico" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M9 18h6M10 21h4"/><path d="M8 14a6 6 0 1 1 8 0"/><path d="M12 3v2"/></svg></span>
+            Diagnostics
+          </button>
+          <button type="button" class="nav-item" data-tab="monitor-alerts" data-monitor-nav="1" data-monitor-perm="monitor:alerts:read">
+            <span class="nav-ico" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M12 22a2 2 0 0 0 2-2h-4a2 2 0 0 0 2 2zm6-6V11a6 6 0 1 0-12 0v5l-2 2v1h16v-1l-2-2z"/></svg></span>
+            Alerts
+          </button>
+        </div>
 
         <button type="button" class="nav-section nav-section-toggle" id="navItsmSection" data-itsm-nav-section="1" data-nav-collapse="itsm" aria-expanded="true" aria-controls="navItsmGroup">
           <span class="nav-section-label">ITSM</span>
@@ -782,6 +826,93 @@
               <button type="button" class="help-balloon" aria-label="Help: potentially affected" data-help="Only typed CMDB Application nodes reachable downstream. Wording is always “potentially affected” — never an outage claim.">i</button>
             </h2>
             <div id="depImpactList" class="hint">No analysis yet.</div>
+          </section>
+        </section>
+
+        <section id="tab-monitor-dashboard" class="tab-panel hidden" data-monitor-module="1">
+          <section class="panel monitor-panel">
+            <h2>Monitoring Dashboard</h2>
+            <p class="hint">Module shell for SIMULATED monitoring — aggregate KPIs arrive in a later slice. Meta below is live from <code>/api/monitor/meta</code>.</p>
+            <div class="demo-banner" id="monitorDashBanner" data-monitor-simulated="1">
+              SIMULATED / SYNTHETIC_DEMO — Monitoring does not run live probes or agents.
+            </div>
+            <div class="toolbar" style="grid-template-columns: 1fr auto;">
+              <p class="hint" style="margin:0">Execution stays SIMULATED until live probes are explicitly approved.</p>
+              <button type="button" id="btnRefreshMonitorDash" class="secondary">Refresh meta</button>
+            </div>
+            <div class="monitor-kpi-row" id="monitorDashKpis">
+              <div class="monitor-kpi"><span class="monitor-kpi-label">Execution mode</span><strong id="monitorDashExecMode">SIMULATED</strong></div>
+              <div class="monitor-kpi"><span class="monitor-kpi-label">Live probes</span><strong><span class="status-pill warning" id="monitorDashLiveProbes">false</span></strong></div>
+              <div class="monitor-kpi"><span class="monitor-kpi-label">Collect modes</span><strong id="monitorDashCollectModes">agentless, agent</strong></div>
+              <div class="monitor-kpi"><span class="monitor-kpi-label">Domains</span><strong id="monitorDashDomains">server, network, application, database</strong></div>
+              <div class="monitor-kpi"><span class="monitor-kpi-label">Monitor DB</span><strong id="monitorDashDb">—</strong></div>
+            </div>
+            <div class="placeholder-panel">
+              <div class="ph-ico" aria-hidden="true"><svg viewBox="0 0 24 24" width="22" height="22"><path d="M4 19V5h4v14H4zm6 0V9h4v10h-4zm6 0v-7h4v7h-4z" fill="currentColor"/></svg></div>
+              <strong>Aggregates coming soon</strong>
+              <p class="monitor-placeholder-note">Open alerts, target health counts, and recent log/file events land in M7. This shell proves nav, RBAC, and SIMULATED banners.</p>
+            </div>
+            <p class="hint" id="monitorDashNotes">Sign in to load Monitoring meta.</p>
+          </section>
+        </section>
+
+        <section id="tab-monitor-servers" class="tab-panel hidden" data-monitor-module="1">
+          <section class="panel monitor-panel">
+            <h2>Servers (Monitoring)</h2>
+            <div class="demo-banner" data-monitor-simulated="1">SIMULATED — server health targets arrive in a later slice. Live probes remain off.</div>
+            <div class="placeholder-panel"><strong>Placeholder</strong><p class="monitor-placeholder-note">CMDB Server CIs will sync into monitor targets (M4).</p></div>
+          </section>
+        </section>
+        <section id="tab-monitor-network" class="tab-panel hidden" data-monitor-module="1">
+          <section class="panel monitor-panel">
+            <h2>Network (Monitoring)</h2>
+            <div class="demo-banner" data-monitor-simulated="1">SIMULATED — network health targets arrive in a later slice. Live probes remain off.</div>
+            <div class="placeholder-panel"><strong>Placeholder</strong><p class="monitor-placeholder-note">Switches, routers, firewalls, load balancers, and APs as first-class kinds (M4).</p></div>
+          </section>
+        </section>
+        <section id="tab-monitor-applications" class="tab-panel hidden" data-monitor-module="1">
+          <section class="panel monitor-panel">
+            <h2>Applications (Monitoring)</h2>
+            <div class="demo-banner" data-monitor-simulated="1">SIMULATED — application health targets arrive in a later slice. Live probes remain off.</div>
+            <div class="placeholder-panel"><strong>Placeholder</strong><p class="monitor-placeholder-note">Application CI health views land with targets sync (M4).</p></div>
+          </section>
+        </section>
+        <section id="tab-monitor-databases" class="tab-panel hidden" data-monitor-module="1">
+          <section class="panel monitor-panel">
+            <h2>Databases (Monitoring)</h2>
+            <div class="demo-banner" data-monitor-simulated="1">SIMULATED — database health targets arrive in a later slice. Live probes remain off.</div>
+            <div class="placeholder-panel"><strong>Placeholder</strong><p class="monitor-placeholder-note">Database CI health views land with targets sync (M4).</p></div>
+          </section>
+        </section>
+        <section id="tab-monitor-logs" class="tab-panel hidden" data-monitor-module="1">
+          <section class="panel monitor-panel">
+            <h2>Logs</h2>
+            <div class="demo-banner" data-monitor-simulated="1">SIMULATED — log stream browser arrives in M5. No live syslog ingest.</div>
+            <div class="placeholder-panel"><strong>Placeholder</strong><p class="monitor-placeholder-note">Searchable synthetic log events will appear here.</p></div>
+          </section>
+        </section>
+        <section id="tab-monitor-alerts" class="tab-panel hidden" data-monitor-module="1">
+          <section class="panel monitor-panel">
+            <h2>Alerts</h2>
+            <div class="demo-banner" data-monitor-simulated="1">SIMULATED — alert rules and instances arrive in M6. No auto-incident create.</div>
+            <div class="placeholder-panel"><strong>Placeholder</strong><p class="monitor-placeholder-note">Firing / acked / resolved alert lifecycle will land here.</p></div>
+          </section>
+        </section>
+
+        <section id="tab-cmdb-redirect-file-monitoring" class="tab-panel hidden" data-cmdb-monitor-redirect-panel="1">
+          <section class="panel">
+            <h2>File Monitoring moved to Monitoring</h2>
+            <div class="demo-banner">File Monitoring is now under the <strong>Monitoring</strong> sidebar section. This CMDB entry is a temporary redirect stub.</div>
+            <p class="hint">Deep-link <code>#tab=file-monitoring</code> still opens the same SIMULATED File Monitoring UI.</p>
+            <button type="button" class="primary" data-open-monitor-tab="file-monitoring">Open in Monitoring</button>
+          </section>
+        </section>
+        <section id="tab-cmdb-redirect-diagnostics" class="tab-panel hidden" data-cmdb-monitor-redirect-panel="1">
+          <section class="panel">
+            <h2>Diagnostics moved to Monitoring</h2>
+            <div class="demo-banner">Diagnostics is now under the <strong>Monitoring</strong> sidebar section. This CMDB entry is a temporary redirect stub.</div>
+            <p class="hint">Deep-link <code>#tab=diagnostics</code> still opens the same SIMULATED Diagnostics UI.</p>
+            <button type="button" class="primary" data-open-monitor-tab="diagnostics">Open in Monitoring</button>
           </section>
         </section>
 
@@ -3161,21 +3292,23 @@
     </div>
   </div>
 
-  <script src="/static/js/cmdb.js?v=0.64.0"></script>
-  <script src="/static/js/itsm/api.js?v=0.64.0"></script>
-  <script src="/static/js/itsm/routing.js?v=0.64.0"></script>
-  <script src="/static/js/itsm/deeplinks.js?v=0.64.0"></script>
-  <script src="/static/js/itsm/dashboard.js?v=0.64.0"></script>
-  <script src="/static/js/itsm/reports.js?v=0.64.0"></script>
-  <script src="/static/js/itsm/incidents.js?v=0.64.0"></script>
-  <script src="/static/js/itsm/changes.js?v=0.64.0"></script>
-  <script src="/static/js/itsm/problems.js?v=0.64.0"></script>
-  <script src="/static/js/itsm/approvals.js?v=0.64.0"></script>
-  <script src="/static/js/itsm/workflows.js?v=0.64.0"></script>
-  <script src="/static/js/itsm/sla.js?v=0.64.0"></script>
-  <script src="/static/js/itsm/knowledge.js?v=0.64.0"></script>
-  <script src="/static/js/itsm/notifications.js?v=0.64.0"></script>
-  <script src="/static/js/itsm/groups.js?v=0.64.0"></script>
-  <script src="/static/js/itsm/index.js?v=0.64.0"></script>
+  <script src="/static/js/cmdb.js?v=0.65.0"></script>
+  <script src="/static/js/monitor/dashboard.js?v=0.65.0"></script>
+  <script src="/static/js/monitor/index.js?v=0.65.0"></script>
+  <script src="/static/js/itsm/api.js?v=0.65.0"></script>
+  <script src="/static/js/itsm/routing.js?v=0.65.0"></script>
+  <script src="/static/js/itsm/deeplinks.js?v=0.65.0"></script>
+  <script src="/static/js/itsm/dashboard.js?v=0.65.0"></script>
+  <script src="/static/js/itsm/reports.js?v=0.65.0"></script>
+  <script src="/static/js/itsm/incidents.js?v=0.65.0"></script>
+  <script src="/static/js/itsm/changes.js?v=0.65.0"></script>
+  <script src="/static/js/itsm/problems.js?v=0.65.0"></script>
+  <script src="/static/js/itsm/approvals.js?v=0.65.0"></script>
+  <script src="/static/js/itsm/workflows.js?v=0.65.0"></script>
+  <script src="/static/js/itsm/sla.js?v=0.65.0"></script>
+  <script src="/static/js/itsm/knowledge.js?v=0.65.0"></script>
+  <script src="/static/js/itsm/notifications.js?v=0.65.0"></script>
+  <script src="/static/js/itsm/groups.js?v=0.65.0"></script>
+  <script src="/static/js/itsm/index.js?v=0.65.0"></script>
 </body>
 </html>
