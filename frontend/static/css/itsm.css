@@ -679,6 +679,28 @@
   overflow: auto;
 }
 
+.itsm-kb-body pre {
+  margin: 0.5rem 0;
+  padding: 0.5rem 0.65rem;
+  overflow: auto;
+  background: #eef2ff;
+  border-radius: 6px;
+  font-size: 0.9em;
+}
+
+.itsm-kb-body a {
+  color: var(--accent, #4f46e5);
+}
+
+.itsm-kb-preview-wrap {
+  margin-top: 0.35rem;
+}
+
+.itsm-kb-preview {
+  min-height: 4.5rem;
+  max-height: 220px;
+}
+
 .itsm-kb-suggest {
   list-style: none;
   margin: 0.35rem 0 0.75rem;

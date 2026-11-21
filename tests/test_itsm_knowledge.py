@@ -17,7 +17,7 @@ from tests.frontend_paths import FRONTEND_INDEX
 
 
 def test_version_bump_for_knowledge_slice() -> None:
-    assert __version__ == "0.47.0"
+    assert __version__ == "0.48.0"
 
 
 def test_knowledge_permissions_in_catalog() -> None:
@@ -228,11 +228,76 @@ def test_knowledge_tenant_isolation(
     assert own.json()["tenant_id"] == tenant_id
 
 
+def test_markdown_body_format_and_sanitize(
+    client: TestClient, auth_headers: dict[str, str], clean_db
+) -> None:
+    created = client.post(
+        "/api/itsm/knowledge/articles",
+        headers=auth_headers,
+        json=_article_payload(
+            title="Markdown guide",
+            body=(
+                "# Restart steps\n\n"
+                "1. Drain\n2. Restart\n\n"
+                "See [docs](https://example.com/runbook) and **verify**.\n\n"
+                "<script>alert('xss')</script>\n"
+                "[evil](javascript:alert(1))"
+            ),
+            body_format="markdown",
+        ),
+    )
+    assert created.status_code == 201, created.text
+    article = created.json()
+    assert article["body_format"] == "markdown"
+    html = article["body_html"]
+    assert "<h1>" in html
+    assert "<strong>verify</strong>" in html
+    assert 'href="https://example.com/runbook"' in html
+    assert "<script" not in html.lower()
+    assert 'href="javascript' not in html.lower()
+
+    plain = client.post(
+        "/api/itsm/knowledge/articles",
+        headers=auth_headers,
+        json=_article_payload(
+            title="Plain note",
+            body="Line one\nLine two <b>raw</b>",
+            body_format="plain",
+        ),
+    )
+    assert plain.status_code == 201, plain.text
+    phtml = plain.json()["body_html"]
+    assert "<br/>" in phtml
+    assert "&lt;b&gt;raw&lt;/b&gt;" in phtml
+
+    preview = client.post(
+        "/api/itsm/knowledge/articles/preview",
+        headers=auth_headers,
+        json={"body": "## Preview\n\n- item", "body_format": "markdown"},
+    )
+    assert preview.status_code == 200, preview.text
+    assert "<h2>" in preview.json()["body_html"]
+    assert "<li>" in preview.json()["body_html"]
+
+    article_id = article["article_id"]
+    get_itsm_database()["itsm_knowledge_articles"].update_one(
+        {"article_id": article_id},
+        {"$unset": {"body_format": ""}},
+    )
+    fetched = client.get(
+        f"/api/itsm/knowledge/articles/{article_id}", headers=auth_headers
+    )
+    assert fetched.status_code == 200
+    assert fetched.json()["body_format"] == "plain"
+
+
 def test_frontend_knowledge_markers() -> None:
     html = FRONTEND_INDEX.read_text(encoding="utf-8")
-    assert 'content="0.47.0"' in html
+    assert 'content="0.48.0"' in html
     assert 'data-tab="itsm-knowledge"' in html
     assert 'id="tab-itsm-knowledge"' in html
-    assert "itsm/knowledge.js?v=0.47.0" in html
+    assert "itsm/knowledge.js?v=0.48.0" in html
     assert 'id="itsmKnowledgeModal"' in html
     assert 'id="itsmIncKbSuggest"' in html
+    assert 'id="itsmKbFieldFormat"' in html
+    assert 'id="itsmKbPreview"' in html

@@ -195,6 +195,8 @@
       const q = new URLSearchParams(params || {});
       return itsmGet(`/knowledge/articles/suggest?${q.toString()}`);
     },
+    previewKnowledgeBody: (payload) =>
+      itsmSend("/knowledge/articles/preview", "POST", payload),
     listNotifications: (params) => {
       const q = new URLSearchParams(params || {});
       return itsmGet(`/notifications?${q.toString()}`);

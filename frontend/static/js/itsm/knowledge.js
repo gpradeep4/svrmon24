@@ -51,6 +51,8 @@
     $("#itsmKbEditId").value = editDoc?.article_id || "";
     $("#itsmKbFieldTitle").value = editDoc?.title || "";
     $("#itsmKbFieldBody").value = editDoc?.body || "";
+    const fmt = $("#itsmKbFieldFormat");
+    if (fmt) fmt.value = editDoc?.body_format || "markdown";
     $("#itsmKbFieldCategory").value = editDoc?.category || "";
     $("#itsmKbFieldTags").value = (editDoc?.tags || []).join(", ");
     $("#itsmKbFieldIncidents").value = (editDoc?.related_incident_ids || []).join(", ");
@@ -59,6 +61,7 @@
       ", "
     );
     $("#itsmKbFieldTitle")?.focus();
+    refreshPreview();
   }
 
   function closeModal() {
@@ -149,14 +152,14 @@
       if (title) title.textContent = doc.number_display || doc.article_id;
       if (sub) sub.textContent = `${doc.status} · ${doc.category || "uncategorized"}`;
       if (detail) {
-        const bodyPreview = esc(String(doc.body || "").slice(0, 4000)).replace(
-          /\n/g,
-          "<br/>"
-        );
+        const fmtLabel = doc.body_format || "plain";
+        const bodyHtml =
+          doc.body_html ||
+          esc(String(doc.body || "").slice(0, 4000)).replace(/\n/g, "<br/>");
         detail.innerHTML = `
           <p><strong>${esc(doc.title)}</strong></p>
-          <p class="hint">Tags: ${esc((doc.tags || []).join(", ") || "—")}</p>
-          <div class="itsm-kb-body">${bodyPreview || "<span class='hint'>No body</span>"}</div>
+          <p class="hint">Format: ${esc(fmtLabel)} · Tags: ${esc((doc.tags || []).join(", ") || "—")}</p>
+          <div class="itsm-kb-body">${bodyHtml || "<span class='hint'>No body</span>"}</div>
           <p class="hint">Created ${esc(fmtWhen(doc.created_at))} · Updated ${esc(fmtWhen(doc.updated_at))}</p>
           <p class="hint">Published ${esc(fmtWhen(doc.published_at))} · Retired ${esc(fmtWhen(doc.retired_at))}</p>
         `;
@@ -296,12 +299,37 @@
     return {
       title: $("#itsmKbFieldTitle")?.value?.trim() || "",
       body: $("#itsmKbFieldBody")?.value?.trim() || "",
+      body_format: $("#itsmKbFieldFormat")?.value || "plain",
       category: $("#itsmKbFieldCategory")?.value?.trim() || null,
       tags: splitCsv($("#itsmKbFieldTags")?.value),
       related_incident_ids: splitCsv($("#itsmKbFieldIncidents")?.value),
       related_problem_ids: splitCsv($("#itsmKbFieldProblems")?.value),
       related_component_ids: splitCsv($("#itsmKbFieldComponents")?.value),
     };
+  }
+
+  let previewTimer = null;
+
+  async function refreshPreview() {
+    const pane = $("#itsmKbPreview");
+    if (!pane) return;
+    const body = $("#itsmKbFieldBody")?.value || "";
+    const body_format = $("#itsmKbFieldFormat")?.value || "plain";
+    if (!body.trim()) {
+      pane.innerHTML = `<span class="hint">Nothing to preview yet.</span>`;
+      return;
+    }
+    try {
+      const data = await SVRMON24ItsmApi.previewKnowledgeBody({ body, body_format });
+      pane.innerHTML = data.body_html || `<span class="hint">Empty preview</span>`;
+    } catch (err) {
+      pane.innerHTML = `<span class="hint">${esc(err.message || "Preview failed")}</span>`;
+    }
+  }
+
+  function schedulePreview() {
+    if (previewTimer) window.clearTimeout(previewTimer);
+    previewTimer = window.setTimeout(() => refreshPreview(), 400);
   }
 
   function initItsmKnowledge(options) {
@@ -313,6 +341,9 @@
     $("#btnCloseItsmKbDrawer")?.addEventListener("click", () => closeDrawer());
     $("#btnCloseItsmKnowledgeModal")?.addEventListener("click", () => closeModal());
     $("#btnCancelItsmKnowledge")?.addEventListener("click", () => closeModal());
+    $("#btnItsmKbPreview")?.addEventListener("click", () => refreshPreview());
+    $("#itsmKbFieldBody")?.addEventListener("input", () => schedulePreview());
+    $("#itsmKbFieldFormat")?.addEventListener("change", () => refreshPreview());
 
     ["itsmKbSearch", "itsmKbStatus", "itsmKbCategory", "itsmKbTag"].forEach((id) => {
       $(`#${id}`)?.addEventListener("change", () => loadArticles());
