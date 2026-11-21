@@ -9,7 +9,7 @@ from fastapi.testclient import TestClient
 
 
 def test_version_bump_for_cmdb_db_rename() -> None:
-    assert __version__ == "0.43.0"
+    assert __version__ == "0.44.0"
 
 
 def test_cmdb_default_database_is_svrmon_cmdb(monkeypatch) -> None:
@@ -45,6 +45,30 @@ def test_precutover_name_still_honored_via_mongodb_db(monkeypatch) -> None:
     get_settings.cache_clear()
     settings = Settings(_env_file=None)
     assert settings.cmdb_database_name == "svrmon24"
+    get_settings.cache_clear()
+
+
+def test_blank_mongodb_cmdb_db_falls_through_to_mongodb_db(monkeypatch) -> None:
+    """Whitespace / empty ``MONGODB_CMDB_DB`` must not override ``MONGODB_DB``."""
+    monkeypatch.setenv("MONGODB_DB", "svrmon24")
+    monkeypatch.setenv("MONGODB_CMDB_DB", "   ")
+    get_settings.cache_clear()
+    settings = Settings(_env_file=None)
+    assert settings.cmdb_database_name == "svrmon24"
+    get_settings.cache_clear()
+
+
+def test_get_database_uses_resolved_cmdb_name(monkeypatch) -> None:
+    """``get_database()`` opens the resolved CMDB name, not a hard-coded string."""
+    monkeypatch.setenv("MONGODB_DB", "legacy-ignored")
+    monkeypatch.setenv("MONGODB_CMDB_DB", "explicit-cmdb-handle")
+    monkeypatch.setenv("MONGODB_ITSM_DB", "explicit-itsm-handle")
+    get_settings.cache_clear()
+    reset_client_for_tests()
+    settings = Settings(_env_file=None)
+    assert get_database(settings).name == "explicit-cmdb-handle"
+    assert get_itsm_database(settings).name == "explicit-itsm-handle"
+    reset_client_for_tests()
     get_settings.cache_clear()
 
 
@@ -109,4 +133,4 @@ def test_api_status_exposes_cmdb_and_itsm_names(
     assert "cmdb_database" in mongo
     assert "itsm_database" in mongo
     assert mongo["cmdb_database"] != mongo["itsm_database"]
-    assert payload.get("version") == "0.43.0"
+    assert payload.get("version") == "0.44.0"

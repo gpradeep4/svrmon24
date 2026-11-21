@@ -133,7 +133,7 @@ def test_analyze_falls_back_when_ollama_disabled(
     clean_db,
 ) -> None:
     diag_id = _seed_and_run_diag(client, auth_headers, cid="srv-ollama-off")
-    with patch("app.services.ai_analysis.analyze_with_ollama") as mocked:
+    with patch("app.cmdb.services.ai_analysis.analyze_with_ollama") as mocked:
         response = client.post(
             f"/api/diagnostics/{diag_id}/analyze",
             headers=auth_headers,
@@ -158,7 +158,7 @@ def test_analyze_falls_back_when_entitlement_limited(
         patch(
             "app.services.entitlements.ollama_analysis_limit", return_value=0
         ),
-        patch("app.services.ai_analysis.analyze_with_ollama") as mocked,
+        patch("app.cmdb.services.ai_analysis.analyze_with_ollama") as mocked,
     ):
         response = client.post(
             f"/api/diagnostics/{diag_id}/analyze",
@@ -204,7 +204,7 @@ def test_force_fallback_skips_ollama_even_when_enabled(
     clean_db,
 ) -> None:
     diag_id = _seed_and_run_diag(client, auth_headers, cid="srv-ollama-force")
-    with patch("app.services.ai_analysis.analyze_with_ollama") as mocked:
+    with patch("app.cmdb.services.ai_analysis.analyze_with_ollama") as mocked:
         response = client.post(
             f"/api/diagnostics/{diag_id}/analyze",
             headers=auth_headers,

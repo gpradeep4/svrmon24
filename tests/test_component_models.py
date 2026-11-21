@@ -5,7 +5,7 @@ from __future__ import annotations
 import pytest
 from pydantic import ValidationError
 
-from app.models.components import (
+from app.cmdb.models.components import (
     ComponentCreate,
     ComponentType,
     ComponentUpdate,

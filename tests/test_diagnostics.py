@@ -6,9 +6,9 @@ from fastapi.testclient import TestClient
 from pydantic import ValidationError
 import pytest
 
-from app.diagnostics.profiles import BASIC_HEALTH_PROFILE, get_profile, list_profiles
-from app.diagnostics.simulator import generate_check_result
-from app.models.diagnostics import DiagnosticStartRequest
+from app.cmdb.diagnostics.profiles import BASIC_HEALTH_PROFILE, get_profile, list_profiles
+from app.cmdb.diagnostics.simulator import generate_check_result
+from app.cmdb.models.diagnostics import DiagnosticStartRequest
 from app.serialization import serialize_document
 
 

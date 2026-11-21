@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from ...services import components as components_service
+from ...cmdb.services import components as components_service
 from ..models.common import CiLink
 
 

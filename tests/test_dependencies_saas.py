@@ -12,7 +12,7 @@ from unittest.mock import patch
 import pytest
 from fastapi.testclient import TestClient
 
-from app.services.dependencies import IMPACT_DISCLAIMER
+from app.cmdb.services.dependencies import IMPACT_DISCLAIMER
 from app.tenancy import MIGRATION_TENANT_ID
 
 OTHER_TENANT_ID = "tenant-dep-saas-other"

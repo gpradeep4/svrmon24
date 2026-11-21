@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from fastapi.testclient import TestClient
 
-from app.models.custom_fields import BUILTIN_FIELD_KEYS
+from app.cmdb.models.custom_fields import BUILTIN_FIELD_KEYS
 from app.tenancy import MIGRATION_TENANT_ID
 
 
@@ -187,7 +187,7 @@ def test_migrate_legacy_custom_field_definitions(clean_db) -> None:
 
     from app.db import get_database
     from app.services.bootstrap import ensure_tenancy_ready
-    from app.services.field_defs_migrate import migrate_custom_fields_to_cmdb
+    from app.cmdb.services.field_defs_migrate import migrate_custom_fields_to_cmdb
     from app.services import tenants as tenants_service
 
     tenants_service.ensure_migration_tenant()

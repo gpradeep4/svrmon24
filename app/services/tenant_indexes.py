@@ -42,7 +42,7 @@ from ..tenancy import (
     TENANTED_COLLECTIONS,
     TYPED_CMDB_COLLECTIONS,
 )
-from .cmdb_collections import ensure_typed_cmdb_indexes
+from ..cmdb.services.cmdb_collections import ensure_typed_cmdb_indexes
 
 
 def ensure_tenant_id_indexes(db: Database) -> dict[str, list[str]]:

@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from app.services.relationships import relationship_delete_warning
+from app.cmdb.services.relationships import relationship_delete_warning
 from app.tenancy import MIGRATION_TENANT_ID
 
 

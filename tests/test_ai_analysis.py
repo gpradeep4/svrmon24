@@ -7,7 +7,7 @@ from unittest.mock import MagicMock, patch
 import httpx
 from fastapi.testclient import TestClient
 
-from app.services.ai_analysis import build_rule_based_fallback
+from app.cmdb.services.ai_analysis import build_rule_based_fallback
 from app.services.ollama_client import OllamaClient, OllamaError, extract_json_from_text
 
 
@@ -80,7 +80,7 @@ def test_analyze_endpoint_uses_fallback_when_ollama_unavailable(
     client: TestClient, auth_headers: dict[str, str], clean_db
 ) -> None:
     diag_id = _seed_and_run_diag(client, auth_headers)
-    with patch("app.services.ai_analysis.analyze_with_ollama") as mocked:
+    with patch("app.cmdb.services.ai_analysis.analyze_with_ollama") as mocked:
         mocked.side_effect = OllamaError("down", kind="unavailable")
         response = client.post(
             f"/api/diagnostics/{diag_id}/analyze",
@@ -188,7 +188,7 @@ def test_force_fallback_skips_ollama(
     client: TestClient, auth_headers: dict[str, str], clean_db
 ) -> None:
     diag_id = _seed_and_run_diag(client, auth_headers)
-    with patch("app.services.ai_analysis.analyze_with_ollama") as mocked:
+    with patch("app.cmdb.services.ai_analysis.analyze_with_ollama") as mocked:
         response = client.post(
             f"/api/diagnostics/{diag_id}/analyze",
             headers=auth_headers,

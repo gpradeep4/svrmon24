@@ -157,8 +157,8 @@ def test_list_unions_typed_collections(
 def test_migrate_legacy_components_to_typed(clean_db) -> None:
     from app.db import get_database
     from app.services.bootstrap import ensure_tenancy_ready
-    from app.services.cmdb_migrate import migrate_components_to_typed
-    from app.services import components as components_service
+    from app.cmdb.services.cmdb_migrate import migrate_components_to_typed
+    from app.cmdb.services import components as components_service
 
     ensure_tenancy_ready()
     db = get_database()

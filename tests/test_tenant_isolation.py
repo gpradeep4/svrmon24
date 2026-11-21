@@ -303,8 +303,8 @@ def test_me_and_tenants_report_isolation_on(
 
 
 def test_service_layer_scopes_queries(clean_db, other_tenant_docs) -> None:
-    from app.services import components as components_service
-    from app.services import dashboard as dashboard_service
+    from app.cmdb.services import components as components_service
+    from app.cmdb.services import dashboard as dashboard_service
 
     assert (
         components_service.get_component(

@@ -5,7 +5,7 @@ from __future__ import annotations
 import pytest
 from pydantic import ValidationError
 
-from app.models.relationships import (
+from app.cmdb.models.relationships import (
     RelationshipCreate,
     RelationshipType,
     to_relationship_row,

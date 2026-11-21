@@ -4,9 +4,9 @@ AI-assisted infrastructure CMDB, dependency mapping, **SIMULATED** diagnostics, 
 
 Stack: **FastAPI + Uvicorn + MongoDB (PyMongo) + provider-neutral OIDC** (HTTP Basic optional via feature flag). Diagnostics never contact remote hosts and never execute shell/SQL/network scans. File Monitoring v1 is demo-only (no live filesystem watching).
 
-## Features (through CMDB package move / 0.43.0)
+## Features (through CMDB shim removal / 0.44.0)
 
-CMDB domain code (inventory, relationships, diagnostics, file monitoring, and related routers, services, and models) lives in `app/cmdb`. The previous `app.routers` / `app.services` / `app.models` / `app.diagnostics` import paths re-export that code. HTTP API paths are unchanged.
+CMDB domain code (inventory, relationships, diagnostics, file monitoring, and related routers, services, and models) lives in `app/cmdb`. Import from `app.cmdb.*` only — historical compatibility shims were removed in 0.44.0. HTTP API paths are unchanged.
 
 | Area | Capability |
 | --- | --- |
@@ -107,6 +107,8 @@ Copy `.env.example` → `.env` (never commit `.env`). Placeholders only in the e
 | `MONGODB_URI` / `MONGODB_DB` | MongoDB URI + CMDB DB name | `svrmon-cmdb` |
 | `MONGODB_CMDB_DB` | Optional explicit CMDB DB override (else `MONGODB_DB`) | unset |
 | `MONGODB_ITSM_DB` | Dedicated ITSM database | `svrmon-itsm` |
+
+**CMDB DB cutover (ops only):** the app never auto-renames or wipes data. Greenfield defaults to `svrmon-cmdb`. Existing deploys whose data is still in `svrmon24` can either (1) set `MONGODB_DB=svrmon24` (leave `MONGODB_CMDB_DB` unset) until ready, or (2) `mongodump`/`mongorestore` (or admin rename) `svrmon24` → `svrmon-cmdb`, set `MONGODB_DB=svrmon-cmdb`, restart, and smoke CMDB + `/api/status`.
 | `APP_HOST` / `APP_PORT` | Bind address | `0.0.0.0:8200` |
 | `SERVE_STATIC` | Serve `frontend/` from Uvicorn (`false` = API-only) | `true` |
 | `CORS_ORIGINS` | Comma-separated browser origins (split cross-origin) | empty |
@@ -404,15 +406,16 @@ Relationship ID | Source | Source Table | Target | Target Table | Type | **Proto
 ```
 svrmon24/
   app/                 # FastAPI application
-    diagnostics/       # Simulated profiles + generator
-    models/            # Pydantic models (incl. tenants)
-    routers/           # HTTP routers (OIDC + tenants/memberships)
-    services/          # Business logic (CMDB, deps, AI, tenancy)
-  frontend/            # Deployable dashboard UI (HTML/CSS/JS); nginx.conf for split deploy
+    cmdb/              # CMDB domain (routers, services, models, diagnostics)
+    itsm/              # ITSM domain (separate MongoDB DB)
+    models/            # Platform models (tenants)
+    routers/           # Platform HTTP routers (OIDC + tenants/memberships)
+    services/          # Platform services (bootstrap, users, entitlements, Ollama)
     auth.py            # Unified OIDC session + Basic flag
     oidc.py            # Discovery / PKCE / token validation
     tenancy.py         # Migration tenant constants + scoping helpers
     tenant_context.py  # Resolve current tenant from membership / Basic
+  frontend/            # Deployable dashboard UI (HTML/CSS/JS); nginx.conf for split deploy
   scripts/             # Demo seed, tenant backfill, platform-admin CLI, migration dry-run
   docs/                # Migration dry-run + release hardening
   tests/               # Pytest suite (incl. Phase 14 audit/security)

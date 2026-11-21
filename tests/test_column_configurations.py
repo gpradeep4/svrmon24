@@ -6,7 +6,7 @@ from datetime import datetime, timezone
 
 from fastapi.testclient import TestClient
 
-from app.models.column_configs import (
+from app.cmdb.models.column_configs import (
     LOCKED_INVENTORY_COLUMNS,
     LOCKED_RELATIONSHIP_COLUMNS,
 )
