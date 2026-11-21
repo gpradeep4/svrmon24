@@ -3649,6 +3649,86 @@
     }
   }
 
+  async function narrateImpactAssist() {
+    const componentId = $("#depComponentId").value.trim();
+    const out = $("#depAiAssist");
+    if (!componentId) {
+      toast("Enter an entity ID first", true);
+      return;
+    }
+    try {
+      const depth = Number($("#depDepth").value || 5);
+      const body = {
+        component_id: componentId,
+        depth,
+        force_fallback: false,
+      };
+      const env = $("#depEnv").value.trim();
+      const status = $("#depStatus").value;
+      const table = ($("#depTable")?.value || "").trim();
+      if (env) body.environment = env;
+      if (status) body.status = status;
+      if (table) body.table = table;
+      const result = await api("/api/dependencies/ai/impact-narrative", {
+        method: "POST",
+        body: JSON.stringify(body),
+      });
+      const apps = (result.ranked_affected_apps || [])
+        .slice(0, 5)
+        .map((a) => a.component_id)
+        .join(", ");
+      if (out) {
+        out.innerHTML =
+          `<strong>Impact narrative (${escapeHtml(result.source || "assist")}):</strong> ` +
+          `${escapeHtml(result.executive_narrative || "")}` +
+          (apps
+            ? `<br/><span class="hint">Cited apps: ${escapeHtml(apps)}</span>`
+            : "") +
+          `<br/><span class="hint">${escapeHtml(result.disclaimer || "")}</span>`;
+      }
+      toast("Impact narrative ready (assist only)");
+    } catch (err) {
+      if (out) out.textContent = "";
+      toast(err.message || "Narrative failed", true);
+    }
+  }
+
+  async function changeRiskAssist() {
+    const componentId = $("#depComponentId").value.trim();
+    const out = $("#depAiAssist");
+    if (!componentId) {
+      toast("Enter an entity ID first", true);
+      return;
+    }
+    try {
+      const depth = Number($("#depDepth").value || 5);
+      const result = await api("/api/dependencies/ai/change-risk", {
+        method: "POST",
+        body: JSON.stringify({
+          component_ids: [componentId],
+          depth,
+          force_fallback: false,
+        }),
+      });
+      const checks = (result.checklist || [])
+        .slice(0, 4)
+        .map((c) => escapeHtml(c))
+        .join("; ");
+      if (out) {
+        out.innerHTML =
+          `<strong>Change risk (${escapeHtml(result.source || "assist")}):</strong> ` +
+          `band <code>${escapeHtml(result.risk_band || "—")}</code> — ` +
+          `${escapeHtml(result.narrative || "")}` +
+          (checks ? `<br/><span class="hint">Checklist: ${checks}</span>` : "") +
+          `<br/><span class="hint">${escapeHtml(result.disclaimer || "")}</span>`;
+      }
+      toast(`Change risk: ${result.risk_band || "n/a"} (assist only)`);
+    } catch (err) {
+      if (out) out.textContent = "";
+      toast(err.message || "Change risk failed", true);
+    }
+  }
+
   async function refreshComponentIdList() {
     const data = await api("/api/components?page=1&page_size=200");
     state.componentIds = (data.items || []).map((c) => c.component_id);
@@ -5286,6 +5366,12 @@
     });
     $("#btnAnalyzeDeps").addEventListener("click", async () => {
       try { await analyzeDependencies(); } catch (err) { toast(err.message, true); }
+    });
+    $("#btnImpactNarrative")?.addEventListener("click", () => {
+      narrateImpactAssist().catch((err) => toast(err.message, true));
+    });
+    $("#btnChangeRisk")?.addEventListener("click", () => {
+      changeRiskAssist().catch((err) => toast(err.message, true));
     });
     $("#btnRunDiag").addEventListener("click", async () => {
       try { await runDiagnostic(); } catch (err) { toast(err.message, true); }

@@ -1,6 +1,6 @@
-"""CMDB AI assists — CI classification (C1) and relationship suggestions (C2).
+"""CMDB AI assists — classification, relationships, impact narrative, change risk.
 
-Assist / suggestion only. Apply writes go through normal create/update APIs.
+C1–C4 assist / suggestion only. Apply writes go through normal create/update APIs.
 Uses the shared AI facade (cloud → Ollama → rule). Rule fallbacks always work.
 """
 
@@ -16,6 +16,8 @@ from ...tenancy import require_tenant_id
 from ..models.components import COMPONENT_TYPES, TYPE_SPECIFIC_KEYS, ComponentType
 from ..models.relationships import RELATIONSHIP_TYPE_DOCS, RelationshipType
 from . import components as components_service
+from . import dependencies as dependencies_service
+from .dependencies import IMPACT_DISCLAIMER, DependencyError
 
 logger = logging.getLogger(__name__)
 
@@ -617,5 +619,474 @@ def suggest_relationships(
     if isinstance(payload, dict) and (
         payload.get("pair_suggestion") is not None or payload.get("neighbor_suggestions")
     ):
+        return payload
+    return _fallback(result.fallback_reason or "rule_based_fallback")
+
+
+# ---------------------------------------------------------------------------
+# C3 Impact narrative + C4 change-risk helper
+# ---------------------------------------------------------------------------
+
+
+def _impact_known_ids(impact: dict[str, Any]) -> set[str]:
+    known: set[str] = set()
+    selected = impact.get("selected") or {}
+    if selected.get("component_id"):
+        known.add(str(selected["component_id"]))
+    for app in impact.get("potentially_affected_applications") or []:
+        comp = app.get("component") if isinstance(app, dict) else None
+        if isinstance(comp, dict) and comp.get("component_id"):
+            known.add(str(comp["component_id"]))
+    downstream = impact.get("downstream") or {}
+    for node in downstream.get("nodes") or []:
+        if isinstance(node, dict) and node.get("component_id"):
+            known.add(str(node["component_id"]))
+    return known
+
+
+def _rank_apps(impact: dict[str, Any], *, limit: int = 10) -> list[dict[str, Any]]:
+    apps: list[dict[str, Any]] = []
+    for app in impact.get("potentially_affected_applications") or []:
+        if not isinstance(app, dict):
+            continue
+        comp = app.get("component") or {}
+        cid = comp.get("component_id")
+        if not cid:
+            continue
+        apps.append(
+            {
+                "component_id": str(cid),
+                "name": comp.get("name"),
+                "environment": comp.get("environment"),
+                "depth": app.get("depth"),
+                "direct_or_indirect": app.get("direct_or_indirect"),
+            }
+        )
+    return apps[:limit]
+
+
+def build_impact_narrative_fallback(
+    impact: dict[str, Any], *, reason: str
+) -> dict[str, Any]:
+    """Template narrative from graph counts only — never invents IDs."""
+    selected = impact.get("selected") or {}
+    cid = selected.get("component_id") or "unknown"
+    apps = _rank_apps(impact)
+    counts = impact.get("counts") or {}
+    app_n = int(counts.get("potentially_affected_applications") or len(apps))
+    node_n = int(counts.get("nodes") or 0)
+    edge_n = int(counts.get("edges") or 0)
+    lines = [
+        f"Selected component {cid} has a downstream graph of {node_n} nodes "
+        f"and {edge_n} edges (relationship data only).",
+        f"{app_n} application(s) are listed as potentially affected if this "
+        "component becomes unavailable.",
+    ]
+    if apps:
+        top = ", ".join(a["component_id"] for a in apps[:5])
+        lines.append(f"Top potentially affected application ids: {top}.")
+    else:
+        lines.append("No Application-typed nodes appear in the impact result.")
+    lines.append(
+        "This does not mean any dependant is currently down or degraded."
+    )
+    return {
+        "source": SOURCE_RULE,
+        "fallback_reason": reason,
+        "model": None,
+        "executive_narrative": " ".join(lines),
+        "ranked_affected_apps": apps,
+        "cited_component_ids": sorted(_impact_known_ids(impact)),
+        "uncertainty": (
+            "Rule template uses only analyze_impact counts and listed application ids."
+        ),
+        "disclaimer": IMPACT_DISCLAIMER,
+        "safety": {
+            "assist_only": True,
+            "invented_ids_forbidden": True,
+            "potential_impact_not_outage": True,
+        },
+    }
+
+
+def _filter_cited_ids(raw_ids: Any, known: set[str]) -> list[str]:
+    if not isinstance(raw_ids, list):
+        return sorted(known)
+    out: list[str] = []
+    for item in raw_ids:
+        cid = str(item).strip()
+        if cid and cid in known and cid not in out:
+            out.append(cid)
+    return out or sorted(known)
+
+
+def _normalize_impact_narrative(
+    raw: dict[str, Any],
+    *,
+    impact: dict[str, Any],
+    source: str,
+    model: str | None,
+    fallback_reason: str | None = None,
+) -> dict[str, Any]:
+    known = _impact_known_ids(impact)
+    apps = _rank_apps(impact)
+    # Drop any ranked apps whose ids are not in the graph result.
+    ranked_raw = raw.get("ranked_affected_apps")
+    ranked: list[dict[str, Any]] = []
+    if isinstance(ranked_raw, list):
+        by_id = {a["component_id"]: a for a in apps}
+        for item in ranked_raw:
+            if not isinstance(item, dict):
+                continue
+            cid = str(item.get("component_id") or "").strip()
+            if cid in by_id:
+                ranked.append({**by_id[cid], **{k: v for k, v in item.items() if k != "component_id"}, "component_id": cid})
+    if not ranked:
+        ranked = apps
+    cited = _filter_cited_ids(raw.get("cited_component_ids"), known)
+    narrative = str(raw.get("executive_narrative") or "").strip()
+    if not narrative:
+        narrative = build_impact_narrative_fallback(
+            impact, reason="empty_model_narrative"
+        )["executive_narrative"]
+    # Strip invented ids mentioned in narrative? Post-validate by ensuring
+    # cited list is authoritative for UI; narrative is advisory.
+    out: dict[str, Any] = {
+        "source": source,
+        "model": model,
+        "executive_narrative": narrative,
+        "ranked_affected_apps": ranked,
+        "cited_component_ids": cited,
+        "uncertainty": str(raw.get("uncertainty") or "").strip()
+        or "Model output constrained to graph-derived component ids.",
+        "disclaimer": IMPACT_DISCLAIMER,
+        "safety": {
+            "assist_only": True,
+            "invented_ids_forbidden": True,
+            "potential_impact_not_outage": True,
+        },
+    }
+    if fallback_reason:
+        out["fallback_reason"] = fallback_reason
+    return out
+
+
+def _validate_impact_json(raw: dict[str, Any]) -> None:
+    if "executive_narrative" not in raw:
+        raise ValueError("impact narrative JSON missing executive_narrative")
+
+
+def narrate_impact(
+    component_id: str,
+    *,
+    tenant_id: str,
+    depth: int = 10,
+    environment: str | None = None,
+    status: str | None = None,
+    table: str | None = None,
+    force_fallback: bool = False,
+) -> dict[str, Any]:
+    """Narrate existing analyze_impact output (assist only)."""
+    tid = require_tenant_id(tenant_id)
+    try:
+        impact = dependencies_service.analyze_impact(
+            component_id,
+            tenant_id=tid,
+            depth=depth,
+            environment=environment,
+            status=status,
+            table=table,
+        )
+    except DependencyError:
+        raise
+
+    def _fallback(reason: str) -> dict[str, Any]:
+        return build_impact_narrative_fallback(impact, reason=reason)
+
+    # Cap prompt size — structured summary only.
+    prompt_impact = {
+        "selected": impact.get("selected"),
+        "disclaimer": impact.get("disclaimer"),
+        "counts": impact.get("counts"),
+        "potentially_affected_applications": [
+            {
+                "component_id": (a.get("component") or {}).get("component_id"),
+                "name": (a.get("component") or {}).get("name"),
+                "depth": a.get("depth"),
+                "direct_or_indirect": a.get("direct_or_indirect"),
+            }
+            for a in (impact.get("potentially_affected_applications") or [])[:20]
+            if isinstance(a, dict)
+        ],
+        "known_component_ids": sorted(_impact_known_ids(impact)),
+    }
+    system = (
+        "You are a CMDB impact narrator for SVRMON24. "
+        "Respond with a single JSON object only. "
+        "Narrate ONLY the provided impact graph. Never invent component_ids. "
+        "Never claim any application is currently down — impact is potential only. "
+        "cited_component_ids must be a subset of known_component_ids. "
+        "Required keys: executive_narrative (string), ranked_affected_apps "
+        "(array of objects with component_id), cited_component_ids (array of strings), "
+        "uncertainty (string)."
+    )
+    result = ai_facade_service.safe_run_structured_task(
+        task_key="cmdb.impact_narrative",
+        tenant_id=tid,
+        messages=[
+            {"role": "system", "content": system},
+            {
+                "role": "user",
+                "content": "Narrate this impact package as JSON:\n"
+                + json.dumps(prompt_impact, default=str),
+            },
+        ],
+        fallback_builder=_fallback,
+        validate_fn=_validate_impact_json,
+        force_fallback=force_fallback,
+        record_usage=True,
+    )
+    if result.source in {SOURCE_OLLAMA, SOURCE_CLOUD}:
+        return _normalize_impact_narrative(
+            result.payload, impact=impact, source=result.source, model=result.model
+        )
+    payload = result.payload
+    if isinstance(payload, dict) and payload.get("executive_narrative"):
+        return payload
+    return _fallback(result.fallback_reason or "rule_based_fallback")
+
+
+def _risk_band(app_n: int, node_n: int, change_type: str | None) -> str:
+    ct = (change_type or "").strip().lower()
+    score = app_n * 2 + max(0, node_n - 1)
+    if ct in {"emergency", "major"}:
+        score += 4
+    elif ct in {"standard", "normal"}:
+        score += 1
+    if score >= 10:
+        return "high"
+    if score >= 4:
+        return "medium"
+    return "low"
+
+
+def build_change_risk_fallback(
+    impact: dict[str, Any],
+    *,
+    change_type: str | None,
+    window_text: str | None,
+    reason: str,
+) -> dict[str, Any]:
+    apps = _rank_apps(impact)
+    counts = impact.get("counts") or {}
+    app_n = int(counts.get("potentially_affected_applications") or len(apps))
+    node_n = int(counts.get("nodes") or 0)
+    band = _risk_band(app_n, node_n, change_type)
+    selected = impact.get("selected") or {}
+    cid = selected.get("component_id") or "unknown"
+    checklist = [
+        "Confirm maintenance window with application owners of potentially affected apps.",
+        "Verify rollback plan before change start.",
+        "Re-check CMDB relationships if topology looks incomplete.",
+        "Do not treat potential impact as a current outage.",
+    ]
+    if window_text:
+        checklist.insert(0, f"Review stated window/notes: {str(window_text)[:200]}")
+    narrative = (
+        f"Change-risk assist for {cid}: risk band {band} based on "
+        f"{app_n} potentially affected application(s) and {node_n} graph nodes. "
+        f"Change type hint: {change_type or 'unspecified'}. "
+        "Derived from relationship graph counts only."
+    )
+    return {
+        "source": SOURCE_RULE,
+        "fallback_reason": reason,
+        "model": None,
+        "risk_band": band,
+        "narrative": narrative,
+        "checklist": checklist,
+        "evidence_paths": [
+            {
+                "component_id": a["component_id"],
+                "depth": a.get("depth"),
+                "direct_or_indirect": a.get("direct_or_indirect"),
+            }
+            for a in apps
+        ],
+        "cited_component_ids": sorted(_impact_known_ids(impact)),
+        "disclaimer": IMPACT_DISCLAIMER,
+        "safety": {
+            "assist_only": True,
+            "invented_ids_forbidden": True,
+            "no_auto_cab": True,
+            "potential_impact_not_outage": True,
+        },
+    }
+
+
+def _normalize_change_risk(
+    raw: dict[str, Any],
+    *,
+    impact: dict[str, Any],
+    source: str,
+    model: str | None,
+    fallback_reason: str | None = None,
+) -> dict[str, Any]:
+    known = _impact_known_ids(impact)
+    band = str(raw.get("risk_band") or "low").strip().lower()
+    if band not in {"low", "medium", "high"}:
+        band = "low"
+    checklist = raw.get("checklist") or []
+    if isinstance(checklist, str):
+        checklist = [checklist]
+    if not isinstance(checklist, list):
+        checklist = []
+    evidence = raw.get("evidence_paths") or []
+    filtered_evidence: list[dict[str, Any]] = []
+    if isinstance(evidence, list):
+        for item in evidence:
+            if not isinstance(item, dict):
+                continue
+            cid = str(item.get("component_id") or "").strip()
+            if cid in known:
+                filtered_evidence.append({"component_id": cid, **{
+                    k: v for k, v in item.items() if k != "component_id"
+                }})
+    if not filtered_evidence:
+        filtered_evidence = [
+            {"component_id": a["component_id"], "depth": a.get("depth")}
+            for a in _rank_apps(impact)
+        ]
+    out: dict[str, Any] = {
+        "source": source,
+        "model": model,
+        "risk_band": band,
+        "narrative": str(raw.get("narrative") or "").strip()
+        or build_change_risk_fallback(
+            impact, change_type=None, window_text=None, reason="empty_model"
+        )["narrative"],
+        "checklist": [str(c).strip() for c in checklist if str(c).strip()][:12],
+        "evidence_paths": filtered_evidence[:20],
+        "cited_component_ids": _filter_cited_ids(raw.get("cited_component_ids"), known),
+        "disclaimer": IMPACT_DISCLAIMER,
+        "safety": {
+            "assist_only": True,
+            "invented_ids_forbidden": True,
+            "no_auto_cab": True,
+            "potential_impact_not_outage": True,
+        },
+    }
+    if fallback_reason:
+        out["fallback_reason"] = fallback_reason
+    return out
+
+
+def _validate_change_risk_json(raw: dict[str, Any]) -> None:
+    if "risk_band" not in raw and "narrative" not in raw:
+        raise ValueError("change risk JSON missing risk_band/narrative")
+
+
+def suggest_change_risk(
+    component_ids: list[str],
+    *,
+    tenant_id: str,
+    change_type: str | None = None,
+    window_text: str | None = None,
+    depth: int = 10,
+    force_fallback: bool = False,
+) -> dict[str, Any]:
+    """CMDB-side change risk text for one or more CIs (assist only)."""
+    tid = require_tenant_id(tenant_id)
+    ids = [str(c).strip() for c in (component_ids or []) if str(c).strip()]
+    if not ids:
+        raise DependencyError("component_ids is required", status_code=422)
+
+    # Primary narrative from the first CI; merge app lists from others.
+    primary = dependencies_service.analyze_impact(
+        ids[0], tenant_id=tid, depth=depth
+    )
+    merged_apps = {
+        (a.get("component") or {}).get("component_id"): a
+        for a in (primary.get("potentially_affected_applications") or [])
+        if isinstance(a, dict) and (a.get("component") or {}).get("component_id")
+    }
+    for extra_id in ids[1:6]:
+        try:
+            extra = dependencies_service.analyze_impact(
+                extra_id, tenant_id=tid, depth=depth
+            )
+        except DependencyError:
+            continue
+        for a in extra.get("potentially_affected_applications") or []:
+            if not isinstance(a, dict):
+                continue
+            cid = (a.get("component") or {}).get("component_id")
+            if cid and cid not in merged_apps:
+                merged_apps[cid] = a
+    impact = {
+        **primary,
+        "potentially_affected_applications": list(merged_apps.values()),
+        "counts": {
+            **(primary.get("counts") or {}),
+            "potentially_affected_applications": len(merged_apps),
+        },
+        "selected_component_ids": ids,
+    }
+
+    def _fallback(reason: str) -> dict[str, Any]:
+        return build_change_risk_fallback(
+            impact,
+            change_type=change_type,
+            window_text=window_text,
+            reason=reason,
+        )
+
+    prompt = {
+        "component_ids": ids,
+        "change_type": change_type,
+        "window_text": (window_text or "")[:500],
+        "disclaimer": IMPACT_DISCLAIMER,
+        "counts": impact.get("counts"),
+        "potentially_affected_applications": [
+            {
+                "component_id": (a.get("component") or {}).get("component_id"),
+                "name": (a.get("component") or {}).get("name"),
+                "depth": a.get("depth"),
+            }
+            for a in list(merged_apps.values())[:20]
+        ],
+        "known_component_ids": sorted(_impact_known_ids(impact)),
+    }
+    system = (
+        "You are a CMDB change-risk assistant for SVRMON24. "
+        "Respond with a single JSON object only. "
+        "Use ONLY provided impact evidence. Never invent component_ids. "
+        "Risk is advisory for humans (CAB); never approve or schedule changes. "
+        "Required keys: risk_band (low|medium|high), narrative (string), "
+        "checklist (array of strings), evidence_paths (array of objects with "
+        "component_id), cited_component_ids (array of strings)."
+    )
+    result = ai_facade_service.safe_run_structured_task(
+        task_key="cmdb.change_risk",
+        tenant_id=tid,
+        messages=[
+            {"role": "system", "content": system},
+            {
+                "role": "user",
+                "content": "Produce change-risk assist JSON:\n"
+                + json.dumps(prompt, default=str),
+            },
+        ],
+        fallback_builder=_fallback,
+        validate_fn=_validate_change_risk_json,
+        force_fallback=force_fallback,
+        record_usage=True,
+    )
+    if result.source in {SOURCE_OLLAMA, SOURCE_CLOUD}:
+        return _normalize_change_risk(
+            result.payload, impact=impact, source=result.source, model=result.model
+        )
+    payload = result.payload
+    if isinstance(payload, dict) and payload.get("risk_band"):
         return payload
     return _fallback(result.fallback_reason or "rule_based_fallback")
