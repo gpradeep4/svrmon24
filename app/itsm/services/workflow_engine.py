@@ -126,29 +126,33 @@ def _apply_status_change(
     tenant_id: str,
     actor: dict[str, Any] | None,
 ) -> None:
-    if ticket_type == "incident":
-        incidents_service.transition_incident(
-            ticket_id,
-            IncidentTransition(status=status),  # type: ignore[arg-type]
-            tenant_id=tenant_id,
-            actor=actor,
-        )
-    elif ticket_type == "change":
-        changes_service.transition_change(
-            ticket_id,
-            ChangeTransition(status=status),  # type: ignore[arg-type]
-            tenant_id=tenant_id,
-            actor=actor,
-        )
-    elif ticket_type == "problem":
-        problems_service.transition_problem(
-            ticket_id,
-            ProblemTransition(status=status),  # type: ignore[arg-type]
-            tenant_id=tenant_id,
-            actor=actor,
-        )
-    else:
-        raise ExecutionError(f"Unsupported ticket_type '{ticket_type}'")
+    from .workflow_triggers import suppress_auto_triggers
+
+    # Engine-driven transitions must not re-fire on_status auto-triggers (loop guard).
+    with suppress_auto_triggers():
+        if ticket_type == "incident":
+            incidents_service.transition_incident(
+                ticket_id,
+                IncidentTransition(status=status),  # type: ignore[arg-type]
+                tenant_id=tenant_id,
+                actor=actor,
+            )
+        elif ticket_type == "change":
+            changes_service.transition_change(
+                ticket_id,
+                ChangeTransition(status=status),  # type: ignore[arg-type]
+                tenant_id=tenant_id,
+                actor=actor,
+            )
+        elif ticket_type == "problem":
+            problems_service.transition_problem(
+                ticket_id,
+                ProblemTransition(status=status),  # type: ignore[arg-type]
+                tenant_id=tenant_id,
+                actor=actor,
+            )
+        else:
+            raise ExecutionError(f"Unsupported ticket_type '{ticket_type}'")
 
 
 def get_execution(execution_id: str, *, tenant_id: str) -> dict[str, Any] | None:
