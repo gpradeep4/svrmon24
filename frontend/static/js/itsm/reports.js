@@ -460,6 +460,175 @@
     else if (del) deleteCustomReport(del);
   }
 
+  async function fillScheduleReportOptions(selectedId) {
+    const sel = document.getElementById("itsmReportScheduleReportId");
+    if (!sel) return;
+    try {
+      const data = await SVRMON24ItsmApi.listReportDefinitions({ page_size: "100" });
+      const items = data.items || [];
+      sel.innerHTML = items.length
+        ? items
+            .map(
+              (r) =>
+                `<option value="${escapeHtmlFn(r.report_id)}">${escapeHtmlFn(r.name)} (${escapeHtmlFn(r.report_id)})</option>`
+            )
+            .join("")
+        : `<option value="">No custom reports</option>`;
+      if (selectedId) sel.value = selectedId;
+    } catch (_) {
+      sel.innerHTML = `<option value="">Failed to load reports</option>`;
+    }
+  }
+
+  function showScheduleForm(doc) {
+    const form = document.getElementById("itsmReportScheduleForm");
+    if (!form) return;
+    form.hidden = false;
+    const title = document.getElementById("itsmReportScheduleFormTitle");
+    if (title) title.textContent = doc ? "Edit schedule" : "New schedule";
+    document.getElementById("itsmReportScheduleId").value = doc?.schedule_id || "";
+    document.getElementById("itsmReportScheduleName").value = doc?.name || "";
+    document.getElementById("itsmReportScheduleInterval").value = String(
+      doc?.interval_minutes || 1440
+    );
+    document.getElementById("itsmReportScheduleTz").value = doc?.timezone || "UTC";
+    document.getElementById("itsmReportScheduleFormat").value = doc?.format || "csv";
+    document.getElementById("itsmReportScheduleRecipients").value = (
+      doc?.recipients || []
+    ).join(", ");
+    document.getElementById("itsmReportScheduleActive").checked =
+      doc?.active !== false;
+    fillScheduleReportOptions(doc?.report_id);
+  }
+
+  async function loadReportSchedules() {
+    const body = document.getElementById("itsmReportScheduleBody");
+    const meta = document.getElementById("itsmReportScheduleListMeta");
+    if (!body) return;
+    try {
+      const data = await SVRMON24ItsmApi.listReportSchedules({ page_size: "50" });
+      const items = data.items || [];
+      if (meta) {
+        meta.textContent = `${data.total || 0} schedule(s) · tenant ${data.tenant_id || ""}`;
+      }
+      if (!items.length) {
+        body.innerHTML = `<tr><td colspan="6" class="hint">No schedules yet.</td></tr>`;
+        return;
+      }
+      const write = canWriteReports();
+      body.innerHTML = items
+        .map((row) => {
+          const id = escapeHtmlFn(row.schedule_id);
+          const next = row.next_run_at
+            ? String(row.next_run_at).replace("T", " ").slice(0, 19)
+            : "—";
+          const last = row.last_run_at
+            ? `${String(row.last_run_at).replace("T", " ").slice(0, 19)} (${escapeHtmlFn(row.last_status || "")})`
+            : "—";
+          const runBtn = write
+            ? `<button type="button" class="secondary itsm-mini-btn" data-sch-run="${id}">Run now</button>`
+            : "";
+          const editBtn = write
+            ? `<button type="button" class="secondary itsm-mini-btn" data-sch-edit="${id}">Edit</button>`
+            : "";
+          const delBtn = write
+            ? `<button type="button" class="secondary itsm-mini-btn" data-sch-del="${id}">Delete</button>`
+            : "";
+          const toggleBtn = write
+            ? `<button type="button" class="secondary itsm-mini-btn" data-sch-toggle="${id}" data-active="${row.active ? "1" : "0"}">${row.active ? "Disable" : "Enable"}</button>`
+            : "";
+          return `<tr>
+            <td><strong>${escapeHtmlFn(row.name || row.schedule_id)}</strong>
+              <div class="hint">${id} · ${row.active ? "active" : "inactive"}</div></td>
+            <td>${escapeHtmlFn(row.report_name || row.report_id)}</td>
+            <td>${escapeHtmlFn(String(row.interval_minutes))}m · ${escapeHtmlFn(row.format)}</td>
+            <td>${escapeHtmlFn((row.recipients || []).join(", "))}</td>
+            <td><div>${escapeHtmlFn(next)}</div><div class="hint">${last}</div></td>
+            <td class="itsm-report-actions">${runBtn}${toggleBtn}${editBtn}${delBtn}</td>
+          </tr>`;
+        })
+        .join("");
+    } catch (err) {
+      if (meta) meta.textContent = err.message || "Failed to load schedules";
+      body.innerHTML = `<tr><td colspan="6" class="hint">${escapeHtmlFn(err.message || "Failed")}</td></tr>`;
+    }
+  }
+
+  async function saveReportSchedule(ev) {
+    ev?.preventDefault?.();
+    if (!canWriteReports()) {
+      toast("Missing itsm:reports:write permission", true);
+      return;
+    }
+    try {
+      const recipients = String(
+        document.getElementById("itsmReportScheduleRecipients")?.value || ""
+      )
+        .split(",")
+        .map((s) => s.trim())
+        .filter(Boolean);
+      const payload = {
+        report_id: document.getElementById("itsmReportScheduleReportId")?.value,
+        name: document.getElementById("itsmReportScheduleName")?.value || null,
+        interval_minutes: Number(
+          document.getElementById("itsmReportScheduleInterval")?.value || 1440
+        ),
+        timezone: document.getElementById("itsmReportScheduleTz")?.value || "UTC",
+        format: document.getElementById("itsmReportScheduleFormat")?.value || "csv",
+        recipients,
+        channels: ["email"],
+        active: !!document.getElementById("itsmReportScheduleActive")?.checked,
+      };
+      const id = document.getElementById("itsmReportScheduleId")?.value;
+      if (id) {
+        const { report_id: _rid, ...patch } = payload;
+        await SVRMON24ItsmApi.updateReportSchedule(id, patch);
+        toast("Schedule updated");
+      } else {
+        await SVRMON24ItsmApi.createReportSchedule(payload);
+        toast("Schedule created");
+      }
+      const form = document.getElementById("itsmReportScheduleForm");
+      if (form) form.hidden = true;
+      await loadReportSchedules();
+    } catch (err) {
+      toast(err.message || "Save schedule failed", true);
+    }
+  }
+
+  async function onScheduleTableClick(ev) {
+    const btn = ev.target.closest(
+      "button[data-sch-run],button[data-sch-edit],button[data-sch-del],button[data-sch-toggle]"
+    );
+    if (!btn) return;
+    const run = btn.getAttribute("data-sch-run");
+    const edit = btn.getAttribute("data-sch-edit");
+    const del = btn.getAttribute("data-sch-del");
+    const toggle = btn.getAttribute("data-sch-toggle");
+    try {
+      if (run) {
+        const result = await SVRMON24ItsmApi.runReportSchedule(run);
+        toast(`Schedule run ${result.status || "done"}`);
+        await loadReportSchedules();
+      } else if (edit) {
+        const doc = await SVRMON24ItsmApi.getReportSchedule(edit);
+        showScheduleForm(doc);
+      } else if (del) {
+        if (!global.confirm(`Delete schedule ${del}?`)) return;
+        await SVRMON24ItsmApi.deleteReportSchedule(del);
+        toast("Schedule deleted");
+        await loadReportSchedules();
+      } else if (toggle) {
+        const active = btn.getAttribute("data-active") === "1";
+        await SVRMON24ItsmApi.updateReportSchedule(toggle, { active: !active });
+        toast(active ? "Schedule disabled" : "Schedule enabled");
+        await loadReportSchedules();
+      }
+    } catch (err) {
+      toast(err.message || "Schedule action failed", true);
+    }
+  }
+
   function initItsmReports({ toast: t, escapeHtml, can } = {}) {
     if (t) toastFn = t;
     if (escapeHtml) escapeHtmlFn = escapeHtml;
@@ -487,12 +656,25 @@
     });
     document.getElementById("itsmCustomReportForm")?.addEventListener("submit", saveCustomReport);
     document.getElementById("itsmCustomReportTable")?.addEventListener("click", onCustomTableClick);
+    document.getElementById("btnRefreshItsmReportSchedules")?.addEventListener("click", () => {
+      loadReportSchedules();
+    });
+    document.getElementById("btnNewItsmReportSchedule")?.addEventListener("click", () => {
+      showScheduleForm(null);
+    });
+    document.getElementById("btnCancelItsmReportSchedule")?.addEventListener("click", () => {
+      const form = document.getElementById("itsmReportScheduleForm");
+      if (form) form.hidden = true;
+    });
+    document.getElementById("itsmReportScheduleForm")?.addEventListener("submit", saveReportSchedule);
+    document.getElementById("itsmReportScheduleTable")?.addEventListener("click", onScheduleTableClick);
     applyWriteGates();
   }
 
   global.SVRMON24ItsmReports = {
     loadItsmReports,
     loadCustomReports,
+    loadReportSchedules,
     initItsmReports,
     applyWriteGates,
   };

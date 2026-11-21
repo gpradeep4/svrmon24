@@ -87,6 +87,7 @@ class SmtpEmailProvider:
         subject: str,
         body: str,
         channel_config: dict[str, Any],
+        attachments: list[dict[str, Any]] | None = None,
     ) -> DeliveryResult:
         to_addr = (recipient_address or "").strip()
         if not to_addr or "@" not in to_addr:
@@ -125,6 +126,23 @@ class SmtpEmailProvider:
         msg["From"] = from_addr
         msg["To"] = to_addr
         msg.set_content(body[:4000] or subject)
+        for att in attachments or []:
+            raw = att.get("content")
+            if raw is None:
+                continue
+            if isinstance(raw, str):
+                raw_bytes = raw.encode("utf-8")
+            else:
+                raw_bytes = bytes(raw)
+            filename = str(att.get("filename") or "attachment.bin")[:200]
+            maintype = str(att.get("maintype") or "application")
+            subtype = str(att.get("subtype") or "octet-stream")
+            msg.add_attachment(
+                raw_bytes,
+                maintype=maintype,
+                subtype=subtype,
+                filename=filename,
+            )
 
         try:
             self._send_fn(

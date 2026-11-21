@@ -206,18 +206,26 @@ def retry_notification_deliveries(
     }
 
 
+def run_report_schedules(
+    *,
+    tenant_id: str | None = None,
+    force_schedule_id: str | None = None,
+) -> dict[str, Any]:
+    """Run due report schedules (N3) — export + email via N1 channels."""
+    from . import report_schedules as schedule_service
+
+    return schedule_service.run_due_schedules(
+        tenant_id=tenant_id,
+        force_schedule_id=force_schedule_id,
+    )
+
+
+# Back-compat alias used by older N2 tests / docs.
 def run_report_schedules_placeholder(
     *,
     tenant_id: str | None = None,
 ) -> dict[str, Any]:
-    """Placeholder for N3 scheduled report delivery."""
-    return {
-        "job": JOB_REPORT_SCHEDULES,
-        "ran": 0,
-        "placeholder": True,
-        "tenant_filter": tenant_id,
-        "detail": "Report schedule runner lands in N3",
-    }
+    return run_report_schedules(tenant_id=tenant_id)
 
 
 def _record_run(job_name: str, result: dict[str, Any], *, holder: str) -> dict[str, Any]:
@@ -273,7 +281,7 @@ def run_tick(
                     tenant_id=tenant_id, settings=cfg
                 )
             else:
-                result = run_report_schedules_placeholder(tenant_id=tenant_id)
+                result = run_report_schedules(tenant_id=tenant_id)
             _record_run(job_name, result, holder=holder)
             outcomes[job_name] = result
         except Exception as exc:  # noqa: BLE001 — tick must continue other jobs

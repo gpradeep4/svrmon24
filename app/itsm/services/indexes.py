@@ -27,6 +27,8 @@ NOTIFICATION_DELIVERIES = "itsm_notification_deliveries"
 JOB_LEASES = "itsm_job_leases"
 JOB_RUNS = "itsm_job_runs"
 REPORT_DEFINITIONS = "itsm_report_definitions"
+REPORT_SCHEDULES = "itsm_report_schedules"
+REPORT_SCHEDULE_RUNS = "itsm_report_schedule_runs"
 
 
 def _ticket_indexes(coll, *, id_field: str, prefix: str) -> list[str]:
@@ -422,6 +424,46 @@ def ensure_itsm_indexes(db: Database | None = None) -> dict[str, Any]:
         ),
     ]
     created[JOB_RUNS] = [str(n) for n in names]
+
+    sch = handle[REPORT_SCHEDULES]
+    names = [
+        sch.create_index(
+            [("tenant_id", ASCENDING), ("schedule_id", ASCENDING)],
+            unique=True,
+            name="tenant_report_schedule_id_unique",
+        ),
+        sch.create_index(
+            [
+                ("tenant_id", ASCENDING),
+                ("active", ASCENDING),
+                ("next_run_at", ASCENDING),
+            ],
+            name="tenant_report_schedule_due_idx",
+        ),
+        sch.create_index(
+            [("tenant_id", ASCENDING), ("report_id", ASCENDING)],
+            name="tenant_report_schedule_report_idx",
+        ),
+    ]
+    created[REPORT_SCHEDULES] = [str(n) for n in names]
+
+    sch_runs = handle[REPORT_SCHEDULE_RUNS]
+    names = [
+        sch_runs.create_index(
+            [("tenant_id", ASCENDING), ("run_id", ASCENDING)],
+            unique=True,
+            name="tenant_report_schedule_run_id_unique",
+        ),
+        sch_runs.create_index(
+            [
+                ("tenant_id", ASCENDING),
+                ("schedule_id", ASCENDING),
+                ("created_at", DESCENDING),
+            ],
+            name="tenant_report_schedule_run_idx",
+        ),
+    ]
+    created[REPORT_SCHEDULE_RUNS] = [str(n) for n in names]
 
     rpt = handle[REPORT_DEFINITIONS]
     names = [

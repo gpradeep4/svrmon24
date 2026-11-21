@@ -1,4 +1,4 @@
-"""ITSM N2 job runner — SLA sweeper, delivery retries, leases (0.46.0)."""
+"""ITSM N2 job runner — SLA sweeper, delivery retries, leases (0.47.0)."""
 
 from __future__ import annotations
 
@@ -31,7 +31,7 @@ from tests.frontend_paths import FRONTEND_INDEX
 
 
 def test_version_bump_for_job_runner_slice() -> None:
-    assert __version__ == "0.46.0"
+    assert __version__ == "0.47.0"
 
 
 def test_jobs_admin_permission_in_catalog() -> None:
@@ -260,7 +260,8 @@ def test_forced_tick_api_and_report_placeholder(
     assert tick.status_code == 200, tick.text
     payload = tick.json()
     assert payload["ok"] is True
-    assert payload["jobs"][JOB_REPORT_SCHEDULES]["placeholder"] is True
+    # N3 wires report_schedules for real; empty due set is fine.
+    assert payload["jobs"][JOB_REPORT_SCHEDULES].get("job") == JOB_REPORT_SCHEDULES
     assert payload["jobs"][JOB_SLA_SWEEPER]["tenant_filter"] == MIGRATION_TENANT_ID
 
     # On-read SLA path still works with runner disabled (prior behavior).
@@ -307,4 +308,4 @@ def test_forced_tick_api_and_report_placeholder(
 
 def test_frontend_version_pin_for_n2() -> None:
     html = FRONTEND_INDEX.read_text(encoding="utf-8")
-    assert 'content="0.46.0"' in html
+    assert 'content="0.47.0"' in html
