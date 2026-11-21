@@ -3115,6 +3115,9 @@
     if (name === "monitor-logs" && state.authenticated) {
       window.SVRMON24MonitorLogs?.onShowTab?.(name);
     }
+    if (name === "monitor-alerts" && state.authenticated) {
+      window.SVRMON24MonitorAlerts?.onShowTab?.(name);
+    }
     if (name === "itsm-dashboard" && state.authenticated) {
       window.SVRMON24ItsmDashboard?.loadItsmDashboard?.({ toast })?.catch?.((err) =>
         toast(err.message || "ITSM dashboard failed", true)

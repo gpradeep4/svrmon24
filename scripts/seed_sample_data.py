@@ -559,13 +559,36 @@ def seed() -> dict[str, int]:
         )
         _ok(
             f"log streams={tick.get('streams_ensured')} "
-            f"events={tick.get('events_created')}"
+            f"events={tick.get('events_created')} "
+            f"alerts={tick.get('alerts_created')}"
         )
         stats["created"] += int(tick.get("events_created") or 0) + len(streams)
+        stats["created"] += int(tick.get("alerts_created") or 0)
     else:
         _skip(
             f"log events already present "
             f"(streams={len(streams)} events={existing_events})"
+        )
+        stats["skipped"] += 1
+
+    print("Seeding SIMULATED alert rules + evaluate…")
+    from app.monitor.services import alerts as monitor_alerts_service
+
+    rules = monitor_alerts_service.ensure_default_rules(tenant_id=SEED_TENANT_ID)
+    open_alerts = monitor_alerts_service.list_instances(
+        tenant_id=SEED_TENANT_ID, status="firing,acked", page_size=1
+    )
+    if int(open_alerts.get("total") or 0) == 0:
+        ev = monitor_alerts_service.evaluate_rules(tenant_id=SEED_TENANT_ID)
+        _ok(
+            f"alert rules={len(rules)} created_instances={ev.get('created')} "
+            f"open={ev.get('open_count')}"
+        )
+        stats["created"] += len(rules) + int(ev.get("created") or 0)
+    else:
+        _skip(
+            f"alert instances already present "
+            f"(rules={len(rules)} open={open_alerts.get('open_count')})"
         )
         stats["skipped"] += 1
 

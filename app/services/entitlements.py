@@ -388,6 +388,13 @@ def alert_rules_limit(tenant_id: str) -> int | None:
     return _monitor_limit(tenant_id, RESOURCE_ALERT_RULES)
 
 
+def assert_can_create_alert_rule(tenant_id: str) -> None:
+    """Enforce alert_rules create against tenant entitlements."""
+    from ..monitor.services import alerts as alerts_service
+
+    alerts_service.assert_can_create_alert_rule(tenant_id)
+
+
 def monitor_simulate_ticks_per_day_limit(tenant_id: str) -> int | None:
     """Max SIMULATED Monitoring ticks per day, or None when unlimited."""
     return _monitor_limit(tenant_id, RESOURCE_MONITOR_SIMULATE_TICKS_PER_DAY)

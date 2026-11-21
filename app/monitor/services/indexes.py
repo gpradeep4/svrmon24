@@ -17,6 +17,8 @@ METRIC_SAMPLES_COLLECTION = "metric_samples"
 LOG_STREAMS_COLLECTION = "log_streams"
 LOG_EVENTS_COLLECTION = "log_events"
 SIMULATE_TICKS_COLLECTION = "monitor_simulate_ticks"
+ALERT_RULES_COLLECTION = "alert_rules"
+ALERT_INSTANCES_COLLECTION = "alert_instances"
 
 
 def ensure_monitor_indexes(db: Database | None = None) -> dict[str, Any]:
@@ -232,6 +234,72 @@ def ensure_monitor_indexes(db: Database | None = None) -> dict[str, Any]:
                 [("tenant_id", ASCENDING), ("day", ASCENDING)],
                 unique=True,
                 name="tenant_simulate_day_unique",
+            )
+        ),
+    ]
+
+    rules = handle[ALERT_RULES_COLLECTION]
+    created[ALERT_RULES_COLLECTION] = [
+        str(
+            rules.create_index(
+                [("tenant_id", ASCENDING), ("rule_id", ASCENDING)],
+                unique=True,
+                name="tenant_rule_id_unique",
+            )
+        ),
+        str(
+            rules.create_index(
+                [("tenant_id", ASCENDING), ("enabled", ASCENDING)],
+                name="tenant_rule_enabled_idx",
+            )
+        ),
+        str(
+            rules.create_index(
+                [("tenant_id", ASCENDING), ("name", ASCENDING)],
+                name="tenant_rule_name_idx",
+            )
+        ),
+    ]
+
+    instances = handle[ALERT_INSTANCES_COLLECTION]
+    created[ALERT_INSTANCES_COLLECTION] = [
+        str(
+            instances.create_index(
+                [("tenant_id", ASCENDING), ("alert_id", ASCENDING)],
+                unique=True,
+                name="tenant_alert_id_unique",
+            )
+        ),
+        str(
+            instances.create_index(
+                [
+                    ("tenant_id", ASCENDING),
+                    ("fingerprint", ASCENDING),
+                    ("status", ASCENDING),
+                ],
+                name="tenant_alert_fingerprint_status_idx",
+            )
+        ),
+        str(
+            instances.create_index(
+                [
+                    ("tenant_id", ASCENDING),
+                    ("status", ASCENDING),
+                    ("fired_at", DESCENDING),
+                ],
+                name="tenant_alert_status_fired_idx",
+            )
+        ),
+        str(
+            instances.create_index(
+                [("tenant_id", ASCENDING), ("rule_id", ASCENDING)],
+                name="tenant_alert_rule_idx",
+            )
+        ),
+        str(
+            instances.create_index(
+                [("tenant_id", ASCENDING), ("component_id", ASCENDING)],
+                name="tenant_alert_component_idx",
             )
         ),
     ]

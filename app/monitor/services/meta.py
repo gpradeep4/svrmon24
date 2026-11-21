@@ -44,9 +44,11 @@ def module_meta(*, settings: Settings | None = None) -> dict[str, Any]:
             "Monitoring v1 is SIMULATED. Sync targets from CMDB (API client only); "
             "domain health views stamp AGENTLESS/AGENT collect modes for all OS "
             "families and networking kinds. Log streams are searchable synthetic "
-            "events (no live syslog ingest); simulate-tick is admin-only. Live "
-            "probes stay off until explicitly approved. File Monitoring and "
-            "Diagnostics stay under Monitoring (CMDB keeps temporary redirects)."
+            "events (no live syslog ingest); simulate-tick is admin-only. Alert "
+            "rules evaluate thresholds / log matches / file changes on synthetic "
+            "data only — no auto-incident create. Live probes stay off until "
+            "explicitly approved. File Monitoring and Diagnostics stay under "
+            "Monitoring (CMDB keeps temporary redirects)."
         ),
         "log_sources": ["agentless", "agent", "simulated"],
         "log_severities": [
@@ -56,6 +58,9 @@ def module_meta(*, settings: Settings | None = None) -> dict[str, Any]:
             "error",
             "critical",
         ],
+        "alert_condition_types": ["threshold", "log_match", "file_change"],
+        "alert_statuses": ["firing", "acked", "resolved"],
+        "alert_severities": ["info", "warning", "error", "critical"],
         "database": cfg.monitor_database_name,
         "monitor_database": cfg.monitor_database_name,
     }
