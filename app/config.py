@@ -88,6 +88,21 @@ class Settings(BaseSettings):
     ollama_model: str = Field(default="llama3.2:3b", alias="OLLAMA_MODEL")
     ollama_timeout_seconds: float = Field(default=60.0, alias="OLLAMA_TIMEOUT_SECONDS")
 
+    # ITSM in-process job runner (N2). Off by default — enable for SLA sweeper /
+    # delivery retries / report-schedule hook without opening the UI.
+    itsm_job_runner_enabled: bool = Field(
+        default=False, alias="ITSM_JOB_RUNNER_ENABLED"
+    )
+    itsm_job_runner_interval_seconds: int = Field(
+        default=60, alias="ITSM_JOB_RUNNER_INTERVAL_SECONDS"
+    )
+    itsm_job_runner_lease_seconds: int = Field(
+        default=55, alias="ITSM_JOB_RUNNER_LEASE_SECONDS"
+    )
+    itsm_delivery_max_attempts: int = Field(
+        default=5, alias="ITSM_DELIVERY_MAX_ATTEMPTS"
+    )
+
     def model_post_init(self, __context: Any) -> None:  # noqa: ANN401
         # Allow OLLAMA_HOST when OLLAMA_URL was left at default / unset in env loading
         import os

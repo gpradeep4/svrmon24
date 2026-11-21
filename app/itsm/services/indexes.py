@@ -24,6 +24,8 @@ KNOWLEDGE_ARTICLES = "itsm_knowledge_articles"
 NOTIFICATIONS = "itsm_notifications"
 NOTIFICATION_CHANNEL_SETTINGS = "itsm_notification_channel_settings"
 NOTIFICATION_DELIVERIES = "itsm_notification_deliveries"
+JOB_LEASES = "itsm_job_leases"
+JOB_RUNS = "itsm_job_runs"
 REPORT_DEFINITIONS = "itsm_report_definitions"
 
 
@@ -393,6 +395,33 @@ def ensure_itsm_indexes(db: Database | None = None) -> dict[str, Any]:
         ),
     ]
     created[NOTIFICATION_DELIVERIES] = [str(n) for n in names]
+
+    leases = handle[JOB_LEASES]
+    names = [
+        leases.create_index(
+            [("job_name", ASCENDING)],
+            unique=True,
+            name="job_name_unique",
+        ),
+        leases.create_index(
+            [("expires_at", ASCENDING)], name="job_lease_expires_idx"
+        ),
+    ]
+    created[JOB_LEASES] = [str(n) for n in names]
+
+    runs = handle[JOB_RUNS]
+    names = [
+        runs.create_index(
+            [("run_id", ASCENDING)],
+            unique=True,
+            name="job_run_id_unique",
+        ),
+        runs.create_index(
+            [("job_name", ASCENDING), ("created_at", DESCENDING)],
+            name="job_run_name_created_idx",
+        ),
+    ]
+    created[JOB_RUNS] = [str(n) for n in names]
 
     rpt = handle[REPORT_DEFINITIONS]
     names = [

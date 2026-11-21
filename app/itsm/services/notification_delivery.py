@@ -7,9 +7,10 @@ from __future__ import annotations
 
 import logging
 import uuid
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from typing import Any
 
+from pymongo import ASCENDING, ReturnDocument
 from pymongo.collection import Collection
 
 from ...db import require_itsm_database
@@ -22,9 +23,17 @@ from .notification_providers import DeliveryResult, get_provider
 
 logger = logging.getLogger(__name__)
 
+# Backoff seconds by attempt number (1-based after failure).
+_RETRY_BACKOFF_SECONDS: tuple[int, ...] = (60, 300, 900, 1800, 3600)
+
 
 def _now() -> datetime:
     return datetime.now(timezone.utc)
+
+
+def _retry_at_for_attempt(attempt: int) -> datetime:
+    idx = max(0, min(int(attempt) - 1, len(_RETRY_BACKOFF_SECONDS) - 1))
+    return _now() + timedelta(seconds=_RETRY_BACKOFF_SECONDS[idx])
 
 
 def _coll() -> Collection:
@@ -133,7 +142,9 @@ def _record_attempt(
         "tracking_id": tracking_id,
         "created_at": now,
         "updated_at": now,
-        "next_retry_at": None,
+        "next_retry_at": (
+            _retry_at_for_attempt(1) if result.status == "failed" else None
+        ),
     }
     stamp_tenant_id(doc, tenant_id=tenant_id)
     _coll().insert_one(doc)
@@ -353,4 +364,144 @@ def list_deliveries(
         "page": page,
         "page_size": page_size,
         "tenant_id": tid,
+    }
+
+
+def _execute_provider_for_doc(doc: dict[str, Any]) -> DeliveryResult:
+    """Re-run the channel provider for an existing delivery document."""
+    tid = str(doc.get("tenant_id") or "")
+    channel = str(doc.get("channel") or "")
+    recipient = str(doc.get("recipient_user_id") or "")
+    if channel not in OUTBOUND_CHANNELS:
+        return DeliveryResult(
+            status="skipped",
+            provider="none",
+            error=f"unknown_channel:{channel}",
+        )
+    settings = channel_settings_service.get_channel_settings(
+        tenant_id=tid, channel=channel
+    )
+    if not settings.get("enabled"):
+        return DeliveryResult(
+            status="skipped",
+            provider="none",
+            error="channel_disabled",
+        )
+    user_doc = _resolve_user_doc(recipient)
+    if user_doc is not None and not _recipient_in_tenant(
+        tenant_id=tid, user_doc=user_doc
+    ):
+        return DeliveryResult(
+            status="denied",
+            provider="none",
+            error="cross_tenant_recipient_denied",
+            recipient_address=str(user_doc.get("email") or "") or None,
+        )
+    address = _address_for_channel(
+        channel,
+        user_doc=user_doc,
+        recipient_key=recipient,
+        channel_config=settings,
+    )
+    provider = get_provider(channel)
+    if provider is None:
+        return DeliveryResult(
+            status="skipped",
+            provider="none",
+            recipient_address=address,
+            error="provider_missing",
+        )
+    return provider.deliver(
+        recipient_address=address or "",
+        subject=str(doc.get("subject") or ""),
+        body=str(doc.get("body") or ""),
+        channel_config=settings,
+    )
+
+
+def retry_due_deliveries(
+    *,
+    query: dict[str, Any],
+    limit: int = 100,
+    max_attempts: int = 5,
+) -> dict[str, Any]:
+    """Retry failed deliveries matching ``query``; updates rows in place."""
+    coll = _coll()
+    limit = max(1, min(int(limit), 500))
+    cursor = (
+        coll.find(query)
+        .sort([("next_retry_at", ASCENDING), ("created_at", ASCENDING)])
+        .limit(limit)
+    )
+    scanned = 0
+    retried = 0
+    sent = 0
+    failed = 0
+    skipped = 0
+    for doc in cursor:
+        scanned += 1
+        delivery_id = doc.get("delivery_id")
+        tid = doc.get("tenant_id")
+        if not delivery_id or not tid:
+            continue
+        attempt = int(doc.get("attempt") or 1) + 1
+        if attempt > max_attempts:
+            continue
+        # Claim row so concurrent workers skip it.
+        claimed = coll.find_one_and_update(
+            {
+                "tenant_id": tid,
+                "delivery_id": delivery_id,
+                "status": "failed",
+                "attempt": {"$lt": max_attempts},
+            },
+            {
+                "$set": {
+                    "status": "pending",
+                    "updated_at": _now(),
+                }
+            },
+            return_document=ReturnDocument.AFTER,
+        )
+        if claimed is None:
+            continue
+        retried += 1
+        try:
+            result = _execute_provider_for_doc(claimed)
+        except Exception as exc:  # noqa: BLE001
+            result = DeliveryResult(
+                status="failed",
+                provider=str(claimed.get("provider") or "none"),
+                error=str(exc)[:500],
+                recipient_address=claimed.get("recipient_address"),
+            )
+        updates: dict[str, Any] = {
+            "status": result.status,
+            "provider": result.provider,
+            "error": result.error,
+            "detail": result.detail,
+            "recipient_address": result.recipient_address
+            or claimed.get("recipient_address"),
+            "attempt": attempt,
+            "updated_at": _now(),
+            "next_retry_at": (
+                _retry_at_for_attempt(attempt) if result.status == "failed" else None
+            ),
+        }
+        coll.update_one(
+            {"tenant_id": tid, "delivery_id": delivery_id},
+            {"$set": updates},
+        )
+        if result.status == "sent":
+            sent += 1
+        elif result.status == "failed":
+            failed += 1
+        else:
+            skipped += 1
+    return {
+        "scanned": scanned,
+        "retried": retried,
+        "sent": sent,
+        "failed": failed,
+        "skipped": skipped,
     }
