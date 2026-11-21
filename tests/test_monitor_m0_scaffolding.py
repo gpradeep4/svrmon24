@@ -99,6 +99,13 @@ def test_monitor_meta_simulated_tenant_aware(
     assert body["module"] == "monitoring"
     assert body["execution_mode"] == "SIMULATED"
     assert body["live_probes"] is False
+    assert body["collect_modes"] == ["agentless", "agent"]
+    assert "linux" in body["os_families"]
+    assert "windows" in body["os_families"]
+    assert "macos" in body["os_families"]
+    assert "unix" in body["os_families"]
+    assert "switch" in body["network_target_kinds"]
+    assert "firewall" in body["network_target_kinds"]
     assert body["demo_only"] is True
     assert "SIMULATED" in body["banner"]
     assert body["monitor_database"]
