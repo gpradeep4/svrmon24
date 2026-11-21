@@ -1,4 +1,4 @@
-"""Sidebar IA — CMDB / Monitoring / ITSM expandable sections (0.70.0)."""
+"""Sidebar IA — CMDB / Monitoring / ITSM expandable sections (0.71.0)."""
 
 from __future__ import annotations
 
@@ -15,12 +15,12 @@ CMDB_CSS = Path("frontend/static/css/cmdb.css")
 
 
 def test_version_bump_for_sidebar_cmdb_dashboard() -> None:
-    assert __version__ == "0.70.0"
+    assert __version__ == "0.71.0"
 
 
 def test_frontend_sidebar_section_markers() -> None:
     html = FRONTEND_INDEX.read_text(encoding="utf-8")
-    assert 'content="0.70.0"' in html
+    assert 'content="0.71.0"' in html
 
     # No thin Operations section (Dashboard moved under CMDB).
     assert 'id="navOperationsSection"' not in html
@@ -51,12 +51,14 @@ def test_frontend_sidebar_section_markers() -> None:
         "databases",
         "relationships",
         "dependencies",
-        "cmdb-redirect-file-monitoring",
-        "cmdb-redirect-diagnostics",
     ):
         marker = f'data-tab="{tab}"'
         pos = html.index(marker)
         assert cmdb_group_i < pos < custom_i, tab
+
+    # M8: CMDB File Monitoring / Diagnostics redirect stubs removed.
+    assert "cmdb-redirect-file-monitoring" not in html
+    assert "cmdb-redirect-diagnostics" not in html
 
     # Real File Monitoring / Diagnostics are under Monitoring, not CMDB.
     mon_group_i = html.index('id="navMonitoringGroup"')

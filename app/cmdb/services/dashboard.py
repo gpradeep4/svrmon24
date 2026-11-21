@@ -50,11 +50,13 @@ def get_dashboard_summary(
     *, tenant_id: str, recent_limit: int = 8
 ) -> dict[str, Any]:
     """Build dashboard widgets from live CMDB / diagnostic data for one tenant."""
+    # Diagnostics history lives in svrmon-monitor (M8); read via service boundary.
+    from . import diagnostics as diagnostics_service
+
     tid = require_tenant_id(tenant_id)
     recent_limit = max(1, min(int(recent_limit), 50))
     db = get_database()
     relationships = db["cmdb_relationships"]
-    diagnostics = db["diagnostic_history"]
     scope = tenant_filter(tid)
 
     total_components = _count_typed_components(tenant_id=tid)
@@ -62,14 +64,14 @@ def get_dashboard_summary(
     by_type = _count_by_typed("component_type", tenant_id=tid)
     by_environment = _count_by_typed("environment", tenant_id=tid)
 
-    recent_diagnostics = list(
-        diagnostics.find(scope, {"_id": 0})
-        .sort("timestamp", -1)
-        .limit(recent_limit)
+    listed = diagnostics_service.list_diagnostics(
+        tenant_id=tid, page=1, page_size=max(40, recent_limit)
     )
+    diag_items = list(listed.get("items") or [])
+    recent_diagnostics = diag_items[:recent_limit]
 
     findings: list[dict[str, Any]] = []
-    for doc in diagnostics.find(scope).sort("timestamp", -1).limit(40):
+    for doc in diag_items:
         summary = doc.get("summary") or {}
         overall = str(summary.get("overall_status") or "ok")
         checks = doc.get("checks") or []

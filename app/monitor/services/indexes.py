@@ -19,6 +19,7 @@ LOG_EVENTS_COLLECTION = "log_events"
 SIMULATE_TICKS_COLLECTION = "monitor_simulate_ticks"
 ALERT_RULES_COLLECTION = "alert_rules"
 ALERT_INSTANCES_COLLECTION = "alert_instances"
+DIAGNOSTIC_HISTORY_COLLECTION = "diagnostic_history"
 
 
 def ensure_monitor_indexes(db: Database | None = None) -> dict[str, Any]:
@@ -300,6 +301,35 @@ def ensure_monitor_indexes(db: Database | None = None) -> dict[str, Any]:
             instances.create_index(
                 [("tenant_id", ASCENDING), ("component_id", ASCENDING)],
                 name="tenant_alert_component_idx",
+            )
+        ),
+    ]
+
+    diagnostics = handle[DIAGNOSTIC_HISTORY_COLLECTION]
+    created[DIAGNOSTIC_HISTORY_COLLECTION] = [
+        str(
+            diagnostics.create_index(
+                [("tenant_id", ASCENDING), ("diagnostic_id", ASCENDING)],
+                unique=True,
+                name="tenant_diagnostic_id_unique",
+            )
+        ),
+        str(
+            diagnostics.create_index(
+                [("tenant_id", ASCENDING), ("timestamp", DESCENDING)],
+                name="tenant_diag_timestamp_idx",
+            )
+        ),
+        str(
+            diagnostics.create_index(
+                [("tenant_id", ASCENDING), ("component_id", ASCENDING)],
+                name="tenant_diag_component_idx",
+            )
+        ),
+        str(
+            diagnostics.create_index(
+                [("tenant_id", ASCENDING), ("profile_name", ASCENDING)],
+                name="tenant_diag_profile_idx",
             )
         ),
     ]

@@ -77,6 +77,7 @@ class SyncFromCmdbResult(BaseModel):
     updated: int = 0
     skipped: int = 0
     samples_seeded: int = 0
+    samples_trimmed: int = 0
     entitlement_limit: int | None = None
     entitlement_truncated: bool = False
     domains: dict[str, int] = Field(default_factory=dict)

@@ -1,4 +1,4 @@
-"""Monitoring M5 — SIMULATED log streams + search (0.70.0)."""
+"""Monitoring M5 — SIMULATED log streams + search (0.71.0)."""
 
 from __future__ import annotations
 
@@ -34,11 +34,11 @@ def _create_ci(
 
 
 def test_version_bump_for_monitor_m5() -> None:
-    assert __version__ == "0.70.0"
+    assert __version__ == "0.71.0"
     html = FRONTEND_INDEX.read_text(encoding="utf-8")
-    assert 'content="0.70.0"' in html
-    assert "monitor/logs.js?v=0.70.0" in html
-    assert "monitor/index.js?v=0.70.0" in html
+    assert 'content="0.71.0"' in html
+    assert "monitor/logs.js?v=0.71.0" in html
+    assert "monitor/index.js?v=0.71.0" in html
 
 
 def test_logs_ui_markers() -> None:

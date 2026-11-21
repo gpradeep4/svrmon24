@@ -1,4 +1,4 @@
-"""Monitoring M2 — expandable Monitoring sidebar + dashboard shell (0.70.0)."""
+"""Monitoring M2 — expandable Monitoring sidebar + dashboard shell (0.71.0)."""
 
 from __future__ import annotations
 
@@ -15,12 +15,12 @@ MONITOR_CSS = Path("frontend/static/css/monitor.css")
 
 
 def test_version_bump_for_monitor_m2() -> None:
-    assert __version__ == "0.70.0"
+    assert __version__ == "0.71.0"
     html = FRONTEND_INDEX.read_text(encoding="utf-8")
-    assert 'content="0.70.0"' in html
-    assert "monitor.css?v=0.70.0" in html
-    assert "monitor/index.js?v=0.70.0" in html
-    assert "monitor/dashboard.js?v=0.70.0" in html
+    assert 'content="0.71.0"' in html
+    assert "monitor.css?v=0.71.0" in html
+    assert "monitor/index.js?v=0.71.0" in html
+    assert "monitor/dashboard.js?v=0.71.0" in html
 
 
 def test_monitoring_sidebar_section_and_order() -> None:
@@ -81,21 +81,13 @@ def test_file_monitoring_and_diagnostics_moved_from_cmdb() -> None:
     assert mon_group_i < fm_i < itsm_i
     assert mon_group_i < diag_i < itsm_i
 
-    # CMDB keeps redirect stubs only (not the real data-tab ids).
-    assert 'data-tab="cmdb-redirect-file-monitoring"' in html
-    assert 'data-tab="cmdb-redirect-diagnostics"' in html
-    assert 'data-cmdb-monitor-redirect="file-monitoring"' in html
-    assert 'data-cmdb-monitor-redirect="diagnostics"' in html
-    stub_fm = html.index('data-tab="cmdb-redirect-file-monitoring"')
-    stub_diag = html.index('data-tab="cmdb-redirect-diagnostics"')
-    assert cmdb_group_i < stub_fm < custom_i
-    assert cmdb_group_i < stub_diag < custom_i
-
-    assert 'id="tab-cmdb-redirect-file-monitoring"' in html
-    assert 'id="tab-cmdb-redirect-diagnostics"' in html
-    assert 'data-open-monitor-tab="file-monitoring"' in html
-    assert 'data-open-monitor-tab="diagnostics"' in html
-    assert "Moved to Monitoring" in html or "moved to Monitoring" in html
+    # M8: CMDB redirect stubs removed.
+    assert "cmdb-redirect-file-monitoring" not in html
+    assert "cmdb-redirect-diagnostics" not in html
+    assert "data-cmdb-monitor-redirect" not in html
+    # Real File Monitoring / Diagnostics are not under CMDB.
+    assert not (cmdb_group_i < fm_i < custom_i)
+    assert not (cmdb_group_i < diag_i < custom_i)
 
 
 def test_monitor_dashboard_shell_markers() -> None:
@@ -122,7 +114,7 @@ def test_monitor_nav_js_css_markers() -> None:
     assert '"monitor-dashboard": "monitoring"' in cmdb
     assert 'diagnostics: "monitoring"' in cmdb
     assert '"file-monitoring": "monitoring"' in cmdb
-    assert '"cmdb-redirect-file-monitoring": "cmdb"' in cmdb
+    assert "cmdb-redirect-file-monitoring" not in cmdb
     assert "expandNavGroupForTab" in cmdb
     assert 'tabName.startsWith("monitor-")' in cmdb
     assert "SVRMON24Monitor?.applyMonitorNavGates" in cmdb

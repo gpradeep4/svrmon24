@@ -132,6 +132,7 @@ def clean_db(client: TestClient) -> Generator[None, None, None]:
         "monitor_simulate_ticks",
         "alert_rules",
         "alert_instances",
+        "diagnostic_history",
     )
     for name in collections:
         db[name].delete_many({})

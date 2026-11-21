@@ -20,8 +20,6 @@
     inventory: "cmdb",
     relationships: "cmdb",
     dependencies: "cmdb",
-    "cmdb-redirect-file-monitoring": "cmdb",
-    "cmdb-redirect-diagnostics": "cmdb",
     "monitor-dashboard": "monitoring",
     "monitor-servers": "monitoring",
     "monitor-network": "monitoring",
@@ -635,15 +633,7 @@
     },
     "monitor-alerts": {
       title: "Alerts",
-      subtitle: "Placeholder — SIMULATED alert rules / instances (later slice)",
-    },
-    "cmdb-redirect-file-monitoring": {
-      title: "File Monitoring moved",
-      subtitle: "Rehomed under Monitoring — use the Open button below",
-    },
-    "cmdb-redirect-diagnostics": {
-      title: "Diagnostics moved",
-      subtitle: "Rehomed under Monitoring — use the Open button below",
+      subtitle: "SIMULATED rules · ack/resolve · draft incident Apply via ITSM",
     },
     custom: { title: "Custom Fields", subtitle: "Extend inventory forms with typed definitions" },
     "custom-tables": {

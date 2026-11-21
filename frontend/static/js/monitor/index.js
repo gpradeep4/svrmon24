@@ -54,17 +54,6 @@
       const allowed = permAllowed(can, btn);
       btn.hidden = !showSection || !allowed;
     });
-    // CMDB transition stubs stay visible when the target module is reachable.
-    document.querySelectorAll("[data-cmdb-monitor-redirect]").forEach((btn) => {
-      const target = btn.getAttribute("data-cmdb-monitor-redirect");
-      let allowed = true;
-      if (target === "file-monitoring") {
-        allowed = can("file_monitoring:read") || can("monitor:files:read");
-      } else if (target === "diagnostics") {
-        allowed = can("diagnostics:read") || can("diagnostics:run");
-      }
-      btn.hidden = !allowed;
-    });
     applyMonitorActionGates(can);
   }
 
@@ -116,32 +105,10 @@
         title: "Alerts",
         subtitle: "SIMULATED rules · ack/resolve · draft incident Apply via ITSM",
       };
-      pageMeta["cmdb-redirect-file-monitoring"] = {
-        title: "File Monitoring moved",
-        subtitle: "Rehomed under Monitoring — use the Open button below",
-      };
-      pageMeta["cmdb-redirect-diagnostics"] = {
-        title: "Diagnostics moved",
-        subtitle: "Rehomed under Monitoring — use the Open button below",
-      };
     }
 
     document.getElementById("btnRefreshMonitorDash")?.addEventListener("click", () => {
       SVRMON24MonitorDashboard.loadMonitorDashboard({ toast });
-    });
-
-    document.querySelectorAll("[data-open-monitor-tab]").forEach((btn) => {
-      btn.addEventListener("click", () => {
-        const tab = btn.getAttribute("data-open-monitor-tab");
-        if (tab && typeof hooks.showTab === "function") {
-          hooks.showTab(tab);
-        } else if (tab && global.SVRMON24ItsmRouting?.navigateTo) {
-          global.SVRMON24ItsmRouting.navigateTo({ tab });
-        } else if (tab) {
-          const nav = document.querySelector(`.nav-item[data-tab="${tab}"]`);
-          nav?.click();
-        }
-      });
     });
 
     if (typeof onShowTab === "function") {

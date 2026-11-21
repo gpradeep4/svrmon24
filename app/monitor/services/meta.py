@@ -49,8 +49,8 @@ def module_meta(*, settings: Settings | None = None) -> dict[str, Any]:
             "data only — no auto-incident create. Dashboard aggregates come from "
             "monitor collections. Alert→incident is draft/suggest only — Apply "
             "via ITSM API. Live probes stay off until explicitly approved. File "
-            "Monitoring and Diagnostics stay under Monitoring (CMDB keeps "
-            "temporary redirects)."
+            "Monitoring and Diagnostics are under Monitoring (CMDB redirect stubs "
+            "removed in M8)."
         ),
         "log_sources": ["agentless", "agent", "simulated"],
         "log_severities": [
@@ -65,4 +65,24 @@ def module_meta(*, settings: Settings | None = None) -> dict[str, Any]:
         "alert_severities": ["info", "warning", "error", "critical"],
         "database": cfg.monitor_database_name,
         "monitor_database": cfg.monitor_database_name,
+        "deprecations": {
+            "cmdb_file_monitoring_nav": (
+                "Removed — use Monitoring → File Monitoring "
+                "(#tab=file-monitoring)."
+            ),
+            "cmdb_diagnostics_nav": (
+                "Removed — use Monitoring → Diagnostics (#tab=diagnostics)."
+            ),
+            "api_file_monitoring": (
+                "Compat path /api/file-monitoring/* remains; prefer "
+                "/api/monitor/files when available. Data lives in "
+                f"{cfg.monitor_database_name}."
+            ),
+            "api_diagnostics": (
+                "Compat path /api/diagnostics/* remains; history is stored in "
+                f"{cfg.monitor_database_name} (dual-read migrate from CMDB)."
+            ),
+        },
+        "entry_path": "/monitor",
+        "retention_sweep": "/api/monitor/admin/retention-sweep",
     }
