@@ -36,6 +36,7 @@ from .routers import platform as platform_router
 from .routers import tenants as tenants_router
 from .itsm.routers import router as itsm_router
 from .serialization import serialize_document
+from .itsm.services import job_runner as itsm_job_runner
 from .services.bootstrap import ensure_tenancy_ready
 
 logger = logging.getLogger(__name__)
@@ -49,12 +50,13 @@ async def lifespan(_app: FastAPI):
     settings = get_settings()
     configure_logging(settings.log_level)
     logger.info(
-        "startup app=%s version=%s env=%s oidc=%s basic=%s",
+        "startup app=%s version=%s env=%s oidc=%s basic=%s job_runner=%s",
         settings.app_name,
         __version__,
         settings.app_env,
         settings.oidc_enabled,
         settings.basic_auth_enabled,
+        settings.itsm_job_runner_enabled,
     )
     db_status = ping_database(settings)
     if db_status.get("ok"):
@@ -82,9 +84,14 @@ async def lifespan(_app: FastAPI):
             settings.cmdb_database_name,
             db_status.get("detail"),
         )
-    yield
-    close_client()
-    logger.info("shutdown complete")
+    # Feature-flagged ITSM worker (monolith or API-only). No-op when disabled.
+    itsm_job_runner.start_job_runner(settings)
+    try:
+        yield
+    finally:
+        itsm_job_runner.stop_job_runner()
+        close_client()
+        logger.info("shutdown complete")
 
 
 def create_app() -> FastAPI:
