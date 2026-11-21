@@ -29,6 +29,8 @@ JOB_RUNS = "itsm_job_runs"
 REPORT_DEFINITIONS = "itsm_report_definitions"
 REPORT_SCHEDULES = "itsm_report_schedules"
 REPORT_SCHEDULE_RUNS = "itsm_report_schedule_runs"
+ASSIGNMENT_GROUPS = "itsm_assignment_groups"
+ATTACHMENTS = "itsm_ticket_attachments"
 
 
 def _ticket_indexes(coll, *, id_field: str, prefix: str) -> list[str]:
@@ -485,6 +487,50 @@ def ensure_itsm_indexes(db: Database | None = None) -> dict[str, Any]:
         ),
     ]
     created[REPORT_DEFINITIONS] = [str(n) for n in names]
+
+    groups = handle[ASSIGNMENT_GROUPS]
+    names = [
+        groups.create_index(
+            [("tenant_id", ASCENDING), ("group_id", ASCENDING)],
+            unique=True,
+            name="tenant_assignment_group_id_unique",
+        ),
+        groups.create_index(
+            [("tenant_id", ASCENDING), ("name_lower", ASCENDING)],
+            unique=True,
+            name="tenant_assignment_group_name_unique",
+        ),
+        groups.create_index(
+            [("tenant_id", ASCENDING), ("active", ASCENDING), ("name_lower", ASCENDING)],
+            name="tenant_assignment_group_active_name_idx",
+        ),
+        groups.create_index(
+            [("tenant_id", ASCENDING)], name="tenant_assignment_group_tenant_id_idx"
+        ),
+    ]
+    created[ASSIGNMENT_GROUPS] = [str(n) for n in names]
+
+    atts = handle[ATTACHMENTS]
+    names = [
+        atts.create_index(
+            [("tenant_id", ASCENDING), ("attachment_id", ASCENDING)],
+            unique=True,
+            name="tenant_attachment_id_unique",
+        ),
+        atts.create_index(
+            [
+                ("tenant_id", ASCENDING),
+                ("ticket_type", ASCENDING),
+                ("ticket_id", ASCENDING),
+                ("created_at", DESCENDING),
+            ],
+            name="tenant_attachment_ticket_idx",
+        ),
+        atts.create_index(
+            [("tenant_id", ASCENDING)], name="tenant_attachment_tenant_id_idx"
+        ),
+    ]
+    created[ATTACHMENTS] = [str(n) for n in names]
 
     return {
         "ok": True,

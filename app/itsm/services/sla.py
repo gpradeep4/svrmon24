@@ -22,6 +22,12 @@ from ..models.sla import (
 )
 from . import activities as activities_service
 from .indexes import SLA_POLICIES, SLA_TRACKING, ensure_itsm_indexes
+from .sla_clock import (
+    business_seconds_between,
+    compute_due_after_resume,
+    compute_due_at,
+    is_business_hours_calendar,
+)
 
 # Ticket fields that affect which policy wins (reattach when any change).
 _MATCH_CONTEXT_FIELDS: frozenset[str] = frozenset(
@@ -739,6 +745,7 @@ def _create_tracking_rows(
         else "wildcard (default policy)"
     )
 
+    calendar = dict(policy.get("calendar") or {})
     for target in policy.get("targets") or []:
         metric = target.get("metric")
         if metric not in SLA_METRICS:
@@ -747,7 +754,9 @@ def _create_tracking_rows(
         if minutes is None:
             continue
         tracking_id = _new_tracking_id()
-        due_at = now + timedelta(minutes=minutes)
+        due_at = compute_due_at(
+            started_at=now, target_minutes=minutes, calendar=calendar
+        )
         doc: dict[str, Any] = {
             "tracking_id": tracking_id,
             "policy_id": policy["policy_id"],
@@ -761,6 +770,9 @@ def _create_tracking_rows(
             "due_at": due_at,
             "paused_at": now if initial_paused else None,
             "paused_total_seconds": 0,
+            "elapsed_business_seconds": 0,
+            "running_since": None if initial_paused else now,
+            "calendar_snapshot": calendar,
             "breached_at": None,
             "completed_at": None,
             "status": "paused" if initial_paused else "running",
@@ -982,6 +994,13 @@ def _pause_row(doc: dict[str, Any], *, actor: dict[str, Any] | None) -> dict[str
         return doc
     who = _actor_fields(actor)
     now = _now()
+    calendar = doc.get("calendar_snapshot") or {}
+    elapsed = int(doc.get("elapsed_business_seconds") or 0)
+    running_since = _ensure_aware(doc.get("running_since")) or _ensure_aware(
+        doc.get("started_at")
+    )
+    if is_business_hours_calendar(calendar) and running_since is not None:
+        elapsed += business_seconds_between(running_since, now, calendar)
     updated = _tracking().find_one_and_update(
         {
             "tenant_id": doc["tenant_id"],
@@ -992,6 +1011,8 @@ def _pause_row(doc: dict[str, Any], *, actor: dict[str, Any] | None) -> dict[str
             "$set": {
                 "status": "paused",
                 "paused_at": now,
+                "running_since": None,
+                "elapsed_business_seconds": elapsed,
                 "updated_at": now,
                 "updated_by": who["username"],
             }
@@ -1011,8 +1032,18 @@ def _resume_row(doc: dict[str, Any], *, actor: dict[str, Any] | None) -> dict[st
     if paused_at is not None:
         extra = max(0, int((now - paused_at).total_seconds()))
     paused_total = int(doc.get("paused_total_seconds") or 0) + extra
+    calendar = doc.get("calendar_snapshot") or {}
+    elapsed = int(doc.get("elapsed_business_seconds") or 0)
     due = _ensure_aware(doc.get("due_at")) or now
-    new_due = due + timedelta(seconds=extra)
+    target_minutes = int(doc.get("target_minutes") or 0)
+    new_due = compute_due_after_resume(
+        now=now,
+        target_minutes=target_minutes,
+        elapsed_business_seconds=elapsed,
+        calendar=calendar,
+        due_at=due,
+        paused_wall_seconds=extra,
+    )
     updated = _tracking().find_one_and_update(
         {
             "tenant_id": doc["tenant_id"],
@@ -1024,6 +1055,8 @@ def _resume_row(doc: dict[str, Any], *, actor: dict[str, Any] | None) -> dict[st
                 "status": "running",
                 "paused_at": None,
                 "paused_total_seconds": paused_total,
+                "elapsed_business_seconds": elapsed,
+                "running_since": now,
                 "due_at": new_due,
                 "updated_at": now,
                 "updated_by": who["username"],

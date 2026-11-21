@@ -18,6 +18,7 @@ from ..models.problems import ProblemCreate, ProblemTransition, ProblemUpdate
 from . import activities as activities_service
 from .cmdb_links import CmdbLinkError, resolve_ci_links, resolve_component_link
 from .indexes import COUNTERS, PROBLEMS, ensure_itsm_indexes
+from .related_tickets import RelatedTicketError, validate_related_refs
 
 
 class ProblemError(Exception):
@@ -179,6 +180,17 @@ def create_problem(
     except CmdbLinkError as exc:
         raise ProblemError(exc.message, status_code=exc.status_code) from exc
 
+    related_incident_ids = _clean_id_list(payload.related_incident_ids)
+    change_id_ref = (payload.change_id or "").strip() or None
+    try:
+        validate_related_refs(
+            tenant_id=tid,
+            related_incident_ids=related_incident_ids,
+            change_id=change_id_ref,
+        )
+    except RelatedTicketError as exc:
+        raise ProblemError(exc.message, status_code=exc.status_code) from exc
+
     now = _now()
     number = _next_number(tenant_id=tid)
     problem_id = _new_problem_id()
@@ -208,8 +220,10 @@ def create_problem(
         "workaround": (payload.workaround or "").strip() or None,
         "known_error": bool(payload.known_error) or status == "known_error",
         "ci_links": ci_links,
-        "related_incident_ids": _clean_id_list(payload.related_incident_ids),
-        "change_id": (payload.change_id or "").strip() or None,
+        "related_incident_ids": related_incident_ids,
+        "change_id": change_id_ref,
+        "watcher_user_ids": list(payload.watcher_user_ids or []),
+        "cc_emails": list(payload.cc_emails or []),
         "sla_tracking_ids": [],
         "resolved_at": now if status == "resolved" else None,
         "closed_at": now if status == "closed" else None,
@@ -275,6 +289,17 @@ def update_problem(
         updates["related_incident_ids"] = _clean_id_list(updates["related_incident_ids"])
     if "change_id" in updates and updates["change_id"] is not None:
         updates["change_id"] = str(updates["change_id"]).strip() or None
+    if "related_incident_ids" in updates or "change_id" in updates:
+        try:
+            validate_related_refs(
+                tenant_id=tid,
+                related_incident_ids=updates.get(
+                    "related_incident_ids", existing.get("related_incident_ids")
+                ),
+                change_id=updates.get("change_id", existing.get("change_id")),
+            )
+        except RelatedTicketError as exc:
+            raise ProblemError(exc.message, status_code=exc.status_code) from exc
     if updates.get("known_error") is True and existing.get("status") in {
         "new",
         "under_investigation",
@@ -319,6 +344,8 @@ def update_problem(
             assignee_user_id=new_assignee,
             number_display=doc.get("number_display"),
             actor=actor,
+            watcher_user_ids=doc.get("watcher_user_ids") or [],
+            cc_emails=doc.get("cc_emails") or [],
         )
     else:
         activities_service.append_activity(
@@ -433,6 +460,8 @@ def transition_problem(
         assignee_user_id=doc.get("assignee_user_id"),
         number_display=doc.get("number_display"),
         actor=actor,
+        watcher_user_ids=doc.get("watcher_user_ids") or [],
+        cc_emails=doc.get("cc_emails") or [],
     )
     from . import workflow_triggers as workflow_triggers_service
 

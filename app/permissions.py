@@ -69,6 +69,8 @@ PERM_ITSM_JOBS_ADMIN = "itsm:jobs:admin"
 PERM_ITSM_DASHBOARD_READ = "itsm:dashboard:read"
 PERM_ITSM_REPORTS_READ = "itsm:reports:read"
 PERM_ITSM_REPORTS_WRITE = "itsm:reports:write"
+PERM_ITSM_GROUPS_READ = "itsm:groups:read"
+PERM_ITSM_GROUPS_ADMIN = "itsm:groups:admin"
 
 ALL_PERMISSIONS: tuple[str, ...] = (
     PERM_CMDB_READ,
@@ -106,6 +108,8 @@ ALL_PERMISSIONS: tuple[str, ...] = (
     PERM_ITSM_DASHBOARD_READ,
     PERM_ITSM_REPORTS_READ,
     PERM_ITSM_REPORTS_WRITE,
+    PERM_ITSM_GROUPS_READ,
+    PERM_ITSM_GROUPS_ADMIN,
 )
 
 PERMISSION_LABELS: dict[str, str] = {
@@ -144,6 +148,8 @@ PERMISSION_LABELS: dict[str, str] = {
     PERM_ITSM_DASHBOARD_READ: "View ITSM dashboard aggregates",
     PERM_ITSM_REPORTS_READ: "View / run / export ITSM reports",
     PERM_ITSM_REPORTS_WRITE: "Create / update / delete custom ITSM report definitions",
+    PERM_ITSM_GROUPS_READ: "View ITSM assignment groups (pickers)",
+    PERM_ITSM_GROUPS_ADMIN: "Manage ITSM assignment group directory",
 }
 
 _ITSM_VIEWER_PERMS: frozenset[str] = frozenset(
@@ -158,6 +164,7 @@ _ITSM_VIEWER_PERMS: frozenset[str] = frozenset(
         PERM_ITSM_NOTIFICATION_READ,
         PERM_ITSM_DASHBOARD_READ,
         PERM_ITSM_REPORTS_READ,
+        PERM_ITSM_GROUPS_READ,
     }
 )
 _ITSM_MEMBER_WRITE_PERMS: frozenset[str] = frozenset(
@@ -176,6 +183,7 @@ _ITSM_ADMIN_PERMS: frozenset[str] = frozenset(
         PERM_ITSM_SLA_ADMIN,
         PERM_ITSM_NOTIFICATION_ADMIN,
         PERM_ITSM_JOBS_ADMIN,
+        PERM_ITSM_GROUPS_ADMIN,
     }
 )
 

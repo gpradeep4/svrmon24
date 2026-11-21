@@ -23,6 +23,7 @@ from ..models.common import (
 from . import activities as activities_service
 from .cmdb_links import CmdbLinkError, resolve_ci_links, resolve_component_link
 from .indexes import CHANGES, COUNTERS, ensure_itsm_indexes
+from .related_tickets import RelatedTicketError, validate_related_refs
 
 
 class ChangeError(Exception):
@@ -191,6 +192,17 @@ def create_change(
     except CmdbLinkError as exc:
         raise ChangeError(exc.message, status_code=exc.status_code) from exc
 
+    related_incident_ids = _clean_id_list(payload.related_incident_ids)
+    related_problem_ids = _clean_id_list(payload.related_problem_ids)
+    try:
+        validate_related_refs(
+            tenant_id=tid,
+            related_incident_ids=related_incident_ids,
+            related_problem_ids=related_problem_ids,
+        )
+    except RelatedTicketError as exc:
+        raise ChangeError(exc.message, status_code=exc.status_code) from exc
+
     now = _now()
     number = _next_number(tenant_id=tid)
     change_id = _new_change_id()
@@ -225,8 +237,10 @@ def create_change(
         "backout_plan": (payload.backout_plan or "").strip() or None,
         "cab_required": bool(payload.cab_required),
         "ci_links": ci_links,
-        "related_incident_ids": _clean_id_list(payload.related_incident_ids),
-        "related_problem_ids": _clean_id_list(payload.related_problem_ids),
+        "related_incident_ids": related_incident_ids,
+        "related_problem_ids": related_problem_ids,
+        "watcher_user_ids": list(payload.watcher_user_ids or []),
+        "cc_emails": list(payload.cc_emails or []),
         "sla_tracking_ids": [],
         "closed_at": now if payload.status == "closed" else None,
         "created_at": now,
@@ -293,6 +307,19 @@ def update_change(
         updates["related_incident_ids"] = _clean_id_list(updates["related_incident_ids"])
     if "related_problem_ids" in updates:
         updates["related_problem_ids"] = _clean_id_list(updates["related_problem_ids"])
+    if "related_incident_ids" in updates or "related_problem_ids" in updates:
+        try:
+            validate_related_refs(
+                tenant_id=tid,
+                related_incident_ids=updates.get(
+                    "related_incident_ids", existing.get("related_incident_ids")
+                ),
+                related_problem_ids=updates.get(
+                    "related_problem_ids", existing.get("related_problem_ids")
+                ),
+            )
+        except RelatedTicketError as exc:
+            raise ChangeError(exc.message, status_code=exc.status_code) from exc
 
     who = _actor_fields(actor)
     updates["updated_at"] = _now()
@@ -331,6 +358,8 @@ def update_change(
             assignee_user_id=new_assignee,
             number_display=doc.get("number_display"),
             actor=actor,
+            watcher_user_ids=doc.get("watcher_user_ids") or [],
+            cc_emails=doc.get("cc_emails") or [],
         )
     else:
         activities_service.append_activity(
@@ -439,6 +468,8 @@ def transition_change(
         assignee_user_id=doc.get("assignee_user_id"),
         number_display=doc.get("number_display"),
         actor=actor,
+        watcher_user_ids=doc.get("watcher_user_ids") or [],
+        cc_emails=doc.get("cc_emails") or [],
     )
     from . import workflow_triggers as workflow_triggers_service
 

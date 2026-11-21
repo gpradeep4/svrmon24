@@ -22,6 +22,7 @@ from ..models.incidents import (
 from . import activities as activities_service
 from .cmdb_links import CmdbLinkError, resolve_ci_links, resolve_component_link
 from .indexes import COUNTERS, INCIDENTS, ensure_itsm_indexes
+from .related_tickets import RelatedTicketError, validate_related_refs
 
 
 class IncidentError(Exception):
@@ -169,6 +170,15 @@ def create_incident(
     except CmdbLinkError as exc:
         raise IncidentError(exc.message, status_code=exc.status_code) from exc
 
+    problem_id = (payload.problem_id or "").strip() or None
+    change_id = (payload.change_id or "").strip() or None
+    try:
+        validate_related_refs(
+            tenant_id=tid, problem_id=problem_id, change_id=change_id
+        )
+    except RelatedTicketError as exc:
+        raise IncidentError(exc.message, status_code=exc.status_code) from exc
+
     now = _now()
     number = _next_number(tenant_id=tid)
     incident_id = _new_incident_id()
@@ -195,8 +205,10 @@ def create_incident(
         "ci_criticality": (payload.ci_criticality or "").strip() or None,
         "ci_links": ci_links,
         "resolution_notes": payload.resolution_notes,
-        "problem_id": (payload.problem_id or "").strip() or None,
-        "change_id": (payload.change_id or "").strip() or None,
+        "problem_id": problem_id,
+        "change_id": change_id,
+        "watcher_user_ids": list(payload.watcher_user_ids or []),
+        "cc_emails": list(payload.cc_emails or []),
         "sla_tracking_ids": [],
         "resolved_at": now if payload.status == "resolved" else None,
         "closed_at": now if payload.status == "closed" else None,
@@ -259,6 +271,20 @@ def update_incident(
     if "priority" in updates and updates["priority"] not in INCIDENT_PRIORITIES:
         raise IncidentError(f"Invalid priority '{updates['priority']}'")
 
+    if "problem_id" in updates and updates["problem_id"] is not None:
+        updates["problem_id"] = str(updates["problem_id"]).strip() or None
+    if "change_id" in updates and updates["change_id"] is not None:
+        updates["change_id"] = str(updates["change_id"]).strip() or None
+    if "problem_id" in updates or "change_id" in updates:
+        try:
+            validate_related_refs(
+                tenant_id=tid,
+                problem_id=updates.get("problem_id", existing.get("problem_id")),
+                change_id=updates.get("change_id", existing.get("change_id")),
+            )
+        except RelatedTicketError as exc:
+            raise IncidentError(exc.message, status_code=exc.status_code) from exc
+
     who = _actor_fields(actor)
     updates["updated_at"] = _now()
     updates["updated_by"] = who["username"]
@@ -297,6 +323,8 @@ def update_incident(
             assignee_user_id=new_assignee,
             number_display=doc.get("number_display"),
             actor=actor,
+            watcher_user_ids=doc.get("watcher_user_ids") or [],
+            cc_emails=doc.get("cc_emails") or [],
         )
     else:
         activities_service.append_activity(
@@ -407,6 +435,8 @@ def transition_incident(
         assignee_user_id=doc.get("assignee_user_id"),
         number_display=doc.get("number_display"),
         actor=actor,
+        watcher_user_ids=doc.get("watcher_user_ids") or [],
+        cc_emails=doc.get("cc_emails") or [],
     )
     from . import workflow_triggers as workflow_triggers_service
 

@@ -128,14 +128,16 @@
         detail.innerHTML = `
           <p><strong>${esc(doc.title)}</strong></p>
           <p class="hint">${esc(doc.description || "No description")}</p>
-          <p class="hint">Assignee: ${esc(doc.assignee_user_id || "—")} · Category: ${esc(doc.category || "—")}</p>
+          <p class="hint">Group: ${esc(doc.assignment_group || "—")} · Assignee: ${esc(doc.assignee_user_id || "—")} · Category: ${esc(doc.category || "—")}</p>
           <p class="hint">Urgency: ${esc(doc.urgency || "—")} · Impact: ${esc(doc.impact || "—")}</p>
-          <p class="hint">Related problem: ${esc(doc.problem_id || "—")} · Related change: ${esc(doc.change_id || "—")}</p>
+          <p class="hint">Watchers: ${esc((doc.watcher_user_ids || []).join(", ") || "—")} · CC: ${esc((doc.cc_emails || []).join(", ") || "—")}</p>
           <p class="hint">Created ${esc(fmtWhen(doc.created_at))} · Updated ${esc(fmtWhen(doc.updated_at))}</p>
         `;
       }
+      renderRelatedLinks(doc);
       renderTransitions(doc.status);
       renderCiLinks(doc.ci_links || []);
+      await loadAttachments(incidentId);
       if (global.SVRMON24ItsmDeeplinks?.renderImpactPanel) {
         await global.SVRMON24ItsmDeeplinks.renderImpactPanel(
           $("#itsmIncImpactPanel"),
@@ -197,6 +199,73 @@
         }
       });
     });
+  }
+
+  function relatedHref(tab, idKey, id) {
+    if (!id) return null;
+    return `#tab=${tab}&${idKey}=${encodeURIComponent(id)}`;
+  }
+
+  function renderRelatedLinks(doc) {
+    const box = $("#itsmIncRelatedLinks");
+    if (!box) return;
+    const parts = [];
+    if (doc.problem_id) {
+      const href = relatedHref("itsm-problems", "problem_id", doc.problem_id);
+      parts.push(
+        `<a href="${esc(href)}" class="itsm-related-link">Problem ${esc(doc.problem_id)}</a>`
+      );
+    }
+    if (doc.change_id) {
+      const href = relatedHref("itsm-changes", "change_id", doc.change_id);
+      parts.push(
+        `<a href="${esc(href)}" class="itsm-related-link">Change ${esc(doc.change_id)}</a>`
+      );
+    }
+    box.innerHTML = parts.length
+      ? parts.join(" · ")
+      : `<span class="hint">No related tickets linked.</span>`;
+  }
+
+  async function loadAttachments(incidentId) {
+    const list = $("#itsmIncAttachList");
+    if (!list) return;
+    try {
+      const data = await SVRMON24ItsmApi.listAttachments("incident", incidentId);
+      const items = data.items || [];
+      if (!items.length) {
+        list.innerHTML = `<li class="hint">No attachments.</li>`;
+        return;
+      }
+      const write = deps.can("itsm:incident:write");
+      list.innerHTML = items
+        .map((a) => {
+          const url = SVRMON24ItsmApi.attachmentContentUrl(a.attachment_id);
+          return `<li>
+            <a href="${esc(url)}" target="_blank" rel="noopener">${esc(a.filename)}</a>
+            <span class="hint"> · ${esc(a.content_type)} · ${esc(a.size_bytes)} B</span>
+            ${
+              write
+                ? `<button type="button" class="ghost itsm-del-att" data-id="${esc(a.attachment_id)}">Delete</button>`
+                : ""
+            }
+          </li>`;
+        })
+        .join("");
+      list.querySelectorAll(".itsm-del-att").forEach((btn) => {
+        btn.addEventListener("click", async () => {
+          try {
+            await SVRMON24ItsmApi.deleteAttachment(btn.getAttribute("data-id"));
+            deps.toast("Attachment deleted");
+            await loadAttachments(incidentId);
+          } catch (err) {
+            deps.toast(err.message || "Delete failed", true);
+          }
+        });
+      });
+    } catch (err) {
+      list.innerHTML = `<li class="hint">${esc(err.message || "Failed")}</li>`;
+    }
   }
 
   function renderCiLinks(links) {
@@ -266,6 +335,8 @@
       deps.toast("Title is required", true);
       return;
     }
+    const watchersRaw = $("#itsmFieldWatchers")?.value?.trim() || "";
+    const ccRaw = $("#itsmFieldCcEmails")?.value?.trim() || "";
     const payload = {
       title,
       description: $("#itsmFieldDescription")?.value?.trim() || null,
@@ -273,8 +344,15 @@
       urgency: $("#itsmFieldUrgency")?.value?.trim() || null,
       impact: $("#itsmFieldImpact")?.value?.trim() || null,
       category: $("#itsmFieldCategory")?.value?.trim() || null,
+      assignment_group: $("#itsmFieldAssignmentGroup")?.value?.trim() || null,
       assignee_user_id: $("#itsmFieldAssignee")?.value?.trim() || null,
       caller_email: $("#itsmFieldCallerEmail")?.value?.trim() || null,
+      watcher_user_ids: watchersRaw
+        ? watchersRaw.split(",").map((s) => s.trim()).filter(Boolean)
+        : [],
+      cc_emails: ccRaw
+        ? ccRaw.split(",").map((s) => s.trim()).filter(Boolean)
+        : [],
       problem_id: $("#itsmFieldProblemId")?.value?.trim() || null,
       change_id: $("#itsmFieldChangeId")?.value?.trim() || null,
       ci_links: [],
@@ -298,7 +376,7 @@
 
   function applyWriteGates() {
     const write = deps.can("itsm:incident:write");
-    ["btnNewItsmInc", "btnItsmAddCi", "btnItsmComment", "btnSaveItsmIncident"].forEach(
+    ["btnNewItsmInc", "btnItsmAddCi", "btnItsmComment", "btnSaveItsmIncident", "btnItsmIncAttach"].forEach(
       (id) => {
         const el = document.getElementById(id);
         if (el) el.disabled = !write;
@@ -313,6 +391,23 @@
     $("#btnCancelItsmIncident")?.addEventListener("click", () => closeModal());
     $("#itsmIncidentForm")?.addEventListener("submit", createIncident);
     $("#btnCloseItsmIncDrawer")?.addEventListener("click", () => closeDrawer());
+    $("#btnItsmIncAttach")?.addEventListener("click", async () => {
+      if (!selectedId) return;
+      const input = $("#itsmIncAttachFile");
+      const file = input?.files?.[0];
+      if (!file) {
+        deps.toast("Choose a file first", true);
+        return;
+      }
+      try {
+        await SVRMON24ItsmApi.uploadAttachment("incident", selectedId, file);
+        deps.toast("Attachment uploaded");
+        if (input) input.value = "";
+        await loadAttachments(selectedId);
+      } catch (err) {
+        deps.toast(err.message || "Upload failed", true);
+      }
+    });
     $("#itsmIncSearch")?.addEventListener("keydown", (ev) => {
       if (ev.key === "Enter") loadIncidents();
     });

@@ -10,7 +10,7 @@ from tests.frontend_paths import FRONTEND_INDEX
 
 
 def test_version_bump_for_change_problem_slice() -> None:
-    assert __version__ == "0.51.0"
+    assert __version__ == "0.52.0"
 
 
 def _create_component(client: TestClient, headers: dict[str, str]) -> str:
@@ -32,6 +32,22 @@ def test_change_crud_transition_activity_and_ci_link(
 ) -> None:
     component_id = _create_component(client, auth_headers)
 
+    incident = client.post(
+        "/api/itsm/incidents",
+        headers=auth_headers,
+        json={"title": "Gateway 504 spike", "priority": "p2"},
+    )
+    assert incident.status_code == 201, incident.text
+    incident_id = incident.json()["incident_id"]
+
+    problem = client.post(
+        "/api/itsm/problems",
+        headers=auth_headers,
+        json={"title": "Upstream timeout root cause", "priority": "p2"},
+    )
+    assert problem.status_code == 201, problem.text
+    problem_id = problem.json()["problem_id"]
+
     created = client.post(
         "/api/itsm/changes",
         headers=auth_headers,
@@ -44,7 +60,7 @@ def test_change_crud_transition_activity_and_ci_link(
             "risk": "medium",
             "cab_required": True,
             "ci_links": [{"component_id": component_id}],
-            "related_incident_ids": ["INC-PLACEHOLDER"],
+            "related_incident_ids": [incident_id],
         },
     )
     assert created.status_code == 201, created.text
@@ -56,7 +72,7 @@ def test_change_crud_transition_activity_and_ci_link(
     assert body["change_type"] == "normal"
     assert body["cab_required"] is True
     assert body["ci_links"][0]["component_id"] == component_id
-    assert body["related_incident_ids"] == ["INC-PLACEHOLDER"]
+    assert body["related_incident_ids"] == [incident_id]
 
     change_id = body["change_id"]
 
@@ -71,11 +87,11 @@ def test_change_crud_transition_activity_and_ci_link(
     patched = client.patch(
         f"/api/itsm/changes/{change_id}",
         headers=auth_headers,
-        json={"assignee_user_id": "chg.owner", "related_problem_ids": ["PRB-1"]},
+        json={"assignee_user_id": "chg.owner", "related_problem_ids": [problem_id]},
     )
     assert patched.status_code == 200, patched.text
     assert patched.json()["assignee_user_id"] == "chg.owner"
-    assert patched.json()["related_problem_ids"] == ["PRB-1"]
+    assert patched.json()["related_problem_ids"] == [problem_id]
 
     transitioned = client.post(
         f"/api/itsm/changes/{change_id}/transition",
@@ -273,7 +289,7 @@ def test_dashboard_includes_change_and_problem_counts(
 
 def test_frontend_change_problem_create_markers() -> None:
     html = FRONTEND_INDEX.read_text(encoding="utf-8")
-    assert 'content="0.51.0"' in html
+    assert 'content="0.52.0"' in html
     assert 'data-tab="itsm-changes"' in html
     assert 'data-tab="itsm-problems"' in html
     assert 'id="btnNewItsmChg"' in html

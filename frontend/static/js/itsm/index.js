@@ -1,4 +1,4 @@
-/* global SVRMON24ItsmDashboard, SVRMON24ItsmReports, SVRMON24ItsmIncidents, SVRMON24ItsmChanges, SVRMON24ItsmProblems, SVRMON24ItsmApprovals, SVRMON24ItsmWorkflows, SVRMON24ItsmSla, SVRMON24ItsmKnowledge, SVRMON24ItsmNotifications, SVRMON24ItsmDeeplinks */
+/* global SVRMON24ItsmDashboard, SVRMON24ItsmReports, SVRMON24ItsmIncidents, SVRMON24ItsmChanges, SVRMON24ItsmProblems, SVRMON24ItsmApprovals, SVRMON24ItsmWorkflows, SVRMON24ItsmSla, SVRMON24ItsmKnowledge, SVRMON24ItsmNotifications, SVRMON24ItsmDeeplinks, SVRMON24ItsmGroups */
 (function (global) {
   "use strict";
 
@@ -20,6 +20,8 @@
       "itsm:notification:read",
       "itsm:reports:read",
       "itsm:reports:write",
+      "itsm:groups:read",
+      "itsm:groups:admin",
     ];
     return keys.some((k) => can(k));
   }
@@ -92,6 +94,10 @@
         title: "Notifications",
         subtitle: "In-app inbox · assign / status / approval / SLA events · mark read",
       };
+      pageMeta["itsm-groups"] = {
+        title: "Assignment Groups",
+        subtitle: "Directory for routing · ticket / SLA / approval pickers",
+      };
     }
 
     if (global.SVRMON24ItsmDeeplinks?.initItsmDeeplinks) {
@@ -107,6 +113,7 @@
     SVRMON24ItsmSla.initItsmSla({ can, toast, escapeHtml });
     SVRMON24ItsmKnowledge.initItsmKnowledge({ can, toast, escapeHtml });
     SVRMON24ItsmNotifications.initItsmNotifications({ can, toast, escapeHtml });
+    SVRMON24ItsmGroups?.initItsmGroups?.({ can, toast, escapeHtml });
 
     document.getElementById("btnRefreshItsmDash")?.addEventListener("click", () => {
       SVRMON24ItsmDashboard.loadItsmDashboard({ toast });
@@ -130,17 +137,24 @@
         if (name === "itsm-incidents") {
           SVRMON24ItsmIncidents.applyWriteGates();
           SVRMON24ItsmDeeplinks?.refreshCiPicker?.();
+          SVRMON24ItsmGroups?.refreshGroupPicker?.();
           SVRMON24ItsmIncidents.loadIncidents();
         }
         if (name === "itsm-changes") {
           SVRMON24ItsmChanges.applyWriteGates();
           SVRMON24ItsmDeeplinks?.refreshCiPicker?.();
+          SVRMON24ItsmGroups?.refreshGroupPicker?.();
           SVRMON24ItsmChanges.loadChanges();
         }
         if (name === "itsm-problems") {
           SVRMON24ItsmProblems.applyWriteGates();
           SVRMON24ItsmDeeplinks?.refreshCiPicker?.();
+          SVRMON24ItsmGroups?.refreshGroupPicker?.();
           SVRMON24ItsmProblems.loadProblems();
+        }
+        if (name === "itsm-groups") {
+          SVRMON24ItsmGroups?.applyWriteGates?.();
+          SVRMON24ItsmGroups?.loadGroups?.();
         }
         if (name === "itsm-approvals") {
           SVRMON24ItsmApprovals.applyWriteGates();
@@ -176,6 +190,7 @@
         SVRMON24ItsmSla.applyWriteGates();
         SVRMON24ItsmKnowledge.applyWriteGates();
         SVRMON24ItsmReports.applyWriteGates();
+        SVRMON24ItsmGroups?.applyWriteGates?.();
         if (can("itsm:notification:read")) {
           SVRMON24ItsmNotifications.startBadgePolling();
         } else {

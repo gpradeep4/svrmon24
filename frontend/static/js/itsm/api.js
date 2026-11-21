@@ -255,5 +255,35 @@
       const q = new URLSearchParams(params || {});
       return itsmGet(`/reports/schedules/runs?${q.toString()}`);
     },
+    listAssignmentGroups: (params) => {
+      const q = new URLSearchParams(params || {});
+      return itsmGet(`/assignment-groups?${q.toString()}`);
+    },
+    assignmentGroupPicker: () => itsmGet("/assignment-groups/picker"),
+    getAssignmentGroup: (id) =>
+      itsmGet(`/assignment-groups/${encodeURIComponent(id)}`),
+    createAssignmentGroup: (payload) =>
+      itsmSend("/assignment-groups", "POST", payload),
+    updateAssignmentGroup: (id, payload) =>
+      itsmSend(`/assignment-groups/${encodeURIComponent(id)}`, "PATCH", payload),
+    deleteAssignmentGroup: (id) =>
+      itsmSend(`/assignment-groups/${encodeURIComponent(id)}`, "DELETE"),
+    listAttachments: (ticketType, ticketId) =>
+      itsmGet(
+        `/${encodeURIComponent(ticketType)}/${encodeURIComponent(ticketId)}/attachments`
+      ),
+    uploadAttachment: async (ticketType, ticketId, file) => {
+      if (!request) throw new Error("ITSM API not bound");
+      const form = new FormData();
+      form.append("file", file, file.name || "attachment.bin");
+      return request(
+        `/api/itsm/${encodeURIComponent(ticketType)}/${encodeURIComponent(ticketId)}/attachments`,
+        { method: "POST", body: form }
+      );
+    },
+    deleteAttachment: (attachmentId) =>
+      itsmSend(`/attachments/${encodeURIComponent(attachmentId)}`, "DELETE"),
+    attachmentContentUrl: (attachmentId) =>
+      `/api/itsm/attachments/${encodeURIComponent(attachmentId)}/content`,
   };
 })(window);

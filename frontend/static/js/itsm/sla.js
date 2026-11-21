@@ -72,6 +72,9 @@
     $("#itsmSlaCalBiz").checked = !!cal.business_hours_only;
     $("#itsmSlaCalStart").value = cal.business_hours_start || "";
     $("#itsmSlaCalEnd").value = cal.business_hours_end || "";
+    if ($("#itsmSlaCalHolidays")) {
+      $("#itsmSlaCalHolidays").value = (cal.holidays || []).join(", ");
+    }
     const targets = editDoc?.targets || [];
     const response = targets.find((t) => t.metric === "response");
     const resolution = targets.find((t) => t.metric === "resolution");
@@ -214,6 +217,10 @@
         business_hours_only: !!$("#itsmSlaCalBiz")?.checked,
         business_hours_start: $("#itsmSlaCalStart")?.value?.trim() || null,
         business_hours_end: $("#itsmSlaCalEnd")?.value?.trim() || null,
+        holidays: ($("#itsmSlaCalHolidays")?.value || "")
+          .split(",")
+          .map((s) => s.trim())
+          .filter(Boolean),
       },
     };
     const editId = $("#itsmSlaEditId")?.value?.trim();

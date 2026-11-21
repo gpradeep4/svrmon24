@@ -68,13 +68,12 @@ class SlaTarget(BaseModel):
 
 
 class SlaCalendar(BaseModel):
-    """Calendar settings (24×7 by default; business-hours flag + optional window)."""
+    """Calendar settings (24×7 by default; business-hours + holidays drive clock math)."""
 
     model_config = ConfigDict(extra="forbid")
 
     timezone: str = Field(default="UTC", min_length=1, max_length=64)
     business_hours_only: bool = False
-    # Optional simple window when business_hours_only is true (informational for v1 clocks).
     business_hours_start: str | None = Field(
         default=None, max_length=8, description="HH:MM local, e.g. 09:00"
     )
@@ -86,6 +85,31 @@ class SlaCalendar(BaseModel):
         max_length=7,
         description="Optional weekdays: mon..sun; null = Mon–Fri when business_hours_only",
     )
+    holidays: list[str] | None = Field(
+        default=None,
+        max_length=366,
+        description="YYYY-MM-DD dates excluded from business-hours clocks",
+    )
+
+    @field_validator("holidays", mode="before")
+    @classmethod
+    def _clean_holidays(cls, value: object) -> list[str] | None:
+        if value is None:
+            return None
+        if not isinstance(value, list):
+            raise ValueError("holidays must be a list of YYYY-MM-DD strings")
+        out: list[str] = []
+        seen: set[str] = set()
+        for raw in value:
+            item = str(raw or "").strip()[:10]
+            if not item or item in seen:
+                continue
+            # Soft format check — clock math skips unparsable entries.
+            if len(item) != 10 or item[4] != "-" or item[7] != "-":
+                raise ValueError(f"Invalid holiday date '{raw}' (expected YYYY-MM-DD)")
+            seen.add(item)
+            out.append(item)
+        return out or None
 
 
 def _clean_optional_str(value: str | None) -> str | None:
