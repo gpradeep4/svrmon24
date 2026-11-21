@@ -254,17 +254,24 @@ def attach_ai_analysis(
 
 
 def count_ollama_analyses(*, tenant_id: str) -> int:
-    """Count Ollama-sourced analysis history entries for a tenant.
+    """Count generative AI analysis history entries for a tenant.
 
-    Rule-based fallbacks are excluded. Uses ``ai_analysis_history`` so repeated
-    analyses on the same diagnostic each count toward the entitlement.
+    Counts ``source`` in ``ollama`` and ``cloud_suggestion``. Rule-based
+    fallbacks are excluded. Uses ``ai_analysis_history`` so repeated analyses
+    on the same diagnostic each count toward the entitlement.
     """
     tid = require_tenant_id(tenant_id)
     coll = _db_collection()
     pipeline = [
         {"$match": tenant_filter(tid)},
         {"$unwind": {"path": "$ai_analysis_history", "preserveNullAndEmptyArrays": False}},
-        {"$match": {"ai_analysis_history.source": "ollama"}},
+        {
+            "$match": {
+                "ai_analysis_history.source": {
+                    "$in": ["ollama", "cloud_suggestion"],
+                }
+            }
+        },
         {"$count": "total"},
     ]
     rows = list(coll.aggregate(pipeline))

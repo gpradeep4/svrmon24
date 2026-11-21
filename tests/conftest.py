@@ -87,6 +87,7 @@ def clean_db(client: TestClient) -> Generator[None, None, None]:
         "custom_roles",
         "platform_settings",
         "platform_admin_claim",
+        "ai_assist_usage",
     )
     itsm_db = get_itsm_database()
     itsm_collections = (

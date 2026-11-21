@@ -1,4 +1,4 @@
-"""CMDB shim removal (0.52.0) — canonical imports only; routes still mounted."""
+"""CMDB shim removal (0.53.0) — canonical imports only; routes still mounted."""
 
 from __future__ import annotations
 
@@ -16,7 +16,7 @@ from app.cmdb.services.file_monitoring import module_meta
 from app.main import create_app
 
 
-# Historical shim modules removed in 0.52.0.
+# Historical shim modules removed in 0.53.0.
 _REMOVED_SHIM_MODULES = (
     "app.routers.components",
     "app.routers.relationships",
@@ -37,7 +37,7 @@ _REMOVED_SHIM_MODULES = (
 
 
 def test_version_bump_for_cmdb_shim_removal() -> None:
-    assert __version__ == "0.52.0"
+    assert __version__ == "0.53.0"
 
 
 def test_canonical_cmdb_imports_work() -> None:
@@ -57,7 +57,7 @@ def test_cmdb_compatibility_shims_removed(module_name: str) -> None:
 
 def test_cmdb_routes_remain_mounted() -> None:
     app = create_app()
-    assert app.version == "0.52.0"
+    assert app.version == "0.53.0"
     paths = set(app.openapi()["paths"])
     for prefix in (
         "/api/components",

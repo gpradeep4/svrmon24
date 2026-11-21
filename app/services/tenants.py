@@ -157,6 +157,31 @@ def set_tenant_plan(tenant_id: str, plan_code: str) -> dict[str, Any]:
     return serialize_document(doc)  # type: ignore[return-value]
 
 
+def set_ai_cloud_suggestions_opt_in(tenant_id: str, enabled: bool) -> dict[str, Any]:
+    """Tenant opt-in for optional cloud suggestion provider (assist only).
+
+    Does not store API keys — secrets stay in env/secret refs.
+    """
+    tid = require_tenant_id(tenant_id)
+    if tid == MIGRATION_TENANT_ID:
+        ensure_migration_tenant()
+    coll = _collection()
+    existing = coll.find_one({"tenant_id": tid})
+    if existing is None:
+        raise TenantError(f"Tenant '{tid}' not found", status_code=404)
+    coll.update_one(
+        {"tenant_id": tid},
+        {
+            "$set": {
+                "ai_cloud_suggestions_opt_in": bool(enabled),
+                "updated_at": _now(),
+            }
+        },
+    )
+    doc = coll.find_one({"tenant_id": tid})
+    return serialize_document(doc)  # type: ignore[return-value]
+
+
 def ensure_migration_tenant() -> dict[str, Any]:
     """Idempotently create the locked migration tenant ``SVRMON24 Legacy``.
 
