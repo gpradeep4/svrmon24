@@ -33,6 +33,17 @@
     return can(perm);
   }
 
+  function applyMonitorActionGates(can) {
+    document.querySelectorAll("[data-monitor-perm-write]").forEach((btn) => {
+      const perm = btn.getAttribute("data-monitor-perm-write");
+      if (perm) btn.hidden = !can(perm);
+    });
+    document.querySelectorAll("[data-monitor-perm-admin]").forEach((btn) => {
+      const perm = btn.getAttribute("data-monitor-perm-admin");
+      if (perm) btn.hidden = !can(perm);
+    });
+  }
+
   function applyMonitorNavGates(can) {
     const section = document.getElementById("navMonitoringSection");
     const group = document.getElementById("navMonitoringGroup");
@@ -54,6 +65,7 @@
       }
       btn.hidden = !allowed;
     });
+    applyMonitorActionGates(can);
   }
 
   function registerMonitorHooks(hooks) {
@@ -143,21 +155,6 @@
       });
     }
 
-    // Hide Sync buttons without write permission.
-    document.querySelectorAll("[data-monitor-perm-write]").forEach((btn) => {
-      const perm = btn.getAttribute("data-monitor-perm-write");
-      if (perm && typeof can === "function") {
-        btn.hidden = !can(perm);
-      }
-    });
-    // Hide admin-only controls (e.g. simulate-tick).
-    document.querySelectorAll("[data-monitor-perm-admin]").forEach((btn) => {
-      const perm = btn.getAttribute("data-monitor-perm-admin");
-      if (perm && typeof can === "function") {
-        btn.hidden = !can(perm);
-      }
-    });
-
     if (typeof onPermissionGates === "function") {
       onPermissionGates(() => applyMonitorNavGates(can));
     } else if (typeof can === "function") {
@@ -168,6 +165,7 @@
   global.SVRMON24Monitor = {
     registerMonitorHooks,
     applyMonitorNavGates,
+    applyMonitorActionGates,
     anyMonitorPermission,
   };
 })(window);

@@ -59,6 +59,9 @@ def test_logs_ui_markers() -> None:
     assert "monitor:admin" in js
     idx = MONITOR_INDEX_JS.read_text(encoding="utf-8")
     assert "SVRMON24MonitorLogs" in idx
+    assert "applyMonitorActionGates" in idx
+    cmdb = Path("frontend/static/js/cmdb.js").read_text(encoding="utf-8")
+    assert "SVRMON24MonitorLogs?.onShowTab" in cmdb or "SVRMON24MonitorLogs.onShowTab" in cmdb
 
 
 def test_simulate_tick_search_and_filters(

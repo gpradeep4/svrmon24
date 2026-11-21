@@ -3105,6 +3105,16 @@
         toast(err.message || "Monitoring dashboard failed", true)
       );
     }
+    if (
+      state.authenticated &&
+      window.SVRMON24MonitorTargets?.DOMAIN_TABS &&
+      window.SVRMON24MonitorTargets.DOMAIN_TABS[name]
+    ) {
+      window.SVRMON24MonitorTargets.onShowTab?.(name);
+    }
+    if (name === "monitor-logs" && state.authenticated) {
+      window.SVRMON24MonitorLogs?.onShowTab?.(name);
+    }
     if (name === "itsm-dashboard" && state.authenticated) {
       window.SVRMON24ItsmDashboard?.loadItsmDashboard?.({ toast })?.catch?.((err) =>
         toast(err.message || "ITSM dashboard failed", true)
