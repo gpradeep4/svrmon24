@@ -5,8 +5,10 @@ from __future__ import annotations
 from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException, Query
+from pydantic import BaseModel, Field
 
 from ...auth import require_user
+from ..services import ai_cmdb_assist as ai_cmdb_assist_service
 from ..services import dependencies as dependencies_service
 from ..services.dependencies import DependencyError
 from ...tenant_context import TenantContext, require_tenant
@@ -20,6 +22,64 @@ router = APIRouter(
 
 def _raise(exc: DependencyError) -> None:
     raise HTTPException(status_code=exc.status_code, detail=exc.message) from exc
+
+
+class ImpactNarrativeRequest(BaseModel):
+    component_id: str = Field(min_length=1, max_length=128)
+    depth: int = Field(default=10, ge=0, le=50)
+    environment: str | None = None
+    status: str | None = None
+    table: str | None = None
+    force_fallback: bool = False
+
+
+class ChangeRiskRequest(BaseModel):
+    component_ids: list[str] = Field(min_length=1, max_length=6)
+    change_type: str | None = Field(default=None, max_length=64)
+    window_text: str | None = Field(default=None, max_length=2000)
+    depth: int = Field(default=10, ge=0, le=50)
+    force_fallback: bool = False
+
+
+@router.post("/ai/impact-narrative")
+def impact_narrative(
+    payload: ImpactNarrativeRequest,
+    tenant: TenantContext = Depends(require_tenant),
+) -> dict[str, Any]:
+    """Assist-only narrative over existing analyze_impact graph (C3)."""
+    try:
+        return ai_cmdb_assist_service.narrate_impact(
+            payload.component_id,
+            tenant_id=tenant.tenant_id,
+            depth=payload.depth,
+            environment=payload.environment,
+            status=payload.status,
+            table=payload.table,
+            force_fallback=bool(payload.force_fallback),
+        )
+    except DependencyError as exc:
+        _raise(exc)
+        raise  # pragma: no cover
+
+
+@router.post("/ai/change-risk")
+def change_risk(
+    payload: ChangeRiskRequest,
+    tenant: TenantContext = Depends(require_tenant),
+) -> dict[str, Any]:
+    """Assist-only change risk text from topology (C4). Never auto-approves."""
+    try:
+        return ai_cmdb_assist_service.suggest_change_risk(
+            payload.component_ids,
+            tenant_id=tenant.tenant_id,
+            change_type=payload.change_type,
+            window_text=payload.window_text,
+            depth=payload.depth,
+            force_fallback=bool(payload.force_fallback),
+        )
+    except DependencyError as exc:
+        _raise(exc)
+        raise  # pragma: no cover
 
 
 @router.get("/{component_id}/upstream")
