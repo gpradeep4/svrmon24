@@ -117,8 +117,76 @@
     }
   }
 
+  function renderAiAssist(html) {
+    const box = $("#itsmChgAiAssist");
+    if (box) box.innerHTML = html || "";
+  }
+
+  async function runChangeRiskAssist() {
+    if (!selectedId) return deps.toast("Open a change first", true);
+    try {
+      const result = await SVRMON24ItsmApi.changeRiskAssist(selectedId, {
+        force_fallback: false,
+      });
+      const apps = (result.affected_applications || [])
+        .slice(0, 5)
+        .map((a) => esc(a.component_id || a.name || ""))
+        .filter(Boolean)
+        .join(", ");
+      const checks = (result.checklist || [])
+        .slice(0, 4)
+        .map((c) => `<li>${esc(c)}</li>`)
+        .join("");
+      renderAiAssist(
+        `<strong>Risk (${esc(result.source)}):</strong> band <code>${esc(
+          result.risk_band
+        )}</code>. ${esc(result.narrative || "")}` +
+          (apps ? `<br/><span class="hint">Apps: ${apps}</span>` : "") +
+          (checks ? `<ul class="itsm-ci-list">${checks}</ul>` : "") +
+          `<br/><span class="hint">${esc(
+            result.disclaimer || "Assist only — no auto CAB."
+          )}</span>`
+      );
+      deps.toast(`Change risk ready (${result.source})`);
+    } catch (err) {
+      renderAiAssist("");
+      deps.toast(err.message || "Change risk failed", true);
+    }
+  }
+
+  async function runSlaAtRiskAssist() {
+    if (!selectedId) return deps.toast("Open a change first", true);
+    try {
+      const result = await SVRMON24ItsmApi.slaAtRiskAssist({
+        ticket_type: "change",
+        ticket_id: selectedId,
+        force_fallback: false,
+      });
+      const items = (result.items || [])
+        .slice(0, 4)
+        .map(
+          (row) =>
+            `<li><code>${esc(row.metric)}</code> · ${esc(row.status)} · ` +
+            `at_risk=${esc(row.at_risk)} · ${esc(row.reason || "")}</li>`
+        )
+        .join("");
+      renderAiAssist(
+        `<strong>SLA (${esc(result.source)}):</strong> ${esc(
+          result.summary || ""
+        )}` +
+          (items ? `<ul class="itsm-ci-list">${items}</ul>` : "") +
+          `<span class="hint">Assist only — clocks not mutated.</span>`
+      );
+      deps.toast(`SLA assist ready (${result.source})`);
+    } catch (err) {
+      renderAiAssist("");
+      deps.toast(err.message || "SLA assist failed", true);
+    }
+  }
+
   async function openChange(changeId) {
     selectedId = changeId;
+    renderAiAssist("");
     openDrawer();
     const detail = $("#itsmChgDrawerDetail");
     const title = $("#itsmChgDrawerTitle");
@@ -356,6 +424,12 @@
       } catch (err) {
         deps.toast(err.message || "Comment failed", true);
       }
+    });
+    $("#btnItsmChgRisk")?.addEventListener("click", () => {
+      runChangeRiskAssist();
+    });
+    $("#btnItsmChgSlaRisk")?.addEventListener("click", () => {
+      runSlaAtRiskAssist();
     });
   }
 

@@ -90,6 +90,14 @@
       itsmSend(`/changes/${encodeURIComponent(id)}`, "PATCH", payload),
     transitionChange: (id, payload) =>
       itsmSend(`/changes/${encodeURIComponent(id)}/transition`, "POST", payload),
+    changeRiskAssist: (id, payload) =>
+      itsmSend(
+        `/changes/${encodeURIComponent(id)}/ai/risk`,
+        "POST",
+        payload || {}
+      ),
+    slaAtRiskAssist: (payload) =>
+      itsmSend(`/sla/ai/at-risk`, "POST", payload || {}),
     addChangeCiLink: (id, componentId) =>
       itsmSend(`/changes/${encodeURIComponent(id)}/ci-links`, "POST", {
         component_id: componentId,

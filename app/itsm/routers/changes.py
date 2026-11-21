@@ -5,6 +5,7 @@ from __future__ import annotations
 from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
+from pydantic import BaseModel, Field
 
 from ...permissions import PERM_ITSM_CHANGE_READ, PERM_ITSM_CHANGE_WRITE, require_permission
 from ...services import audit as audit_service
@@ -15,6 +16,7 @@ from ..models.changes import (
     ChangeTransition,
     ChangeUpdate,
 )
+from ..services import ai_risk_assist as ai_risk_assist_service
 from ..services import changes as changes_service
 from ..services.changes import ChangeError
 
@@ -27,6 +29,10 @@ def _raise(exc: ChangeError) -> None:
 
 def _actor(tenant: TenantContext) -> dict[str, Any]:
     return audit_service.actor_from_tenant(tenant)
+
+
+class ChangeAiRequest(BaseModel):
+    force_fallback: bool = Field(default=False)
 
 
 @router.get("")
@@ -96,6 +102,24 @@ def get_change(
     if doc is None:
         raise HTTPException(status_code=404, detail=f"Change '{change_id}' not found")
     return doc
+
+
+@router.post("/{change_id}/ai/risk")
+def change_ai_risk(
+    change_id: str,
+    payload: ChangeAiRequest | None = None,
+    tenant: TenantContext = Depends(require_permission(PERM_ITSM_CHANGE_READ)),
+) -> dict[str, Any]:
+    """Assist-only change risk narrative. Never auto-approves CAB."""
+    try:
+        return ai_risk_assist_service.suggest_change_risk(
+            change_id,
+            tenant_id=tenant.tenant_id,
+            force_fallback=bool(payload.force_fallback) if payload else False,
+        )
+    except ChangeError as exc:
+        _raise(exc)
+        raise  # pragma: no cover
 
 
 @router.patch("/{change_id}")
