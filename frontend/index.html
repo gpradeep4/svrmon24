@@ -4,7 +4,7 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <meta name="svrmon24-ui" content="login-enterprise-v13" />
-  <meta name="svrmon24-version" content="0.68.0" />
+  <meta name="svrmon24-version" content="0.69.0" />
   <title>SVRMON24</title>
   <link rel="icon" href="/static/img/svrmon-favicon.png" type="image/png" sizes="32x32" />
   <link rel="apple-touch-icon" href="/static/img/svrmon-apple-touch.png" sizes="180x180" />
@@ -15,11 +15,11 @@
     body.is-app .login-gate { display: none !important; }
     #authPanel, .auth-panel-legacy { display: none !important; }
   </style>
-  <link rel="stylesheet" href="/static/css/cmdb.css?v=0.68.0" />
-  <link rel="stylesheet" href="/static/css/itsm.css?v=0.68.0" />
-  <link rel="stylesheet" href="/static/css/monitor.css?v=0.68.0" />
-  <script src="/static/js/config.js?v=0.68.0"></script>
-  <script src="/static/js/brand.js?v=0.68.0"></script>
+  <link rel="stylesheet" href="/static/css/cmdb.css?v=0.69.0" />
+  <link rel="stylesheet" href="/static/css/itsm.css?v=0.69.0" />
+  <link rel="stylesheet" href="/static/css/monitor.css?v=0.69.0" />
+  <script src="/static/js/config.js?v=0.69.0"></script>
+  <script src="/static/js/brand.js?v=0.69.0"></script>
 </head>
 <body class="is-login">
   <!-- Enterprise login: showcase (left) + sign-in panel (right); stacks on small viewports -->
@@ -1116,8 +1116,96 @@
         <section id="tab-monitor-alerts" class="tab-panel hidden" data-monitor-module="1">
           <section class="panel monitor-panel">
             <h2>Alerts</h2>
-            <div class="demo-banner" data-monitor-simulated="1">SIMULATED — alert rules and instances arrive in M6. No auto-incident create.</div>
-            <div class="placeholder-panel"><strong>Placeholder</strong><p class="monitor-placeholder-note">Firing / acked / resolved alert lifecycle will land here.</p></div>
+            <div class="demo-banner" data-monitor-simulated="1">SIMULATED — rules evaluate synthetic metrics/logs/file events only. No auto-incident create.</div>
+            <div class="toolbar monitor-alerts-toolbar">
+              <label>Search<input id="maSearch" placeholder="summary, rule, CI…" /></label>
+              <label>Status
+                <select id="maStatus">
+                  <option value="">All</option>
+                  <option value="firing">firing</option>
+                  <option value="acked">acked</option>
+                  <option value="resolved">resolved</option>
+                  <option value="firing,acked">open (firing+acked)</option>
+                </select>
+              </label>
+              <label>Component ID<input id="maComponentId" placeholder="component_id" /></label>
+              <button type="button" id="maRefresh" class="secondary">Refresh</button>
+              <button type="button" id="maEvaluate" class="primary" data-monitor-perm-write="monitor:alerts:write" hidden>Evaluate rules</button>
+            </div>
+            <p class="hint" id="maInstancesMeta">Sign in to view SIMULATED alert instances.</p>
+            <div class="table-wrap">
+              <table class="data-table" id="maInstancesTable">
+                <thead>
+                  <tr>
+                    <th>Fired</th>
+                    <th>Status</th>
+                    <th>Severity</th>
+                    <th>Rule</th>
+                    <th>Component</th>
+                    <th>Summary</th>
+                    <th>Actions</th>
+                  </tr>
+                </thead>
+                <tbody id="maInstancesBody"></tbody>
+              </table>
+            </div>
+
+            <h3 class="monitor-subhead">Alert rules</h3>
+            <p class="hint" id="maRulesMeta">Rules are tenant-scoped; entitlement <code>alert_rules</code> applies on create.</p>
+            <div class="toolbar monitor-alerts-rule-form" data-monitor-perm-write="monitor:alerts:write" hidden>
+              <label>Name<input id="maRuleName" placeholder="New rule name" /></label>
+              <label>Severity
+                <select id="maRuleSeverity">
+                  <option value="info">info</option>
+                  <option value="warning" selected>warning</option>
+                  <option value="error">error</option>
+                  <option value="critical">critical</option>
+                </select>
+              </label>
+              <label>Condition
+                <select id="maRuleType">
+                  <option value="log_match">log_match</option>
+                  <option value="threshold">threshold</option>
+                  <option value="file_change">file_change</option>
+                </select>
+              </label>
+              <span data-ma-cond="threshold" hidden>
+                <label>Metric<input id="maRuleMetric" value="cpu_pct" /></label>
+                <label>Op
+                  <select id="maRuleOp">
+                    <option value="gt" selected>gt</option>
+                    <option value="gte">gte</option>
+                    <option value="lt">lt</option>
+                    <option value="lte">lte</option>
+                    <option value="eq">eq</option>
+                  </select>
+                </label>
+                <label>Value<input id="maRuleValue" type="number" value="50" step="any" /></label>
+              </span>
+              <span data-ma-cond="log_match">
+                <label>Log severity<input id="maRuleLogSev" value="error,critical" /></label>
+                <label>Message contains<input id="maRuleLogMsg" placeholder="optional" /></label>
+              </span>
+              <span data-ma-cond="file_change" hidden>
+                <label>Path contains<input id="maRulePath" placeholder="optional" /></label>
+              </span>
+              <button type="button" id="maCreateRule" class="primary">Create rule</button>
+            </div>
+            <div class="table-wrap">
+              <table class="data-table" id="maRulesTable">
+                <thead>
+                  <tr>
+                    <th>Name</th>
+                    <th>Severity</th>
+                    <th>Condition</th>
+                    <th>Enabled</th>
+                    <th>Rule ID</th>
+                    <th>Actions</th>
+                  </tr>
+                </thead>
+                <tbody id="maRulesBody"></tbody>
+              </table>
+            </div>
           </section>
         </section>
 
@@ -3514,25 +3602,26 @@
     </div>
   </div>
 
-  <script src="/static/js/cmdb.js?v=0.68.0"></script>
-  <script src="/static/js/monitor/dashboard.js?v=0.68.0"></script>
-  <script src="/static/js/monitor/targets.js?v=0.68.0"></script>
-  <script src="/static/js/monitor/logs.js?v=0.68.0"></script>
-  <script src="/static/js/monitor/index.js?v=0.68.0"></script>
-  <script src="/static/js/itsm/api.js?v=0.68.0"></script>
-  <script src="/static/js/itsm/routing.js?v=0.68.0"></script>
-  <script src="/static/js/itsm/deeplinks.js?v=0.68.0"></script>
-  <script src="/static/js/itsm/dashboard.js?v=0.68.0"></script>
-  <script src="/static/js/itsm/reports.js?v=0.68.0"></script>
-  <script src="/static/js/itsm/incidents.js?v=0.68.0"></script>
-  <script src="/static/js/itsm/changes.js?v=0.68.0"></script>
-  <script src="/static/js/itsm/problems.js?v=0.68.0"></script>
-  <script src="/static/js/itsm/approvals.js?v=0.68.0"></script>
-  <script src="/static/js/itsm/workflows.js?v=0.68.0"></script>
-  <script src="/static/js/itsm/sla.js?v=0.68.0"></script>
-  <script src="/static/js/itsm/knowledge.js?v=0.68.0"></script>
-  <script src="/static/js/itsm/notifications.js?v=0.68.0"></script>
-  <script src="/static/js/itsm/groups.js?v=0.68.0"></script>
-  <script src="/static/js/itsm/index.js?v=0.68.0"></script>
+  <script src="/static/js/cmdb.js?v=0.69.0"></script>
+  <script src="/static/js/monitor/dashboard.js?v=0.69.0"></script>
+  <script src="/static/js/monitor/targets.js?v=0.69.0"></script>
+  <script src="/static/js/monitor/logs.js?v=0.69.0"></script>
+  <script src="/static/js/monitor/alerts.js?v=0.69.0"></script>
+  <script src="/static/js/monitor/index.js?v=0.69.0"></script>
+  <script src="/static/js/itsm/api.js?v=0.69.0"></script>
+  <script src="/static/js/itsm/routing.js?v=0.69.0"></script>
+  <script src="/static/js/itsm/deeplinks.js?v=0.69.0"></script>
+  <script src="/static/js/itsm/dashboard.js?v=0.69.0"></script>
+  <script src="/static/js/itsm/reports.js?v=0.69.0"></script>
+  <script src="/static/js/itsm/incidents.js?v=0.69.0"></script>
+  <script src="/static/js/itsm/changes.js?v=0.69.0"></script>
+  <script src="/static/js/itsm/problems.js?v=0.69.0"></script>
+  <script src="/static/js/itsm/approvals.js?v=0.69.0"></script>
+  <script src="/static/js/itsm/workflows.js?v=0.69.0"></script>
+  <script src="/static/js/itsm/sla.js?v=0.69.0"></script>
+  <script src="/static/js/itsm/knowledge.js?v=0.69.0"></script>
+  <script src="/static/js/itsm/notifications.js?v=0.69.0"></script>
+  <script src="/static/js/itsm/groups.js?v=0.69.0"></script>
+  <script src="/static/js/itsm/index.js?v=0.69.0"></script>
 </body>
 </html>

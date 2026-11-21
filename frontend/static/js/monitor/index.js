@@ -1,4 +1,4 @@
-/* global SVRMON24MonitorDashboard, SVRMON24MonitorTargets, SVRMON24MonitorLogs */
+/* global SVRMON24MonitorDashboard, SVRMON24MonitorTargets, SVRMON24MonitorLogs, SVRMON24MonitorAlerts */
 (function (global) {
   "use strict";
 
@@ -82,6 +82,10 @@
       global.SVRMON24MonitorLogs.bindApi(api, { toast, can });
       global.SVRMON24MonitorLogs.initLogsUi();
     }
+    if (api && global.SVRMON24MonitorAlerts?.bindApi) {
+      global.SVRMON24MonitorAlerts.bindApi(api, { toast, can });
+      global.SVRMON24MonitorAlerts.initAlertsUi();
+    }
 
     if (pageMeta) {
       pageMeta["monitor-dashboard"] = {
@@ -110,7 +114,7 @@
       };
       pageMeta["monitor-alerts"] = {
         title: "Alerts",
-        subtitle: "Placeholder — SIMULATED alert rules / instances (later slice)",
+        subtitle: "SIMULATED rules · firing / ack / resolve · no auto-incident",
       };
       pageMeta["cmdb-redirect-file-monitoring"] = {
         title: "File Monitoring moved",
@@ -151,6 +155,9 @@
         }
         if (global.SVRMON24MonitorLogs?.onShowTab) {
           global.SVRMON24MonitorLogs.onShowTab(name);
+        }
+        if (global.SVRMON24MonitorAlerts?.onShowTab) {
+          global.SVRMON24MonitorAlerts.onShowTab(name);
         }
       });
     }

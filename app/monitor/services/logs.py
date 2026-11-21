@@ -508,6 +508,11 @@ def simulate_tick(
     ticks_today = _record_tick(tenant_id=tid)
     retention_limit = entitlements_service.log_events_retained_limit(tid)
     ticks_limit = entitlements_service.monitor_simulate_ticks_per_day_limit(tid)
+
+    # M6: evaluate SIMULATED alert rules after demo telemetry lands.
+    from . import alerts as alerts_service
+
+    alert_eval = alerts_service.evaluate_rules(tenant_id=tid)
     return {
         "tenant_id": tid,
         "streams_ensured": len(streams),
@@ -521,5 +526,8 @@ def simulate_tick(
         "live_probes": False,
         "data_source": DATA_SOURCE,
         "sources": list(SOURCES),
+        "alerts_created": alert_eval.get("created", 0),
+        "alerts_open": alert_eval.get("open_count", 0),
+        "alert_rules_evaluated": alert_eval.get("rules_evaluated", 0),
     }
 
