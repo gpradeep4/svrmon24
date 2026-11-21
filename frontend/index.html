@@ -4,7 +4,7 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <meta name="svrmon24-ui" content="login-enterprise-v13" />
-  <meta name="svrmon24-version" content="0.59.0" />
+  <meta name="svrmon24-version" content="0.60.0" />
   <title>SVRMON24</title>
   <link rel="icon" href="/static/img/svrmon-favicon.png" type="image/png" sizes="32x32" />
   <link rel="apple-touch-icon" href="/static/img/svrmon-apple-touch.png" sizes="180x180" />
@@ -15,10 +15,10 @@
     body.is-app .login-gate { display: none !important; }
     #authPanel, .auth-panel-legacy { display: none !important; }
   </style>
-  <link rel="stylesheet" href="/static/css/cmdb.css?v=0.59.0" />
-  <link rel="stylesheet" href="/static/css/itsm.css?v=0.59.0" />
-  <script src="/static/js/config.js?v=0.59.0"></script>
-  <script src="/static/js/brand.js?v=0.59.0"></script>
+  <link rel="stylesheet" href="/static/css/cmdb.css?v=0.60.0" />
+  <link rel="stylesheet" href="/static/css/itsm.css?v=0.60.0" />
+  <script src="/static/js/config.js?v=0.60.0"></script>
+  <script src="/static/js/brand.js?v=0.60.0"></script>
 </head>
 <body class="is-login">
   <!-- Enterprise login: showcase (left) + sign-in panel (right); stacks on small viewports -->
@@ -273,71 +273,83 @@
           <span class="nav-ico" aria-hidden="true"><svg viewBox="0 0 24 24"><ellipse cx="12" cy="6" rx="7" ry="3"/><path d="M5 6v6c0 1.7 3.1 3 7 3s7-1.3 7-3V6"/><path d="M5 12v6c0 1.7 3.1 3 7 3s7-1.3 7-3v-6"/></svg></span>
           Databases
         </button>
-        <div class="nav-section" id="navCustomTablesSection" hidden>Custom tables</div>
-        <div id="navCustomTables"></div>
-        <button type="button" class="nav-item" data-tab="relationships">
-          <span class="nav-ico" aria-hidden="true"><svg viewBox="0 0 24 24"><circle cx="6" cy="12" r="3"/><circle cx="18" cy="6" r="3"/><circle cx="18" cy="18" r="3"/><path d="M8.7 10.2L15.3 7.2M8.7 13.8l6.6 3"/></svg></span>
-          Relationships
+        <button type="button" class="nav-section nav-section-toggle" id="navCustomTablesSection" data-nav-collapse="custom-tables" hidden aria-expanded="true" aria-controls="navCustomTables">
+          <span class="nav-section-label">Custom tables</span>
+          <span class="nav-chevron" aria-hidden="true"></span>
         </button>
-        <button type="button" class="nav-item" data-tab="dependencies">
-          <span class="nav-ico" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M5 6h6v6H5zM13 12h6v6h-6z"/><path d="M11 9h4v4"/></svg></span>
-          Dependencies
-        </button>
-        <button type="button" class="nav-item" data-tab="diagnostics">
-          <span class="nav-ico" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M9 18h6M10 21h4"/><path d="M8 14a6 6 0 1 1 8 0"/><path d="M12 3v2"/></svg></span>
-          Diagnostics
-        </button>
-        <button type="button" class="nav-item" data-tab="file-monitoring" data-fm-nav="1">
-          <span class="nav-ico" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M4 4h7l2 2h7v14H4z"/><path d="M8 12h8M8 16h5"/></svg></span>
-          File Monitoring
-        </button>
+        <div class="nav-group" id="navCustomTables" data-nav-group="custom-tables" role="group" aria-label="Custom tables"></div>
 
-        <div class="nav-section" id="navItsmSection" data-itsm-nav-section="1">ITSM</div>
-        <button type="button" class="nav-item" data-tab="itsm-dashboard" data-itsm-nav="1" data-itsm-perm="itsm:dashboard:read">
-          <span class="nav-ico" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M4 19V5h4v14H4zm6 0V9h4v10h-4zm6 0v-7h4v7h-4z"/></svg></span>
-          ITSM Dashboard
+        <div class="nav-section" id="navCmdbSection">CMDB</div>
+        <div class="nav-group" id="navCmdbGroup" data-nav-group="cmdb" role="group" aria-label="CMDB">
+          <button type="button" class="nav-item" data-tab="relationships">
+            <span class="nav-ico" aria-hidden="true"><svg viewBox="0 0 24 24"><circle cx="6" cy="12" r="3"/><circle cx="18" cy="6" r="3"/><circle cx="18" cy="18" r="3"/><path d="M8.7 10.2L15.3 7.2M8.7 13.8l6.6 3"/></svg></span>
+            Relationships
+          </button>
+          <button type="button" class="nav-item" data-tab="dependencies">
+            <span class="nav-ico" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M5 6h6v6H5zM13 12h6v6h-6z"/><path d="M11 9h4v4"/></svg></span>
+            Dependencies
+          </button>
+          <button type="button" class="nav-item" data-tab="diagnostics">
+            <span class="nav-ico" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M9 18h6M10 21h4"/><path d="M8 14a6 6 0 1 1 8 0"/><path d="M12 3v2"/></svg></span>
+            Diagnostics
+          </button>
+          <button type="button" class="nav-item" data-tab="file-monitoring" data-fm-nav="1">
+            <span class="nav-ico" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M4 4h7l2 2h7v14H4z"/><path d="M8 12h8M8 16h5"/></svg></span>
+            File Monitoring
+          </button>
+        </div>
+
+        <button type="button" class="nav-section nav-section-toggle" id="navItsmSection" data-itsm-nav-section="1" data-nav-collapse="itsm" aria-expanded="true" aria-controls="navItsmGroup">
+          <span class="nav-section-label">ITSM</span>
+          <span class="nav-chevron" aria-hidden="true"></span>
         </button>
-        <button type="button" class="nav-item" data-tab="itsm-incidents" data-itsm-nav="1" data-itsm-perm="itsm:incident:read">
-          <span class="nav-ico" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M12 3 3 19h18L12 3zm0 6v5m0 3h.01"/></svg></span>
-          Incidents
-        </button>
-        <button type="button" class="nav-item" data-tab="itsm-changes" data-itsm-nav="1" data-itsm-perm="itsm:change:read">
-          <span class="nav-ico" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M4 7h12M8 3v4M16 17H4M12 13v4"/><path d="M18 3v6h3l-4 6-4-6h3V3z"/></svg></span>
-          Changes
-        </button>
-        <button type="button" class="nav-item" data-tab="itsm-problems" data-itsm-nav="1" data-itsm-perm="itsm:problem:read">
-          <span class="nav-ico" aria-hidden="true"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 8v5m0 3h.01"/></svg></span>
-          Problems
-        </button>
-        <button type="button" class="nav-item" data-tab="itsm-approvals" data-itsm-nav="1" data-itsm-perm="itsm:approval:read">
-          <span class="nav-ico" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M9 12l2 2 4-4"/><circle cx="12" cy="12" r="9"/></svg></span>
-          Approvals
-        </button>
-        <button type="button" class="nav-item" data-tab="itsm-workflows" data-itsm-nav="1" data-itsm-perm="itsm:workflow:read">
-          <span class="nav-ico" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M6 6h4v4H6zM14 6h4v4h-4zM6 14h4v4H6zM14 14h4v4h-4z"/><path d="M10 8h4M8 10v4M16 10v4M10 16h4"/></svg></span>
-          Workflows
-        </button>
-        <button type="button" class="nav-item" data-tab="itsm-sla" data-itsm-nav="1" data-itsm-perm="itsm:sla:read">
-          <span class="nav-ico" aria-hidden="true"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg></span>
-          SLA
-        </button>
-        <button type="button" class="nav-item" data-tab="itsm-knowledge" data-itsm-nav="1" data-itsm-perm="itsm:knowledge:read">
-          <span class="nav-ico" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M4 5h7a3 3 0 0 1 3 3v11H7a3 3 0 0 0-3 3V5z"/><path d="M20 5h-7a3 3 0 0 0-3 3v11h7a3 3 0 0 1 3 3V5z"/></svg></span>
-          Knowledge
-        </button>
-        <button type="button" class="nav-item" data-tab="itsm-notifications" data-itsm-nav="1" data-itsm-perm="itsm:notification:read">
-          <span class="nav-ico" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M12 22a2 2 0 0 0 2-2h-4a2 2 0 0 0 2 2zm6-6V11a6 6 0 1 0-12 0v5l-2 2v1h16v-1l-2-2z"/></svg></span>
-          Notifications
-          <span id="itsmNotifNavBadge" class="itsm-notif-badge" hidden aria-hidden="true">0</span>
-        </button>
-        <button type="button" class="nav-item" data-tab="itsm-groups" data-itsm-nav="1" data-itsm-perm="itsm:groups:read">
-          <span class="nav-ico" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M16 11c1.66 0 3-1.57 3-3.5S17.66 4 16 4s-3 1.57-3 3.5 1.34 3.5 3 3.5zM8 11c1.66 0 3-1.57 3-3.5S9.66 4 8 4 5 5.57 5 7.5 6.34 11 8 11zm0 2c-2.33 0-7 1.17-7 3.5V19h14v-2.5C15 14.17 10.33 13 8 13zm8 0c-.29 0-.62.02-.97.05 1.16.84 1.97 1.97 1.97 3.45V19h6v-2.5c0-2.33-4.67-3.5-7-3.5z"/></svg></span>
-          Groups
-        </button>
-        <button type="button" class="nav-item" data-tab="itsm-reports" data-itsm-nav="1" data-itsm-perm="itsm:dashboard:read">
-          <span class="nav-ico" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M4 19h16M6 16V9m4 7V5m4 11v-4m4 4V7"/></svg></span>
-          Reports
-        </button>
+        <div class="nav-group" id="navItsmGroup" data-nav-group="itsm" data-itsm-nav-group="1" role="group" aria-label="ITSM">
+          <button type="button" class="nav-item" data-tab="itsm-dashboard" data-itsm-nav="1" data-itsm-perm="itsm:dashboard:read">
+            <span class="nav-ico" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M4 19V5h4v14H4zm6 0V9h4v10h-4zm6 0v-7h4v7h-4z"/></svg></span>
+            ITSM Dashboard
+          </button>
+          <button type="button" class="nav-item" data-tab="itsm-incidents" data-itsm-nav="1" data-itsm-perm="itsm:incident:read">
+            <span class="nav-ico" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M12 3 3 19h18L12 3zm0 6v5m0 3h.01"/></svg></span>
+            Incidents
+          </button>
+          <button type="button" class="nav-item" data-tab="itsm-changes" data-itsm-nav="1" data-itsm-perm="itsm:change:read">
+            <span class="nav-ico" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M4 7h12M8 3v4M16 17H4M12 13v4"/><path d="M18 3v6h3l-4 6-4-6h3V3z"/></svg></span>
+            Changes
+          </button>
+          <button type="button" class="nav-item" data-tab="itsm-problems" data-itsm-nav="1" data-itsm-perm="itsm:problem:read">
+            <span class="nav-ico" aria-hidden="true"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 8v5m0 3h.01"/></svg></span>
+            Problems
+          </button>
+          <button type="button" class="nav-item" data-tab="itsm-approvals" data-itsm-nav="1" data-itsm-perm="itsm:approval:read">
+            <span class="nav-ico" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M9 12l2 2 4-4"/><circle cx="12" cy="12" r="9"/></svg></span>
+            Approvals
+          </button>
+          <button type="button" class="nav-item" data-tab="itsm-workflows" data-itsm-nav="1" data-itsm-perm="itsm:workflow:read">
+            <span class="nav-ico" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M6 6h4v4H6zM14 6h4v4h-4zM6 14h4v4H6zM14 14h4v4h-4z"/><path d="M10 8h4M8 10v4M16 10v4M10 16h4"/></svg></span>
+            Workflows
+          </button>
+          <button type="button" class="nav-item" data-tab="itsm-sla" data-itsm-nav="1" data-itsm-perm="itsm:sla:read">
+            <span class="nav-ico" aria-hidden="true"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg></span>
+            SLA
+          </button>
+          <button type="button" class="nav-item" data-tab="itsm-knowledge" data-itsm-nav="1" data-itsm-perm="itsm:knowledge:read">
+            <span class="nav-ico" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M4 5h7a3 3 0 0 1 3 3v11H7a3 3 0 0 0-3 3V5z"/><path d="M20 5h-7a3 3 0 0 0-3 3v11h7a3 3 0 0 1 3 3V5z"/></svg></span>
+            Knowledge
+          </button>
+          <button type="button" class="nav-item" data-tab="itsm-notifications" data-itsm-nav="1" data-itsm-perm="itsm:notification:read">
+            <span class="nav-ico" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M12 22a2 2 0 0 0 2-2h-4a2 2 0 0 0 2 2zm6-6V11a6 6 0 1 0-12 0v5l-2 2v1h16v-1l-2-2z"/></svg></span>
+            Notifications
+            <span id="itsmNotifNavBadge" class="itsm-notif-badge" hidden aria-hidden="true">0</span>
+          </button>
+          <button type="button" class="nav-item" data-tab="itsm-groups" data-itsm-nav="1" data-itsm-perm="itsm:groups:read">
+            <span class="nav-ico" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M16 11c1.66 0 3-1.57 3-3.5S17.66 4 16 4s-3 1.57-3 3.5 1.34 3.5 3 3.5zM8 11c1.66 0 3-1.57 3-3.5S9.66 4 8 4 5 5.57 5 7.5 6.34 11 8 11zm0 2c-2.33 0-7 1.17-7 3.5V19h14v-2.5C15 14.17 10.33 13 8 13zm8 0c-.29 0-.62.02-.97.05 1.16.84 1.97 1.97 1.97 3.45V19h6v-2.5c0-2.33-4.67-3.5-7-3.5z"/></svg></span>
+            Groups
+          </button>
+          <button type="button" class="nav-item" data-tab="itsm-reports" data-itsm-nav="1" data-itsm-perm="itsm:dashboard:read">
+            <span class="nav-ico" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M4 19h16M6 16V9m4 7V5m4 11v-4m4 4V7"/></svg></span>
+            Reports
+          </button>
+        </div>
 
         <div class="nav-section">Configuration</div>
         <button type="button" class="nav-item" data-tab="custom">
@@ -3137,21 +3149,21 @@
     </div>
   </div>
 
-  <script src="/static/js/cmdb.js?v=0.59.0"></script>
-  <script src="/static/js/itsm/api.js?v=0.59.0"></script>
-  <script src="/static/js/itsm/routing.js?v=0.59.0"></script>
-  <script src="/static/js/itsm/deeplinks.js?v=0.59.0"></script>
-  <script src="/static/js/itsm/dashboard.js?v=0.59.0"></script>
-  <script src="/static/js/itsm/reports.js?v=0.59.0"></script>
-  <script src="/static/js/itsm/incidents.js?v=0.59.0"></script>
-  <script src="/static/js/itsm/changes.js?v=0.59.0"></script>
-  <script src="/static/js/itsm/problems.js?v=0.59.0"></script>
-  <script src="/static/js/itsm/approvals.js?v=0.59.0"></script>
-  <script src="/static/js/itsm/workflows.js?v=0.59.0"></script>
-  <script src="/static/js/itsm/sla.js?v=0.59.0"></script>
-  <script src="/static/js/itsm/knowledge.js?v=0.59.0"></script>
-  <script src="/static/js/itsm/notifications.js?v=0.59.0"></script>
-  <script src="/static/js/itsm/groups.js?v=0.59.0"></script>
-  <script src="/static/js/itsm/index.js?v=0.59.0"></script>
+  <script src="/static/js/cmdb.js?v=0.60.0"></script>
+  <script src="/static/js/itsm/api.js?v=0.60.0"></script>
+  <script src="/static/js/itsm/routing.js?v=0.60.0"></script>
+  <script src="/static/js/itsm/deeplinks.js?v=0.60.0"></script>
+  <script src="/static/js/itsm/dashboard.js?v=0.60.0"></script>
+  <script src="/static/js/itsm/reports.js?v=0.60.0"></script>
+  <script src="/static/js/itsm/incidents.js?v=0.60.0"></script>
+  <script src="/static/js/itsm/changes.js?v=0.60.0"></script>
+  <script src="/static/js/itsm/problems.js?v=0.60.0"></script>
+  <script src="/static/js/itsm/approvals.js?v=0.60.0"></script>
+  <script src="/static/js/itsm/workflows.js?v=0.60.0"></script>
+  <script src="/static/js/itsm/sla.js?v=0.60.0"></script>
+  <script src="/static/js/itsm/knowledge.js?v=0.60.0"></script>
+  <script src="/static/js/itsm/notifications.js?v=0.60.0"></script>
+  <script src="/static/js/itsm/groups.js?v=0.60.0"></script>
+  <script src="/static/js/itsm/index.js?v=0.60.0"></script>
 </body>
 </html>

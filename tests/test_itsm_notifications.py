@@ -20,7 +20,7 @@ from tests.frontend_paths import FRONTEND_INDEX
 
 
 def test_version_bump_for_notifications_slice() -> None:
-    assert __version__ == "0.59.0"
+    assert __version__ == "0.60.0"
 
 
 def test_notification_permissions_in_catalog() -> None:
@@ -320,9 +320,9 @@ def test_notification_tenant_isolation(
 
 def test_frontend_notification_markers() -> None:
     html = FRONTEND_INDEX.read_text(encoding="utf-8")
-    assert 'content="0.59.0"' in html
+    assert 'content="0.60.0"' in html
     assert 'data-tab="itsm-notifications"' in html
     assert 'id="tab-itsm-notifications"' in html
-    assert "itsm/notifications.js?v=0.59.0" in html
+    assert "itsm/notifications.js?v=0.60.0" in html
     assert 'id="itsmNotifNavBadge"' in html
     assert 'id="itsmNotifBody"' in html

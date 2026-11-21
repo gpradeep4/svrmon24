@@ -28,8 +28,10 @@
 
   function applyItsmNavGates(can) {
     const section = document.getElementById("navItsmSection");
+    const group = document.getElementById("navItsmGroup");
     const showSection = anyItsmPermission(can);
     if (section) section.hidden = !showSection;
+    if (group) group.hidden = !showSection;
     document.querySelectorAll("[data-itsm-nav='1']").forEach((btn) => {
       const perm = btn.getAttribute("data-itsm-perm");
       const allowed = !perm || can(perm);
