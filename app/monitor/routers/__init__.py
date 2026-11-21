@@ -5,7 +5,7 @@ from __future__ import annotations
 from fastapi import APIRouter, Depends
 
 from ...auth import require_user
-from . import meta
+from . import meta, targets
 
 router = APIRouter(
     prefix="/api/monitor",
@@ -14,3 +14,4 @@ router = APIRouter(
 )
 
 router.include_router(meta.router)
+router.include_router(targets.router)

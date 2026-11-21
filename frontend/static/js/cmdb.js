@@ -615,19 +615,19 @@
     },
     "monitor-servers": {
       title: "Servers (Monitoring)",
-      subtitle: "Placeholder — SIMULATED server health (later slice)",
+      subtitle: "SIMULATED server health · sync from CMDB",
     },
     "monitor-network": {
       title: "Network (Monitoring)",
-      subtitle: "Placeholder — SIMULATED network health (later slice)",
+      subtitle: "SIMULATED network kinds · sync from CMDB",
     },
     "monitor-applications": {
       title: "Applications (Monitoring)",
-      subtitle: "Placeholder — SIMULATED application health (later slice)",
+      subtitle: "SIMULATED application health · sync from CMDB",
     },
     "monitor-databases": {
       title: "Databases (Monitoring)",
-      subtitle: "Placeholder — SIMULATED database health (later slice)",
+      subtitle: "SIMULATED database health · sync from CMDB",
     },
     "monitor-logs": {
       title: "Logs",

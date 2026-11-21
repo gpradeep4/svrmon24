@@ -4,7 +4,7 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <meta name="svrmon24-ui" content="login-enterprise-v13" />
-  <meta name="svrmon24-version" content="0.66.0" />
+  <meta name="svrmon24-version" content="0.67.0" />
   <title>SVRMON24</title>
   <link rel="icon" href="/static/img/svrmon-favicon.png" type="image/png" sizes="32x32" />
   <link rel="apple-touch-icon" href="/static/img/svrmon-apple-touch.png" sizes="180x180" />
@@ -15,11 +15,11 @@
     body.is-app .login-gate { display: none !important; }
     #authPanel, .auth-panel-legacy { display: none !important; }
   </style>
-  <link rel="stylesheet" href="/static/css/cmdb.css?v=0.66.0" />
-  <link rel="stylesheet" href="/static/css/itsm.css?v=0.66.0" />
-  <link rel="stylesheet" href="/static/css/monitor.css?v=0.66.0" />
-  <script src="/static/js/config.js?v=0.66.0"></script>
-  <script src="/static/js/brand.js?v=0.66.0"></script>
+  <link rel="stylesheet" href="/static/css/cmdb.css?v=0.67.0" />
+  <link rel="stylesheet" href="/static/css/itsm.css?v=0.67.0" />
+  <link rel="stylesheet" href="/static/css/monitor.css?v=0.67.0" />
+  <script src="/static/js/config.js?v=0.67.0"></script>
+  <script src="/static/js/brand.js?v=0.67.0"></script>
 </head>
 <body class="is-login">
   <!-- Enterprise login: showcase (left) + sign-in panel (right); stacks on small viewports -->
@@ -859,29 +859,207 @@
         <section id="tab-monitor-servers" class="tab-panel hidden" data-monitor-module="1">
           <section class="panel monitor-panel">
             <h2>Servers (Monitoring)</h2>
-            <div class="demo-banner" data-monitor-simulated="1">SIMULATED — server health targets arrive in a later slice. Live probes remain off.</div>
-            <div class="placeholder-panel"><strong>Placeholder</strong><p class="monitor-placeholder-note">CMDB Server CIs will sync into monitor targets (M4).</p></div>
+            <div class="demo-banner" data-monitor-simulated="1">SIMULATED — synthetic server health + metrics. Live probes / agents remain off.</div>
+            <div class="toolbar monitor-targets-toolbar">
+              <label>Search<input id="mtSrvSearch" placeholder="name, component_id…" /></label>
+              <label>Status
+                <select id="mtSrvStatus">
+                  <option value="">All</option>
+                  <option value="healthy">healthy</option>
+                  <option value="degraded">degraded</option>
+                  <option value="down">down</option>
+                  <option value="unknown">unknown</option>
+                  <option value="maintenance">maintenance</option>
+                </select>
+              </label>
+              <label>OS family
+                <select id="mtSrvOsFamily">
+                  <option value="">All</option>
+                  <option value="linux">linux</option>
+                  <option value="windows">windows</option>
+                  <option value="macos">macos</option>
+                  <option value="unix">unix</option>
+                </select>
+              </label>
+              <label>Collect mode
+                <select id="mtSrvCollectMode">
+                  <option value="">All</option>
+                  <option value="AGENTLESS">AGENTLESS</option>
+                  <option value="AGENT">AGENT</option>
+                </select>
+              </label>
+              <button type="button" id="mtSrvRefresh" class="secondary">Refresh</button>
+              <button type="button" id="mtSrvSync" class="primary" data-monitor-perm-write="monitor:targets:write">Sync from CMDB</button>
+            </div>
+            <p class="hint" id="mtSrvMeta">Tenant-scoped server targets · SIMULATED</p>
+            <div class="table-wrap">
+              <table class="inventory" id="mtSrvTable">
+                <thead>
+                  <tr>
+                    <th>Name</th>
+                    <th>Component</th>
+                    <th>Kind</th>
+                    <th>OS</th>
+                    <th>Collect</th>
+                    <th>Status</th>
+                    <th>Latest metrics</th>
+                    <th>Actions</th>
+                  </tr>
+                </thead>
+                <tbody id="mtSrvBody"></tbody>
+              </table>
+            </div>
           </section>
         </section>
         <section id="tab-monitor-network" class="tab-panel hidden" data-monitor-module="1">
           <section class="panel monitor-panel">
             <h2>Network (Monitoring)</h2>
-            <div class="demo-banner" data-monitor-simulated="1">SIMULATED — network health targets arrive in a later slice. Live probes remain off.</div>
-            <div class="placeholder-panel"><strong>Placeholder</strong><p class="monitor-placeholder-note">Switches, routers, firewalls, load balancers, and APs as first-class kinds (M4).</p></div>
+            <div class="demo-banner" data-monitor-simulated="1">SIMULATED — switches, routers, firewalls, load balancers, APs. Live SNMP stays off.</div>
+            <div class="toolbar monitor-targets-toolbar">
+              <label>Search<input id="mtNetSearch" placeholder="name, component_id…" /></label>
+              <label>Status
+                <select id="mtNetStatus">
+                  <option value="">All</option>
+                  <option value="healthy">healthy</option>
+                  <option value="degraded">degraded</option>
+                  <option value="down">down</option>
+                  <option value="unknown">unknown</option>
+                  <option value="maintenance">maintenance</option>
+                </select>
+              </label>
+              <label>Kind
+                <select id="mtNetTargetKind">
+                  <option value="">All</option>
+                  <option value="switch">switch</option>
+                  <option value="router">router</option>
+                  <option value="firewall">firewall</option>
+                  <option value="load_balancer">load_balancer</option>
+                  <option value="access_point">access_point</option>
+                  <option value="other_network">other_network</option>
+                </select>
+              </label>
+              <label>Collect mode
+                <select id="mtNetCollectMode">
+                  <option value="">All</option>
+                  <option value="AGENTLESS">AGENTLESS</option>
+                  <option value="AGENT">AGENT</option>
+                </select>
+              </label>
+              <button type="button" id="mtNetRefresh" class="secondary">Refresh</button>
+              <button type="button" id="mtNetSync" class="primary" data-monitor-perm-write="monitor:targets:write">Sync from CMDB</button>
+            </div>
+            <p class="hint" id="mtNetMeta">Tenant-scoped network targets · SIMULATED</p>
+            <div class="table-wrap">
+              <table class="inventory" id="mtNetTable">
+                <thead>
+                  <tr>
+                    <th>Name</th>
+                    <th>Component</th>
+                    <th>Kind</th>
+                    <th>Kind (detail)</th>
+                    <th>Collect</th>
+                    <th>Status</th>
+                    <th>Latest metrics</th>
+                    <th>Actions</th>
+                  </tr>
+                </thead>
+                <tbody id="mtNetBody"></tbody>
+              </table>
+            </div>
           </section>
         </section>
         <section id="tab-monitor-applications" class="tab-panel hidden" data-monitor-module="1">
           <section class="panel monitor-panel">
             <h2>Applications (Monitoring)</h2>
-            <div class="demo-banner" data-monitor-simulated="1">SIMULATED — application health targets arrive in a later slice. Live probes remain off.</div>
-            <div class="placeholder-panel"><strong>Placeholder</strong><p class="monitor-placeholder-note">Application CI health views land with targets sync (M4).</p></div>
+            <div class="demo-banner" data-monitor-simulated="1">SIMULATED — application health from CMDB Application CIs. Live APM stays off.</div>
+            <div class="toolbar monitor-targets-toolbar">
+              <label>Search<input id="mtAppSearch" placeholder="name, component_id…" /></label>
+              <label>Status
+                <select id="mtAppStatus">
+                  <option value="">All</option>
+                  <option value="healthy">healthy</option>
+                  <option value="degraded">degraded</option>
+                  <option value="down">down</option>
+                  <option value="unknown">unknown</option>
+                  <option value="maintenance">maintenance</option>
+                </select>
+              </label>
+              <label>Kind<input id="mtAppTargetKind" placeholder="e.g. backend, web" /></label>
+              <label>Collect mode
+                <select id="mtAppCollectMode">
+                  <option value="">All</option>
+                  <option value="AGENTLESS">AGENTLESS</option>
+                  <option value="AGENT">AGENT</option>
+                </select>
+              </label>
+              <button type="button" id="mtAppRefresh" class="secondary">Refresh</button>
+              <button type="button" id="mtAppSync" class="primary" data-monitor-perm-write="monitor:targets:write">Sync from CMDB</button>
+            </div>
+            <p class="hint" id="mtAppMeta">Tenant-scoped application targets · SIMULATED</p>
+            <div class="table-wrap">
+              <table class="inventory" id="mtAppTable">
+                <thead>
+                  <tr>
+                    <th>Name</th>
+                    <th>Component</th>
+                    <th>Kind</th>
+                    <th>Kind (detail)</th>
+                    <th>Collect</th>
+                    <th>Status</th>
+                    <th>Latest metrics</th>
+                    <th>Actions</th>
+                  </tr>
+                </thead>
+                <tbody id="mtAppBody"></tbody>
+              </table>
+            </div>
           </section>
         </section>
         <section id="tab-monitor-databases" class="tab-panel hidden" data-monitor-module="1">
           <section class="panel monitor-panel">
             <h2>Databases (Monitoring)</h2>
-            <div class="demo-banner" data-monitor-simulated="1">SIMULATED — database health targets arrive in a later slice. Live probes remain off.</div>
-            <div class="placeholder-panel"><strong>Placeholder</strong><p class="monitor-placeholder-note">Database CI health views land with targets sync (M4).</p></div>
+            <div class="demo-banner" data-monitor-simulated="1">SIMULATED — database health from CMDB Database CIs. Live DB agents stay off.</div>
+            <div class="toolbar monitor-targets-toolbar">
+              <label>Search<input id="mtDbSearch" placeholder="name, component_id…" /></label>
+              <label>Status
+                <select id="mtDbStatus">
+                  <option value="">All</option>
+                  <option value="healthy">healthy</option>
+                  <option value="degraded">degraded</option>
+                  <option value="down">down</option>
+                  <option value="unknown">unknown</option>
+                  <option value="maintenance">maintenance</option>
+                </select>
+              </label>
+              <label>Kind<input id="mtDbTargetKind" placeholder="e.g. Oracle, Postgres" /></label>
+              <label>Collect mode
+                <select id="mtDbCollectMode">
+                  <option value="">All</option>
+                  <option value="AGENTLESS">AGENTLESS</option>
+                  <option value="AGENT">AGENT</option>
+                </select>
+              </label>
+              <button type="button" id="mtDbRefresh" class="secondary">Refresh</button>
+              <button type="button" id="mtDbSync" class="primary" data-monitor-perm-write="monitor:targets:write">Sync from CMDB</button>
+            </div>
+            <p class="hint" id="mtDbMeta">Tenant-scoped database targets · SIMULATED</p>
+            <div class="table-wrap">
+              <table class="inventory" id="mtDbTable">
+                <thead>
+                  <tr>
+                    <th>Name</th>
+                    <th>Component</th>
+                    <th>Kind</th>
+                    <th>Kind (detail)</th>
+                    <th>Collect</th>
+                    <th>Status</th>
+                    <th>Latest metrics</th>
+                    <th>Actions</th>
+                  </tr>
+                </thead>
+                <tbody id="mtDbBody"></tbody>
+              </table>
+            </div>
           </section>
         </section>
         <section id="tab-monitor-logs" class="tab-panel hidden" data-monitor-module="1">
@@ -3292,23 +3470,24 @@
     </div>
   </div>
 
-  <script src="/static/js/cmdb.js?v=0.66.0"></script>
-  <script src="/static/js/monitor/dashboard.js?v=0.66.0"></script>
-  <script src="/static/js/monitor/index.js?v=0.66.0"></script>
-  <script src="/static/js/itsm/api.js?v=0.66.0"></script>
-  <script src="/static/js/itsm/routing.js?v=0.66.0"></script>
-  <script src="/static/js/itsm/deeplinks.js?v=0.66.0"></script>
-  <script src="/static/js/itsm/dashboard.js?v=0.66.0"></script>
-  <script src="/static/js/itsm/reports.js?v=0.66.0"></script>
-  <script src="/static/js/itsm/incidents.js?v=0.66.0"></script>
-  <script src="/static/js/itsm/changes.js?v=0.66.0"></script>
-  <script src="/static/js/itsm/problems.js?v=0.66.0"></script>
-  <script src="/static/js/itsm/approvals.js?v=0.66.0"></script>
-  <script src="/static/js/itsm/workflows.js?v=0.66.0"></script>
-  <script src="/static/js/itsm/sla.js?v=0.66.0"></script>
-  <script src="/static/js/itsm/knowledge.js?v=0.66.0"></script>
-  <script src="/static/js/itsm/notifications.js?v=0.66.0"></script>
-  <script src="/static/js/itsm/groups.js?v=0.66.0"></script>
-  <script src="/static/js/itsm/index.js?v=0.66.0"></script>
+  <script src="/static/js/cmdb.js?v=0.67.0"></script>
+  <script src="/static/js/monitor/dashboard.js?v=0.67.0"></script>
+  <script src="/static/js/monitor/targets.js?v=0.67.0"></script>
+  <script src="/static/js/monitor/index.js?v=0.67.0"></script>
+  <script src="/static/js/itsm/api.js?v=0.67.0"></script>
+  <script src="/static/js/itsm/routing.js?v=0.67.0"></script>
+  <script src="/static/js/itsm/deeplinks.js?v=0.67.0"></script>
+  <script src="/static/js/itsm/dashboard.js?v=0.67.0"></script>
+  <script src="/static/js/itsm/reports.js?v=0.67.0"></script>
+  <script src="/static/js/itsm/incidents.js?v=0.67.0"></script>
+  <script src="/static/js/itsm/changes.js?v=0.67.0"></script>
+  <script src="/static/js/itsm/problems.js?v=0.67.0"></script>
+  <script src="/static/js/itsm/approvals.js?v=0.67.0"></script>
+  <script src="/static/js/itsm/workflows.js?v=0.67.0"></script>
+  <script src="/static/js/itsm/sla.js?v=0.67.0"></script>
+  <script src="/static/js/itsm/knowledge.js?v=0.67.0"></script>
+  <script src="/static/js/itsm/notifications.js?v=0.67.0"></script>
+  <script src="/static/js/itsm/groups.js?v=0.67.0"></script>
+  <script src="/static/js/itsm/index.js?v=0.67.0"></script>
 </body>
 </html>

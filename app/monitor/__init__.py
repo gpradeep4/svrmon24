@@ -6,8 +6,10 @@ v1 is SIMULATED-only (``live_probes: false``); live agents require separate appr
 
 from __future__ import annotations
 
-# M3: File Monitoring collections. Later slices add targets/metrics/logs/alerts.
+# M3: File Monitoring. M4: targets + metric samples. Later: logs/alerts.
 MONITOR_COLLECTIONS: tuple[str, ...] = (
     "file_watch_targets",
     "file_version_events",
+    "monitor_targets",
+    "metric_samples",
 )

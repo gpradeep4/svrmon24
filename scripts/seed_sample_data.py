@@ -237,6 +237,50 @@ def seed() -> dict[str, int]:
             "custom_fields": {"demo_cost_center": "NET-OPS"},
         },
         {
+            "component_id": "demo-net-core-sw",
+            "component_type": "Network",
+            "name": "Core Switch",
+            "environment": "prod",
+            "status": "active",
+            "device_name": "sw-core-01",
+            "device_type": "switch",
+            "management_ip": "10.10.0.2",
+            "custom_fields": {"demo_cost_center": "NET-OPS"},
+        },
+        {
+            "component_id": "demo-net-fw",
+            "component_type": "Network",
+            "name": "Perimeter Firewall",
+            "environment": "prod",
+            "status": "active",
+            "device_name": "fw-edge-01",
+            "device_type": "firewall",
+            "management_ip": "10.10.0.1",
+            "custom_fields": {"demo_cost_center": "NET-OPS"},
+        },
+        {
+            "component_id": "demo-net-ap",
+            "component_type": "Network",
+            "name": "Lobby Access Point",
+            "environment": "prod",
+            "status": "active",
+            "device_name": "ap-lobby-01",
+            "device_type": "access_point",
+            "management_ip": "10.10.8.11",
+            "custom_fields": {"demo_cost_center": "NET-OPS"},
+        },
+        {
+            "component_id": "demo-net-router",
+            "component_type": "Network",
+            "name": "Edge Router",
+            "environment": "prod",
+            "status": "active",
+            "device_name": "rtr-edge-01",
+            "device_type": "router",
+            "management_ip": "10.10.0.254",
+            "custom_fields": {"demo_cost_center": "NET-OPS"},
+        },
+        {
             "component_id": "demo-srv-web01",
             "component_type": "Server",
             "name": "Web Tier 01",
@@ -335,6 +379,30 @@ def seed() -> dict[str, int]:
             "os_family": "Windows Server",
             "os_version": "2022",
             "custom_fields": {"demo_cost_center": "BATCH"},
+        },
+        {
+            "component_id": "demo-srv-mac-build",
+            "component_type": "Server",
+            "name": "macOS Build Host",
+            "environment": "nonprod",
+            "status": "active",
+            "hostname": "macbuild01.demo.local",
+            "ip_address": "10.20.2.15",
+            "os_family": "macOS",
+            "os_version": "15.1",
+            "custom_fields": {"demo_cost_center": "ENG"},
+        },
+        {
+            "component_id": "demo-srv-aix",
+            "component_type": "Server",
+            "name": "AIX Legacy Host",
+            "environment": "prod",
+            "status": "active",
+            "hostname": "aix01.demo.local",
+            "ip_address": "10.10.9.9",
+            "os_family": "AIX",
+            "os_version": "7.3",
+            "custom_fields": {"demo_cost_center": "LEGACY"},
         },
     ]
     for payload in components:
@@ -468,6 +536,16 @@ def seed() -> dict[str, int]:
             f"(targets={fm.get('targets')} events={fm.get('events')})"
         )
         stats["skipped"] += 1
+
+    print("Seeding SIMULATED monitor targets (sync from CMDB)…")
+    from app.monitor.services import targets as monitor_targets_service
+
+    mt = monitor_targets_service.sync_from_cmdb(tenant_id=SEED_TENANT_ID)
+    _ok(
+        f"monitor targets created={mt.get('created')} updated={mt.get('updated')} "
+        f"samples={mt.get('samples_seeded')} total={mt.get('total')}"
+    )
+    stats["created"] += int(mt.get("created") or 0) + int(mt.get("samples_seeded") or 0)
 
     return stats
 

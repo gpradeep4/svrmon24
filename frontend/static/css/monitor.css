@@ -44,3 +44,28 @@
   color: #9a3412;
   border-color: #fdba74;
 }
+
+.monitor-targets-toolbar {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 10px;
+  align-items: end;
+  margin-top: 12px;
+}
+
+.monitor-targets-toolbar button {
+  justify-self: start;
+  white-space: nowrap;
+}
+
+.status-pill.muted {
+  background: #f1f5f9;
+  color: #475569;
+  border-color: #cbd5e1;
+}
+
+.status-pill.danger {
+  background: #fef2f2;
+  color: #b91c1c;
+  border-color: #fecaca;
+}
