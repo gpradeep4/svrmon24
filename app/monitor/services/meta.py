@@ -22,7 +22,7 @@ NETWORK_TARGET_KINDS: tuple[str, ...] = (
 DOMAINS: tuple[str, ...] = ("server", "network", "application", "database")
 BANNER = (
     "SIMULATED / SYNTHETIC_DEMO — Monitoring does not run live probes or agents. "
-    "Synthetic metrics, logs, and alerts will appear in later slices."
+    "Target health and metric samples are synthetic; live probes stay off."
 )
 
 
@@ -41,10 +41,11 @@ def module_meta(*, settings: Settings | None = None) -> dict[str, Any]:
         "network_target_kinds": list(NETWORK_TARGET_KINDS),
         "banner": BANNER,
         "notice": (
-            "Monitoring v1 is SIMULATED. Data model supports AGENTLESS and AGENT "
-            "collect modes for all OS families and networking components, but live "
-            "probes stay off until explicitly approved. File Monitoring and "
-            "Diagnostics are under the Monitoring sidebar (CMDB keeps temporary redirects)."
+            "Monitoring v1 is SIMULATED. Sync targets from CMDB (API client only); "
+            "domain health views stamp AGENTLESS/AGENT collect modes for all OS "
+            "families and networking kinds. Live probes stay off until explicitly "
+            "approved. File Monitoring and Diagnostics stay under Monitoring "
+            "(CMDB keeps temporary redirects)."
         ),
         "database": cfg.monitor_database_name,
         "monitor_database": cfg.monitor_database_name,

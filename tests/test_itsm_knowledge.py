@@ -17,7 +17,7 @@ from tests.frontend_paths import FRONTEND_INDEX
 
 
 def test_version_bump_for_knowledge_slice() -> None:
-    assert __version__ == "0.66.0"
+    assert __version__ == "0.67.0"
 
 
 def test_knowledge_permissions_in_catalog() -> None:
@@ -293,10 +293,10 @@ def test_markdown_body_format_and_sanitize(
 
 def test_frontend_knowledge_markers() -> None:
     html = FRONTEND_INDEX.read_text(encoding="utf-8")
-    assert 'content="0.66.0"' in html
+    assert 'content="0.67.0"' in html
     assert 'data-tab="itsm-knowledge"' in html
     assert 'id="tab-itsm-knowledge"' in html
-    assert "itsm/knowledge.js?v=0.66.0" in html
+    assert "itsm/knowledge.js?v=0.67.0" in html
     assert 'id="itsmKnowledgeModal"' in html
     assert 'id="itsmIncKbSuggest"' in html
     assert 'id="itsmKbFieldFormat"' in html

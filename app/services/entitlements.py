@@ -357,6 +357,17 @@ def monitor_target_limit(tenant_id: str) -> int | None:
     return _monitor_limit(tenant_id, RESOURCE_MONITOR_TARGETS)
 
 
+def assert_can_create_monitor_target(tenant_id: str) -> None:
+    """Enforce monitor_targets create against tenant entitlements.
+
+    Unlimited (None) always passes. When a numeric limit is set, count current
+    tenant monitor_targets and raise EntitlementError (403) at/over the ceiling.
+    """
+    from ..monitor.services import targets as targets_service
+
+    targets_service.assert_can_create_monitor_target(tenant_id)
+
+
 def metric_samples_retained_limit(tenant_id: str) -> int | None:
     """Max retained metric samples for tenant, or None when unlimited."""
     return _monitor_limit(tenant_id, RESOURCE_METRIC_SAMPLES_RETAINED)

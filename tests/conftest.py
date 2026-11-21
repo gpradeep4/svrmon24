@@ -125,6 +125,8 @@ def clean_db(client: TestClient) -> Generator[None, None, None]:
     monitor_collections = (
         "file_watch_targets",
         "file_version_events",
+        "monitor_targets",
+        "metric_samples",
     )
     for name in collections:
         db[name].delete_many({})

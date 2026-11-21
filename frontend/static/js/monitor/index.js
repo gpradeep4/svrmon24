@@ -1,4 +1,4 @@
-/* global SVRMON24MonitorDashboard */
+/* global SVRMON24MonitorDashboard, SVRMON24MonitorTargets */
 (function (global) {
   "use strict";
 
@@ -62,6 +62,10 @@
     if (api && global.SVRMON24MonitorDashboard?.bindApi) {
       global.SVRMON24MonitorDashboard.bindApi(api, { toast });
     }
+    if (api && global.SVRMON24MonitorTargets?.bindApi) {
+      global.SVRMON24MonitorTargets.bindApi(api, { toast, can });
+      global.SVRMON24MonitorTargets.initTargetsUi();
+    }
 
     if (pageMeta) {
       pageMeta["monitor-dashboard"] = {
@@ -70,19 +74,19 @@
       };
       pageMeta["monitor-servers"] = {
         title: "Servers (Monitoring)",
-        subtitle: "Placeholder — SIMULATED server health (later slice)",
+        subtitle: "SIMULATED server health · sync from CMDB",
       };
       pageMeta["monitor-network"] = {
         title: "Network (Monitoring)",
-        subtitle: "Placeholder — SIMULATED network health (later slice)",
+        subtitle: "SIMULATED network kinds · sync from CMDB",
       };
       pageMeta["monitor-applications"] = {
         title: "Applications (Monitoring)",
-        subtitle: "Placeholder — SIMULATED application health (later slice)",
+        subtitle: "SIMULATED application health · sync from CMDB",
       };
       pageMeta["monitor-databases"] = {
         title: "Databases (Monitoring)",
-        subtitle: "Placeholder — SIMULATED database health (later slice)",
+        subtitle: "SIMULATED database health · sync from CMDB",
       };
       pageMeta["monitor-logs"] = {
         title: "Logs",
@@ -126,8 +130,19 @@
         if (name === "monitor-dashboard") {
           SVRMON24MonitorDashboard.loadMonitorDashboard({ toast });
         }
+        if (global.SVRMON24MonitorTargets?.onShowTab) {
+          global.SVRMON24MonitorTargets.onShowTab(name);
+        }
       });
     }
+
+    // Hide Sync buttons without write permission.
+    document.querySelectorAll("[data-monitor-perm-write]").forEach((btn) => {
+      const perm = btn.getAttribute("data-monitor-perm-write");
+      if (perm && typeof can === "function") {
+        btn.hidden = !can(perm);
+      }
+    });
 
     if (typeof onPermissionGates === "function") {
       onPermissionGates(() => applyMonitorNavGates(can));
