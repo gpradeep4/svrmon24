@@ -168,7 +168,7 @@ def assert_can_create_relationship(tenant_id: str) -> None:
     if limit is None:
         return
 
-    from . import relationships as relationships_service
+    from ..cmdb.services import relationships as relationships_service
 
     listed = relationships_service.list_relationships(
         tenant_id=tid, page=1, page_size=1
@@ -231,7 +231,7 @@ def assert_can_run_diagnostic(tenant_id: str) -> None:
     if limit is None:
         return
 
-    from . import diagnostics as diagnostics_service
+    from ..cmdb.services import diagnostics as diagnostics_service
 
     listed = diagnostics_service.list_diagnostics(
         tenant_id=tid, page=1, page_size=1
@@ -257,7 +257,7 @@ def ollama_analysis_limit(tenant_id: str) -> int | None:
 
 def count_ollama_analyses(tenant_id: str) -> int:
     """Count stored Ollama-sourced analyses for the tenant (history entries)."""
-    from . import diagnostics as diagnostics_service
+    from ..cmdb.services import diagnostics as diagnostics_service
 
     return diagnostics_service.count_ollama_analyses(tenant_id=tenant_id)
 
