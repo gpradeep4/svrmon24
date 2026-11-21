@@ -2435,6 +2435,7 @@
     $("#fieldType").value = locked;
     renderTypeFields(locked);
     renderCustomInputs(locked, {});
+    if ($("#componentAiHint")) $("#componentAiHint").textContent = "";
     const itsmBtn = $("#btnComponentViewItsm");
     if (itsmBtn) {
       itsmBtn.hidden = true;
@@ -2499,6 +2500,124 @@
       }
     }
     return payload;
+  }
+
+  async function suggestComponentClassification() {
+    const hint = $("#componentAiHint");
+    try {
+      const draft = {
+        component_id: $("#fieldComponentId")?.value?.trim() || null,
+        component_type: $("#fieldType")?.value || null,
+        name: $("#fieldName")?.value?.trim() || null,
+        environment: $("#fieldEnv")?.value?.trim() || null,
+        status: $("#fieldStatus")?.value || null,
+      };
+      for (const input of $$("#typeFields [data-field]")) {
+        const key = input.getAttribute("data-field");
+        const value = input.value.trim();
+        if (value !== "") draft[key] = value;
+      }
+      const result = await api("/api/components/ai/suggest-classification", {
+        method: "POST",
+        body: JSON.stringify({ draft }),
+      });
+      const ctype = result.suggested_component_type;
+      if (ctype && !$("#fieldType").disabled) {
+        $("#fieldType").value = ctype;
+        renderTypeFields(ctype, { ...(result.suggested_fields || {}) });
+        renderCustomInputs(ctype, {});
+      } else if (ctype && result.suggested_fields) {
+        renderTypeFields($("#fieldType").value, {
+          ...Object.fromEntries(
+            $$("#typeFields [data-field]").map((el) => [
+              el.getAttribute("data-field"),
+              el.value,
+            ])
+          ),
+          ...result.suggested_fields,
+        });
+      }
+      const fields = result.suggested_fields || {};
+      for (const [key, value] of Object.entries(fields)) {
+        const input = $(`#typeFields [data-field="${key}"]`);
+        if (input && value != null) input.value = value;
+      }
+      const src = result.source || "assist";
+      const conf = result.confidence || "";
+      if (hint) {
+        hint.textContent =
+          `Suggest (${src}${conf ? `, ${conf}` : ""}): ${ctype || "—"}. ` +
+          "Review fields, then Save — AI does not write inventory.";
+      }
+      toast(`Suggested type: ${ctype || "unknown"} (${src})`);
+    } catch (err) {
+      if (hint) hint.textContent = "";
+      toast(err.message || "Suggest failed", true);
+    }
+  }
+
+  async function suggestRelationshipAssist() {
+    const hint = $("#relAiHint");
+    const neighborsEl = $("#relAiNeighbors");
+    try {
+      const body = {
+        source_component_id: $("#relSource")?.value?.trim() || null,
+        target_component_id: $("#relTarget")?.value?.trim() || null,
+        notes: $("#relNotes")?.value?.trim() || null,
+      };
+      if (!body.source_component_id && !body.target_component_id) {
+        toast("Enter a source and/or target entity first", true);
+        return;
+      }
+      if (!body.source_component_id || !body.target_component_id) {
+        body.component_id = body.source_component_id || body.target_component_id;
+      }
+      const result = await api("/api/relationships/ai/suggest", {
+        method: "POST",
+        body: JSON.stringify(body),
+      });
+      const pair = result.pair_suggestion;
+      if (pair?.relationship_type && $("#relType")) {
+        $("#relType").value = pair.relationship_type;
+        if (typeof updateRelTypeHint === "function") updateRelTypeHint();
+      }
+      if (pair?.source_component_id && !$("#relSource").value.trim()) {
+        $("#relSource").value = pair.source_component_id;
+      }
+      if (pair?.target_component_id && !$("#relTarget").value.trim()) {
+        $("#relTarget").value = pair.target_component_id;
+      }
+      if ($("#relVerification")) $("#relVerification").value = "unverified";
+      const src = result.source || "assist";
+      if (hint) {
+        hint.textContent =
+          `Suggest (${src}): ${pair?.relationship_type || "—"}. ` +
+          "Edges stay unverified until you Save — AI does not create links.";
+      }
+      const neighbors = result.neighbor_suggestions || [];
+      if (neighborsEl) {
+        if (!neighbors.length) {
+          neighborsEl.textContent = "";
+        } else {
+          neighborsEl.innerHTML =
+            "<strong>Neighbor ideas (not applied):</strong> " +
+            neighbors
+              .slice(0, 5)
+              .map(
+                (n) =>
+                  `${escapeHtml(n.source_component_id)} ${escapeHtml(
+                    n.relationship_type
+                  )} ${escapeHtml(n.target_component_id)}`
+              )
+              .join("; ");
+        }
+      }
+      toast(`Suggested link: ${pair?.relationship_type || "see neighbors"} (${src})`);
+    } catch (err) {
+      if (hint) hint.textContent = "";
+      if (neighborsEl) neighborsEl.textContent = "";
+      toast(err.message || "Suggest failed", true);
+    }
   }
 
   async function saveComponent(event) {
@@ -5116,6 +5235,10 @@
       renderCustomInputs(e.target.value, {});
     });
     $("#componentForm").addEventListener("submit", saveComponent);
+    $("#btnSuggestClassification")?.addEventListener(
+      "click",
+      suggestComponentClassification
+    );
     $("#btnCloseModal").addEventListener("click", closeModal);
     $("#btnCancelDelete").addEventListener("click", () => {
       $("#deleteModal").classList.remove("open");
@@ -5383,9 +5506,15 @@
       syncRelEntityDatalists();
     });
     $("#relationshipForm").addEventListener("submit", saveRelationship);
+    $("#btnSuggestRelationship")?.addEventListener(
+      "click",
+      suggestRelationshipAssist
+    );
     $("#btnCloseRelModal").addEventListener("click", () => {
       $("#relationshipModal").classList.remove("open");
       state.editingRelId = null;
+      if ($("#relAiHint")) $("#relAiHint").textContent = "";
+      if ($("#relAiNeighbors")) $("#relAiNeighbors").textContent = "";
     });
     $("#relationshipBody").addEventListener("click", async (e) => {
       const edit = e.target.getAttribute("data-rel-edit");
