@@ -122,6 +122,50 @@
     if (box) box.innerHTML = html || "";
   }
 
+  async function refreshAiStatus() {
+    const box = $("#itsmChgAiStatus");
+    if (!box) return;
+    try {
+      const st = await SVRMON24ItsmApi.aiStatus();
+      const ollama = st.providers?.ollama ? "enabled" : "off";
+      const cloud = st.providers?.cloud_suggestions ? "enabled" : "off";
+      box.innerHTML = `AI providers: Ollama <code>${esc(
+        ollama
+      )}</code> · cloud <code>${esc(cloud)}</code> · assist only`;
+    } catch (_) {
+      box.innerHTML = "";
+    }
+  }
+
+  async function runNextStepsAssist() {
+    if (!selectedId) return deps.toast("Open a change first", true);
+    try {
+      const result = await SVRMON24ItsmApi.nextStepsChange(selectedId, {
+        force_fallback: false,
+      });
+      const legal = (result.legal_next_statuses || []).map(esc).join(", ") || "—";
+      const wfs = (result.suggested_workflows || [])
+        .slice(0, 3)
+        .map(
+          (w) =>
+            `<li><code>${esc(w.workflow_id)}</code> ${esc(w.name || "")} ` +
+            `<span class="hint">${esc(w.match_reason || "")}</span></li>`
+        )
+        .join("");
+      renderAiAssist(
+        `<strong>Next steps (${esc(result.source)}):</strong> ${esc(
+          result.summary || ""
+        )}<br/><span class="hint">Legal: ${legal}</span>` +
+          (wfs ? `<ul class="itsm-ci-list">${wfs}</ul>` : "") +
+          `<br/><span class="hint">No auto-transition / auto-approve.</span>`
+      );
+      deps.toast(`Next steps ready (${result.source})`);
+    } catch (err) {
+      renderAiAssist("");
+      deps.toast(err.message || "Next steps failed", true);
+    }
+  }
+
   async function runChangeRiskAssist() {
     if (!selectedId) return deps.toast("Open a change first", true);
     try {
@@ -188,6 +232,7 @@
     selectedId = changeId;
     renderAiAssist("");
     openDrawer();
+    refreshAiStatus();
     const detail = $("#itsmChgDrawerDetail");
     const title = $("#itsmChgDrawerTitle");
     const sub = $("#itsmChgDrawerSub");
@@ -430,6 +475,9 @@
     });
     $("#btnItsmChgSlaRisk")?.addEventListener("click", () => {
       runSlaAtRiskAssist();
+    });
+    $("#btnItsmChgNextSteps")?.addEventListener("click", () => {
+      runNextStepsAssist();
     });
   }
 

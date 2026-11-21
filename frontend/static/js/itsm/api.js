@@ -69,6 +69,16 @@
         "POST",
         payload || {}
       ),
+    nextStepsIncident: (id, payload) =>
+      itsmSend(
+        `/incidents/${encodeURIComponent(id)}/ai/next-steps`,
+        "POST",
+        payload || {}
+      ),
+    aiStatus: () => {
+      if (!request) throw new Error("ITSM API not bound");
+      return request("/api/ai/status");
+    },
     transitionIncident: (id, payload) =>
       itsmSend(`/incidents/${encodeURIComponent(id)}/transition`, "POST", payload),
     addCiLink: (id, componentId) =>
@@ -93,6 +103,12 @@
     changeRiskAssist: (id, payload) =>
       itsmSend(
         `/changes/${encodeURIComponent(id)}/ai/risk`,
+        "POST",
+        payload || {}
+      ),
+    nextStepsChange: (id, payload) =>
+      itsmSend(
+        `/changes/${encodeURIComponent(id)}/ai/next-steps`,
         "POST",
         payload || {}
       ),

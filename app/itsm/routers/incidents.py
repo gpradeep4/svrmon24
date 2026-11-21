@@ -17,6 +17,7 @@ from ..models.incidents import (
     IncidentUpdate,
 )
 from ..services import ai_assist as ai_assist_service
+from ..services import ai_process_assist as ai_process_assist_service
 from ..services import incidents as incidents_service
 from ..services.incidents import IncidentError
 
@@ -151,6 +152,25 @@ def incident_ai_similar(
         return ai_assist_service.suggest_similar_and_kb(
             incident_id,
             tenant_id=tenant.tenant_id,
+            force_fallback=bool(payload.force_fallback) if payload else False,
+        )
+    except IncidentError as exc:
+        _raise(exc)
+        raise  # pragma: no cover
+
+
+@router.post("/{incident_id}/ai/next-steps")
+def incident_ai_next_steps(
+    incident_id: str,
+    payload: IncidentAiRequest | None = None,
+    tenant: TenantContext = Depends(require_permission(PERM_ITSM_INCIDENT_READ)),
+) -> dict[str, Any]:
+    """Assist-only next steps / workflow hints. Never auto-transitions."""
+    try:
+        return ai_process_assist_service.suggest_next_steps(
+            tenant_id=tenant.tenant_id,
+            ticket_type="incident",
+            ticket_id=incident_id,
             force_fallback=bool(payload.force_fallback) if payload else False,
         )
     except IncidentError as exc:

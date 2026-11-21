@@ -125,6 +125,56 @@
     if (box) box.innerHTML = html || "";
   }
 
+  async function refreshAiStatus() {
+    const box = $("#itsmIncAiStatus");
+    if (!box) return;
+    try {
+      const st = await SVRMON24ItsmApi.aiStatus();
+      const ollama = st.providers?.ollama ? "enabled" : "off";
+      const cloud = st.providers?.cloud_suggestions ? "enabled" : "off";
+      box.innerHTML = `AI providers: Ollama <code>${esc(
+        ollama
+      )}</code> · cloud <code>${esc(cloud)}</code> · assist only`;
+    } catch (_) {
+      box.innerHTML = "";
+    }
+  }
+
+  async function runNextStepsAssist() {
+    if (!selectedId) return deps.toast("Open an incident first", true);
+    try {
+      const result = await SVRMON24ItsmApi.nextStepsIncident(selectedId, {
+        force_fallback: false,
+      });
+      const legal = (result.legal_next_statuses || []).map(esc).join(", ") || "—";
+      const wfs = (result.suggested_workflows || [])
+        .slice(0, 3)
+        .map(
+          (w) =>
+            `<li><code>${esc(w.workflow_id)}</code> ${esc(w.name || "")} ` +
+            `<span class="hint">${esc(w.match_reason || "")}</span></li>`
+        )
+        .join("");
+      const draft = result.problem_draft
+        ? `<br/><span class="hint">Problem draft: ${esc(
+            result.problem_draft.title
+          )} — human must create.</span>`
+        : "";
+      renderAiAssist(
+        `<strong>Next steps (${esc(result.source)}):</strong> ${esc(
+          result.summary || ""
+        )}<br/><span class="hint">Legal: ${legal}</span>` +
+          (wfs ? `<ul class="itsm-ci-list">${wfs}</ul>` : "") +
+          draft +
+          `<br/><span class="hint">No auto-transition / auto-approve.</span>`
+      );
+      deps.toast(`Next steps ready (${result.source})`);
+    } catch (err) {
+      renderAiAssist("");
+      deps.toast(err.message || "Next steps failed", true);
+    }
+  }
+
   async function runTriageAssist() {
     if (!selectedId) return deps.toast("Open an incident first", true);
     try {
@@ -296,6 +346,7 @@
     renderAiAssist("");
     renderSimilarAssist("");
     openDrawer();
+    refreshAiStatus();
     const detail = $("#itsmIncDrawerDetail");
     const title = $("#itsmIncDrawerTitle");
     const sub = $("#itsmIncDrawerSub");
@@ -633,6 +684,9 @@
     });
     $("#btnItsmIncSlaRisk")?.addEventListener("click", () => {
       runSlaAtRiskAssist();
+    });
+    $("#btnItsmIncNextSteps")?.addEventListener("click", () => {
+      runNextStepsAssist();
     });
     $("#btnItsmIncApplyTriage")?.addEventListener("click", () => {
       applyLastTriage();

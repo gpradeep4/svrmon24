@@ -16,6 +16,7 @@ from ..models.changes import (
     ChangeTransition,
     ChangeUpdate,
 )
+from ..services import ai_process_assist as ai_process_assist_service
 from ..services import ai_risk_assist as ai_risk_assist_service
 from ..services import changes as changes_service
 from ..services.changes import ChangeError
@@ -115,6 +116,25 @@ def change_ai_risk(
         return ai_risk_assist_service.suggest_change_risk(
             change_id,
             tenant_id=tenant.tenant_id,
+            force_fallback=bool(payload.force_fallback) if payload else False,
+        )
+    except ChangeError as exc:
+        _raise(exc)
+        raise  # pragma: no cover
+
+
+@router.post("/{change_id}/ai/next-steps")
+def change_ai_next_steps(
+    change_id: str,
+    payload: ChangeAiRequest | None = None,
+    tenant: TenantContext = Depends(require_permission(PERM_ITSM_CHANGE_READ)),
+) -> dict[str, Any]:
+    """Assist-only next steps / workflow hints. Never auto-advances."""
+    try:
+        return ai_process_assist_service.suggest_next_steps(
+            tenant_id=tenant.tenant_id,
+            ticket_type="change",
+            ticket_id=change_id,
             force_fallback=bool(payload.force_fallback) if payload else False,
         )
     except ChangeError as exc:
