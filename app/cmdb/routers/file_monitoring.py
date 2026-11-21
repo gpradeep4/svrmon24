@@ -1,4 +1,9 @@
-"""File Monitoring APIs — SIMULATED / demo only (tenant-scoped)."""
+"""File Monitoring APIs — SIMULATED / demo only (tenant-scoped).
+
+Compat mount at ``/api/file-monitoring``. Data is stored in the Monitoring DB
+(``svrmon-monitor``); see ``app.monitor.services.file_monitoring``.
+Accepts either ``file_monitoring:read`` or ``monitor:files:read``.
+"""
 
 from __future__ import annotations
 
@@ -7,10 +12,14 @@ from typing import Any
 from fastapi import APIRouter, Depends, HTTPException, Query
 
 from ...auth import require_user
-from ...permissions import PERM_FILE_MONITORING_READ, require_permission
-from ..services import file_monitoring as file_monitoring_service
-from ..services.file_monitoring import FileMonitoringError
-from ...tenant_context import TenantContext
+from ...permissions import (
+    PERM_FILE_MONITORING_READ,
+    PERM_MONITOR_FILES_READ,
+    assert_any_permission,
+)
+from ...tenant_context import TenantContext, require_tenant
+from ...monitor.services import file_monitoring as file_monitoring_service
+from ...monitor.services.file_monitoring import FileMonitoringError
 
 router = APIRouter(
     prefix="/api/file-monitoring",
@@ -19,13 +28,22 @@ router = APIRouter(
 )
 
 
+def _require_file_monitoring_read(
+    tenant: TenantContext = Depends(require_tenant),
+) -> TenantContext:
+    assert_any_permission(
+        tenant, (PERM_FILE_MONITORING_READ, PERM_MONITOR_FILES_READ)
+    )
+    return tenant
+
+
 def _raise(exc: FileMonitoringError) -> None:
     raise HTTPException(status_code=exc.status_code, detail=exc.message) from exc
 
 
 @router.get("/meta")
 def get_meta(
-    tenant: TenantContext = Depends(require_permission(PERM_FILE_MONITORING_READ)),
+    tenant: TenantContext = Depends(_require_file_monitoring_read),
 ) -> dict[str, Any]:
     """Module metadata — always SIMULATED; no live watching."""
     meta = file_monitoring_service.module_meta()
@@ -39,7 +57,7 @@ def list_targets(
     status: str | None = Query(default=None),
     page: int = Query(default=1, ge=1),
     page_size: int = Query(default=25, ge=1, le=200),
-    tenant: TenantContext = Depends(require_permission(PERM_FILE_MONITORING_READ)),
+    tenant: TenantContext = Depends(_require_file_monitoring_read),
 ) -> dict[str, Any]:
     return file_monitoring_service.list_targets(
         tenant_id=tenant.tenant_id,
@@ -53,7 +71,7 @@ def list_targets(
 @router.get("/targets/{watch_id}")
 def get_target(
     watch_id: str,
-    tenant: TenantContext = Depends(require_permission(PERM_FILE_MONITORING_READ)),
+    tenant: TenantContext = Depends(_require_file_monitoring_read),
 ) -> dict[str, Any]:
     doc = file_monitoring_service.get_target(
         tenant_id=tenant.tenant_id, watch_id=watch_id
@@ -70,7 +88,7 @@ def list_versions(
     watch_id: str,
     page: int = Query(default=1, ge=1),
     page_size: int = Query(default=50, ge=1, le=200),
-    tenant: TenantContext = Depends(require_permission(PERM_FILE_MONITORING_READ)),
+    tenant: TenantContext = Depends(_require_file_monitoring_read),
 ) -> dict[str, Any]:
     try:
         return file_monitoring_service.list_versions(
@@ -87,7 +105,7 @@ def list_versions(
 @router.get("/versions/{event_id}")
 def get_version_event(
     event_id: str,
-    tenant: TenantContext = Depends(require_permission(PERM_FILE_MONITORING_READ)),
+    tenant: TenantContext = Depends(_require_file_monitoring_read),
 ) -> dict[str, Any]:
     doc = file_monitoring_service.get_version_event(
         tenant_id=tenant.tenant_id, event_id=event_id

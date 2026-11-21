@@ -55,9 +55,15 @@ def client() -> Generator[TestClient, None, None]:
 
 @pytest.fixture()
 def clean_db(client: TestClient) -> Generator[None, None, None]:
-    """Drop CMDB (+ ITSM) collections used by API tests (preserves other DBs)."""
+    """Drop CMDB (+ ITSM + Monitoring) collections used by API tests."""
     from app.config import get_settings
-    from app.db import get_database, get_itsm_database, ping_database, reset_client_for_tests
+    from app.db import (
+        get_database,
+        get_itsm_database,
+        get_monitor_database,
+        ping_database,
+        reset_client_for_tests,
+    )
 
     status = ping_database()
     if not status.get("ok"):
@@ -78,6 +84,7 @@ def clean_db(client: TestClient) -> Generator[None, None, None]:
         "cmdb_custom_records",
         "cmdb_relationships",
         "diagnostic_history",
+        # Pre-M3 leftovers may still exist on CMDB during dual-read window.
         "file_watch_targets",
         "file_version_events",
         "tenants",
@@ -114,14 +121,23 @@ def clean_db(client: TestClient) -> Generator[None, None, None]:
         "itsm_assignment_groups",
         "itsm_ticket_attachments",
     )
+    monitor_db = get_monitor_database()
+    monitor_collections = (
+        "file_watch_targets",
+        "file_version_events",
+    )
     for name in collections:
         db[name].delete_many({})
     for name in itsm_collections:
         itsm_db[name].delete_many({})
+    for name in monitor_collections:
+        monitor_db[name].delete_many({})
     yield
     for name in collections:
         db[name].delete_many({})
     for name in itsm_collections:
         itsm_db[name].delete_many({})
+    for name in monitor_collections:
+        monitor_db[name].delete_many({})
     reset_client_for_tests()
     get_settings.cache_clear()

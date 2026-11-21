@@ -9,7 +9,7 @@ from tests.frontend_paths import FRONTEND_INDEX, FRONTEND_STATIC
 
 
 def test_version_patch_for_file_monitoring() -> None:
-    assert __version__ == "0.65.0"
+    assert __version__ == "0.66.0"
 
 
 def test_meta_is_simulated(
@@ -115,7 +115,7 @@ def test_cross_tenant_target_hidden(
 ) -> None:
     from datetime import datetime, timezone
 
-    from app.db import get_database
+    from app.db import get_database, get_monitor_database
     from app.services import tenants as tenants_service
     from app.tenancy import MIGRATION_TENANT_ID
 
@@ -139,7 +139,7 @@ def test_cross_tenant_target_hidden(
         },
         upsert=True,
     )
-    db["file_watch_targets"].insert_one(
+    get_monitor_database()["file_watch_targets"].insert_one(
         {
             "watch_id": "fw-other-secret",
             "path": "/secret/other.conf",
@@ -200,4 +200,4 @@ def test_frontend_file_monitoring_markers() -> None:
     assert "openFileMonitoringDetail" in js
     assert "/api/file-monitoring/targets" in js
     assert ".fm-drawer" in css
-    assert 'content="0.65.0"' in html
+    assert 'content="0.66.0"' in html
