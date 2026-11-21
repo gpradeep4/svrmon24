@@ -12,7 +12,7 @@ from tests.frontend_paths import FRONTEND_INDEX
 
 
 def test_version_bump_for_sla_slice() -> None:
-    assert __version__ == "0.58.0"
+    assert __version__ == "0.59.0"
 
 
 def _policy_payload(**overrides):
@@ -444,10 +444,10 @@ def test_sla_match_priorities_and_ci_snapshot(
 
 def test_sla_frontend_shell_markers() -> None:
     html = FRONTEND_INDEX.read_text(encoding="utf-8")
-    assert 'content="0.58.0"' in html
+    assert 'content="0.59.0"' in html
     assert 'data-tab="itsm-sla"' in html
     assert 'id="tab-itsm-sla"' in html
-    assert "itsm/sla.js?v=0.58.0" in html
+    assert "itsm/sla.js?v=0.59.0" in html
     assert 'id="itsmSlaModal"' in html
     assert 'id="itsmIncSlaBadges"' in html
     assert 'id="itsmSlaMatchTier"' in html
