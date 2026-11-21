@@ -7,8 +7,10 @@ from typing import Literal
 from pydantic import BaseModel, ConfigDict, Field
 
 KNOWLEDGE_STATUSES: tuple[str, ...] = ("draft", "published", "retired")
+KNOWLEDGE_BODY_FORMATS: tuple[str, ...] = ("plain", "markdown")
 
 KnowledgeStatus = Literal["draft", "published", "retired"]
+KnowledgeBodyFormat = Literal["plain", "markdown"]
 
 # Allowed status transitions (from → to).
 KNOWLEDGE_TRANSITIONS: dict[str, frozenset[str]] = {
@@ -23,6 +25,7 @@ class KnowledgeArticleCreate(BaseModel):
 
     title: str = Field(min_length=1, max_length=500)
     body: str = Field(min_length=1, max_length=200000)
+    body_format: KnowledgeBodyFormat = "plain"
     status: KnowledgeStatus = "draft"
     category: str | None = Field(default=None, max_length=128)
     tags: list[str] = Field(default_factory=list)
@@ -36,6 +39,7 @@ class KnowledgeArticleUpdate(BaseModel):
 
     title: str | None = Field(default=None, min_length=1, max_length=500)
     body: str | None = Field(default=None, min_length=1, max_length=200000)
+    body_format: KnowledgeBodyFormat | None = None
     category: str | None = Field(default=None, max_length=128)
     tags: list[str] | None = None
     related_incident_ids: list[str] | None = None
@@ -48,3 +52,10 @@ class KnowledgeArticleTransition(BaseModel):
 
     status: KnowledgeStatus
     comment: str | None = Field(default=None, max_length=4000)
+
+
+class KnowledgePreviewRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    body: str = Field(min_length=0, max_length=200000)
+    body_format: KnowledgeBodyFormat = "markdown"

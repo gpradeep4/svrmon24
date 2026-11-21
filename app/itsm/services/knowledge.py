@@ -14,6 +14,7 @@ from ...db import require_itsm_database
 from ...serialization import serialize_document
 from ...tenancy import merge_tenant_filter, require_tenant_id, stamp_tenant_id
 from ..models.knowledge import (
+    KNOWLEDGE_BODY_FORMATS,
     KNOWLEDGE_STATUSES,
     KNOWLEDGE_TRANSITIONS,
     KnowledgeArticleCreate,
@@ -22,6 +23,7 @@ from ..models.knowledge import (
 )
 from . import activities as activities_service
 from .indexes import COUNTERS, KNOWLEDGE_ARTICLES, ensure_itsm_indexes
+from .markdown_sanitize import attach_rendered_html, render_body
 
 
 class KnowledgeError(Exception):
@@ -103,6 +105,27 @@ def _clean_tags(values: list[str] | None) -> list[str]:
     return out
 
 
+def _with_html(doc: dict[str, Any] | None) -> dict[str, Any] | None:
+    if doc is None:
+        return None
+    row = serialize_document(doc)
+    if row is None:
+        return None
+    if not row.get("body_format"):
+        row["body_format"] = "plain"
+    return attach_rendered_html(row)
+
+
+def preview_body(*, body: str, body_format: str = "markdown") -> dict[str, Any]:
+    fmt = (body_format or "markdown").strip().lower()
+    if fmt not in KNOWLEDGE_BODY_FORMATS:
+        raise KnowledgeError(f"Invalid body_format '{body_format}'", status_code=422)
+    return {
+        "body_format": fmt,
+        "body_html": render_body(body or "", body_format=fmt),
+    }
+
+
 def get_article(
     article_id: str,
     *,
@@ -115,7 +138,7 @@ def get_article(
         return None
     if not allow_unpublished and doc.get("status") != "published":
         return None
-    return serialize_document(doc)
+    return _with_html(doc)
 
 
 def list_articles(
@@ -206,7 +229,12 @@ def list_articles(
         .skip((page - 1) * page_size)
         .limit(page_size)
     )
-    items = [serialize_document(doc) for doc in cursor]
+    items = []
+    for doc in cursor:
+        row = serialize_document(doc) or {}
+        if not row.get("body_format"):
+            row["body_format"] = "plain"
+        items.append(row)
     return {
         "items": items,
         "count": len(items),
@@ -305,12 +333,17 @@ def create_article(
     published_at = now if status == "published" else None
     retired_at = now if status == "retired" else None
 
+    body_format = str(payload.body_format or "plain").strip().lower()
+    if body_format not in KNOWLEDGE_BODY_FORMATS:
+        raise KnowledgeError(f"Invalid body_format '{payload.body_format}'")
+
     doc: dict[str, Any] = {
         "article_id": article_id,
         "number": number,
         "number_display": f"KB-{number:05d}",
         "title": payload.title.strip(),
         "body": payload.body.strip(),
+        "body_format": body_format,
         "status": status,
         "category": (payload.category or "").strip() or None,
         "tags": _clean_tags(payload.tags),
@@ -337,7 +370,7 @@ def create_article(
         actor_username=who["username"],
         to_value=status,
     )
-    return serialize_document(doc)  # type: ignore[return-value]
+    return _with_html(doc)  # type: ignore[return-value]
 
 
 def update_article(
@@ -354,12 +387,17 @@ def update_article(
 
     updates = payload.model_dump(exclude_unset=True)
     if not updates:
-        return serialize_document(existing)  # type: ignore[return-value]
+        return _with_html(existing)  # type: ignore[return-value]
 
     if "title" in updates and updates["title"] is not None:
         updates["title"] = str(updates["title"]).strip()
     if "body" in updates and updates["body"] is not None:
         updates["body"] = str(updates["body"]).strip()
+    if "body_format" in updates and updates["body_format"] is not None:
+        fmt = str(updates["body_format"]).strip().lower()
+        if fmt not in KNOWLEDGE_BODY_FORMATS:
+            raise KnowledgeError(f"Invalid body_format '{updates['body_format']}'")
+        updates["body_format"] = fmt
     if "category" in updates and updates["category"] is not None:
         updates["category"] = str(updates["category"]).strip() or None
     if "tags" in updates:
@@ -394,7 +432,7 @@ def update_article(
         actor_user_id=who["user_id"],
         actor_username=who["username"],
     )
-    return serialize_document(doc)  # type: ignore[return-value]
+    return _with_html(doc)  # type: ignore[return-value]
 
 
 def transition_article(
@@ -457,7 +495,7 @@ def transition_article(
         from_value=current,
         to_value=target,
     )
-    return serialize_document(doc)  # type: ignore[return-value]
+    return _with_html(doc)  # type: ignore[return-value]
 
 
 def list_article_activities(

@@ -4,7 +4,7 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <meta name="svrmon24-ui" content="login-enterprise-v13" />
-  <meta name="svrmon24-version" content="0.47.0" />
+  <meta name="svrmon24-version" content="0.48.0" />
   <title>SVRMON24</title>
   <link rel="icon" href="/static/img/svrmon-favicon.png" type="image/png" sizes="32x32" />
   <link rel="apple-touch-icon" href="/static/img/svrmon-apple-touch.png" sizes="180x180" />
@@ -15,10 +15,10 @@
     body.is-app .login-gate { display: none !important; }
     #authPanel, .auth-panel-legacy { display: none !important; }
   </style>
-  <link rel="stylesheet" href="/static/css/cmdb.css?v=0.47.0" />
-  <link rel="stylesheet" href="/static/css/itsm.css?v=0.47.0" />
-  <script src="/static/js/config.js?v=0.47.0"></script>
-  <script src="/static/js/brand.js?v=0.47.0"></script>
+  <link rel="stylesheet" href="/static/css/cmdb.css?v=0.48.0" />
+  <link rel="stylesheet" href="/static/css/itsm.css?v=0.48.0" />
+  <script src="/static/js/config.js?v=0.48.0"></script>
+  <script src="/static/js/brand.js?v=0.48.0"></script>
 </head>
 <body class="is-login">
   <!-- Enterprise login: showcase (left) + sign-in panel (right); stacks on small viewports -->
@@ -2707,7 +2707,20 @@
           <label>Related incident ids<input id="itsmKbFieldIncidents" placeholder="INC-… comma-separated" maxlength="500" /></label>
           <label>Related problem ids<input id="itsmKbFieldProblems" placeholder="PRB-… comma-separated" maxlength="500" /></label>
           <label class="full">Related component ids<input id="itsmKbFieldComponents" placeholder="component_id comma-separated" maxlength="500" /></label>
-          <label class="full">Body<textarea id="itsmKbFieldBody" required rows="8" maxlength="200000" placeholder="Article body (markdown/plain)"></textarea></label>
+          <label>Body format
+            <select id="itsmKbFieldFormat">
+              <option value="plain">Plain text</option>
+              <option value="markdown" selected>Markdown</option>
+            </select>
+          </label>
+          <label class="full">Body<textarea id="itsmKbFieldBody" required rows="8" maxlength="200000" placeholder="Write markdown: headings, lists, **bold**, links…"></textarea></label>
+          <div class="full itsm-kb-preview-wrap">
+            <div class="toolbar itsm-toolbar">
+              <strong>Preview</strong>
+              <button type="button" id="btnItsmKbPreview" class="secondary">Refresh preview</button>
+            </div>
+            <div id="itsmKbPreview" class="itsm-kb-body itsm-kb-preview" aria-live="polite"><span class="hint">Preview renders sanitized HTML from the server.</span></div>
+          </div>
         </div>
         <footer class="modal-actions">
           <button type="button" id="btnCancelItsmKnowledge" class="secondary">Cancel</button>
@@ -3017,18 +3030,18 @@
     </div>
   </div>
 
-  <script src="/static/js/cmdb.js?v=0.47.0"></script>
-  <script src="/static/js/itsm/api.js?v=0.47.0"></script>
-  <script src="/static/js/itsm/dashboard.js?v=0.47.0"></script>
-  <script src="/static/js/itsm/reports.js?v=0.47.0"></script>
-  <script src="/static/js/itsm/incidents.js?v=0.47.0"></script>
-  <script src="/static/js/itsm/changes.js?v=0.47.0"></script>
-  <script src="/static/js/itsm/problems.js?v=0.47.0"></script>
-  <script src="/static/js/itsm/approvals.js?v=0.47.0"></script>
-  <script src="/static/js/itsm/workflows.js?v=0.47.0"></script>
-  <script src="/static/js/itsm/sla.js?v=0.47.0"></script>
-  <script src="/static/js/itsm/knowledge.js?v=0.47.0"></script>
-  <script src="/static/js/itsm/notifications.js?v=0.47.0"></script>
-  <script src="/static/js/itsm/index.js?v=0.47.0"></script>
+  <script src="/static/js/cmdb.js?v=0.48.0"></script>
+  <script src="/static/js/itsm/api.js?v=0.48.0"></script>
+  <script src="/static/js/itsm/dashboard.js?v=0.48.0"></script>
+  <script src="/static/js/itsm/reports.js?v=0.48.0"></script>
+  <script src="/static/js/itsm/incidents.js?v=0.48.0"></script>
+  <script src="/static/js/itsm/changes.js?v=0.48.0"></script>
+  <script src="/static/js/itsm/problems.js?v=0.48.0"></script>
+  <script src="/static/js/itsm/approvals.js?v=0.48.0"></script>
+  <script src="/static/js/itsm/workflows.js?v=0.48.0"></script>
+  <script src="/static/js/itsm/sla.js?v=0.48.0"></script>
+  <script src="/static/js/itsm/knowledge.js?v=0.48.0"></script>
+  <script src="/static/js/itsm/notifications.js?v=0.48.0"></script>
+  <script src="/static/js/itsm/index.js?v=0.48.0"></script>
 </body>
 </html>

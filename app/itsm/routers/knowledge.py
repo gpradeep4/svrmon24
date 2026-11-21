@@ -18,6 +18,7 @@ from ..models.knowledge import (
     KnowledgeArticleCreate,
     KnowledgeArticleTransition,
     KnowledgeArticleUpdate,
+    KnowledgePreviewRequest,
 )
 from ..services import knowledge as knowledge_service
 from ..services.knowledge import KnowledgeError
@@ -71,6 +72,23 @@ def list_articles(
     except KnowledgeError as exc:
         _raise(exc)
         raise  # pragma: no cover
+
+
+@router.post("/preview")
+def preview_article_body(
+    payload: KnowledgePreviewRequest,
+    tenant: TenantContext = Depends(require_permission(PERM_ITSM_KNOWLEDGE_READ)),
+) -> dict[str, Any]:
+    """Return sanitized HTML for markdown/plain body (editor preview)."""
+    try:
+        result = knowledge_service.preview_body(
+            body=payload.body, body_format=payload.body_format
+        )
+    except KnowledgeError as exc:
+        _raise(exc)
+        raise  # pragma: no cover
+    result["tenant_id"] = tenant.tenant_id
+    return result
 
 
 @router.get("/suggest")
