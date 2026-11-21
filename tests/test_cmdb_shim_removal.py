@@ -78,3 +78,45 @@ def test_platform_modules_remain_at_app_root() -> None:
     import app.services.bootstrap  # noqa: F401
     import app.services.ollama_client  # noqa: F401
     import app.models.tenants  # noqa: F401
+
+
+def test_entitlements_source_imports_cmdb_not_removed_shims() -> None:
+    """Guard against ``from . import diagnostics|relationships`` regressions."""
+    import inspect
+
+    from app.services import entitlements as entitlements_service
+
+    source = inspect.getsource(entitlements_service)
+    assert "from ..cmdb.services import relationships" in source
+    assert "from ..cmdb.services import diagnostics" in source
+    assert "from . import relationships" not in source
+    assert "from . import diagnostics" not in source
+
+
+def test_entitlements_lazy_cmdb_imports_resolve(monkeypatch) -> None:
+    """Exercising entitlement counters must not raise ImportError after shim removal."""
+    from app.services import entitlements as entitlements_service
+    from app.tenancy import MIGRATION_TENANT_ID
+
+    monkeypatch.setattr(
+        entitlements_service, "relationship_limit", lambda _tid: 10
+    )
+    monkeypatch.setattr(
+        entitlements_service, "diagnostic_run_limit", lambda _tid: 10
+    )
+    monkeypatch.setattr(
+        "app.cmdb.services.relationships.list_relationships",
+        lambda **_kwargs: {"total": 0, "items": []},
+    )
+    monkeypatch.setattr(
+        "app.cmdb.services.diagnostics.list_diagnostics",
+        lambda **_kwargs: {"total": 0, "items": []},
+    )
+    monkeypatch.setattr(
+        "app.cmdb.services.diagnostics.count_ollama_analyses",
+        lambda **_kwargs: 0,
+    )
+
+    entitlements_service.assert_can_create_relationship(MIGRATION_TENANT_ID)
+    entitlements_service.assert_can_run_diagnostic(MIGRATION_TENANT_ID)
+    assert entitlements_service.count_ollama_analyses(MIGRATION_TENANT_ID) == 0
