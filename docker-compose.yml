@@ -38,6 +38,7 @@ services:
       # Optional explicit CMDB override (else MONGODB_DB):
       # MONGODB_CMDB_DB: svrmon-cmdb
       MONGODB_ITSM_DB: svrmon-itsm
+      MONGODB_MONITOR_DB: svrmon-monitor
     ports:
       - "8200:8200"
     depends_on:
