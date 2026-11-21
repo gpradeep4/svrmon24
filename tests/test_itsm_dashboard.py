@@ -15,7 +15,7 @@ from tests.frontend_paths import FRONTEND_INDEX
 
 
 def test_version_bump_for_dashboard_slice() -> None:
-    assert __version__ == "0.42.0"
+    assert __version__ == "0.43.0"
 
 
 def test_dashboard_permission_for_viewer() -> None:
@@ -253,7 +253,7 @@ def test_dashboard_requires_auth(client: TestClient, clean_db) -> None:
 
 def test_frontend_dashboard_reports_markers() -> None:
     html = FRONTEND_INDEX.read_text(encoding="utf-8")
-    assert 'content="0.42.0"' in html
+    assert 'content="0.43.0"' in html
     assert 'data-tab="itsm-dashboard"' in html
     assert 'data-tab="itsm-reports"' in html
     assert 'id="itsmDashIncStatusChart"' in html

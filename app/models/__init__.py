@@ -1,4 +1,8 @@
-"""SVRMON24 domain models."""
+"""SVRMON24 domain models.
+
+CMDB models live in ``app.cmdb.models`` and are re-exported through the shims
+in this package. Tenant models stay here.
+"""
 
 from .components import (
     COMPONENT_TYPES,

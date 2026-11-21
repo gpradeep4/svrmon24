@@ -4,7 +4,9 @@ AI-assisted infrastructure CMDB, dependency mapping, **SIMULATED** diagnostics, 
 
 Stack: **FastAPI + Uvicorn + MongoDB (PyMongo) + provider-neutral OIDC** (HTTP Basic optional via feature flag). Diagnostics never contact remote hosts and never execute shell/SQL/network scans. File Monitoring v1 is demo-only (no live filesystem watching).
 
-## Features (through CMDB DB rename cutover / 0.42.0)
+## Features (through CMDB package move / 0.43.0)
+
+CMDB domain code (inventory, relationships, diagnostics, file monitoring, and related routers, services, and models) lives in `app/cmdb`. The previous `app.routers` / `app.services` / `app.models` / `app.diagnostics` import paths re-export that code. HTTP API paths are unchanged.
 
 | Area | Capability |
 | --- | --- |
