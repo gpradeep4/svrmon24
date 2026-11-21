@@ -153,6 +153,7 @@
         }
         if (name === "itsm-notifications") {
           SVRMON24ItsmNotifications.loadNotifications();
+          SVRMON24ItsmNotifications.loadChannelSettings?.();
         }
       });
     }

@@ -99,10 +99,13 @@ def emit(
     channel: str = CHANNEL_IN_APP,
     actor: dict[str, Any] | None = None,
     exclude_actor: bool = True,
+    fan_out_outbound: bool = True,
 ) -> list[dict[str, Any]]:
-    """Create one in-app notification document per recipient.
+    """Create one in-app notification per recipient and fan-out outbound channels.
 
-    Non-``in_app`` channels are accepted as design hooks but are not delivered.
+    Outbound email/sms/slack attempts are best-effort and never raise. When
+    ``channel`` is an outbound channel (not ``in_app``), only that channel is
+    attempted (no inbox row).
     """
     tid = require_tenant_id(tenant_id)
     if event_type not in NOTIFICATION_EVENT_TYPES:
@@ -117,17 +120,6 @@ def emit(
     if not recipients:
         return []
 
-    # Only persist deliverable in-app rows in this slice.
-    if channel != CHANNEL_IN_APP:
-        logger.info(
-            "itsm notification skipped non-in_app channel=%s event=%s tenant=%s",
-            channel,
-            event_type,
-            tid,
-        )
-        return []
-
-    now = _now()
     subject_clean = (subject or "").strip() or "ITSM notification"
     body_clean = (body or "").strip() or subject_clean
     ticket_type_clean = (ticket_type or "").strip() or None
@@ -135,6 +127,34 @@ def emit(
     approval_clean = (approval_id or "").strip() or None
     tracking_clean = (tracking_id or "").strip() or None
 
+    # Direct outbound-only emit (no inbox row).
+    if channel != CHANNEL_IN_APP:
+        from . import notification_delivery as delivery_service
+
+        for recipient in recipients:
+            try:
+                delivery_service.deliver_one(
+                    tenant_id=tid,
+                    channel=channel,
+                    recipient_user_id=recipient,
+                    subject=subject_clean,
+                    body=body_clean,
+                    event_type=event_type,
+                    ticket_type=ticket_type_clean,
+                    ticket_id=ticket_id_clean,
+                    approval_id=approval_clean,
+                    tracking_id=tracking_clean,
+                )
+            except Exception:  # noqa: BLE001
+                logger.exception(
+                    "itsm outbound-only emit failed channel=%s event=%s tenant=%s",
+                    channel,
+                    event_type,
+                    tid,
+                )
+        return []
+
+    now = _now()
     docs: list[dict[str, Any]] = []
     for recipient in recipients:
         doc: dict[str, Any] = {
@@ -162,7 +182,31 @@ def emit(
 
     if docs:
         _coll().insert_many(docs)
-    return [serialize_document(d) for d in docs]  # type: ignore[misc]
+    serialized = [serialize_document(d) for d in docs]  # type: ignore[misc]
+
+    if fan_out_outbound and serialized:
+        try:
+            from . import notification_delivery as delivery_service
+
+            delivery_service.fan_out_from_in_app(
+                tenant_id=tid,
+                in_app_rows=serialized,  # type: ignore[arg-type]
+                event_type=event_type,
+                subject=subject_clean,
+                body=body_clean,
+                ticket_type=ticket_type_clean,
+                ticket_id=ticket_id_clean,
+                approval_id=approval_clean,
+                tracking_id=tracking_clean,
+            )
+        except Exception:  # noqa: BLE001 — never break ticket mutations
+            logger.exception(
+                "itsm notification fan-out failed event=%s tenant=%s",
+                event_type,
+                tid,
+            )
+
+    return serialized
 
 
 def emit_best_effort(**kwargs: Any) -> list[dict[str, Any]]:

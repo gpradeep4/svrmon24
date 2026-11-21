@@ -208,6 +208,19 @@
       itsmSend(`/notifications/${encodeURIComponent(id)}/unread`, "POST"),
     markNotificationArchive: (id) =>
       itsmSend(`/notifications/${encodeURIComponent(id)}/archive`, "POST"),
+    listNotificationChannels: () => itsmGet("/notifications/channels"),
+    getNotificationChannel: (channel) =>
+      itsmGet(`/notifications/channels/${encodeURIComponent(channel)}`),
+    putNotificationChannelEmail: (payload) =>
+      itsmSend("/notifications/channels/email", "PUT", payload),
+    putNotificationChannelSms: (payload) =>
+      itsmSend("/notifications/channels/sms", "PUT", payload),
+    putNotificationChannelSlack: (payload) =>
+      itsmSend("/notifications/channels/slack", "PUT", payload),
+    listNotificationDeliveries: (params) => {
+      const q = new URLSearchParams(params || {});
+      return itsmGet(`/notifications/deliveries?${q.toString()}`);
+    },
     listReportDefinitions: (params) => {
       const q = new URLSearchParams(params || {});
       return itsmGet(`/reports/definitions?${q.toString()}`);

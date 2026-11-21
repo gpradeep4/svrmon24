@@ -1,4 +1,4 @@
-"""ITSM in-app notification inbox APIs."""
+"""ITSM in-app notification inbox + outbound channel admin APIs."""
 
 from __future__ import annotations
 
@@ -6,17 +6,32 @@ from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
 
-from ...permissions import PERM_ITSM_NOTIFICATION_READ, require_permission
+from ...permissions import (
+    PERM_ITSM_NOTIFICATION_ADMIN,
+    PERM_ITSM_NOTIFICATION_READ,
+    require_permission,
+)
 from ...services import audit as audit_service
 from ...tenant_context import TenantContext
-from ..models.notifications import NotificationStatusUpdate
+from ..models.notifications import (
+    CHANNEL_EMAIL,
+    CHANNEL_SLACK,
+    CHANNEL_SMS,
+    EmailChannelSettingsUpdate,
+    NotificationStatusUpdate,
+    SlackChannelSettingsUpdate,
+    SmsChannelSettingsUpdate,
+)
+from ..services import notification_channels as channel_settings_service
+from ..services import notification_delivery as delivery_service
 from ..services import notifications as notifications_service
+from ..services.notification_channels import ChannelSettingsError
 from ..services.notifications import NotificationError
 
 router = APIRouter(prefix="/notifications", tags=["itsm-notifications"])
 
 
-def _raise(exc: NotificationError) -> None:
+def _raise(exc: NotificationError | ChannelSettingsError) -> None:
     raise HTTPException(status_code=exc.status_code, detail=exc.message) from exc
 
 
@@ -24,6 +39,124 @@ def _recipient_keys(tenant: TenantContext) -> list[str]:
     return notifications_service.recipient_keys_for_user(
         user_id=tenant.user_id,
         username=tenant.auth_user.username if tenant.auth_user else None,
+    )
+
+
+def _actor(tenant: TenantContext) -> dict[str, str | None]:
+    return {
+        "user_id": tenant.user_id,
+        "username": tenant.auth_user.username if tenant.auth_user else tenant.user_id,
+    }
+
+
+@router.get("/channels")
+def list_channels(
+    tenant: TenantContext = Depends(require_permission(PERM_ITSM_NOTIFICATION_ADMIN)),
+) -> dict[str, Any]:
+    return channel_settings_service.list_channel_settings(tenant_id=tenant.tenant_id)
+
+
+@router.get("/channels/{channel}")
+def get_channel(
+    channel: str,
+    tenant: TenantContext = Depends(require_permission(PERM_ITSM_NOTIFICATION_ADMIN)),
+) -> dict[str, Any]:
+    try:
+        return channel_settings_service.get_channel_settings(
+            tenant_id=tenant.tenant_id, channel=channel
+        )
+    except ChannelSettingsError as exc:
+        _raise(exc)
+        raise  # pragma: no cover
+
+
+@router.put("/channels/email")
+def put_email_channel(
+    payload: EmailChannelSettingsUpdate,
+    request: Request,
+    tenant: TenantContext = Depends(require_permission(PERM_ITSM_NOTIFICATION_ADMIN)),
+) -> dict[str, Any]:
+    return _upsert_channel(
+        CHANNEL_EMAIL,
+        payload.model_dump(exclude_unset=True),
+        request=request,
+        tenant=tenant,
+    )
+
+
+@router.put("/channels/sms")
+def put_sms_channel(
+    payload: SmsChannelSettingsUpdate,
+    request: Request,
+    tenant: TenantContext = Depends(require_permission(PERM_ITSM_NOTIFICATION_ADMIN)),
+) -> dict[str, Any]:
+    return _upsert_channel(
+        CHANNEL_SMS,
+        payload.model_dump(exclude_unset=True),
+        request=request,
+        tenant=tenant,
+    )
+
+
+@router.put("/channels/slack")
+def put_slack_channel(
+    payload: SlackChannelSettingsUpdate,
+    request: Request,
+    tenant: TenantContext = Depends(require_permission(PERM_ITSM_NOTIFICATION_ADMIN)),
+) -> dict[str, Any]:
+    return _upsert_channel(
+        CHANNEL_SLACK,
+        payload.model_dump(exclude_unset=True),
+        request=request,
+        tenant=tenant,
+    )
+
+
+def _upsert_channel(
+    channel: str,
+    payload: dict[str, Any],
+    *,
+    request: Request,
+    tenant: TenantContext,
+) -> dict[str, Any]:
+    try:
+        doc = channel_settings_service.upsert_channel_settings(
+            tenant_id=tenant.tenant_id,
+            channel=channel,
+            payload=payload,
+            actor=_actor(tenant),
+        )
+    except ChannelSettingsError as exc:
+        _raise(exc)
+        raise  # pragma: no cover
+    audit_service.record_from_tenant(
+        tenant,
+        action=f"itsm.notification.channel.{channel}.upsert",
+        resource_type="itsm_notification_channel_settings",
+        resource_id=channel,
+        details={"enabled": doc.get("enabled"), "channel": channel},
+        request_method=request.method,
+        request_path=str(request.url.path),
+    )
+    return doc
+
+
+@router.get("/deliveries")
+def list_deliveries(
+    channel: str | None = Query(default=None),
+    status: str | None = Query(default=None),
+    notification_id: str | None = Query(default=None),
+    page: int = Query(default=1, ge=1),
+    page_size: int = Query(default=25, ge=1, le=200),
+    tenant: TenantContext = Depends(require_permission(PERM_ITSM_NOTIFICATION_ADMIN)),
+) -> dict[str, Any]:
+    return delivery_service.list_deliveries(
+        tenant_id=tenant.tenant_id,
+        channel=channel,
+        status=status,
+        notification_id=notification_id,
+        page=page,
+        page_size=page_size,
     )
 
 
