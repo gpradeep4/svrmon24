@@ -701,6 +701,32 @@
   max-height: 220px;
 }
 
+.itsm-impact-panel {
+  margin: 0.35rem 0 0.85rem;
+  display: grid;
+  gap: 0.55rem;
+}
+
+.itsm-impact-card {
+  border: 1px solid var(--border, #e2e8f0);
+  border-radius: 8px;
+  padding: 0.65rem 0.75rem;
+  background: linear-gradient(180deg, #ffffff 0%, #f8fafc 100%);
+}
+
+.itsm-impact-card.is-missing {
+  background: #fff7ed;
+  border-color: #fdba74;
+}
+
+.itsm-impact-card p {
+  margin: 0.2rem 0;
+}
+
+.itsm-impact-disclaimer {
+  font-style: italic;
+}
+
 .itsm-kb-suggest {
   list-style: none;
   margin: 0.35rem 0 0.75rem;

@@ -4,7 +4,7 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <meta name="svrmon24-ui" content="login-enterprise-v13" />
-  <meta name="svrmon24-version" content="0.48.0" />
+  <meta name="svrmon24-version" content="0.49.0" />
   <title>SVRMON24</title>
   <link rel="icon" href="/static/img/svrmon-favicon.png" type="image/png" sizes="32x32" />
   <link rel="apple-touch-icon" href="/static/img/svrmon-apple-touch.png" sizes="180x180" />
@@ -15,10 +15,10 @@
     body.is-app .login-gate { display: none !important; }
     #authPanel, .auth-panel-legacy { display: none !important; }
   </style>
-  <link rel="stylesheet" href="/static/css/cmdb.css?v=0.48.0" />
-  <link rel="stylesheet" href="/static/css/itsm.css?v=0.48.0" />
-  <script src="/static/js/config.js?v=0.48.0"></script>
-  <script src="/static/js/brand.js?v=0.48.0"></script>
+  <link rel="stylesheet" href="/static/css/cmdb.css?v=0.49.0" />
+  <link rel="stylesheet" href="/static/css/itsm.css?v=0.49.0" />
+  <script src="/static/js/config.js?v=0.49.0"></script>
+  <script src="/static/js/brand.js?v=0.49.0"></script>
 </head>
 <body class="is-login">
   <!-- Enterprise login: showcase (left) + sign-in panel (right); stacks on small viewports -->
@@ -835,6 +835,9 @@
                   <option value="p4">p4</option>
                 </select>
               </label>
+              <label>CI
+                <input id="itsmIncCiFilter" list="itsmCiPickerList" placeholder="component_id" maxlength="128" />
+              </label>
               <button type="button" id="btnRefreshItsmInc" class="secondary">Refresh</button>
               <button type="button" id="btnNewItsmInc">New incident</button>
             </div>
@@ -874,10 +877,14 @@
               <div class="itsm-drawer-actions" id="itsmIncTransitionBar"></div>
               <h4 class="itsm-drawer-section">Affected CIs</h4>
               <div class="itsm-ci-add">
-                <input id="itsmCiComponentId" placeholder="component_id" />
+                <input id="itsmCiComponentId" list="itsmCiPickerList" placeholder="Pick or type component_id" />
                 <button type="button" id="btnItsmAddCi" class="secondary">Link CI</button>
               </div>
               <ul id="itsmCiList" class="itsm-ci-list"></ul>
+              <h4 class="itsm-drawer-section">CMDB impact (read-only)</h4>
+              <div id="itsmIncImpactPanel" class="itsm-impact-panel" aria-live="polite">
+                <p class="hint">Link a CI to load dependency / impact.</p>
+              </div>
               <h4 class="itsm-drawer-section">Related knowledge</h4>
               <ul id="itsmIncKbSuggest" class="itsm-kb-suggest" aria-label="Suggested knowledge articles"></ul>
               <h4 class="itsm-drawer-section">Activity</h4>
@@ -920,6 +927,9 @@
                   <option value="emergency">emergency</option>
                 </select>
               </label>
+              <label>CI
+                <input id="itsmChgCiFilter" list="itsmCiPickerList" placeholder="component_id" maxlength="128" />
+              </label>
               <button type="button" id="btnRefreshItsmChg" class="secondary">Refresh</button>
               <button type="button" id="btnNewItsmChg">New change</button>
             </div>
@@ -959,10 +969,14 @@
               <div class="itsm-drawer-actions" id="itsmChgTransitionBar"></div>
               <h4 class="itsm-drawer-section">Affected CIs</h4>
               <div class="itsm-ci-add">
-                <input id="itsmChgCiComponentId" placeholder="component_id" />
+                <input id="itsmChgCiComponentId" list="itsmCiPickerList" placeholder="Pick or type component_id" />
                 <button type="button" id="btnItsmChgAddCi" class="secondary">Link CI</button>
               </div>
               <ul id="itsmChgCiList" class="itsm-ci-list"></ul>
+              <h4 class="itsm-drawer-section">CMDB impact (read-only)</h4>
+              <div id="itsmChgImpactPanel" class="itsm-impact-panel" aria-live="polite">
+                <p class="hint">Link a CI to load dependency / impact.</p>
+              </div>
               <h4 class="itsm-drawer-section">Activity</h4>
               <div class="itsm-comment-row">
                 <input id="itsmChgCommentInput" placeholder="Add a comment…" />
@@ -1000,6 +1014,9 @@
                   <option value="p3">p3</option>
                   <option value="p4">p4</option>
                 </select>
+              </label>
+              <label>CI
+                <input id="itsmPrbCiFilter" list="itsmCiPickerList" placeholder="component_id" maxlength="128" />
               </label>
               <button type="button" id="btnRefreshItsmPrb" class="secondary">Refresh</button>
               <button type="button" id="btnNewItsmPrb">New problem</button>
@@ -1040,10 +1057,14 @@
               <div class="itsm-drawer-actions" id="itsmPrbTransitionBar"></div>
               <h4 class="itsm-drawer-section">Affected CIs</h4>
               <div class="itsm-ci-add">
-                <input id="itsmPrbCiComponentId" placeholder="component_id" />
+                <input id="itsmPrbCiComponentId" list="itsmCiPickerList" placeholder="Pick or type component_id" />
                 <button type="button" id="btnItsmPrbAddCi" class="secondary">Link CI</button>
               </div>
               <ul id="itsmPrbCiList" class="itsm-ci-list"></ul>
+              <h4 class="itsm-drawer-section">CMDB impact (read-only)</h4>
+              <div id="itsmPrbImpactPanel" class="itsm-impact-panel" aria-live="polite">
+                <p class="hint">Link a CI to load dependency / impact.</p>
+              </div>
               <h4 class="itsm-drawer-section">Activity</h4>
               <div class="itsm-comment-row">
                 <input id="itsmPrbCommentInput" placeholder="Add a comment…" />
@@ -2562,7 +2583,7 @@
           <label>Category<input id="itsmFieldCategory" maxlength="128" /></label>
           <label>Assignee user id<input id="itsmFieldAssignee" maxlength="128" /></label>
           <label>Caller email<input id="itsmFieldCallerEmail" type="email" maxlength="320" /></label>
-          <label>CI component_id<input id="itsmFieldCi" placeholder="optional CMDB component_id" maxlength="128" /></label>
+          <label>CI component_id<input id="itsmFieldCi" list="itsmCiPickerList" placeholder="optional — pick from CMDB" maxlength="128" /></label>
           <label>Related problem id<input id="itsmFieldProblemId" placeholder="optional PRB-…" maxlength="128" /></label>
           <label>Related change id<input id="itsmFieldChangeId" placeholder="optional CHG-…" maxlength="128" /></label>
           <label class="full">Description<textarea id="itsmFieldDescription" rows="4" maxlength="20000" placeholder="What happened, who is affected, and any immediate impact"></textarea></label>
@@ -2603,7 +2624,7 @@
           <label>Risk<input id="itsmChgFieldRisk" maxlength="64" placeholder="low / medium / high" /></label>
           <label>Impact<input id="itsmChgFieldImpact" maxlength="64" /></label>
           <label>Assignee user id<input id="itsmChgFieldAssignee" maxlength="128" /></label>
-          <label>CI component_id<input id="itsmChgFieldCi" placeholder="optional" maxlength="128" /></label>
+          <label>CI component_id<input id="itsmChgFieldCi" list="itsmCiPickerList" placeholder="optional — pick from CMDB" maxlength="128" /></label>
           <label class="itsm-check-label">CAB required
             <input type="checkbox" id="itsmChgFieldCab" />
           </label>
@@ -2642,7 +2663,7 @@
           </label>
           <label>Category<input id="itsmPrbFieldCategory" maxlength="128" /></label>
           <label>Assignee user id<input id="itsmPrbFieldAssignee" maxlength="128" /></label>
-          <label>CI component_id<input id="itsmPrbFieldCi" placeholder="optional" maxlength="128" /></label>
+          <label>CI component_id<input id="itsmPrbFieldCi" list="itsmCiPickerList" placeholder="optional — pick from CMDB" maxlength="128" /></label>
           <label class="itsm-check-label">Known error
             <input type="checkbox" id="itsmPrbFieldKnownError" />
           </label>
@@ -2837,7 +2858,8 @@
         <div id="typeFields" class="form-grid"></div>
         <h2 style="margin-top:16px;font-size:1rem">Custom fields</h2>
         <div id="customInputs" class="form-grid"></div>
-        <div style="margin-top:14px;display:flex;gap:8px;justify-content:flex-end">
+        <div style="margin-top:14px;display:flex;gap:8px;justify-content:flex-end;flex-wrap:wrap">
+          <button type="button" id="btnComponentViewItsm" class="secondary" hidden>View ITSM tickets</button>
           <button type="submit" id="btnSaveComponent">Save</button>
         </div>
       </form>
@@ -2946,6 +2968,7 @@
         <datalist id="entityIdList"></datalist>
         <datalist id="entityIdListSource"></datalist>
         <datalist id="entityIdListTarget"></datalist>
+        <datalist id="itsmCiPickerList"></datalist>
         <div style="margin-top:14px;display:flex;gap:8px;justify-content:flex-end">
           <button type="submit" id="btnSaveRel">Save</button>
         </div>
@@ -3030,18 +3053,19 @@
     </div>
   </div>
 
-  <script src="/static/js/cmdb.js?v=0.48.0"></script>
-  <script src="/static/js/itsm/api.js?v=0.48.0"></script>
-  <script src="/static/js/itsm/dashboard.js?v=0.48.0"></script>
-  <script src="/static/js/itsm/reports.js?v=0.48.0"></script>
-  <script src="/static/js/itsm/incidents.js?v=0.48.0"></script>
-  <script src="/static/js/itsm/changes.js?v=0.48.0"></script>
-  <script src="/static/js/itsm/problems.js?v=0.48.0"></script>
-  <script src="/static/js/itsm/approvals.js?v=0.48.0"></script>
-  <script src="/static/js/itsm/workflows.js?v=0.48.0"></script>
-  <script src="/static/js/itsm/sla.js?v=0.48.0"></script>
-  <script src="/static/js/itsm/knowledge.js?v=0.48.0"></script>
-  <script src="/static/js/itsm/notifications.js?v=0.48.0"></script>
-  <script src="/static/js/itsm/index.js?v=0.48.0"></script>
+  <script src="/static/js/cmdb.js?v=0.49.0"></script>
+  <script src="/static/js/itsm/api.js?v=0.49.0"></script>
+  <script src="/static/js/itsm/deeplinks.js?v=0.49.0"></script>
+  <script src="/static/js/itsm/dashboard.js?v=0.49.0"></script>
+  <script src="/static/js/itsm/reports.js?v=0.49.0"></script>
+  <script src="/static/js/itsm/incidents.js?v=0.49.0"></script>
+  <script src="/static/js/itsm/changes.js?v=0.49.0"></script>
+  <script src="/static/js/itsm/problems.js?v=0.49.0"></script>
+  <script src="/static/js/itsm/approvals.js?v=0.49.0"></script>
+  <script src="/static/js/itsm/workflows.js?v=0.49.0"></script>
+  <script src="/static/js/itsm/sla.js?v=0.49.0"></script>
+  <script src="/static/js/itsm/knowledge.js?v=0.49.0"></script>
+  <script src="/static/js/itsm/notifications.js?v=0.49.0"></script>
+  <script src="/static/js/itsm/index.js?v=0.49.0"></script>
 </body>
 </html>
