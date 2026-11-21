@@ -78,9 +78,11 @@
     const q = $("#itsmChgSearch")?.value?.trim();
     const status = $("#itsmChgStatus")?.value;
     const changeType = $("#itsmChgType")?.value;
+    const componentId = $("#itsmChgCiFilter")?.value?.trim();
     if (q) params.q = q;
     if (status) params.status = status;
     if (changeType) params.change_type = changeType;
+    if (componentId) params.component_id = componentId;
     try {
       const data = await SVRMON24ItsmApi.listChanges(params);
       const items = data.items || [];
@@ -141,6 +143,12 @@
       }
       renderTransitions(doc.status);
       renderCiLinks(doc.ci_links || []);
+      if (global.SVRMON24ItsmDeeplinks?.renderImpactPanel) {
+        await global.SVRMON24ItsmDeeplinks.renderImpactPanel(
+          $("#itsmChgImpactPanel"),
+          doc.ci_links || []
+        );
+      }
       if (global.SVRMON24ItsmSla?.renderTicketBadges) {
         await global.SVRMON24ItsmSla.renderTicketBadges(
           $("#itsmChgSlaBadges"),
@@ -319,6 +327,10 @@
     });
     $("#itsmChgStatus")?.addEventListener("change", () => loadChanges());
     $("#itsmChgType")?.addEventListener("change", () => loadChanges());
+    $("#itsmChgCiFilter")?.addEventListener("keydown", (ev) => {
+      if (ev.key === "Enter") loadChanges();
+    });
+    $("#itsmChgCiFilter")?.addEventListener("change", () => loadChanges());
     $("#btnItsmChgAddCi")?.addEventListener("click", async () => {
       if (!selectedId) return;
       const cid = $("#itsmChgCiComponentId")?.value?.trim();
@@ -353,10 +365,17 @@
     applyWriteGates();
   }
 
+  function filterByComponent(componentId) {
+    const el = $("#itsmChgCiFilter");
+    if (el) el.value = (componentId || "").trim();
+    return loadChanges();
+  }
+
   global.SVRMON24ItsmChanges = {
     initItsmChanges,
     loadChanges,
     openChange,
+    filterByComponent,
     applyWriteGates,
     closeDrawer,
   };

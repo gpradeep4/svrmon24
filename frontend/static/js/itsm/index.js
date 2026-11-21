@@ -1,4 +1,4 @@
-/* global SVRMON24ItsmDashboard, SVRMON24ItsmReports, SVRMON24ItsmIncidents, SVRMON24ItsmChanges, SVRMON24ItsmProblems, SVRMON24ItsmApprovals, SVRMON24ItsmWorkflows, SVRMON24ItsmSla, SVRMON24ItsmKnowledge, SVRMON24ItsmNotifications */
+/* global SVRMON24ItsmDashboard, SVRMON24ItsmReports, SVRMON24ItsmIncidents, SVRMON24ItsmChanges, SVRMON24ItsmProblems, SVRMON24ItsmApprovals, SVRMON24ItsmWorkflows, SVRMON24ItsmSla, SVRMON24ItsmKnowledge, SVRMON24ItsmNotifications, SVRMON24ItsmDeeplinks */
 (function (global) {
   "use strict";
 
@@ -62,15 +62,15 @@
       };
       pageMeta["itsm-incidents"] = {
         title: "Incidents",
-        subtitle: "Create and manage incident tickets · activities · CMDB CI links",
+        subtitle: "Tickets · CI filter · activities · CMDB impact panel",
       };
       pageMeta["itsm-changes"] = {
         title: "Changes",
-        subtitle: "Change Management · status transitions · related tickets · CI links",
+        subtitle: "Change Management · CI filter · related tickets · impact panel",
       };
       pageMeta["itsm-problems"] = {
         title: "Problems",
-        subtitle: "Problem Management · known errors · related incidents · CI links",
+        subtitle: "Problem Management · CI filter · known errors · impact panel",
       };
       pageMeta["itsm-approvals"] = {
         title: "Approvals",
@@ -94,6 +94,9 @@
       };
     }
 
+    if (global.SVRMON24ItsmDeeplinks?.initItsmDeeplinks) {
+      SVRMON24ItsmDeeplinks.initItsmDeeplinks({ api, toast, escapeHtml, can });
+    }
     SVRMON24ItsmDashboard.initItsmDashboard({ toast });
     SVRMON24ItsmReports.initItsmReports({ toast, escapeHtml, can });
     SVRMON24ItsmIncidents.initItsmIncidents({ can, toast, escapeHtml });
@@ -126,14 +129,17 @@
         }
         if (name === "itsm-incidents") {
           SVRMON24ItsmIncidents.applyWriteGates();
+          SVRMON24ItsmDeeplinks?.refreshCiPicker?.();
           SVRMON24ItsmIncidents.loadIncidents();
         }
         if (name === "itsm-changes") {
           SVRMON24ItsmChanges.applyWriteGates();
+          SVRMON24ItsmDeeplinks?.refreshCiPicker?.();
           SVRMON24ItsmChanges.loadChanges();
         }
         if (name === "itsm-problems") {
           SVRMON24ItsmProblems.applyWriteGates();
+          SVRMON24ItsmDeeplinks?.refreshCiPicker?.();
           SVRMON24ItsmProblems.loadProblems();
         }
         if (name === "itsm-approvals") {

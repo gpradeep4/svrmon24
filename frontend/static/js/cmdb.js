@@ -1944,8 +1944,17 @@
         return `<td><span class="status-pill ${statusClass(row.status)}">${escapeHtml(row.status)}</span></td>`;
       case "actions": {
         const write = can("cmdb:write");
+        const itsmRead =
+          can("itsm:incident:read") ||
+          can("itsm:change:read") ||
+          can("itsm:problem:read");
         return `<td class="actions">
             <button type="button" class="ghost" data-view="${escapeAttr(row.component_id)}">View</button>
+            ${
+              itsmRead
+                ? `<button type="button" class="ghost" data-itsm="${escapeAttr(row.component_id)}" title="View ITSM tickets for this CI">ITSM</button>`
+                : ""
+            }
             ${
               write
                 ? `<button type="button" class="secondary" data-edit="${escapeAttr(row.component_id)}">Edit</button>
@@ -2420,6 +2429,11 @@
     $("#fieldType").value = locked;
     renderTypeFields(locked);
     renderCustomInputs(locked, {});
+    const itsmBtn = $("#btnComponentViewItsm");
+    if (itsmBtn) {
+      itsmBtn.hidden = true;
+      delete itsmBtn.dataset.componentId;
+    }
     openModal(state.inventoryType ? `Add ${state.inventoryType}` : "Add component");
   }
 
@@ -2440,6 +2454,15 @@
       el.disabled = readOnly;
     });
     $("#btnSaveComponent").style.display = readOnly ? "none" : "inline-block";
+    const itsmBtn = $("#btnComponentViewItsm");
+    if (itsmBtn) {
+      const itsmRead =
+        can("itsm:incident:read") ||
+        can("itsm:change:read") ||
+        can("itsm:problem:read");
+      itsmBtn.hidden = !itsmRead;
+      itsmBtn.dataset.componentId = doc.component_id;
+    }
     openModal(readOnly ? `View ${id}` : `Edit ${id}`);
   }
 
@@ -5371,12 +5394,36 @@
       const view = e.target.getAttribute("data-view");
       const edit = e.target.getAttribute("data-edit");
       const del = e.target.getAttribute("data-del");
+      const itsm = e.target.getAttribute("data-itsm");
       try {
+        if (itsm) {
+          if (global.SVRMON24ItsmDeeplinks?.openTicketsForComponent) {
+            global.SVRMON24ItsmDeeplinks.openTicketsForComponent(itsm);
+          } else {
+            toast("ITSM deep-links unavailable", true);
+          }
+          return;
+        }
         if (view) await openEdit(view, true);
         if (edit) await openEdit(edit, false);
         if (del) await beginDelete(del);
       } catch (err) {
         toast(err.message, true);
+      }
+    });
+    $("#btnComponentViewItsm")?.addEventListener("click", () => {
+      const cid =
+        $("#btnComponentViewItsm")?.dataset?.componentId ||
+        $("#fieldComponentId")?.value?.trim();
+      if (!cid) {
+        toast("Save the component before opening ITSM tickets", true);
+        return;
+      }
+      $("#componentModal")?.classList.remove("open");
+      if (global.SVRMON24ItsmDeeplinks?.openTicketsForComponent) {
+        global.SVRMON24ItsmDeeplinks.openTicketsForComponent(cid);
+      } else {
+        toast("ITSM deep-links unavailable", true);
       }
     });
     $("#inventoryBody").addEventListener("change", (e) => {

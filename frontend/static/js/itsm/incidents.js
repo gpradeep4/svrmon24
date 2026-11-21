@@ -75,9 +75,11 @@
     const q = $("#itsmIncSearch")?.value?.trim();
     const status = $("#itsmIncStatus")?.value;
     const priority = $("#itsmIncPriority")?.value;
+    const componentId = $("#itsmIncCiFilter")?.value?.trim();
     if (q) params.q = q;
     if (status) params.status = status;
     if (priority) params.priority = priority;
+    if (componentId) params.component_id = componentId;
     try {
       const data = await SVRMON24ItsmApi.listIncidents(params);
       const items = data.items || [];
@@ -134,6 +136,12 @@
       }
       renderTransitions(doc.status);
       renderCiLinks(doc.ci_links || []);
+      if (global.SVRMON24ItsmDeeplinks?.renderImpactPanel) {
+        await global.SVRMON24ItsmDeeplinks.renderImpactPanel(
+          $("#itsmIncImpactPanel"),
+          doc.ci_links || []
+        );
+      }
       if (global.SVRMON24ItsmSla?.renderTicketBadges) {
         await global.SVRMON24ItsmSla.renderTicketBadges(
           $("#itsmIncSlaBadges"),
@@ -310,6 +318,10 @@
     });
     $("#itsmIncStatus")?.addEventListener("change", () => loadIncidents());
     $("#itsmIncPriority")?.addEventListener("change", () => loadIncidents());
+    $("#itsmIncCiFilter")?.addEventListener("keydown", (ev) => {
+      if (ev.key === "Enter") loadIncidents();
+    });
+    $("#itsmIncCiFilter")?.addEventListener("change", () => loadIncidents());
     $("#btnItsmAddCi")?.addEventListener("click", async () => {
       if (!selectedId) return;
       const cid = $("#itsmCiComponentId")?.value?.trim();
@@ -344,10 +356,17 @@
     applyWriteGates();
   }
 
+  function filterByComponent(componentId) {
+    const el = $("#itsmIncCiFilter");
+    if (el) el.value = (componentId || "").trim();
+    return loadIncidents();
+  }
+
   global.SVRMON24ItsmIncidents = {
     initItsmIncidents,
     loadIncidents,
     openIncident,
+    filterByComponent,
     applyWriteGates,
     closeDrawer,
   };
