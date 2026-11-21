@@ -163,9 +163,8 @@ def create_app() -> FastAPI:
     if settings.serve_static:
         app.mount("/static", StaticFiles(directory=str(STATIC_DIR)), name="static")
 
-        @app.get("/", include_in_schema=False)
-        def ui_index() -> FileResponse:
-            """CMDB inventory UI (browser). Never cache HTML so login-gate updates apply."""
+        def _spa_index() -> FileResponse:
+            """SPA shell — never cache HTML so login-gate / route updates apply."""
             return FileResponse(
                 FRONTEND_DIR / "index.html",
                 headers={
@@ -173,6 +172,17 @@ def create_app() -> FastAPI:
                     "Pragma": "no-cache",
                 },
             )
+
+        @app.get("/", include_in_schema=False)
+        def ui_index() -> FileResponse:
+            """CMDB / ITSM SPA (browser)."""
+            return _spa_index()
+
+        @app.get("/itsm", include_in_schema=False)
+        @app.get("/itsm/", include_in_schema=False)
+        def ui_itsm_entry() -> FileResponse:
+            """Optional ITSM entry path — same SPA/auth; client defaults to ITSM dashboard."""
+            return _spa_index()
 
     @app.get("/health", tags=["health"])
     def health() -> dict[str, Any]:
