@@ -21,6 +21,7 @@
     "itsm-sla",
     "itsm-knowledge",
     "itsm-notifications",
+    "itsm-groups",
   ]);
 
   let applying = false;

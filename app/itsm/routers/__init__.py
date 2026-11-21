@@ -8,6 +8,8 @@ from ...auth import require_user
 from . import (
     activities,
     approvals,
+    assignment_groups,
+    attachments,
     changes,
     dashboard,
     incidents,
@@ -38,4 +40,6 @@ router.include_router(notifications.router)
 router.include_router(jobs.router)
 router.include_router(dashboard.router)
 router.include_router(reports.router)
+router.include_router(assignment_groups.router)
+router.include_router(attachments.router)
 router.include_router(activities.router)

@@ -383,6 +383,57 @@ def set_status(
     return serialize_document(doc)  # type: ignore[return-value]
 
 
+def _merge_recipients(
+    primary: str | None, watchers: list[str] | None
+) -> list[str]:
+    out: list[str] = []
+    seen: set[str] = set()
+    for raw in [primary, *(watchers or [])]:
+        item = str(raw or "").strip()
+        if not item or item.lower() in seen:
+            continue
+        seen.add(item.lower())
+        out.append(item)
+    return out
+
+
+def _notify_cc_emails(
+    *,
+    tenant_id: str,
+    event_type: str,
+    subject: str,
+    body: str,
+    ticket_type: str,
+    ticket_id: str,
+    cc_emails: list[str] | None,
+    actor: dict[str, Any] | None,
+) -> None:
+    """Best-effort outbound email to CC addresses (no in-app inbox row)."""
+    from . import notification_delivery as delivery_service
+
+    for raw in cc_emails or []:
+        addr = str(raw or "").strip()
+        if not addr or "@" not in addr:
+            continue
+        try:
+            delivery_service.deliver_one(
+                tenant_id=tenant_id,
+                channel="email",
+                recipient_user_id=addr,
+                subject=subject,
+                body=body,
+                event_type=event_type,
+                ticket_type=ticket_type,
+                ticket_id=ticket_id,
+            )
+        except Exception:  # noqa: BLE001 — never break ticket mutations
+            logger.exception(
+                "itsm cc email notify failed tenant=%s ticket=%s",
+                tenant_id,
+                ticket_id,
+            )
+
+
 def notify_assignment(
     *,
     tenant_id: str,
@@ -391,20 +442,36 @@ def notify_assignment(
     assignee_user_id: str | None,
     number_display: str | None = None,
     actor: dict[str, Any] | None = None,
+    watcher_user_ids: list[str] | None = None,
+    cc_emails: list[str] | None = None,
 ) -> list[dict[str, Any]]:
-    if not assignee_user_id or not str(assignee_user_id).strip():
-        return []
+    recipients = _merge_recipients(assignee_user_id, watcher_user_ids)
     label = number_display or ticket_id
-    return emit_best_effort(
+    subject = f"Assigned: {label}"
+    body = f"You were assigned to {ticket_type} {label}."
+    rows: list[dict[str, Any]] = []
+    if recipients:
+        rows = emit_best_effort(
+            tenant_id=tenant_id,
+            event_type="assignment",
+            recipient_user_ids=recipients,
+            subject=subject,
+            body=body,
+            ticket_type=ticket_type,
+            ticket_id=ticket_id,
+            actor=actor,
+        )
+    _notify_cc_emails(
         tenant_id=tenant_id,
         event_type="assignment",
-        recipient_user_ids=[str(assignee_user_id).strip()],
-        subject=f"Assigned: {label}",
-        body=f"You were assigned to {ticket_type} {label}.",
+        subject=subject,
+        body=body,
         ticket_type=ticket_type,
         ticket_id=ticket_id,
+        cc_emails=cc_emails,
         actor=actor,
     )
+    return rows
 
 
 def notify_status_change(
@@ -417,20 +484,36 @@ def notify_status_change(
     assignee_user_id: str | None = None,
     number_display: str | None = None,
     actor: dict[str, Any] | None = None,
+    watcher_user_ids: list[str] | None = None,
+    cc_emails: list[str] | None = None,
 ) -> list[dict[str, Any]]:
-    if not assignee_user_id or not str(assignee_user_id).strip():
-        return []
+    recipients = _merge_recipients(assignee_user_id, watcher_user_ids)
     label = number_display or ticket_id
-    return emit_best_effort(
+    subject = f"Status: {label} → {to_status}"
+    body = f"{ticket_type} {label} changed from {from_status} to {to_status}."
+    rows: list[dict[str, Any]] = []
+    if recipients:
+        rows = emit_best_effort(
+            tenant_id=tenant_id,
+            event_type="status_change",
+            recipient_user_ids=recipients,
+            subject=subject,
+            body=body,
+            ticket_type=ticket_type,
+            ticket_id=ticket_id,
+            actor=actor,
+        )
+    _notify_cc_emails(
         tenant_id=tenant_id,
         event_type="status_change",
-        recipient_user_ids=[str(assignee_user_id).strip()],
-        subject=f"Status: {label} → {to_status}",
-        body=f"{ticket_type} {label} changed from {from_status} to {to_status}.",
+        subject=subject,
+        body=body,
         ticket_type=ticket_type,
         ticket_id=ticket_id,
+        cc_emails=cc_emails,
         actor=actor,
     )
+    return rows
 
 
 def notify_approval_requested(

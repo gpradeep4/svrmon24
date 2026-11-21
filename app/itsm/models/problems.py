@@ -2,9 +2,23 @@
 
 from __future__ import annotations
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 from .common import CiLink, ProblemPriority, ProblemStatus
+
+
+def _clean_str_list(values: list[str] | None, *, limit: int = 50) -> list[str]:
+    out: list[str] = []
+    seen: set[str] = set()
+    for raw in values or []:
+        item = str(raw or "").strip()
+        if not item or item.lower() in seen:
+            continue
+        seen.add(item.lower())
+        out.append(item[:320])
+        if len(out) >= limit:
+            break
+    return out
 
 
 class ProblemCreate(BaseModel):
@@ -30,6 +44,17 @@ class ProblemCreate(BaseModel):
     ci_links: list[CiLink] = Field(default_factory=list)
     related_incident_ids: list[str] = Field(default_factory=list)
     change_id: str | None = Field(default=None, max_length=128)
+    watcher_user_ids: list[str] = Field(default_factory=list, max_length=50)
+    cc_emails: list[str] = Field(default_factory=list, max_length=50)
+
+    @field_validator("watcher_user_ids", "cc_emails", mode="before")
+    @classmethod
+    def _clean_lists(cls, value: object) -> list[str]:
+        if value is None:
+            return []
+        if not isinstance(value, list):
+            raise ValueError("expected a list")
+        return _clean_str_list([str(v) for v in value])
 
 
 class ProblemUpdate(BaseModel):
@@ -53,6 +78,17 @@ class ProblemUpdate(BaseModel):
     known_error: bool | None = None
     related_incident_ids: list[str] | None = None
     change_id: str | None = Field(default=None, max_length=128)
+    watcher_user_ids: list[str] | None = Field(default=None, max_length=50)
+    cc_emails: list[str] | None = Field(default=None, max_length=50)
+
+    @field_validator("watcher_user_ids", "cc_emails", mode="before")
+    @classmethod
+    def _clean_lists(cls, value: object) -> list[str] | None:
+        if value is None:
+            return None
+        if not isinstance(value, list):
+            raise ValueError("expected a list")
+        return _clean_str_list([str(v) for v in value])
 
 
 class ProblemTransition(BaseModel):

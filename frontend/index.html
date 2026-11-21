@@ -4,7 +4,7 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <meta name="svrmon24-ui" content="login-enterprise-v13" />
-  <meta name="svrmon24-version" content="0.51.0" />
+  <meta name="svrmon24-version" content="0.52.0" />
   <title>SVRMON24</title>
   <link rel="icon" href="/static/img/svrmon-favicon.png" type="image/png" sizes="32x32" />
   <link rel="apple-touch-icon" href="/static/img/svrmon-apple-touch.png" sizes="180x180" />
@@ -15,10 +15,10 @@
     body.is-app .login-gate { display: none !important; }
     #authPanel, .auth-panel-legacy { display: none !important; }
   </style>
-  <link rel="stylesheet" href="/static/css/cmdb.css?v=0.51.0" />
-  <link rel="stylesheet" href="/static/css/itsm.css?v=0.51.0" />
-  <script src="/static/js/config.js?v=0.51.0"></script>
-  <script src="/static/js/brand.js?v=0.51.0"></script>
+  <link rel="stylesheet" href="/static/css/cmdb.css?v=0.52.0" />
+  <link rel="stylesheet" href="/static/css/itsm.css?v=0.52.0" />
+  <script src="/static/js/config.js?v=0.52.0"></script>
+  <script src="/static/js/brand.js?v=0.52.0"></script>
 </head>
 <body class="is-login">
   <!-- Enterprise login: showcase (left) + sign-in panel (right); stacks on small viewports -->
@@ -329,6 +329,10 @@
           <span class="nav-ico" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M12 22a2 2 0 0 0 2-2h-4a2 2 0 0 0 2 2zm6-6V11a6 6 0 1 0-12 0v5l-2 2v1h16v-1l-2-2z"/></svg></span>
           Notifications
           <span id="itsmNotifNavBadge" class="itsm-notif-badge" hidden aria-hidden="true">0</span>
+        </button>
+        <button type="button" class="nav-item" data-tab="itsm-groups" data-itsm-nav="1" data-itsm-perm="itsm:groups:read">
+          <span class="nav-ico" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M16 11c1.66 0 3-1.57 3-3.5S17.66 4 16 4s-3 1.57-3 3.5 1.34 3.5 3 3.5zM8 11c1.66 0 3-1.57 3-3.5S9.66 4 8 4 5 5.57 5 7.5 6.34 11 8 11zm0 2c-2.33 0-7 1.17-7 3.5V19h14v-2.5C15 14.17 10.33 13 8 13zm8 0c-.29 0-.62.02-.97.05 1.16.84 1.97 1.97 1.97 3.45V19h6v-2.5c0-2.33-4.67-3.5-7-3.5z"/></svg></span>
+          Groups
         </button>
         <button type="button" class="nav-item" data-tab="itsm-reports" data-itsm-nav="1" data-itsm-perm="itsm:dashboard:read">
           <span class="nav-ico" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M4 19h16M6 16V9m4 7V5m4 11v-4m4 4V7"/></svg></span>
@@ -885,6 +889,14 @@
               <div id="itsmIncImpactPanel" class="itsm-impact-panel" aria-live="polite">
                 <p class="hint">Link a CI to load dependency / impact.</p>
               </div>
+              <h4 class="itsm-drawer-section">Related tickets</h4>
+              <div id="itsmIncRelatedLinks" class="itsm-related-links hint">—</div>
+              <h4 class="itsm-drawer-section">Attachments</h4>
+              <div class="itsm-ci-add">
+                <input type="file" id="itsmIncAttachFile" />
+                <button type="button" id="btnItsmIncAttach" class="secondary">Upload</button>
+              </div>
+              <ul id="itsmIncAttachList" class="itsm-ci-list"></ul>
               <h4 class="itsm-drawer-section">Related knowledge</h4>
               <ul id="itsmIncKbSuggest" class="itsm-kb-suggest" aria-label="Suggested knowledge articles"></ul>
               <h4 class="itsm-drawer-section">Activity</h4>
@@ -1240,6 +1252,45 @@
                 </div>
               </div>
             </div>
+          </section>
+        </section>
+
+
+        <section id="tab-itsm-groups" class="tab-panel hidden" data-itsm-module="1">
+          <section class="panel itsm-panel">
+            <h2>Assignment Groups</h2>
+            <p class="hint">Tenant directory for routing. Names feed pickers on tickets, SLA match, and approvals.</p>
+            <div class="toolbar itsm-toolbar">
+              <button type="button" id="btnRefreshItsmGrp" class="secondary">Refresh</button>
+            </div>
+            <p class="hint" id="itsmGrpListMeta">No groups loaded yet.</p>
+            <div class="table-wrap">
+              <table class="inventory" id="itsmGrpTable">
+                <thead>
+                  <tr>
+                    <th>Id</th>
+                    <th>Name</th>
+                    <th>Status</th>
+                    <th>Members</th>
+                    <th>Email</th>
+                  </tr>
+                </thead>
+                <tbody id="itsmGrpBody">
+                  <tr><td colspan="5" class="hint">Loading…</td></tr>
+                </tbody>
+              </table>
+            </div>
+            <form id="itsmGrpForm" class="itsm-inline-form" style="margin-top:1rem">
+              <h3>New group</h3>
+              <div class="itsm-form-grid">
+                <label>Name<input id="itsmGrpFieldName" required maxlength="128" placeholder="NOC" /></label>
+                <label>Email<input id="itsmGrpFieldEmail" type="email" maxlength="320" /></label>
+                <label>Members (comma user ids)<input id="itsmGrpFieldMembers" maxlength="2000" placeholder="user-1, user-2" /></label>
+                <label class="itsm-sla-check-inline"><input type="checkbox" id="itsmGrpFieldActive" checked /> Active</label>
+                <label class="full">Description<textarea id="itsmGrpFieldDesc" rows="2" maxlength="2000"></textarea></label>
+              </div>
+              <button type="submit" id="btnSaveItsmGroup" class="primary">Create group</button>
+            </form>
           </section>
         </section>
 
@@ -2581,8 +2632,11 @@
           <label>Urgency<input id="itsmFieldUrgency" maxlength="64" placeholder="e.g. high" /></label>
           <label>Impact<input id="itsmFieldImpact" maxlength="64" placeholder="e.g. user / service" /></label>
           <label>Category<input id="itsmFieldCategory" maxlength="128" /></label>
+          <label>Assignment group<input id="itsmFieldAssignmentGroup" list="itsmGroupPickerList" maxlength="128" placeholder="pick group" /></label>
           <label>Assignee user id<input id="itsmFieldAssignee" maxlength="128" /></label>
           <label>Caller email<input id="itsmFieldCallerEmail" type="email" maxlength="320" /></label>
+          <label>Watchers (comma user ids)<input id="itsmFieldWatchers" maxlength="2000" placeholder="user-a, user-b" /></label>
+          <label>CC emails<input id="itsmFieldCcEmails" maxlength="2000" placeholder="ops@example.com" /></label>
           <label>CI component_id<input id="itsmFieldCi" list="itsmCiPickerList" placeholder="optional — pick from CMDB" maxlength="128" /></label>
           <label>Related problem id<input id="itsmFieldProblemId" placeholder="optional PRB-…" maxlength="128" /></label>
           <label>Related change id<input id="itsmFieldChangeId" placeholder="optional CHG-…" maxlength="128" /></label>
@@ -2700,7 +2754,7 @@
           </label>
           <label>Ticket id<input id="itsmAprFieldTicketId" required maxlength="128" placeholder="CHG-… / INC-… / PRB-…" /></label>
           <label>Approver user ids<input id="itsmAprFieldApprovers" placeholder="comma-separated" maxlength="500" /></label>
-          <label>Approver group<input id="itsmAprFieldGroup" maxlength="128" /></label>
+          <label>Approver group<input id="itsmAprFieldGroup" list="itsmGroupPickerList" maxlength="128" /></label>
           <label>Policy<input id="itsmAprFieldPolicy" maxlength="128" placeholder="optional policy key" /></label>
           <label class="full">Description<textarea id="itsmAprFieldDescription" rows="3" maxlength="8000"></textarea></label>
         </div>
@@ -2795,7 +2849,7 @@
           </label>
           <label>Category<input id="itsmSlaMatchCategory" maxlength="128" placeholder="network" /></label>
           <label>Subcategory<input id="itsmSlaMatchSubcategory" maxlength="128" placeholder="vpn" /></label>
-          <label>Assignment group<input id="itsmSlaMatchGroup" maxlength="128" placeholder="NOC" /></label>
+          <label>Assignment group<input id="itsmSlaMatchGroup" list="itsmGroupPickerList" maxlength="128" placeholder="NOC" /></label>
           <label>Urgency<input id="itsmSlaMatchUrgency" maxlength="64" placeholder="high" /></label>
           <label>Impact<input id="itsmSlaMatchImpact" maxlength="64" placeholder="high" /></label>
           <label>CI criticality<input id="itsmSlaMatchCiCrit" maxlength="64" placeholder="critical" /></label>
@@ -2808,6 +2862,7 @@
           <label class="itsm-sla-check-inline"><input type="checkbox" id="itsmSlaCalBiz" /> Business hours only</label>
           <label>Start (HH:MM)<input id="itsmSlaCalStart" maxlength="8" placeholder="09:00" /></label>
           <label>End (HH:MM)<input id="itsmSlaCalEnd" maxlength="8" placeholder="17:00" /></label>
+          <label class="full">Holidays (YYYY-MM-DD)<input id="itsmSlaCalHolidays" maxlength="2000" placeholder="2026-12-25, 2026-01-01" /></label>
         </div>
         <h4 class="itsm-drawer-section">Response targets (minutes)</h4>
         <div class="form-grid itsm-sla-priority-grid">
@@ -2969,6 +3024,7 @@
         <datalist id="entityIdListSource"></datalist>
         <datalist id="entityIdListTarget"></datalist>
         <datalist id="itsmCiPickerList"></datalist>
+  <datalist id="itsmGroupPickerList"></datalist>
         <div style="margin-top:14px;display:flex;gap:8px;justify-content:flex-end">
           <button type="submit" id="btnSaveRel">Save</button>
         </div>
@@ -3053,20 +3109,21 @@
     </div>
   </div>
 
-  <script src="/static/js/cmdb.js?v=0.51.0"></script>
-  <script src="/static/js/itsm/api.js?v=0.51.0"></script>
-  <script src="/static/js/itsm/routing.js?v=0.51.0"></script>
-  <script src="/static/js/itsm/deeplinks.js?v=0.51.0"></script>
-  <script src="/static/js/itsm/dashboard.js?v=0.51.0"></script>
-  <script src="/static/js/itsm/reports.js?v=0.51.0"></script>
-  <script src="/static/js/itsm/incidents.js?v=0.51.0"></script>
-  <script src="/static/js/itsm/changes.js?v=0.51.0"></script>
-  <script src="/static/js/itsm/problems.js?v=0.51.0"></script>
-  <script src="/static/js/itsm/approvals.js?v=0.51.0"></script>
-  <script src="/static/js/itsm/workflows.js?v=0.51.0"></script>
-  <script src="/static/js/itsm/sla.js?v=0.51.0"></script>
-  <script src="/static/js/itsm/knowledge.js?v=0.51.0"></script>
-  <script src="/static/js/itsm/notifications.js?v=0.51.0"></script>
-  <script src="/static/js/itsm/index.js?v=0.51.0"></script>
+  <script src="/static/js/cmdb.js?v=0.52.0"></script>
+  <script src="/static/js/itsm/api.js?v=0.52.0"></script>
+  <script src="/static/js/itsm/routing.js?v=0.52.0"></script>
+  <script src="/static/js/itsm/deeplinks.js?v=0.52.0"></script>
+  <script src="/static/js/itsm/dashboard.js?v=0.52.0"></script>
+  <script src="/static/js/itsm/reports.js?v=0.52.0"></script>
+  <script src="/static/js/itsm/incidents.js?v=0.52.0"></script>
+  <script src="/static/js/itsm/changes.js?v=0.52.0"></script>
+  <script src="/static/js/itsm/problems.js?v=0.52.0"></script>
+  <script src="/static/js/itsm/approvals.js?v=0.52.0"></script>
+  <script src="/static/js/itsm/workflows.js?v=0.52.0"></script>
+  <script src="/static/js/itsm/sla.js?v=0.52.0"></script>
+  <script src="/static/js/itsm/knowledge.js?v=0.52.0"></script>
+  <script src="/static/js/itsm/notifications.js?v=0.52.0"></script>
+  <script src="/static/js/itsm/groups.js?v=0.52.0"></script>
+  <script src="/static/js/itsm/index.js?v=0.52.0"></script>
 </body>
 </html>
