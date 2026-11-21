@@ -8,6 +8,7 @@ from .alerts import (
     AlertRulePatch,
     AlertScope,
     EvaluateAlertsResult,
+    LinkSuggestedIncident,
 )
 from .file_monitoring import FileVersionEvent, FileWatchTarget
 from .logs import LogEvent, LogStream, SimulateTickResult
@@ -21,6 +22,7 @@ __all__ = [
     "AlertRulePatch",
     "AlertScope",
     "EvaluateAlertsResult",
+    "LinkSuggestedIncident",
     "FileVersionEvent",
     "FileWatchTarget",
     "LogEvent",

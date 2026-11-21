@@ -582,6 +582,68 @@ def resolve_instance(
     return get_instance(tenant_id=tid, alert_id=aid)  # type: ignore[return-value]
 
 
+def suggest_incident(*, tenant_id: str, alert_id: str) -> dict[str, Any]:
+    """Build an ITSM incident **draft** from alert evidence (no ITSM write)."""
+    from . import itsm_client
+
+    tid = require_tenant_id(tenant_id)
+    aid = alert_id.strip()
+    doc = get_instance(tenant_id=tid, alert_id=aid)
+    if doc is None:
+        raise MonitorAlertsError(f"Alert '{aid}' not found", status_code=404)
+    draft = itsm_client.draft_incident_from_alert(doc)
+    return {
+        "alert": {
+            "alert_id": doc.get("alert_id"),
+            "rule_id": doc.get("rule_id"),
+            "rule_name": doc.get("rule_name"),
+            "status": doc.get("status"),
+            "severity": doc.get("severity"),
+            "summary": doc.get("summary"),
+            "component_id": doc.get("component_id"),
+            "suggested_incident_id": doc.get("suggested_incident_id"),
+        },
+        "draft": draft,
+        "source": draft.get("source") or "rule_based_fallback",
+        "auto_create": False,
+        "execution_mode": EXECUTION_MODE,
+        "live_probes": False,
+        "tenant_id": tid,
+    }
+
+
+def link_suggested_incident(
+    *,
+    tenant_id: str,
+    alert_id: str,
+    incident_id: str,
+) -> dict[str, Any]:
+    """Stamp ``suggested_incident_id`` after a human created the ITSM incident.
+
+    Updates Monitoring only — never writes ITSM collections.
+    """
+    tid = require_tenant_id(tenant_id)
+    aid = alert_id.strip()
+    iid = (incident_id or "").strip()
+    if not iid:
+        raise MonitorAlertsError("incident_id is required", status_code=422)
+    coll = _instances()
+    doc = coll.find_one(merge_tenant_filter({"alert_id": aid}, tid))
+    if not doc:
+        raise MonitorAlertsError(f"Alert '{aid}' not found", status_code=404)
+    now = _now()
+    coll.update_one(
+        merge_tenant_filter({"alert_id": aid}, tid),
+        {
+            "$set": {
+                "suggested_incident_id": iid[:128],
+                "updated_at": now,
+            }
+        },
+    )
+    return get_instance(tenant_id=tid, alert_id=aid)  # type: ignore[return-value]
+
+
 def _has_open_fingerprint(*, tenant_id: str, fingerprint: str) -> bool:
     tid = require_tenant_id(tenant_id)
     doc = _instances().find_one(

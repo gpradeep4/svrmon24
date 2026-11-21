@@ -1,4 +1,4 @@
-/* Monitoring Alerts — SIMULATED rules + instances (ack/resolve; no auto-incident). */
+/* Monitoring Alerts — SIMULATED rules + instances (ack/resolve; draft incident only). */
 (function (global) {
   "use strict";
 
@@ -10,6 +10,15 @@
     if (typeof api === "function") apiFn = api;
     if (typeof toast === "function") toastFn = toast;
     if (typeof can === "function") canFn = can;
+  }
+
+  function canSuggestIncident() {
+    return canFn("monitor:alerts:write");
+  }
+
+  function canCreateIncident() {
+    // Explicit ITSM permission required to Apply draft via ITSM API.
+    return canFn("itsm:incident:write");
   }
 
   function esc(s) {
@@ -172,12 +181,12 @@
         return;
       }
       const canWrite = canFn("monitor:alerts:write");
+      const canItsm = canCreateIncident();
       body.innerHTML = items
         .map((row) => {
           const open = row.status === "firing" || row.status === "acked";
-          let actions = "—";
+          const bits = [];
           if (canWrite && open) {
-            const bits = [];
             if (row.status === "firing") {
               bits.push(
                 `<button type="button" class="secondary ma-ack" data-alert-id="${esc(
@@ -190,8 +199,21 @@
                 row.alert_id
               )}">Resolve</button>`
             );
-            actions = bits.join(" ");
           }
+          if (canSuggestIncident() && canItsm && open) {
+            bits.push(
+              `<button type="button" class="secondary ma-create-incident" data-alert-id="${esc(
+                row.alert_id
+              )}" title="Suggest draft then create via ITSM (explicit Apply)">Create incident</button>`
+            );
+          } else if (row.suggested_incident_id) {
+            bits.push(
+              `<span class="hint mono" title="Linked ITSM incident">${esc(
+                row.suggested_incident_id
+              )}</span>`
+            );
+          }
+          const actions = bits.length ? bits.join(" ") : "—";
           return `<tr data-alert-id="${esc(row.alert_id)}">
             <td class="mono">${formatWhen(row.fired_at)}</td>
             <td>${statusPill(row.status)}</td>
@@ -211,6 +233,13 @@
       body.querySelectorAll(".ma-resolve").forEach((btn) => {
         btn.addEventListener("click", () =>
           resolveAlert(btn.getAttribute("data-alert-id"), { toast: notify })
+        );
+      });
+      body.querySelectorAll(".ma-create-incident").forEach((btn) => {
+        btn.addEventListener("click", () =>
+          createIncidentFromAlert(btn.getAttribute("data-alert-id"), {
+            toast: notify,
+          })
         );
       });
     } catch (err) {
@@ -373,6 +402,82 @@
     }
   }
 
+  async function createIncidentFromAlert(alertId, { toast } = {}) {
+    const notify = toast || toastFn;
+    if (!apiFn || !alertId) return;
+    if (!canSuggestIncident()) {
+      if (typeof notify === "function") {
+        notify("Missing permission monitor:alerts:write", true);
+      }
+      return;
+    }
+    if (!canCreateIncident()) {
+      if (typeof notify === "function") {
+        notify("Missing permission itsm:incident:write", true);
+      }
+      return;
+    }
+    if (!global.SVRMON24ItsmApi?.createIncident) {
+      if (typeof notify === "function") {
+        notify("ITSM API not available", true);
+      }
+      return;
+    }
+    try {
+      const suggestion = await apiFn(
+        `/api/monitor/alerts/instances/${encodeURIComponent(
+          alertId
+        )}/suggest-incident`,
+        { method: "POST" }
+      );
+      const draft = suggestion.draft || {};
+      const preview =
+        `Create ITSM incident from Monitoring draft?\n\n` +
+        `Title: ${draft.title || ""}\n` +
+        `Priority: ${draft.priority || "p3"} (severity ${draft.severity || "—"})\n` +
+        `CI links: ${(draft.ci_links || []).length}\n` +
+        `Source: ${suggestion.source || "rule_based_fallback"}\n\n` +
+        `Monitoring does not auto-create tickets. This uses POST /api/itsm/incidents.`;
+      if (!window.confirm(preview)) {
+        if (typeof notify === "function") notify("Incident create cancelled", false);
+        return;
+      }
+      const payload = {
+        title: draft.title,
+        description: draft.description || null,
+        priority: draft.priority || "p3",
+        category: draft.category || "monitoring",
+        ci_links: draft.ci_links || [],
+      };
+      const incident = await global.SVRMON24ItsmApi.createIncident(payload);
+      const iid = incident.incident_id || incident.id;
+      if (iid) {
+        try {
+          await apiFn(
+            `/api/monitor/alerts/instances/${encodeURIComponent(
+              alertId
+            )}/link-incident`,
+            {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ incident_id: iid }),
+            }
+          );
+        } catch (_linkErr) {
+          // Incident already created; link stamp is best-effort.
+        }
+      }
+      if (typeof notify === "function") {
+        notify(`Created incident ${iid || ""}`.trim(), false);
+      }
+      await loadInstances({ toast: notify });
+    } catch (err) {
+      if (typeof notify === "function") {
+        notify(err.message || "Create incident failed", true);
+      }
+    }
+  }
+
   function syncConditionFields() {
     const ctype = document.getElementById("maRuleType")?.value || "log_match";
     document.querySelectorAll("[data-ma-cond]").forEach((el) => {
@@ -421,6 +526,7 @@
     evaluateRules,
     ackAlert,
     resolveAlert,
+    createIncidentFromAlert,
     onShowTab,
   };
 })(window);

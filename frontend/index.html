@@ -4,7 +4,7 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <meta name="svrmon24-ui" content="login-enterprise-v13" />
-  <meta name="svrmon24-version" content="0.69.0" />
+  <meta name="svrmon24-version" content="0.70.0" />
   <title>SVRMON24</title>
   <link rel="icon" href="/static/img/svrmon-favicon.png" type="image/png" sizes="32x32" />
   <link rel="apple-touch-icon" href="/static/img/svrmon-apple-touch.png" sizes="180x180" />
@@ -15,11 +15,11 @@
     body.is-app .login-gate { display: none !important; }
     #authPanel, .auth-panel-legacy { display: none !important; }
   </style>
-  <link rel="stylesheet" href="/static/css/cmdb.css?v=0.69.0" />
-  <link rel="stylesheet" href="/static/css/itsm.css?v=0.69.0" />
-  <link rel="stylesheet" href="/static/css/monitor.css?v=0.69.0" />
-  <script src="/static/js/config.js?v=0.69.0"></script>
-  <script src="/static/js/brand.js?v=0.69.0"></script>
+  <link rel="stylesheet" href="/static/css/cmdb.css?v=0.70.0" />
+  <link rel="stylesheet" href="/static/css/itsm.css?v=0.70.0" />
+  <link rel="stylesheet" href="/static/css/monitor.css?v=0.70.0" />
+  <script src="/static/js/config.js?v=0.70.0"></script>
+  <script src="/static/js/brand.js?v=0.70.0"></script>
 </head>
 <body class="is-login">
   <!-- Enterprise login: showcase (left) + sign-in panel (right); stacks on small viewports -->
@@ -832,27 +832,75 @@
         <section id="tab-monitor-dashboard" class="tab-panel hidden" data-monitor-module="1">
           <section class="panel monitor-panel">
             <h2>Monitoring Dashboard</h2>
-            <p class="hint">Module shell for SIMULATED monitoring — aggregate KPIs arrive in a later slice. Meta below is live from <code>/api/monitor/meta</code>.</p>
+            <p class="hint">Live aggregates from monitor collections via <code>/api/monitor/dashboard</code>. Data is SIMULATED — no live probes.</p>
             <div class="demo-banner" id="monitorDashBanner" data-monitor-simulated="1">
               SIMULATED / SYNTHETIC_DEMO — Monitoring does not run live probes or agents.
             </div>
             <div class="toolbar" style="grid-template-columns: 1fr auto;">
-              <p class="hint" style="margin:0">Execution stays SIMULATED until live probes are explicitly approved.</p>
-              <button type="button" id="btnRefreshMonitorDash" class="secondary">Refresh meta</button>
+              <p class="hint" style="margin:0">Execution stays SIMULATED until live probes are explicitly approved. Alert→incident is draft-only.</p>
+              <button type="button" id="btnRefreshMonitorDash" class="secondary">Refresh</button>
             </div>
             <div class="monitor-kpi-row" id="monitorDashKpis">
+              <div class="monitor-kpi"><span class="monitor-kpi-label">Targets</span><strong id="monitorDashTargetsTotal">—</strong></div>
+              <div class="monitor-kpi"><span class="monitor-kpi-label">Open alerts</span><strong id="monitorDashOpenAlerts">—</strong></div>
+              <div class="monitor-kpi"><span class="monitor-kpi-label">Log events</span><strong id="monitorDashLogVolume">—</strong></div>
+              <div class="monitor-kpi"><span class="monitor-kpi-label">File events</span><strong id="monitorDashFileEvents">—</strong></div>
               <div class="monitor-kpi"><span class="monitor-kpi-label">Execution mode</span><strong id="monitorDashExecMode">SIMULATED</strong></div>
               <div class="monitor-kpi"><span class="monitor-kpi-label">Live probes</span><strong><span class="status-pill warning" id="monitorDashLiveProbes">false</span></strong></div>
               <div class="monitor-kpi"><span class="monitor-kpi-label">Collect modes</span><strong id="monitorDashCollectModes">agentless, agent</strong></div>
-              <div class="monitor-kpi"><span class="monitor-kpi-label">Domains</span><strong id="monitorDashDomains">server, network, application, database</strong></div>
               <div class="monitor-kpi"><span class="monitor-kpi-label">Monitor DB</span><strong id="monitorDashDb">—</strong></div>
             </div>
-            <div class="placeholder-panel">
-              <div class="ph-ico" aria-hidden="true"><svg viewBox="0 0 24 24" width="22" height="22"><path d="M4 19V5h4v14H4zm6 0V9h4v10h-4zm6 0v-7h4v7h-4z" fill="currentColor"/></svg></div>
-              <strong>Aggregates coming soon</strong>
-              <p class="monitor-placeholder-note">Open alerts, target health counts, and recent log/file events land in M7. This shell proves nav, RBAC, and SIMULATED banners.</p>
+            <p class="hint">Targets by status: <span id="monitorDashTargetsByStatus">—</span></p>
+            <p class="hint">Targets by domain: <span id="monitorDashTargetsByDomain">—</span></p>
+            <p class="hint">Open alerts by severity: <span id="monitorDashAlertsBySeverity">—</span></p>
+            <p class="hint" id="monitorDashDomains" hidden>server, network, application, database</p>
+
+            <h3 class="monitor-subhead">Open alerts</h3>
+            <div class="table-wrap">
+              <table class="data-table" id="monitorDashAlertsTable">
+                <thead>
+                  <tr>
+                    <th>Fired</th>
+                    <th>Status</th>
+                    <th>Severity</th>
+                    <th>Rule</th>
+                    <th>Summary</th>
+                  </tr>
+                </thead>
+                <tbody id="monitorDashAlertsBody"></tbody>
+              </table>
             </div>
-            <p class="hint" id="monitorDashNotes">Sign in to load Monitoring meta.</p>
+
+            <h3 class="monitor-subhead">Recent log events</h3>
+            <div class="table-wrap">
+              <table class="data-table" id="monitorDashLogsTable">
+                <thead>
+                  <tr>
+                    <th>Observed</th>
+                    <th>Severity</th>
+                    <th>Component</th>
+                    <th>Message</th>
+                  </tr>
+                </thead>
+                <tbody id="monitorDashLogsBody"></tbody>
+              </table>
+            </div>
+
+            <h3 class="monitor-subhead">Recent file events</h3>
+            <div class="table-wrap">
+              <table class="data-table" id="monitorDashFilesTable">
+                <thead>
+                  <tr>
+                    <th>Changed</th>
+                    <th>Path</th>
+                    <th>Version</th>
+                    <th>By</th>
+                  </tr>
+                </thead>
+                <tbody id="monitorDashFilesBody"></tbody>
+              </table>
+            </div>
+            <p class="hint" id="monitorDashNotes">Sign in to load Monitoring aggregates.</p>
           </section>
         </section>
 
@@ -1116,7 +1164,7 @@
         <section id="tab-monitor-alerts" class="tab-panel hidden" data-monitor-module="1">
           <section class="panel monitor-panel">
             <h2>Alerts</h2>
-            <div class="demo-banner" data-monitor-simulated="1">SIMULATED — rules evaluate synthetic metrics/logs/file events only. No auto-incident create.</div>
+            <div class="demo-banner" data-monitor-simulated="1">SIMULATED — rules evaluate synthetic metrics/logs/file events only. No auto-incident create — Create incident is draft→Apply via ITSM.</div>
             <div class="toolbar monitor-alerts-toolbar">
               <label>Search<input id="maSearch" placeholder="summary, rule, CI…" /></label>
               <label>Status
@@ -3602,26 +3650,26 @@
     </div>
   </div>
 
-  <script src="/static/js/cmdb.js?v=0.69.0"></script>
-  <script src="/static/js/monitor/dashboard.js?v=0.69.0"></script>
-  <script src="/static/js/monitor/targets.js?v=0.69.0"></script>
-  <script src="/static/js/monitor/logs.js?v=0.69.0"></script>
-  <script src="/static/js/monitor/alerts.js?v=0.69.0"></script>
-  <script src="/static/js/monitor/index.js?v=0.69.0"></script>
-  <script src="/static/js/itsm/api.js?v=0.69.0"></script>
-  <script src="/static/js/itsm/routing.js?v=0.69.0"></script>
-  <script src="/static/js/itsm/deeplinks.js?v=0.69.0"></script>
-  <script src="/static/js/itsm/dashboard.js?v=0.69.0"></script>
-  <script src="/static/js/itsm/reports.js?v=0.69.0"></script>
-  <script src="/static/js/itsm/incidents.js?v=0.69.0"></script>
-  <script src="/static/js/itsm/changes.js?v=0.69.0"></script>
-  <script src="/static/js/itsm/problems.js?v=0.69.0"></script>
-  <script src="/static/js/itsm/approvals.js?v=0.69.0"></script>
-  <script src="/static/js/itsm/workflows.js?v=0.69.0"></script>
-  <script src="/static/js/itsm/sla.js?v=0.69.0"></script>
-  <script src="/static/js/itsm/knowledge.js?v=0.69.0"></script>
-  <script src="/static/js/itsm/notifications.js?v=0.69.0"></script>
-  <script src="/static/js/itsm/groups.js?v=0.69.0"></script>
-  <script src="/static/js/itsm/index.js?v=0.69.0"></script>
+  <script src="/static/js/cmdb.js?v=0.70.0"></script>
+  <script src="/static/js/monitor/dashboard.js?v=0.70.0"></script>
+  <script src="/static/js/monitor/targets.js?v=0.70.0"></script>
+  <script src="/static/js/monitor/logs.js?v=0.70.0"></script>
+  <script src="/static/js/monitor/alerts.js?v=0.70.0"></script>
+  <script src="/static/js/monitor/index.js?v=0.70.0"></script>
+  <script src="/static/js/itsm/api.js?v=0.70.0"></script>
+  <script src="/static/js/itsm/routing.js?v=0.70.0"></script>
+  <script src="/static/js/itsm/deeplinks.js?v=0.70.0"></script>
+  <script src="/static/js/itsm/dashboard.js?v=0.70.0"></script>
+  <script src="/static/js/itsm/reports.js?v=0.70.0"></script>
+  <script src="/static/js/itsm/incidents.js?v=0.70.0"></script>
+  <script src="/static/js/itsm/changes.js?v=0.70.0"></script>
+  <script src="/static/js/itsm/problems.js?v=0.70.0"></script>
+  <script src="/static/js/itsm/approvals.js?v=0.70.0"></script>
+  <script src="/static/js/itsm/workflows.js?v=0.70.0"></script>
+  <script src="/static/js/itsm/sla.js?v=0.70.0"></script>
+  <script src="/static/js/itsm/knowledge.js?v=0.70.0"></script>
+  <script src="/static/js/itsm/notifications.js?v=0.70.0"></script>
+  <script src="/static/js/itsm/groups.js?v=0.70.0"></script>
+  <script src="/static/js/itsm/index.js?v=0.70.0"></script>
 </body>
 </html>

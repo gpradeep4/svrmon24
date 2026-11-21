@@ -130,6 +130,8 @@ def clean_db(client: TestClient) -> Generator[None, None, None]:
         "log_streams",
         "log_events",
         "monitor_simulate_ticks",
+        "alert_rules",
+        "alert_instances",
     )
     for name in collections:
         db[name].delete_many({})
