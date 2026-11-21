@@ -46,9 +46,11 @@ def module_meta(*, settings: Settings | None = None) -> dict[str, Any]:
             "families and networking kinds. Log streams are searchable synthetic "
             "events (no live syslog ingest); simulate-tick is admin-only. Alert "
             "rules evaluate thresholds / log matches / file changes on synthetic "
-            "data only — no auto-incident create. Live probes stay off until "
-            "explicitly approved. File Monitoring and Diagnostics stay under "
-            "Monitoring (CMDB keeps temporary redirects)."
+            "data only — no auto-incident create. Dashboard aggregates come from "
+            "monitor collections. Alert→incident is draft/suggest only — Apply "
+            "via ITSM API. Live probes stay off until explicitly approved. File "
+            "Monitoring and Diagnostics stay under Monitoring (CMDB keeps "
+            "temporary redirects)."
         ),
         "log_sources": ["agentless", "agent", "simulated"],
         "log_severities": [

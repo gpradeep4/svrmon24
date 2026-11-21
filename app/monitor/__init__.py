@@ -7,7 +7,7 @@ v1 is SIMULATED-only (``live_probes: false``); live agents require separate appr
 from __future__ import annotations
 
 # M3: File Monitoring. M4: targets + metric samples. M5: log streams/events.
-# M6: alert rules + instances.
+# M6: alert rules + instances. M7: dashboard aggregates + suggest-incident.
 MONITOR_COLLECTIONS: tuple[str, ...] = (
     "file_watch_targets",
     "file_version_events",

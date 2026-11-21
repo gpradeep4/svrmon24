@@ -125,3 +125,11 @@ class EvaluateAlertsResult(BaseModel):
     open_count: int = 0
     execution_mode: ExecutionMode = "SIMULATED"
     live_probes: bool = False
+
+
+class LinkSuggestedIncident(BaseModel):
+    """Stamp alert.suggested_incident_id after human Apply via ITSM API."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    incident_id: str = Field(min_length=1, max_length=128)

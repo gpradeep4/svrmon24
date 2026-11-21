@@ -90,7 +90,7 @@
     if (pageMeta) {
       pageMeta["monitor-dashboard"] = {
         title: "Monitoring Dashboard",
-        subtitle: "SIMULATED health overview — live probes off",
+        subtitle: "SIMULATED aggregates · targets · alerts · logs/files",
       };
       pageMeta["monitor-servers"] = {
         title: "Servers (Monitoring)",
@@ -114,7 +114,7 @@
       };
       pageMeta["monitor-alerts"] = {
         title: "Alerts",
-        subtitle: "SIMULATED rules · firing / ack / resolve · no auto-incident",
+        subtitle: "SIMULATED rules · ack/resolve · draft incident Apply via ITSM",
       };
       pageMeta["cmdb-redirect-file-monitoring"] = {
         title: "File Monitoring moved",

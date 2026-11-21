@@ -14,7 +14,7 @@ from ...permissions import (
 from ...services import audit as audit_service
 from ...services.entitlements import EntitlementError
 from ...tenant_context import TenantContext
-from ..models.alerts import AlertRuleCreate, AlertRulePatch
+from ..models.alerts import AlertRuleCreate, AlertRulePatch, LinkSuggestedIncident
 from ..services import alerts as alerts_service
 from ..services.alerts import MonitorAlertsError
 
@@ -278,3 +278,72 @@ def evaluate_alerts(
         request_path=str(request.url.path),
     )
     return result
+
+
+@router.post("/instances/{alert_id}/suggest-incident")
+def suggest_incident(
+    alert_id: str,
+    request: Request,
+    tenant: TenantContext = Depends(require_permission(PERM_MONITOR_ALERTS_WRITE)),
+) -> dict[str, Any]:
+    """Return an ITSM incident **draft** from alert evidence (assist only).
+
+    Does **not** create an incident. Apply via ``POST /api/itsm/incidents``
+    with ``itsm:incident:write`` and explicit user action.
+    """
+    try:
+        result = alerts_service.suggest_incident(
+            tenant_id=tenant.tenant_id, alert_id=alert_id
+        )
+    except MonitorAlertsError as exc:
+        _raise(exc)
+        raise  # pragma: no cover
+    draft = result.get("draft") or {}
+    audit_service.record_from_tenant(
+        tenant,
+        action="monitor.alerts.suggest_incident",
+        resource_type="alert_instances",
+        resource_id=alert_id,
+        details={
+            "source": result.get("source"),
+            "auto_create": False,
+            "priority": draft.get("priority"),
+            "severity": draft.get("severity"),
+            "ci_links": len(draft.get("ci_links") or []),
+        },
+        request_method=request.method,
+        request_path=str(request.url.path),
+    )
+    return result
+
+
+@router.post("/instances/{alert_id}/link-incident")
+def link_suggested_incident(
+    alert_id: str,
+    request: Request,
+    body: LinkSuggestedIncident,
+    tenant: TenantContext = Depends(require_permission(PERM_MONITOR_ALERTS_WRITE)),
+) -> dict[str, Any]:
+    """Stamp ``suggested_incident_id`` after human Apply via ITSM API.
+
+    Monitoring-only update — never writes ITSM collections.
+    """
+    try:
+        doc = alerts_service.link_suggested_incident(
+            tenant_id=tenant.tenant_id,
+            alert_id=alert_id,
+            incident_id=body.incident_id,
+        )
+    except MonitorAlertsError as exc:
+        _raise(exc)
+        raise  # pragma: no cover
+    audit_service.record_from_tenant(
+        tenant,
+        action="monitor.alerts.link_incident",
+        resource_type="alert_instances",
+        resource_id=alert_id,
+        details={"suggested_incident_id": doc.get("suggested_incident_id")},
+        request_method=request.method,
+        request_path=str(request.url.path),
+    )
+    return doc
