@@ -4,9 +4,9 @@ AI-assisted infrastructure CMDB, dependency mapping, **SIMULATED** diagnostics, 
 
 Stack: **FastAPI + Uvicorn + MongoDB (PyMongo) + provider-neutral OIDC** (HTTP Basic optional via feature flag). Diagnostics never contact remote hosts and never execute shell/SQL/network scans. File Monitoring v1 is demo-only (no live filesystem watching).
 
-## Features (through expandable sidebar sections / 0.61.0)
+## Features (through CMDB Dashboard under CMDB / 0.62.0)
 
-CMDB domain code (inventory, relationships, diagnostics, file monitoring, and related routers, services, and models) lives in `app/cmdb`. Import from `app.cmdb.*` only — historical compatibility shims were removed in 0.44.0; outbound notification delivery landed in 0.45.0; job runner foundation in 0.46.0; scheduled report email in 0.47.0; markdown KB editor in 0.48.0; CMDB↔ITSM deep-links in 0.49.0; bookmarkable ITSM entry routes in 0.50.0; workflow auto-triggers in 0.51.0; production hardening (assignment groups, attachments, SLA business-hours clocks, watchers/CC, related-ticket validation) in 0.52.0; shared AI facade + optional cloud suggestions in 0.53.0; CMDB classification + relationship suggestions in 0.54.0; impact narrative + change-risk assist in 0.55.0; ITSM incident triage + summarization in 0.56.0; similar tickets + KB suggest in 0.57.0; change risk text + SLA at-risk assist in 0.58.0; process/workflow next-step assist in 0.59.0; expandable ITSM + Custom tables sidebar sections (CMDB catalog separated) in 0.60.0; all sidebar section headers expandable with inventory under CMDB in 0.61.0. HTTP API paths are unchanged.
+CMDB domain code (inventory, relationships, diagnostics, file monitoring, and related routers, services, and models) lives in `app/cmdb`. Import from `app.cmdb.*` only — historical compatibility shims were removed in 0.44.0; outbound notification delivery landed in 0.45.0; job runner foundation in 0.46.0; scheduled report email in 0.47.0; markdown KB editor in 0.48.0; CMDB↔ITSM deep-links in 0.49.0; bookmarkable ITSM entry routes in 0.50.0; workflow auto-triggers in 0.51.0; production hardening (assignment groups, attachments, SLA business-hours clocks, watchers/CC, related-ticket validation) in 0.52.0; shared AI facade + optional cloud suggestions in 0.53.0; CMDB classification + relationship suggestions in 0.54.0; impact narrative + change-risk assist in 0.55.0; ITSM incident triage + summarization in 0.56.0; similar tickets + KB suggest in 0.57.0; change risk text + SLA at-risk assist in 0.58.0; process/workflow next-step assist in 0.59.0; expandable ITSM + Custom tables sidebar sections (CMDB catalog separated) in 0.60.0; all sidebar section headers expandable with inventory under CMDB in 0.61.0; Operations section removed and platform Dashboard renamed/moved to **CMDB Dashboard** (first under expandable CMDB; `#tab=dashboard` unchanged) in 0.62.0. HTTP API paths are unchanged.
 
 | Area | Capability |
 | --- | --- |
@@ -24,9 +24,9 @@ CMDB domain code (inventory, relationships, diagnostics, file monitoring, and re
 | Audit | Tenant-scoped `audit_events` for mutating admin/tenant/CMDB actions; `GET /api/audit-events`; Audit Logs UI |
 | Dependencies | SaaS wrap of the existing graph engine: tenant-scoped upstream / downstream / impact; typed CMDB **and** custom-table relationship edges; protocol/ports preserved; “potentially affected” disclaimer |
 | Diagnostics | SaaS wrap of the **existing** SIMULATED engine: tenant-scoped run/list/get history; `basic-health` only; no live/remote probes; `max_diagnostic_runs` entitlement |
-| File Monitoring | Operations module (own nav): tenant-scoped SIMULATED watched paths + version history (actor/timestamp); no live filesystem watching |
+| File Monitoring | CMDB module (own nav under CMDB): tenant-scoped SIMULATED watched paths + version history (actor/timestamp); no live filesystem watching |
 | AI analysis | Shared AI facade (`GET /api/ai/status`); local Ollama default path (`OLLAMA_ENABLED` off by default); optional OpenAI-compatible cloud suggestions (assist only; platform flag + tenant opt-in + BYO key env ref, never Mongo); tenant `max_ollama_analyses` covers generative assists; rule-based fallback; shared-local contention documented; no auto-transitions |
-| Dashboard | Live aggregates from MongoDB (no hardcoded counts) |
+| CMDB Dashboard | Live aggregates from MongoDB (no hardcoded counts); first item under expandable CMDB (`data-tab="dashboard"`) |
 | Release | Migration dry-run script/docs; release hardening checklist; Basic removal path documented after OIDC+migration |
 
 ## Requirements

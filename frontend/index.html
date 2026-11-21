@@ -4,7 +4,7 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <meta name="svrmon24-ui" content="login-enterprise-v13" />
-  <meta name="svrmon24-version" content="0.61.0" />
+  <meta name="svrmon24-version" content="0.62.0" />
   <title>SVRMON24</title>
   <link rel="icon" href="/static/img/svrmon-favicon.png" type="image/png" sizes="32x32" />
   <link rel="apple-touch-icon" href="/static/img/svrmon-apple-touch.png" sizes="180x180" />
@@ -15,10 +15,10 @@
     body.is-app .login-gate { display: none !important; }
     #authPanel, .auth-panel-legacy { display: none !important; }
   </style>
-  <link rel="stylesheet" href="/static/css/cmdb.css?v=0.61.0" />
-  <link rel="stylesheet" href="/static/css/itsm.css?v=0.61.0" />
-  <script src="/static/js/config.js?v=0.61.0"></script>
-  <script src="/static/js/brand.js?v=0.61.0"></script>
+  <link rel="stylesheet" href="/static/css/cmdb.css?v=0.62.0" />
+  <link rel="stylesheet" href="/static/css/itsm.css?v=0.62.0" />
+  <script src="/static/js/config.js?v=0.62.0"></script>
+  <script src="/static/js/brand.js?v=0.62.0"></script>
 </head>
 <body class="is-login">
   <!-- Enterprise login: showcase (left) + sign-in panel (right); stacks on small viewports -->
@@ -248,22 +248,15 @@
         <p class="tagline">AI Infrastructure Diagnostic &amp; Automation Platform</p>
       </div>
       <nav class="nav" aria-label="Primary">
-        <button type="button" class="nav-section nav-section-toggle" id="navOperationsSection" data-nav-collapse="operations" aria-expanded="true" aria-controls="navOperationsGroup">
-          <span class="nav-section-label">Operations</span>
-          <span class="nav-chevron" aria-hidden="true"></span>
-        </button>
-        <div class="nav-group" id="navOperationsGroup" data-nav-group="operations" role="group" aria-label="Operations">
-          <button type="button" class="nav-item active" data-tab="dashboard">
-            <span class="nav-ico" aria-hidden="true"><svg viewBox="0 0 24 24"><rect x="3" y="3" width="8" height="8" rx="1.5"/><rect x="13" y="3" width="8" height="5" rx="1.5"/><rect x="13" y="10" width="8" height="11" rx="1.5"/><rect x="3" y="13" width="8" height="8" rx="1.5"/></svg></span>
-            Dashboard
-          </button>
-        </div>
-
         <button type="button" class="nav-section nav-section-toggle" id="navCmdbSection" data-nav-collapse="cmdb" aria-expanded="true" aria-controls="navCmdbGroup">
           <span class="nav-section-label">CMDB</span>
           <span class="nav-chevron" aria-hidden="true"></span>
         </button>
         <div class="nav-group" id="navCmdbGroup" data-nav-group="cmdb" role="group" aria-label="CMDB">
+          <button type="button" class="nav-item active" data-tab="dashboard">
+            <span class="nav-ico" aria-hidden="true"><svg viewBox="0 0 24 24"><rect x="3" y="3" width="8" height="8" rx="1.5"/><rect x="13" y="3" width="8" height="5" rx="1.5"/><rect x="13" y="10" width="8" height="11" rx="1.5"/><rect x="3" y="13" width="8" height="8" rx="1.5"/></svg></span>
+            CMDB Dashboard
+          </button>
           <button type="button" class="nav-item" data-tab="servers" data-component-type="Server">
             <span class="nav-ico" aria-hidden="true"><svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="6" rx="1.5"/><rect x="3" y="14" width="18" height="6" rx="1.5"/><circle cx="7" cy="7" r="1"/><circle cx="7" cy="17" r="1"/></svg></span>
             Servers
@@ -420,7 +413,7 @@
         <div class="topbar-left">
           <button type="button" class="mobile-nav-toggle" id="btnMobileNav" aria-label="Open navigation">Menu</button>
           <div class="topbar-titles">
-            <h2 id="pageTitle">Dashboard</h2>
+            <h2 id="pageTitle">CMDB Dashboard</h2>
             <p class="hint" id="pageSubtitle">Live CMDB and diagnostic overview</p>
           </div>
         </div>
@@ -459,7 +452,7 @@
           <section class="panel">
             <div class="toolbar" style="grid-template-columns: 1fr auto;">
               <div>
-                <h2 style="margin:0">Operations dashboard</h2>
+                <h2 style="margin:0">CMDB dashboard</h2>
                 <p class="hint" id="dashHint">Connect to load live CMDB and diagnostic widgets.</p>
               </div>
               <button type="button" id="btnRefreshDash" class="secondary">Refresh</button>
@@ -530,7 +523,7 @@
 
         <section id="tab-inventory" class="tab-panel hidden">
           <section class="panel">
-            <p class="type-lock-hint" id="inventoryTypeHint">Showing one component type from the Operations sidebar.</p>
+            <p class="type-lock-hint" id="inventoryTypeHint">Showing one component type from the CMDB sidebar.</p>
             <div class="toolbar inventory-toolbar">
               <label>Search<input id="searchQ" placeholder="id, name, hostname, product…" /></label>
               <label id="filterTypeWrap">Type
@@ -2129,7 +2122,7 @@
               </label>
               <label id="ctActiveWrap" class="hidden">
                 <span class="label-with-help">Active
-                  <button type="button" class="help-balloon" aria-label="Help: active" data-help="Inactive tables stay in configuration but are hidden from normal Operations browsing when filtered.">i</button>
+                  <button type="button" class="help-balloon" aria-label="Help: active" data-help="Inactive tables stay in configuration but are hidden from normal CMDB browsing when filtered.">i</button>
                 </span>
                 <input id="ctActive" type="checkbox" checked />
               </label>
@@ -3168,21 +3161,21 @@
     </div>
   </div>
 
-  <script src="/static/js/cmdb.js?v=0.61.0"></script>
-  <script src="/static/js/itsm/api.js?v=0.61.0"></script>
-  <script src="/static/js/itsm/routing.js?v=0.61.0"></script>
-  <script src="/static/js/itsm/deeplinks.js?v=0.61.0"></script>
-  <script src="/static/js/itsm/dashboard.js?v=0.61.0"></script>
-  <script src="/static/js/itsm/reports.js?v=0.61.0"></script>
-  <script src="/static/js/itsm/incidents.js?v=0.61.0"></script>
-  <script src="/static/js/itsm/changes.js?v=0.61.0"></script>
-  <script src="/static/js/itsm/problems.js?v=0.61.0"></script>
-  <script src="/static/js/itsm/approvals.js?v=0.61.0"></script>
-  <script src="/static/js/itsm/workflows.js?v=0.61.0"></script>
-  <script src="/static/js/itsm/sla.js?v=0.61.0"></script>
-  <script src="/static/js/itsm/knowledge.js?v=0.61.0"></script>
-  <script src="/static/js/itsm/notifications.js?v=0.61.0"></script>
-  <script src="/static/js/itsm/groups.js?v=0.61.0"></script>
-  <script src="/static/js/itsm/index.js?v=0.61.0"></script>
+  <script src="/static/js/cmdb.js?v=0.62.0"></script>
+  <script src="/static/js/itsm/api.js?v=0.62.0"></script>
+  <script src="/static/js/itsm/routing.js?v=0.62.0"></script>
+  <script src="/static/js/itsm/deeplinks.js?v=0.62.0"></script>
+  <script src="/static/js/itsm/dashboard.js?v=0.62.0"></script>
+  <script src="/static/js/itsm/reports.js?v=0.62.0"></script>
+  <script src="/static/js/itsm/incidents.js?v=0.62.0"></script>
+  <script src="/static/js/itsm/changes.js?v=0.62.0"></script>
+  <script src="/static/js/itsm/problems.js?v=0.62.0"></script>
+  <script src="/static/js/itsm/approvals.js?v=0.62.0"></script>
+  <script src="/static/js/itsm/workflows.js?v=0.62.0"></script>
+  <script src="/static/js/itsm/sla.js?v=0.62.0"></script>
+  <script src="/static/js/itsm/knowledge.js?v=0.62.0"></script>
+  <script src="/static/js/itsm/notifications.js?v=0.62.0"></script>
+  <script src="/static/js/itsm/groups.js?v=0.62.0"></script>
+  <script src="/static/js/itsm/index.js?v=0.62.0"></script>
 </body>
 </html>
