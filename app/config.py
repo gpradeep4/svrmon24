@@ -62,6 +62,8 @@ class Settings(BaseSettings):
     mongodb_cmdb_db: str = Field(default="", alias="MONGODB_CMDB_DB")
     # Dedicated ITSM database (separate from CMDB). Default ``svrmon-itsm``.
     mongodb_itsm_db: str = Field(default="svrmon-itsm", alias="MONGODB_ITSM_DB")
+    # Dedicated Monitoring database (separate from CMDB/ITSM). Default ``svrmon-monitor``.
+    mongodb_monitor_db: str = Field(default="svrmon-monitor", alias="MONGODB_MONITOR_DB")
     mongodb_connect_timeout_ms: int = Field(default=3000, alias="MONGODB_CONNECT_TIMEOUT_MS")
     mongodb_server_selection_timeout_ms: int = Field(
         default=3000, alias="MONGODB_SERVER_SELECTION_TIMEOUT_MS"
@@ -79,6 +81,11 @@ class Settings(BaseSettings):
     def itsm_database_name(self) -> str:
         """Resolved ITSM DB name (default ``svrmon-itsm``)."""
         return (self.mongodb_itsm_db or "").strip() or "svrmon-itsm"
+
+    @property
+    def monitor_database_name(self) -> str:
+        """Resolved Monitoring DB name (default ``svrmon-monitor``)."""
+        return (self.mongodb_monitor_db or "").strip() or "svrmon-monitor"
 
     # Local Ollama (Phase 7 + Master Phase 12 entitlements). Prefer OLLAMA_URL;
     # OLLAMA_HOST is accepted as alias. Disabled unless explicitly enabled —

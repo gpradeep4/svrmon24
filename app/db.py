@@ -57,6 +57,12 @@ def get_itsm_database(settings: Settings | None = None) -> Database:
     return get_client(cfg)[cfg.itsm_database_name]
 
 
+def get_monitor_database(settings: Settings | None = None) -> Database:
+    """Return the dedicated Monitoring database handle (``MONGODB_MONITOR_DB`` / ``svrmon-monitor``)."""
+    cfg = settings or get_settings()
+    return get_client(cfg)[cfg.monitor_database_name]
+
+
 def ping_database(settings: Settings | None = None) -> dict[str, Any]:
     """Ping MongoDB and return a status payload.
 
@@ -71,6 +77,7 @@ def ping_database(settings: Settings | None = None) -> dict[str, Any]:
             "database": cfg.cmdb_database_name,
             "cmdb_database": cfg.cmdb_database_name,
             "itsm_database": cfg.itsm_database_name,
+            "monitor_database": cfg.monitor_database_name,
             "mongodb_db_legacy": cfg.mongodb_db,
             "ping": serialize_document(dict(result)) if isinstance(result, dict) else result,
         }
@@ -81,6 +88,7 @@ def ping_database(settings: Settings | None = None) -> dict[str, Any]:
             "database": cfg.cmdb_database_name,
             "cmdb_database": cfg.cmdb_database_name,
             "itsm_database": cfg.itsm_database_name,
+            "monitor_database": cfg.monitor_database_name,
             "error": "connection_failed",
             "detail": str(exc),
         }
@@ -91,6 +99,7 @@ def ping_database(settings: Settings | None = None) -> dict[str, Any]:
             "database": cfg.cmdb_database_name,
             "cmdb_database": cfg.cmdb_database_name,
             "itsm_database": cfg.itsm_database_name,
+            "monitor_database": cfg.monitor_database_name,
             "error": "mongodb_error",
             "detail": str(exc),
         }
@@ -110,6 +119,14 @@ def require_itsm_database(settings: Settings | None = None) -> Database:
     if not status.get("ok"):
         raise DatabaseUnavailableError(status.get("detail") or "MongoDB is unavailable")
     return get_itsm_database(settings)
+
+
+def require_monitor_database(settings: Settings | None = None) -> Database:
+    """Return Monitoring database after verifying connectivity; raise if unavailable."""
+    status = ping_database(settings)
+    if not status.get("ok"):
+        raise DatabaseUnavailableError(status.get("detail") or "MongoDB is unavailable")
+    return get_monitor_database(settings)
 
 
 def close_client() -> None:
