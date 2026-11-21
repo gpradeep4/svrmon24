@@ -62,6 +62,8 @@ class WorkflowCreate(BaseModel):
     description: str | None = Field(default=None, max_length=4000)
     applies_to: WorkflowAppliesTo = "generic"
     trigger: WorkflowTrigger = "manual"
+    # on_status: {"statuses":["submitted"]}; schedule: {"interval_minutes": 60}
+    trigger_config: dict[str, Any] | None = None
     active: bool = False
     graph: WorkflowGraph = Field(default_factory=WorkflowGraph)
     variables_schema: dict[str, Any] | None = None
@@ -74,6 +76,7 @@ class WorkflowUpdate(BaseModel):
     description: str | None = Field(default=None, max_length=4000)
     applies_to: WorkflowAppliesTo | None = None
     trigger: WorkflowTrigger | None = None
+    trigger_config: dict[str, Any] | None = None
     graph: WorkflowGraph | None = None
     variables_schema: dict[str, Any] | None = None
 

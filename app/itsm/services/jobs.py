@@ -28,10 +28,12 @@ logger = logging.getLogger(__name__)
 JOB_SLA_SWEEPER = "sla_overdue_sweeper"
 JOB_DELIVERY_RETRIES = "notification_delivery_retries"
 JOB_REPORT_SCHEDULES = "report_schedules"
+JOB_WORKFLOW_SCHEDULES = "workflow_schedules"
 ALL_JOBS: tuple[str, ...] = (
     JOB_SLA_SWEEPER,
     JOB_DELIVERY_RETRIES,
     JOB_REPORT_SCHEDULES,
+    JOB_WORKFLOW_SCHEDULES,
 )
 
 
@@ -280,8 +282,16 @@ def run_tick(
                 result = retry_notification_deliveries(
                     tenant_id=tenant_id, settings=cfg
                 )
-            else:
+            elif job_name == JOB_REPORT_SCHEDULES:
                 result = run_report_schedules(tenant_id=tenant_id)
+            elif job_name == JOB_WORKFLOW_SCHEDULES:
+                from . import workflow_triggers as workflow_triggers_service
+
+                result = workflow_triggers_service.run_due_workflow_schedules(
+                    tenant_id=tenant_id
+                )
+            else:
+                result = {"error": f"unhandled job '{job_name}'"}
             _record_run(job_name, result, holder=holder)
             outcomes[job_name] = result
         except Exception as exc:  # noqa: BLE001 — tick must continue other jobs

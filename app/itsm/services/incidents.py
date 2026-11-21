@@ -228,6 +228,14 @@ def create_incident(
         status=payload.status,
         actor=actor,
     )
+    from . import workflow_triggers as workflow_triggers_service
+
+    workflow_triggers_service.fire_on_create(
+        ticket_type="incident",
+        ticket_id=incident_id,
+        tenant_id=tid,
+        actor=actor,
+    )
     refreshed = _coll().find_one({"tenant_id": tid, "incident_id": incident_id})
     return serialize_document(refreshed or doc)  # type: ignore[return-value]
 
@@ -398,6 +406,16 @@ def transition_incident(
         to_status=target,
         assignee_user_id=doc.get("assignee_user_id"),
         number_display=doc.get("number_display"),
+        actor=actor,
+    )
+    from . import workflow_triggers as workflow_triggers_service
+
+    workflow_triggers_service.fire_on_status(
+        ticket_type="incident",
+        ticket_id=incident_id,
+        from_status=current,
+        to_status=target,
+        tenant_id=tid,
         actor=actor,
     )
     return serialize_document(doc)  # type: ignore[return-value]

@@ -1,7 +1,7 @@
 """In-process ITSM job runner (feature-flagged).
 
 When ``ITSM_JOB_RUNNER_ENABLED=true``, a daemon thread ticks SLA sweeper,
-delivery retries, and the report-schedule placeholder on an interval.
+delivery retries, report schedules, and workflow schedule triggers on an interval.
 Disabled by default — safe no-op for monolith and API-only deploys.
 """
 

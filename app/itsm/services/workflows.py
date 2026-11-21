@@ -201,6 +201,7 @@ def create_workflow(
         "active": bool(payload.active),
         "applies_to": payload.applies_to,
         "trigger": payload.trigger,
+        "trigger_config": payload.trigger_config or {},
         "graph": graph,
         "variables_schema": payload.variables_schema,
         "created_at": now,
@@ -273,15 +274,18 @@ def set_workflow_active(
         validate_graph(existing.get("graph") or {"nodes": [], "edges": []})
 
     who = _actor_fields(actor)
+    updates: dict[str, Any] = {
+        "active": bool(active),
+        "updated_at": _now(),
+        "updated_by": who["username"],
+    }
+    # Seed schedule window when activating a schedule trigger.
+    if active and existing.get("trigger") == "schedule" and not existing.get("next_run_at"):
+        updates["next_run_at"] = _now()
+
     doc = _coll().find_one_and_update(
         {"tenant_id": tid, "workflow_id": workflow_id},
-        {
-            "$set": {
-                "active": bool(active),
-                "updated_at": _now(),
-                "updated_by": who["username"],
-            }
-        },
+        {"$set": updates},
         return_document=ReturnDocument.AFTER,
     )
     if doc is None:
