@@ -5,11 +5,13 @@ from __future__ import annotations
 from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException, Query
+from pydantic import BaseModel, Field
 
 from ...auth import require_user
 from ..models.relationships import RelationshipCreate, RelationshipUpdate
 from ...permissions import PERM_RELATIONSHIPS_WRITE, require_permission
 from ...services import audit as audit_service
+from ..services import ai_cmdb_assist as ai_cmdb_assist_service
 from ..services import relationships as relationships_service
 from ..services.relationships import RelationshipError
 from ...tenant_context import TenantContext, require_tenant
@@ -29,6 +31,36 @@ def _raise(exc: RelationshipError) -> None:
 def list_relationship_types() -> dict[str, Any]:
     """Documented relationship types with meaning and direction."""
     return relationships_service.relationship_type_catalog()
+
+
+class RelationshipSuggestRequest(BaseModel):
+    """Pair and/or focus CI for assist-only relationship suggestions (C2)."""
+
+    source_component_id: str | None = Field(default=None, max_length=128)
+    target_component_id: str | None = Field(default=None, max_length=128)
+    component_id: str | None = Field(
+        default=None,
+        max_length=128,
+        description="Focus CI for neighbor suggestions when pair is incomplete",
+    )
+    notes: str | None = Field(default=None, max_length=4000)
+    force_fallback: bool = False
+
+
+@router.post("/ai/suggest")
+def suggest_relationships(
+    payload: RelationshipSuggestRequest,
+    tenant: TenantContext = Depends(require_tenant),
+) -> dict[str, Any]:
+    """Suggest relationship type / neighbors. Does not create edges — human Save."""
+    return ai_cmdb_assist_service.suggest_relationships(
+        tenant_id=tenant.tenant_id,
+        source_component_id=payload.source_component_id,
+        target_component_id=payload.target_component_id,
+        component_id=payload.component_id,
+        notes=payload.notes,
+        force_fallback=bool(payload.force_fallback),
+    )
 
 
 @router.get("")

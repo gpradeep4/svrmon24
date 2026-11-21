@@ -4,9 +4,9 @@ AI-assisted infrastructure CMDB, dependency mapping, **SIMULATED** diagnostics, 
 
 Stack: **FastAPI + Uvicorn + MongoDB (PyMongo) + provider-neutral OIDC** (HTTP Basic optional via feature flag). Diagnostics never contact remote hosts and never execute shell/SQL/network scans. File Monitoring v1 is demo-only (no live filesystem watching).
 
-## Features (through AI A0 facade + providers / 0.53.0)
+## Features (through AI A1 CMDB classification + relationships / 0.54.0)
 
-CMDB domain code (inventory, relationships, diagnostics, file monitoring, and related routers, services, and models) lives in `app/cmdb`. Import from `app.cmdb.*` only — historical compatibility shims were removed in 0.44.0; outbound notification delivery landed in 0.45.0; job runner foundation in 0.46.0; scheduled report email in 0.47.0; markdown KB editor in 0.48.0; CMDB↔ITSM deep-links in 0.49.0; bookmarkable ITSM entry routes in 0.50.0; workflow auto-triggers in 0.51.0; production hardening (assignment groups, attachments, SLA business-hours clocks, watchers/CC, related-ticket validation) in 0.52.0; shared AI facade + optional cloud suggestions in 0.53.0. HTTP API paths are unchanged.
+CMDB domain code (inventory, relationships, diagnostics, file monitoring, and related routers, services, and models) lives in `app/cmdb`. Import from `app.cmdb.*` only — historical compatibility shims were removed in 0.44.0; outbound notification delivery landed in 0.45.0; job runner foundation in 0.46.0; scheduled report email in 0.47.0; markdown KB editor in 0.48.0; CMDB↔ITSM deep-links in 0.49.0; bookmarkable ITSM entry routes in 0.50.0; workflow auto-triggers in 0.51.0; production hardening (assignment groups, attachments, SLA business-hours clocks, watchers/CC, related-ticket validation) in 0.52.0; shared AI facade + optional cloud suggestions in 0.53.0; CMDB classification + relationship suggestions in 0.54.0. HTTP API paths are unchanged.
 
 | Area | Capability |
 | --- | --- |

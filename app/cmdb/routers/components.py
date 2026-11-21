@@ -7,11 +7,14 @@ from typing import Any
 from fastapi import APIRouter, Depends, File, Form, HTTPException, Query, UploadFile
 from fastapi.responses import Response
 
+from pydantic import BaseModel, Field
+
 from ...auth import require_user
 from ..models.component_io import ComponentBulkUpdate
 from ..models.components import COMPONENT_TYPES, ComponentCreate, ComponentUpdate
 from ...permissions import PERM_CMDB_WRITE, require_permission
 from ...services import audit as audit_service
+from ..services import ai_cmdb_assist as ai_cmdb_assist_service
 from ..services import component_io as component_io_service
 from ..services import components as components_service
 from ..services.components import ComponentError
@@ -31,6 +34,26 @@ def _raise(exc: ComponentError) -> None:
 @router.get("/types")
 def list_component_types() -> dict[str, Any]:
     return {"types": list(COMPONENT_TYPES)}
+
+
+class ClassificationSuggestRequest(BaseModel):
+    """Draft CI fields for assist-only classification (C1)."""
+
+    draft: dict[str, Any] = Field(default_factory=dict)
+    force_fallback: bool = False
+
+
+@router.post("/ai/suggest-classification")
+def suggest_classification(
+    payload: ClassificationSuggestRequest,
+    tenant: TenantContext = Depends(require_tenant),
+) -> dict[str, Any]:
+    """Suggest component_type + fields. Does not write inventory — human Apply/Save."""
+    return ai_cmdb_assist_service.suggest_classification(
+        payload.draft or {},
+        tenant_id=tenant.tenant_id,
+        force_fallback=bool(payload.force_fallback),
+    )
 
 
 @router.get("/filter-options")

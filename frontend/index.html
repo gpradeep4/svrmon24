@@ -4,7 +4,7 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <meta name="svrmon24-ui" content="login-enterprise-v13" />
-  <meta name="svrmon24-version" content="0.53.0" />
+  <meta name="svrmon24-version" content="0.54.0" />
   <title>SVRMON24</title>
   <link rel="icon" href="/static/img/svrmon-favicon.png" type="image/png" sizes="32x32" />
   <link rel="apple-touch-icon" href="/static/img/svrmon-apple-touch.png" sizes="180x180" />
@@ -15,10 +15,10 @@
     body.is-app .login-gate { display: none !important; }
     #authPanel, .auth-panel-legacy { display: none !important; }
   </style>
-  <link rel="stylesheet" href="/static/css/cmdb.css?v=0.53.0" />
-  <link rel="stylesheet" href="/static/css/itsm.css?v=0.53.0" />
-  <script src="/static/js/config.js?v=0.53.0"></script>
-  <script src="/static/js/brand.js?v=0.53.0"></script>
+  <link rel="stylesheet" href="/static/css/cmdb.css?v=0.54.0" />
+  <link rel="stylesheet" href="/static/css/itsm.css?v=0.54.0" />
+  <script src="/static/js/config.js?v=0.54.0"></script>
+  <script src="/static/js/brand.js?v=0.54.0"></script>
 </head>
 <body class="is-login">
   <!-- Enterprise login: showcase (left) + sign-in panel (right); stacks on small viewports -->
@@ -2913,7 +2913,9 @@
         <div id="typeFields" class="form-grid"></div>
         <h2 style="margin-top:16px;font-size:1rem">Custom fields</h2>
         <div id="customInputs" class="form-grid"></div>
+        <p id="componentAiHint" class="hint" style="margin-top:10px"></p>
         <div style="margin-top:14px;display:flex;gap:8px;justify-content:flex-end;flex-wrap:wrap">
+          <button type="button" id="btnSuggestClassification" class="secondary" title="AI assist — fills type/fields; you still Save">Suggest type</button>
           <button type="button" id="btnComponentViewItsm" class="secondary" hidden>View ITSM tickets</button>
           <button type="submit" id="btnSaveComponent">Save</button>
         </div>
@@ -3025,7 +3027,10 @@
         <datalist id="entityIdListTarget"></datalist>
         <datalist id="itsmCiPickerList"></datalist>
   <datalist id="itsmGroupPickerList"></datalist>
-        <div style="margin-top:14px;display:flex;gap:8px;justify-content:flex-end">
+        <p id="relAiHint" class="hint" style="margin-top:10px"></p>
+        <div id="relAiNeighbors" class="hint" style="margin-top:6px"></div>
+        <div style="margin-top:14px;display:flex;gap:8px;justify-content:flex-end;flex-wrap:wrap">
+          <button type="button" id="btnSuggestRelationship" class="secondary" title="AI assist — suggests type; you still Save">Suggest link</button>
           <button type="submit" id="btnSaveRel">Save</button>
         </div>
       </form>
@@ -3109,21 +3114,21 @@
     </div>
   </div>
 
-  <script src="/static/js/cmdb.js?v=0.53.0"></script>
-  <script src="/static/js/itsm/api.js?v=0.53.0"></script>
-  <script src="/static/js/itsm/routing.js?v=0.53.0"></script>
-  <script src="/static/js/itsm/deeplinks.js?v=0.53.0"></script>
-  <script src="/static/js/itsm/dashboard.js?v=0.53.0"></script>
-  <script src="/static/js/itsm/reports.js?v=0.53.0"></script>
-  <script src="/static/js/itsm/incidents.js?v=0.53.0"></script>
-  <script src="/static/js/itsm/changes.js?v=0.53.0"></script>
-  <script src="/static/js/itsm/problems.js?v=0.53.0"></script>
-  <script src="/static/js/itsm/approvals.js?v=0.53.0"></script>
-  <script src="/static/js/itsm/workflows.js?v=0.53.0"></script>
-  <script src="/static/js/itsm/sla.js?v=0.53.0"></script>
-  <script src="/static/js/itsm/knowledge.js?v=0.53.0"></script>
-  <script src="/static/js/itsm/notifications.js?v=0.53.0"></script>
-  <script src="/static/js/itsm/groups.js?v=0.53.0"></script>
-  <script src="/static/js/itsm/index.js?v=0.53.0"></script>
+  <script src="/static/js/cmdb.js?v=0.54.0"></script>
+  <script src="/static/js/itsm/api.js?v=0.54.0"></script>
+  <script src="/static/js/itsm/routing.js?v=0.54.0"></script>
+  <script src="/static/js/itsm/deeplinks.js?v=0.54.0"></script>
+  <script src="/static/js/itsm/dashboard.js?v=0.54.0"></script>
+  <script src="/static/js/itsm/reports.js?v=0.54.0"></script>
+  <script src="/static/js/itsm/incidents.js?v=0.54.0"></script>
+  <script src="/static/js/itsm/changes.js?v=0.54.0"></script>
+  <script src="/static/js/itsm/problems.js?v=0.54.0"></script>
+  <script src="/static/js/itsm/approvals.js?v=0.54.0"></script>
+  <script src="/static/js/itsm/workflows.js?v=0.54.0"></script>
+  <script src="/static/js/itsm/sla.js?v=0.54.0"></script>
+  <script src="/static/js/itsm/knowledge.js?v=0.54.0"></script>
+  <script src="/static/js/itsm/notifications.js?v=0.54.0"></script>
+  <script src="/static/js/itsm/groups.js?v=0.54.0"></script>
+  <script src="/static/js/itsm/index.js?v=0.54.0"></script>
 </body>
 </html>
