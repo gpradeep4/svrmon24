@@ -1,4 +1,4 @@
-"""Sidebar IA — CMDB Dashboard under expandable CMDB; no Operations section (0.64.0)."""
+"""Sidebar IA — CMDB / Monitoring / ITSM expandable sections (0.65.0)."""
 
 from __future__ import annotations
 
@@ -10,16 +10,17 @@ from tests.frontend_paths import FRONTEND_INDEX
 
 CMDB_JS = Path("frontend/static/js/cmdb.js")
 ITSM_INDEX_JS = Path("frontend/static/js/itsm/index.js")
+MONITOR_INDEX_JS = Path("frontend/static/js/monitor/index.js")
 CMDB_CSS = Path("frontend/static/css/cmdb.css")
 
 
 def test_version_bump_for_sidebar_cmdb_dashboard() -> None:
-    assert __version__ == "0.64.0"
+    assert __version__ == "0.65.0"
 
 
 def test_frontend_sidebar_section_markers() -> None:
     html = FRONTEND_INDEX.read_text(encoding="utf-8")
-    assert 'content="0.64.0"' in html
+    assert 'content="0.65.0"' in html
 
     # No thin Operations section (Dashboard moved under CMDB).
     assert 'id="navOperationsSection"' not in html
@@ -28,7 +29,7 @@ def test_frontend_sidebar_section_markers() -> None:
     assert 'data-nav-group="operations"' not in html
     assert ">Operations<" not in html
 
-    # CMDB — Dashboard first, then typed inventory + catalog.
+    # CMDB — Dashboard first, then typed inventory + catalog (no File Monitoring / Diagnostics).
     assert 'id="navCmdbSection"' in html
     assert 'data-nav-collapse="cmdb"' in html
     assert 'id="navCmdbGroup"' in html
@@ -50,17 +51,31 @@ def test_frontend_sidebar_section_markers() -> None:
         "databases",
         "relationships",
         "dependencies",
-        "diagnostics",
-        "file-monitoring",
+        "cmdb-redirect-file-monitoring",
+        "cmdb-redirect-diagnostics",
     ):
         marker = f'data-tab="{tab}"'
         pos = html.index(marker)
         assert cmdb_group_i < pos < custom_i, tab
 
+    # Real File Monitoring / Diagnostics are under Monitoring, not CMDB.
+    mon_group_i = html.index('id="navMonitoringGroup"')
+    itsm_i = html.index('id="navItsmSection"')
+    for tab in ("file-monitoring", "diagnostics"):
+        pos = html.index(f'data-tab="{tab}"')
+        assert mon_group_i < pos < itsm_i, tab
+        assert not (cmdb_group_i < pos < custom_i), tab
+
     # Custom tables — expandable; dynamic entity tables only.
     assert 'data-nav-collapse="custom-tables"' in html
     assert 'id="navCustomTables"' in html
     assert 'data-nav-group="custom-tables"' in html
+
+    # Monitoring — expandable; permission-gated; Dashboard first.
+    assert 'id="navMonitoringSection"' in html
+    assert 'data-nav-collapse="monitoring"' in html
+    assert 'data-monitor-nav-group="1"' in html
+    assert "Monitoring Dashboard" in html
 
     # ITSM — expandable; permission-gated; ITSM Dashboard mirrors CMDB Dashboard placement.
     assert 'id="navItsmSection"' in html
@@ -80,13 +95,13 @@ def test_frontend_sidebar_section_markers() -> None:
     assert 'id="navAdministrationGroup"' in html
     assert 'data-nav-group="administration"' in html
 
-    # Order: CMDB → Custom tables → ITSM → Configuration → Administration
+    # Order: CMDB → Custom tables → Monitoring → ITSM → Configuration → Administration
     cmdb_i = html.index('id="navCmdbSection"')
-    itsm_i = html.index('id="navItsmSection"')
+    mon_i = html.index('id="navMonitoringSection"')
     itsm_group_i = html.index('id="navItsmGroup"')
     config_i = html.index('id="navConfigurationSection"')
     admin_i = html.index('id="navAdministrationSection"')
-    assert cmdb_i < custom_i < itsm_i < itsm_group_i < config_i < admin_i
+    assert cmdb_i < custom_i < mon_i < itsm_i < itsm_group_i < config_i < admin_i
 
     # ITSM items live inside the ITSM group, not after Configuration.
     for tab in (
@@ -134,6 +149,8 @@ def test_nav_accordion_js_and_css_markers() -> None:
     assert "operations: true" not in cmdb
     assert 'dashboard: "cmdb"' in cmdb
     assert "cmdb: true" in cmdb
+    assert "monitoring: true" in cmdb
+    assert '"monitor-dashboard": "monitoring"' in cmdb
     assert "configuration: true" in cmdb
     assert "administration: true" in cmdb
     assert "initNavAccordions" in cmdb
@@ -144,6 +161,10 @@ def test_nav_accordion_js_and_css_markers() -> None:
     itsm = ITSM_INDEX_JS.read_text(encoding="utf-8")
     assert 'getElementById("navItsmGroup")' in itsm
     assert "group.hidden = !showSection" in itsm
+
+    mon = MONITOR_INDEX_JS.read_text(encoding="utf-8")
+    assert 'getElementById("navMonitoringGroup")' in mon
+    assert "applyMonitorNavGates" in mon
 
     css = CMDB_CSS.read_text(encoding="utf-8")
     assert ".nav-section-toggle" in css

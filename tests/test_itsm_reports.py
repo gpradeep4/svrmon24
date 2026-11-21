@@ -20,7 +20,7 @@ from tests.frontend_paths import FRONTEND_INDEX
 
 
 def test_version_bump_for_reports_slice() -> None:
-    assert __version__ == "0.64.0"
+    assert __version__ == "0.65.0"
 
 
 def test_reports_permissions_for_roles() -> None:
@@ -184,9 +184,9 @@ def test_custom_report_crud_run_export_and_tenant_isolation(
 
 def test_frontend_wires_report_export_ui(client: TestClient) -> None:
     html = FRONTEND_INDEX.read_text(encoding="utf-8")
-    assert 'content="0.64.0"' in html
+    assert 'content="0.65.0"' in html
     assert "btnExportItsmReportsCsv" in html
     assert "btnExportItsmReportsXlsx" in html
     assert "itsmCustomReportForm" in html
-    assert "itsm/reports.js?v=0.64.0" in html
+    assert "itsm/reports.js?v=0.65.0" in html
     assert "itsm:reports:write" in html

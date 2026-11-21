@@ -44,7 +44,7 @@ def module_meta(*, settings: Settings | None = None) -> dict[str, Any]:
             "Monitoring v1 is SIMULATED. Data model supports AGENTLESS and AGENT "
             "collect modes for all OS families and networking components, but live "
             "probes stay off until explicitly approved. File Monitoring and "
-            "Diagnostics move under Monitoring in later slices."
+            "Diagnostics are under the Monitoring sidebar (CMDB keeps temporary redirects)."
         ),
         "database": cfg.monitor_database_name,
         "monitor_database": cfg.monitor_database_name,
