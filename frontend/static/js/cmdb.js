@@ -1,6 +1,8 @@
 (() => {
   const STORAGE_KEY = "svrmon24.basicAuth";
   const ACCENT_KEY = "svrmon24.accent";
+  const NAV_EXPAND_KEY = "svrmon24.nav.expand";
+  const NAV_EXPAND_DEFAULTS = { itsm: true, "custom-tables": true };
   /* In-memory Basic credentials for the active SPA lifetime (API Authorization header).
      sessionStorage is only written when Remember me is checked (same-tab refresh resume). */
   let basicCredentials = null;
@@ -482,6 +484,62 @@
       saved = DEFAULT_ACCENT;
     }
     applyAccent(saved, { persist: false });
+  }
+
+  function readNavExpandState() {
+    let saved = {};
+    try {
+      saved = JSON.parse(localStorage.getItem(NAV_EXPAND_KEY) || "{}") || {};
+    } catch (_) {
+      saved = {};
+    }
+    return { ...NAV_EXPAND_DEFAULTS, ...saved };
+  }
+
+  function writeNavExpandState(map) {
+    try {
+      localStorage.setItem(NAV_EXPAND_KEY, JSON.stringify(map));
+    } catch (_) {
+      /* ignore quota / private mode */
+    }
+  }
+
+  function setNavGroupExpanded(key, expanded, { persist = true } = {}) {
+    const group = document.querySelector(`[data-nav-group="${key}"]`);
+    const toggle = document.querySelector(`[data-nav-collapse="${key}"]`);
+    const open = !!expanded;
+    if (group) group.classList.toggle("is-collapsed", !open);
+    if (toggle) toggle.setAttribute("aria-expanded", open ? "true" : "false");
+    if (persist) {
+      const next = readNavExpandState();
+      next[key] = open;
+      writeNavExpandState(next);
+    }
+  }
+
+  function expandNavGroupForTab(tabName) {
+    if (!tabName) return;
+    if (tabName.startsWith("itsm-") || tabName === "itsm") {
+      setNavGroupExpanded("itsm", true);
+      return;
+    }
+    if (tabName.startsWith("ct:")) {
+      setNavGroupExpanded("custom-tables", true);
+    }
+  }
+
+  function initNavAccordions() {
+    const stateMap = readNavExpandState();
+    document.querySelectorAll("[data-nav-collapse]").forEach((toggle) => {
+      const key = toggle.getAttribute("data-nav-collapse");
+      if (!key) return;
+      const expanded = stateMap[key] !== false;
+      setNavGroupExpanded(key, expanded, { persist: false });
+      toggle.addEventListener("click", () => {
+        const open = toggle.getAttribute("aria-expanded") !== "true";
+        setNavGroupExpanded(key, open);
+      });
+    });
   }
 
   const PAGE_META = {
@@ -2891,6 +2949,7 @@
       name && name.startsWith("ct:") ? name.slice(3) : null;
     let panelName = inventoryType ? "inventory" : name;
     if (customTableKey) panelName = "custom-records";
+    expandNavGroupForTab(name);
     $$(".tab-panel").forEach((p) => p.classList.add("hidden"));
     $$(".nav-item").forEach((b) => b.classList.remove("active"));
     const panel = $(`#tab-${panelName}`);
@@ -4058,7 +4117,13 @@
     const section = $("#navCustomTablesSection");
     if (!wrap) return;
     const tables = state.customTables || [];
-    if (section) section.hidden = tables.length === 0;
+    const hasTables = tables.length > 0;
+    if (section) section.hidden = !hasTables;
+    wrap.hidden = !hasTables;
+    if (!hasTables) {
+      wrap.innerHTML = "";
+      return;
+    }
     wrap.innerHTML = tables
       .map(
         (t) => `
@@ -5697,6 +5762,7 @@
 
   document.addEventListener("DOMContentLoaded", async () => {
     restoreAccent();
+    initNavAccordions();
     loadAuthIntoForm();
     wireEvents();
     if (window.SVRMON24ItsmRouting?.bindRouting) {

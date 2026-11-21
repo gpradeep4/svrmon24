@@ -9,7 +9,7 @@ from fastapi.testclient import TestClient
 
 
 def test_version_bump_for_cmdb_db_rename() -> None:
-    assert __version__ == "0.59.0"
+    assert __version__ == "0.60.0"
 
 
 def test_cmdb_default_database_is_svrmon_cmdb(monkeypatch) -> None:
@@ -133,4 +133,4 @@ def test_api_status_exposes_cmdb_and_itsm_names(
     assert "cmdb_database" in mongo
     assert "itsm_database" in mongo
     assert mongo["cmdb_database"] != mongo["itsm_database"]
-    assert payload.get("version") == "0.59.0"
+    assert payload.get("version") == "0.60.0"

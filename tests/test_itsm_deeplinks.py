@@ -1,4 +1,4 @@
-"""ITSM N5 — CMDB↔ITSM deep-links, CI filter, impact panel markers (0.59.0)."""
+"""ITSM N5 — CMDB↔ITSM deep-links, CI filter, impact panel markers (0.60.0)."""
 
 from __future__ import annotations
 
@@ -11,7 +11,7 @@ from tests.frontend_paths import FRONTEND_INDEX
 
 
 def test_version_bump_for_deeplinks_slice() -> None:
-    assert __version__ == "0.59.0"
+    assert __version__ == "0.60.0"
 
 
 def _create_component(client: TestClient, headers: dict[str, str], name: str) -> str:
@@ -128,7 +128,7 @@ def test_dependency_bundle_404_safe_for_missing_ci(
 
 def test_frontend_deeplink_markers() -> None:
     html = FRONTEND_INDEX.read_text(encoding="utf-8")
-    assert 'content="0.59.0"' in html
+    assert 'content="0.60.0"' in html
     assert 'id="itsmIncCiFilter"' in html
     assert 'id="itsmChgCiFilter"' in html
     assert 'id="itsmPrbCiFilter"' in html
@@ -137,7 +137,7 @@ def test_frontend_deeplink_markers() -> None:
     assert 'id="itsmPrbImpactPanel"' in html
     assert 'id="itsmCiPickerList"' in html
     assert 'id="btnComponentViewItsm"' in html
-    assert "itsm/deeplinks.js?v=0.59.0" in html
+    assert "itsm/deeplinks.js?v=0.60.0" in html
 
     deeplinks = Path("frontend/static/js/itsm/deeplinks.js").read_text(encoding="utf-8")
     assert "openTicketsForComponent" in deeplinks
