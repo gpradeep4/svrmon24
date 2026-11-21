@@ -19,6 +19,7 @@ NETWORK_TARGET_KINDS: tuple[str, ...] = (
     "access_point",
     "other_network",
 )
+DOMAINS: tuple[str, ...] = ("server", "network", "application", "database")
 BANNER = (
     "SIMULATED / SYNTHETIC_DEMO — Monitoring does not run live probes or agents. "
     "Synthetic metrics, logs, and alerts will appear in later slices."
@@ -35,6 +36,7 @@ def module_meta(*, settings: Settings | None = None) -> dict[str, Any]:
         "demo_only": True,
         "live_probes": False,
         "collect_modes": list(COLLECT_MODES),
+        "domains": list(DOMAINS),
         "os_families": list(OS_FAMILIES),
         "network_target_kinds": list(NETWORK_TARGET_KINDS),
         "banner": BANNER,
