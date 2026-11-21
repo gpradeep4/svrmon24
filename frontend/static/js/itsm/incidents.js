@@ -12,6 +12,7 @@
   };
 
   let selectedId = null;
+  let lastTriage = null;
   let deps = { can: () => false, toast: () => {}, escapeHtml: (s) => s };
 
   function $(sel) {
@@ -114,8 +115,89 @@
     }
   }
 
+  function renderAiAssist(html) {
+    const box = $("#itsmIncAiAssist");
+    if (box) box.innerHTML = html || "";
+  }
+
+  async function runTriageAssist() {
+    if (!selectedId) return deps.toast("Open an incident first", true);
+    try {
+      const result = await SVRMON24ItsmApi.triageIncident(selectedId, {
+        force_fallback: false,
+      });
+      lastTriage = result;
+      const applyBtn = $("#btnItsmIncApplyTriage");
+      if (applyBtn) {
+        applyBtn.hidden = !deps.can("itsm:incident:write");
+      }
+      renderAiAssist(
+        `<strong>Triage (${esc(result.source)}):</strong> ` +
+          `priority <code>${esc(result.suggested_priority)}</code>, ` +
+          `category ${esc(result.suggested_category || "—")}, ` +
+          `group ${esc(result.suggested_assignment_group || "—")}. ` +
+          `${esc(result.triage_summary || "")} ` +
+          `<span class="hint">Apply writes via PATCH — AI does not mutate.</span>`
+      );
+      deps.toast(`Triage suggestion ready (${result.source})`);
+    } catch (err) {
+      renderAiAssist("");
+      deps.toast(err.message || "Triage failed", true);
+    }
+  }
+
+  async function runSummarizeAssist() {
+    if (!selectedId) return deps.toast("Open an incident first", true);
+    try {
+      const result = await SVRMON24ItsmApi.summarizeIncident(selectedId, {});
+      const qs = (result.open_questions || [])
+        .slice(0, 3)
+        .map((q) => esc(q))
+        .join("; ");
+      renderAiAssist(
+        `<strong>Summary (${esc(result.source)}):</strong> ${esc(
+          result.timeline_summary || ""
+        )}` +
+          (qs ? `<br/><span class="hint">Open: ${qs}</span>` : "") +
+          (result.resolution_notes_draft
+            ? `<br/><span class="hint">Resolution draft: ${esc(
+                result.resolution_notes_draft
+              )}</span>`
+            : "") +
+          `<br/><span class="hint">Next legal statuses: ${esc(
+            (result.suggested_next_statuses || []).join(", ") || "—"
+          )} — human must transition.</span>`
+      );
+      deps.toast(`Summary ready (${result.source})`);
+    } catch (err) {
+      renderAiAssist("");
+      deps.toast(err.message || "Summarize failed", true);
+    }
+  }
+
+  async function applyLastTriage() {
+    if (!selectedId || !lastTriage?.apply_fields) {
+      return deps.toast("Run Triage first", true);
+    }
+    if (!deps.can("itsm:incident:write")) {
+      return deps.toast("Write permission required to apply", true);
+    }
+    try {
+      await SVRMON24ItsmApi.updateIncident(selectedId, lastTriage.apply_fields);
+      deps.toast("Triage fields applied");
+      await openIncident(selectedId);
+      await loadIncidents();
+    } catch (err) {
+      deps.toast(err.message || "Apply failed", true);
+    }
+  }
+
   async function openIncident(incidentId) {
     selectedId = incidentId;
+    lastTriage = null;
+    const applyBtn = $("#btnItsmIncApplyTriage");
+    if (applyBtn) applyBtn.hidden = true;
+    renderAiAssist("");
     openDrawer();
     const detail = $("#itsmIncDrawerDetail");
     const title = $("#itsmIncDrawerTitle");
@@ -442,6 +524,15 @@
       } catch (err) {
         deps.toast(err.message || "Comment failed", true);
       }
+    });
+    $("#btnItsmIncTriage")?.addEventListener("click", () => {
+      runTriageAssist();
+    });
+    $("#btnItsmIncSummarize")?.addEventListener("click", () => {
+      runSummarizeAssist();
+    });
+    $("#btnItsmIncApplyTriage")?.addEventListener("click", () => {
+      applyLastTriage();
     });
   }
 
