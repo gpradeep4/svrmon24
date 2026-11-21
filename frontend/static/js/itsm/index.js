@@ -122,6 +122,7 @@
           SVRMON24ItsmReports.applyWriteGates();
           SVRMON24ItsmReports.loadItsmReports({ toast });
           SVRMON24ItsmReports.loadCustomReports();
+          SVRMON24ItsmReports.loadReportSchedules?.();
         }
         if (name === "itsm-incidents") {
           SVRMON24ItsmIncidents.applyWriteGates();

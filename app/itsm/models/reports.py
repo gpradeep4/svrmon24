@@ -283,3 +283,126 @@ class ReportDefinitionUpdate(BaseModel):
                 seen.add(item)
                 out.append(item)
         return out or list(DEFAULT_TICKET_COLUMNS)
+
+
+ReportExportFormat = Literal["csv", "xlsx"]
+ReportScheduleChannel = Literal["email"]
+
+
+class ReportScheduleCreate(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    report_id: str = Field(min_length=1, max_length=64)
+    name: str | None = Field(default=None, max_length=200)
+    interval_minutes: int = Field(default=1440, ge=5, le=10080)
+    timezone: str = Field(default="UTC", max_length=64)
+    recipients: list[str] = Field(min_length=1, max_length=50)
+    channels: list[ReportScheduleChannel] = Field(default_factory=lambda: ["email"])
+    format: ReportExportFormat = "csv"
+    active: bool = True
+
+    @field_validator("report_id")
+    @classmethod
+    def _clean_report_id(cls, value: str) -> str:
+        cleaned = str(value or "").strip()
+        if not cleaned:
+            raise ValueError("report_id is required")
+        return cleaned
+
+    @field_validator("name")
+    @classmethod
+    def _strip_name(cls, value: str | None) -> str | None:
+        if value is None:
+            return None
+        cleaned = str(value).strip()
+        return cleaned or None
+
+    @field_validator("timezone")
+    @classmethod
+    def _timezone_default(cls, value: str | None) -> str:
+        cleaned = (value or "UTC").strip() or "UTC"
+        return cleaned[:64]
+
+    @field_validator("recipients")
+    @classmethod
+    def _clean_recipients(cls, value: list[str]) -> list[str]:
+        out: list[str] = []
+        seen: set[str] = set()
+        for raw in value or []:
+            item = str(raw or "").strip().lower()
+            if not item or "@" not in item:
+                raise ValueError(f"Invalid recipient email '{raw}'")
+            if item not in seen:
+                seen.add(item)
+                out.append(item)
+            if len(out) >= 50:
+                break
+        if not out:
+            raise ValueError("recipients must include at least one email")
+        return out
+
+    @field_validator("channels")
+    @classmethod
+    def _clean_channels(cls, value: list[str]) -> list[str]:
+        out: list[str] = []
+        for raw in value or ["email"]:
+            item = str(raw or "").strip().lower()
+            if item != "email":
+                raise ValueError("Only email channel is supported for schedules in N3")
+            if item not in out:
+                out.append(item)
+        return out or ["email"]
+
+
+class ReportScheduleUpdate(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    name: str | None = Field(default=None, max_length=200)
+    interval_minutes: int | None = Field(default=None, ge=5, le=10080)
+    timezone: str | None = Field(default=None, max_length=64)
+    recipients: list[str] | None = Field(default=None, max_length=50)
+    channels: list[ReportScheduleChannel] | None = None
+    format: ReportExportFormat | None = None
+    active: bool | None = None
+
+    @field_validator("name", "timezone")
+    @classmethod
+    def _strip_optional_str(cls, value: str | None) -> str | None:
+        if value is None:
+            return None
+        cleaned = str(value).strip()
+        return cleaned or None
+
+    @field_validator("recipients")
+    @classmethod
+    def _clean_recipients(cls, value: list[str] | None) -> list[str] | None:
+        if value is None:
+            return None
+        out: list[str] = []
+        seen: set[str] = set()
+        for raw in value or []:
+            item = str(raw or "").strip().lower()
+            if not item or "@" not in item:
+                raise ValueError(f"Invalid recipient email '{raw}'")
+            if item not in seen:
+                seen.add(item)
+                out.append(item)
+            if len(out) >= 50:
+                break
+        if not out:
+            raise ValueError("recipients must include at least one email")
+        return out
+
+    @field_validator("channels")
+    @classmethod
+    def _clean_channels(cls, value: list[str] | None) -> list[str] | None:
+        if value is None:
+            return None
+        out: list[str] = []
+        for raw in value or ["email"]:
+            item = str(raw or "").strip().lower()
+            if item != "email":
+                raise ValueError("Only email channel is supported for schedules in N3")
+            if item not in out:
+                out.append(item)
+        return out or ["email"]

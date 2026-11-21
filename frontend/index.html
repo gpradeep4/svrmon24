@@ -4,7 +4,7 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <meta name="svrmon24-ui" content="login-enterprise-v13" />
-  <meta name="svrmon24-version" content="0.46.0" />
+  <meta name="svrmon24-version" content="0.47.0" />
   <title>SVRMON24</title>
   <link rel="icon" href="/static/img/svrmon-favicon.png" type="image/png" sizes="32x32" />
   <link rel="apple-touch-icon" href="/static/img/svrmon-apple-touch.png" sizes="180x180" />
@@ -15,10 +15,10 @@
     body.is-app .login-gate { display: none !important; }
     #authPanel, .auth-panel-legacy { display: none !important; }
   </style>
-  <link rel="stylesheet" href="/static/css/cmdb.css?v=0.46.0" />
-  <link rel="stylesheet" href="/static/css/itsm.css?v=0.46.0" />
-  <script src="/static/js/config.js?v=0.46.0"></script>
-  <script src="/static/js/brand.js?v=0.46.0"></script>
+  <link rel="stylesheet" href="/static/css/cmdb.css?v=0.47.0" />
+  <link rel="stylesheet" href="/static/css/itsm.css?v=0.47.0" />
+  <script src="/static/js/config.js?v=0.47.0"></script>
+  <script src="/static/js/brand.js?v=0.47.0"></script>
 </head>
 <body class="is-login">
   <!-- Enterprise login: showcase (left) + sign-in panel (right); stacks on small viewports -->
@@ -1385,6 +1385,65 @@
                   <table class="inventory" id="itsmCustomReportTicketsTable">
                     <thead></thead>
                     <tbody></tbody>
+                  </table>
+                </div>
+              </section>
+
+              <section class="itsm-report-schedules" id="itsmReportSchedulesSection">
+                <h3>Scheduled delivery</h3>
+                <p class="hint">Email a saved custom report on an interval (requires outbound email channel + job runner or a manual Run now). Recipients are email addresses; timezone is stored (clocks run in UTC for v1).</p>
+                <div class="toolbar itsm-toolbar">
+                  <button type="button" id="btnRefreshItsmReportSchedules" class="secondary">Refresh schedules</button>
+                  <button type="button" id="btnNewItsmReportSchedule" data-itsm-reports-write="1">New schedule</button>
+                </div>
+                <form id="itsmReportScheduleForm" class="itsm-custom-report-form" hidden>
+                  <h4 id="itsmReportScheduleFormTitle">New schedule</h4>
+                  <input type="hidden" id="itsmReportScheduleId" value="" />
+                  <div class="itsm-form-grid">
+                    <label>Report
+                      <select id="itsmReportScheduleReportId" required></select>
+                    </label>
+                    <label>Name
+                      <input type="text" id="itsmReportScheduleName" maxlength="200" placeholder="optional" />
+                    </label>
+                    <label>Interval (minutes)
+                      <input type="number" id="itsmReportScheduleInterval" min="5" max="10080" value="1440" required />
+                    </label>
+                    <label>Timezone
+                      <input type="text" id="itsmReportScheduleTz" value="UTC" maxlength="64" />
+                    </label>
+                    <label>Format
+                      <select id="itsmReportScheduleFormat">
+                        <option value="csv" selected>CSV</option>
+                        <option value="xlsx">Excel</option>
+                      </select>
+                    </label>
+                    <label>Recipients (comma-separated emails)
+                      <input type="text" id="itsmReportScheduleRecipients" placeholder="ops@example.com, cab@example.com" required />
+                    </label>
+                    <label class="itsm-sla-check"><input type="checkbox" id="itsmReportScheduleActive" checked /> Active</label>
+                  </div>
+                  <div class="itsm-form-actions">
+                    <button type="submit" id="btnSaveItsmReportSchedule">Save schedule</button>
+                    <button type="button" id="btnCancelItsmReportSchedule" class="secondary">Cancel</button>
+                  </div>
+                </form>
+                <p class="hint" id="itsmReportScheduleListMeta">No schedules loaded yet.</p>
+                <div class="table-wrap">
+                  <table class="inventory" id="itsmReportScheduleTable">
+                    <thead>
+                      <tr>
+                        <th>Name</th>
+                        <th>Report</th>
+                        <th>Interval</th>
+                        <th>Recipients</th>
+                        <th>Next / last</th>
+                        <th>Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody id="itsmReportScheduleBody">
+                      <tr><td colspan="6" class="hint">Sign in to load schedules.</td></tr>
+                    </tbody>
                   </table>
                 </div>
               </section>
@@ -2958,18 +3017,18 @@
     </div>
   </div>
 
-  <script src="/static/js/cmdb.js?v=0.46.0"></script>
-  <script src="/static/js/itsm/api.js?v=0.46.0"></script>
-  <script src="/static/js/itsm/dashboard.js?v=0.46.0"></script>
-  <script src="/static/js/itsm/reports.js?v=0.46.0"></script>
-  <script src="/static/js/itsm/incidents.js?v=0.46.0"></script>
-  <script src="/static/js/itsm/changes.js?v=0.46.0"></script>
-  <script src="/static/js/itsm/problems.js?v=0.46.0"></script>
-  <script src="/static/js/itsm/approvals.js?v=0.46.0"></script>
-  <script src="/static/js/itsm/workflows.js?v=0.46.0"></script>
-  <script src="/static/js/itsm/sla.js?v=0.46.0"></script>
-  <script src="/static/js/itsm/knowledge.js?v=0.46.0"></script>
-  <script src="/static/js/itsm/notifications.js?v=0.46.0"></script>
-  <script src="/static/js/itsm/index.js?v=0.46.0"></script>
+  <script src="/static/js/cmdb.js?v=0.47.0"></script>
+  <script src="/static/js/itsm/api.js?v=0.47.0"></script>
+  <script src="/static/js/itsm/dashboard.js?v=0.47.0"></script>
+  <script src="/static/js/itsm/reports.js?v=0.47.0"></script>
+  <script src="/static/js/itsm/incidents.js?v=0.47.0"></script>
+  <script src="/static/js/itsm/changes.js?v=0.47.0"></script>
+  <script src="/static/js/itsm/problems.js?v=0.47.0"></script>
+  <script src="/static/js/itsm/approvals.js?v=0.47.0"></script>
+  <script src="/static/js/itsm/workflows.js?v=0.47.0"></script>
+  <script src="/static/js/itsm/sla.js?v=0.47.0"></script>
+  <script src="/static/js/itsm/knowledge.js?v=0.47.0"></script>
+  <script src="/static/js/itsm/notifications.js?v=0.47.0"></script>
+  <script src="/static/js/itsm/index.js?v=0.47.0"></script>
 </body>
 </html>

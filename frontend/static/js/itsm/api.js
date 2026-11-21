@@ -235,5 +235,23 @@
       itsmSend(`/reports/definitions/${encodeURIComponent(id)}`, "DELETE"),
     runReportDefinition: (id) =>
       itsmSend(`/reports/definitions/${encodeURIComponent(id)}/run`, "POST"),
+    listReportSchedules: (params) => {
+      const q = new URLSearchParams(params || {});
+      return itsmGet(`/reports/schedules?${q.toString()}`);
+    },
+    getReportSchedule: (id) =>
+      itsmGet(`/reports/schedules/${encodeURIComponent(id)}`),
+    createReportSchedule: (payload) =>
+      itsmSend("/reports/schedules", "POST", payload),
+    updateReportSchedule: (id, payload) =>
+      itsmSend(`/reports/schedules/${encodeURIComponent(id)}`, "PATCH", payload),
+    deleteReportSchedule: (id) =>
+      itsmSend(`/reports/schedules/${encodeURIComponent(id)}`, "DELETE"),
+    runReportSchedule: (id) =>
+      itsmSend(`/reports/schedules/${encodeURIComponent(id)}/run`, "POST"),
+    listReportScheduleRuns: (params) => {
+      const q = new URLSearchParams(params || {});
+      return itsmGet(`/reports/schedules/runs?${q.toString()}`);
+    },
   };
 })(window);
