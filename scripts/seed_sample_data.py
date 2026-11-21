@@ -574,6 +574,9 @@ def seed() -> dict[str, int]:
     print("Seeding SIMULATED alert rules + evaluate…")
     from app.monitor.services import alerts as monitor_alerts_service
 
+    # ensure_default_rules is idempotent. simulate-tick already evaluates rules
+    # after writing log events, so open instances may already exist — that is
+    # success, not a first-run "skip" for seed idempotency accounting.
     rules = monitor_alerts_service.ensure_default_rules(tenant_id=SEED_TENANT_ID)
     open_alerts = monitor_alerts_service.list_instances(
         tenant_id=SEED_TENANT_ID, status="firing,acked", page_size=1
@@ -586,11 +589,10 @@ def seed() -> dict[str, int]:
         )
         stats["created"] += len(rules) + int(ev.get("created") or 0)
     else:
-        _skip(
-            f"alert instances already present "
-            f"(rules={len(rules)} open={open_alerts.get('open_count')})"
+        _ok(
+            f"alert rules={len(rules)} open={open_alerts.get('open_count')} "
+            f"(from simulate-tick / prior evaluate)"
         )
-        stats["skipped"] += 1
 
     return stats
 
