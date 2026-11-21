@@ -24,6 +24,13 @@ RESOURCE_MAX_DIAGNOSTIC_RUNS = "max_diagnostic_runs"
 # Max generative AI assists a tenant may store (Ollama + optional cloud
 # suggestions). Rule fallback is unlimited. Key name kept for plan compatibility.
 RESOURCE_MAX_OLLAMA_ANALYSES = "max_ollama_analyses"
+# Monitoring (SIMULATED) — ceilings for targets / retention / alerts / ticks.
+RESOURCE_MONITOR_TARGETS = "monitor_targets"
+RESOURCE_METRIC_SAMPLES_RETAINED = "metric_samples_retained"
+RESOURCE_LOG_EVENTS_RETAINED = "log_events_retained"
+RESOURCE_FILE_WATCHES = "file_watches"
+RESOURCE_ALERT_RULES = "alert_rules"
+RESOURCE_MONITOR_SIMULATE_TICKS_PER_DAY = "monitor_simulate_ticks_per_day"
 
 PLAN_LEGACY_UNLIMITED = "legacy_unlimited"
 PLAN_STARTER = "starter"
@@ -45,6 +52,12 @@ _PLAN_CATALOG: dict[str, dict[str, Any]] = {
             RESOURCE_MAX_DEPENDENCY_DEPTH: None,
             RESOURCE_MAX_DIAGNOSTIC_RUNS: None,
             RESOURCE_MAX_OLLAMA_ANALYSES: None,
+            RESOURCE_MONITOR_TARGETS: None,
+            RESOURCE_METRIC_SAMPLES_RETAINED: None,
+            RESOURCE_LOG_EVENTS_RETAINED: None,
+            RESOURCE_FILE_WATCHES: None,
+            RESOURCE_ALERT_RULES: None,
+            RESOURCE_MONITOR_SIMULATE_TICKS_PER_DAY: None,
         },
         "notes": (
             "Default entitlements for migration / unlimited tenants. "
@@ -65,6 +78,12 @@ _PLAN_CATALOG: dict[str, dict[str, Any]] = {
             RESOURCE_MAX_DEPENDENCY_DEPTH: 5,
             RESOURCE_MAX_DIAGNOSTIC_RUNS: 20,
             RESOURCE_MAX_OLLAMA_ANALYSES: 5,
+            RESOURCE_MONITOR_TARGETS: 50,
+            RESOURCE_METRIC_SAMPLES_RETAINED: 10_000,
+            RESOURCE_LOG_EVENTS_RETAINED: 20_000,
+            RESOURCE_FILE_WATCHES: 20,
+            RESOURCE_ALERT_RULES: 10,
+            RESOURCE_MONITOR_SIMULATE_TICKS_PER_DAY: 50,
         },
         "notes": (
             "Entitlements-only starter ceiling for small orgs. "
@@ -82,6 +101,12 @@ _PLAN_CATALOG: dict[str, dict[str, Any]] = {
             RESOURCE_MAX_DEPENDENCY_DEPTH: 15,
             RESOURCE_MAX_DIAGNOSTIC_RUNS: 200,
             RESOURCE_MAX_OLLAMA_ANALYSES: 50,
+            RESOURCE_MONITOR_TARGETS: 500,
+            RESOURCE_METRIC_SAMPLES_RETAINED: 200_000,
+            RESOURCE_LOG_EVENTS_RETAINED: 500_000,
+            RESOURCE_FILE_WATCHES: 200,
+            RESOURCE_ALERT_RULES: 100,
+            RESOURCE_MONITOR_SIMULATE_TICKS_PER_DAY: 500,
         },
         "notes": (
             "Entitlements-only standard ceiling. "
@@ -316,3 +341,42 @@ def assert_can_run_ollama_analysis(tenant_id: str) -> None:
         "Ollama/cloud assists, or use rule-based fallback.",
         status_code=403,
     )
+
+
+def _monitor_limit(tenant_id: str, resource: str) -> int | None:
+    """Return a Monitoring plan limit, or None when unlimited."""
+    entitlements = get_tenant_entitlements(tenant_id)
+    limit = entitlements["limits"].get(resource)
+    if limit is None:
+        return None
+    return int(limit)
+
+
+def monitor_target_limit(tenant_id: str) -> int | None:
+    """Max Monitoring targets for tenant, or None when unlimited."""
+    return _monitor_limit(tenant_id, RESOURCE_MONITOR_TARGETS)
+
+
+def metric_samples_retained_limit(tenant_id: str) -> int | None:
+    """Max retained metric samples for tenant, or None when unlimited."""
+    return _monitor_limit(tenant_id, RESOURCE_METRIC_SAMPLES_RETAINED)
+
+
+def log_events_retained_limit(tenant_id: str) -> int | None:
+    """Max retained log events for tenant, or None when unlimited."""
+    return _monitor_limit(tenant_id, RESOURCE_LOG_EVENTS_RETAINED)
+
+
+def file_watches_limit(tenant_id: str) -> int | None:
+    """Max file watches for tenant, or None when unlimited."""
+    return _monitor_limit(tenant_id, RESOURCE_FILE_WATCHES)
+
+
+def alert_rules_limit(tenant_id: str) -> int | None:
+    """Max alert rules for tenant, or None when unlimited."""
+    return _monitor_limit(tenant_id, RESOURCE_ALERT_RULES)
+
+
+def monitor_simulate_ticks_per_day_limit(tenant_id: str) -> int | None:
+    """Max SIMULATED Monitoring ticks per day, or None when unlimited."""
+    return _monitor_limit(tenant_id, RESOURCE_MONITOR_SIMULATE_TICKS_PER_DAY)

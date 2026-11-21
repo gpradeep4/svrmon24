@@ -1,4 +1,4 @@
-"""Monitoring M0 — DB config, handle, ping field, meta endpoint (0.63.0)."""
+"""Monitoring M0 — DB config, handle, ping field, meta endpoint (0.64.0)."""
 
 from __future__ import annotations
 
@@ -15,7 +15,7 @@ from fastapi.testclient import TestClient
 
 
 def test_version_bump_for_monitor_m0() -> None:
-    assert __version__ == "0.63.0"
+    assert __version__ == "0.64.0"
 
 
 def test_monitor_default_database_is_svrmon_monitor(monkeypatch) -> None:
@@ -82,7 +82,7 @@ def test_api_status_exposes_monitor_database(
     assert "monitor_database" in mongo
     assert mongo["monitor_database"] != mongo["cmdb_database"]
     assert mongo["monitor_database"] != mongo["itsm_database"]
-    assert payload.get("version") == "0.63.0"
+    assert payload.get("version") == "0.64.0"
 
 
 def test_monitor_meta_requires_auth(client: TestClient) -> None:
@@ -99,14 +99,15 @@ def test_monitor_meta_simulated_tenant_aware(
     assert body["module"] == "monitoring"
     assert body["execution_mode"] == "SIMULATED"
     assert body["live_probes"] is False
+    assert body["demo_only"] is True
     assert body["collect_modes"] == ["agentless", "agent"]
+    assert "server" in body["domains"]
     assert "linux" in body["os_families"]
     assert "windows" in body["os_families"]
     assert "macos" in body["os_families"]
     assert "unix" in body["os_families"]
     assert "switch" in body["network_target_kinds"]
     assert "firewall" in body["network_target_kinds"]
-    assert body["demo_only"] is True
     assert "SIMULATED" in body["banner"]
     assert body["monitor_database"]
     assert body["database"] == body["monitor_database"]

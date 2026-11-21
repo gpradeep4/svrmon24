@@ -72,6 +72,17 @@ PERM_ITSM_REPORTS_WRITE = "itsm:reports:write"
 PERM_ITSM_GROUPS_READ = "itsm:groups:read"
 PERM_ITSM_GROUPS_ADMIN = "itsm:groups:admin"
 
+# Monitoring (additive) — SIMULATED module; keep file_monitoring / diagnostics aliases.
+PERM_MONITOR_DASHBOARD_READ = "monitor:dashboard:read"
+PERM_MONITOR_TARGETS_READ = "monitor:targets:read"
+PERM_MONITOR_TARGETS_WRITE = "monitor:targets:write"
+PERM_MONITOR_LOGS_READ = "monitor:logs:read"
+PERM_MONITOR_LOGS_WRITE = "monitor:logs:write"
+PERM_MONITOR_FILES_READ = "monitor:files:read"
+PERM_MONITOR_ALERTS_READ = "monitor:alerts:read"
+PERM_MONITOR_ALERTS_WRITE = "monitor:alerts:write"
+PERM_MONITOR_ADMIN = "monitor:admin"
+
 ALL_PERMISSIONS: tuple[str, ...] = (
     PERM_CMDB_READ,
     PERM_CMDB_WRITE,
@@ -110,6 +121,15 @@ ALL_PERMISSIONS: tuple[str, ...] = (
     PERM_ITSM_REPORTS_WRITE,
     PERM_ITSM_GROUPS_READ,
     PERM_ITSM_GROUPS_ADMIN,
+    PERM_MONITOR_DASHBOARD_READ,
+    PERM_MONITOR_TARGETS_READ,
+    PERM_MONITOR_TARGETS_WRITE,
+    PERM_MONITOR_LOGS_READ,
+    PERM_MONITOR_LOGS_WRITE,
+    PERM_MONITOR_FILES_READ,
+    PERM_MONITOR_ALERTS_READ,
+    PERM_MONITOR_ALERTS_WRITE,
+    PERM_MONITOR_ADMIN,
 )
 
 PERMISSION_LABELS: dict[str, str] = {
@@ -150,6 +170,15 @@ PERMISSION_LABELS: dict[str, str] = {
     PERM_ITSM_REPORTS_WRITE: "Create / update / delete custom ITSM report definitions",
     PERM_ITSM_GROUPS_READ: "View ITSM assignment groups (pickers)",
     PERM_ITSM_GROUPS_ADMIN: "Manage ITSM assignment group directory",
+    PERM_MONITOR_DASHBOARD_READ: "View Monitoring dashboard aggregates",
+    PERM_MONITOR_TARGETS_READ: "View Monitoring targets + metrics",
+    PERM_MONITOR_TARGETS_WRITE: "Sync / update Monitoring targets",
+    PERM_MONITOR_LOGS_READ: "View Monitoring log streams + events",
+    PERM_MONITOR_LOGS_WRITE: "Configure Monitoring log streams / simulate ticks",
+    PERM_MONITOR_FILES_READ: "View Monitoring file watches + version history",
+    PERM_MONITOR_ALERTS_READ: "View Monitoring alert rules + instances",
+    PERM_MONITOR_ALERTS_WRITE: "Manage Monitoring alert rules / ack / resolve",
+    PERM_MONITOR_ADMIN: "Administer Monitoring retention, seeds, live-flag visibility",
 }
 
 _ITSM_VIEWER_PERMS: frozenset[str] = frozenset(
@@ -186,6 +215,27 @@ _ITSM_ADMIN_PERMS: frozenset[str] = frozenset(
         PERM_ITSM_GROUPS_ADMIN,
     }
 )
+_MONITOR_VIEWER_PERMS: frozenset[str] = frozenset(
+    {
+        PERM_MONITOR_DASHBOARD_READ,
+        PERM_MONITOR_TARGETS_READ,
+        PERM_MONITOR_LOGS_READ,
+        PERM_MONITOR_FILES_READ,
+        PERM_MONITOR_ALERTS_READ,
+    }
+)
+_MONITOR_MEMBER_WRITE_PERMS: frozenset[str] = frozenset(
+    {
+        PERM_MONITOR_TARGETS_WRITE,
+        PERM_MONITOR_LOGS_WRITE,
+        PERM_MONITOR_ALERTS_WRITE,
+    }
+)
+_MONITOR_ADMIN_PERMS: frozenset[str] = frozenset(
+    {
+        PERM_MONITOR_ADMIN,
+    }
+)
 
 # Role → permissions (tenant-scoped). Platform admin gets the full set separately.
 _ROLE_PERMISSIONS: dict[str, frozenset[str]] = {
@@ -198,6 +248,7 @@ _ROLE_PERMISSIONS: dict[str, frozenset[str]] = {
             PERM_CONFIG_READ,
             PERM_PLANS_READ,
             *_ITSM_VIEWER_PERMS,
+            *_MONITOR_VIEWER_PERMS,
         }
     ),
     MEMBERSHIP_ROLE_MEMBER: frozenset(
@@ -213,6 +264,8 @@ _ROLE_PERMISSIONS: dict[str, frozenset[str]] = {
             PERM_PLANS_READ,
             *_ITSM_VIEWER_PERMS,
             *_ITSM_MEMBER_WRITE_PERMS,
+            *_MONITOR_VIEWER_PERMS,
+            *_MONITOR_MEMBER_WRITE_PERMS,
         }
     ),
     MEMBERSHIP_ROLE_ADMIN: frozenset(
@@ -233,6 +286,9 @@ _ROLE_PERMISSIONS: dict[str, frozenset[str]] = {
             *_ITSM_VIEWER_PERMS,
             *_ITSM_MEMBER_WRITE_PERMS,
             *_ITSM_ADMIN_PERMS,
+            *_MONITOR_VIEWER_PERMS,
+            *_MONITOR_MEMBER_WRITE_PERMS,
+            *_MONITOR_ADMIN_PERMS,
         }
     ),
     MEMBERSHIP_ROLE_OWNER: frozenset(
@@ -254,6 +310,9 @@ _ROLE_PERMISSIONS: dict[str, frozenset[str]] = {
             *_ITSM_VIEWER_PERMS,
             *_ITSM_MEMBER_WRITE_PERMS,
             *_ITSM_ADMIN_PERMS,
+            *_MONITOR_VIEWER_PERMS,
+            *_MONITOR_MEMBER_WRITE_PERMS,
+            *_MONITOR_ADMIN_PERMS,
         }
     ),
 }
