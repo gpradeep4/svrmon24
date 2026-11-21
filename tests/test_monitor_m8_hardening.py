@@ -10,7 +10,7 @@ from app import __version__
 from app.db import get_database, get_monitor_database, require_monitor_database
 from app.monitor.services import diagnostics as monitor_diagnostics
 from app.monitor.services.indexes import ensure_monitor_indexes
-from app.tenancy import stamp_tenant_id, tenant_filter
+from app.tenancy import MIGRATION_TENANT_ID, stamp_tenant_id, tenant_filter
 from fastapi.testclient import TestClient
 
 from tests.frontend_paths import FRONTEND_DIR, FRONTEND_INDEX
@@ -150,9 +150,10 @@ def test_diagnostics_rehome_to_monitor_db(
 def test_diagnostics_dual_read_migrate_from_cmdb(
     client: TestClient, auth_headers: dict[str, str], clean_db
 ) -> None:
-    me = client.get("/api/me", headers=auth_headers)
-    assert me.status_code == 200
-    tenant_id = me.json()["tenant_id"]
+    from app.services import tenants as tenants_service
+
+    tenants_service.ensure_migration_tenant()
+    tenant_id = MIGRATION_TENANT_ID
     now = datetime(2026, 1, 1, tzinfo=timezone.utc)
 
     legacy = stamp_tenant_id(
@@ -190,9 +191,10 @@ def test_retention_sweep_trims_metric_samples(
     client: TestClient, auth_headers: dict[str, str], clean_db, monkeypatch
 ) -> None:
     from app.services import entitlements as entitlements_service
+    from app.services import tenants as tenants_service
 
-    me = client.get("/api/me", headers=auth_headers)
-    tenant_id = me.json()["tenant_id"]
+    tenants_service.ensure_migration_tenant()
+    tenant_id = MIGRATION_TENANT_ID
     monkeypatch.setattr(
         entitlements_service, "metric_samples_retained_limit", lambda _tid: 3
     )
@@ -231,9 +233,10 @@ def test_retention_sweep_isolation_between_tenants(
     client: TestClient, auth_headers: dict[str, str], clean_db, monkeypatch
 ) -> None:
     from app.services import entitlements as entitlements_service
+    from app.services import tenants as tenants_service
 
-    me = client.get("/api/me", headers=auth_headers)
-    tenant_a = me.json()["tenant_id"]
+    tenants_service.ensure_migration_tenant()
+    tenant_a = MIGRATION_TENANT_ID
     tenant_b = "tenant-foreign-m8"
     monkeypatch.setattr(
         entitlements_service, "metric_samples_retained_limit", lambda _tid: 2
