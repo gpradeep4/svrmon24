@@ -6,5 +6,8 @@ v1 is SIMULATED-only (``live_probes: false``); live agents require separate appr
 
 from __future__ import annotations
 
-# Collections land in later slices (M3+). M0 is package + meta scaffolding only.
-MONITOR_COLLECTIONS: tuple[str, ...] = ()
+# M3: File Monitoring collections. Later slices add targets/metrics/logs/alerts.
+MONITOR_COLLECTIONS: tuple[str, ...] = (
+    "file_watch_targets",
+    "file_version_events",
+)

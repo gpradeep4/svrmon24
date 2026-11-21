@@ -65,6 +65,14 @@ def ensure_tenancy_ready() -> dict[str, Any]:
         except Exception as exc:  # noqa: BLE001 — ITSM indexes must not block CMDB boot
             logger.warning("itsm_indexes_skipped detail=%s", exc)
             itsm_indexes = {"ok": False, "detail": str(exc)}
+        monitor_indexes: dict[str, Any] | None = None
+        try:
+            from ..monitor.services.indexes import ensure_monitor_indexes
+
+            monitor_indexes = ensure_monitor_indexes()
+        except Exception as exc:  # noqa: BLE001 — monitor indexes must not block boot
+            logger.warning("monitor_indexes_skipped detail=%s", exc)
+            monitor_indexes = {"ok": False, "detail": str(exc)}
         return {
             "ok": True,
             "migration_tenant_id": tenant.get("tenant_id"),
@@ -75,6 +83,7 @@ def ensure_tenancy_ready() -> dict[str, Any]:
             "typed_cmdb_migrate": typed_migrate,
             "field_defs_migrate": field_migrate,
             "itsm_indexes": itsm_indexes,
+            "monitor_indexes": monitor_indexes,
             "isolation_enforced": ISOLATION_ENFORCED,
         }
     except DatabaseUnavailableError as exc:

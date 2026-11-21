@@ -34,7 +34,7 @@ from app.cmdb.services import ai_analysis as ai_analysis_service
 from app.cmdb.services import components as components_service
 from app.cmdb.services import custom_fields as custom_fields_service
 from app.cmdb.services import diagnostics as diagnostics_service
-from app.cmdb.services import file_monitoring as file_monitoring_service
+from app.monitor.services import file_monitoring as file_monitoring_service
 from app.cmdb.services import relationships as relationships_service
 from app.services.bootstrap import ensure_tenancy_ready
 from app.cmdb.services.components import ComponentError
