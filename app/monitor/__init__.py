@@ -8,6 +8,7 @@ from __future__ import annotations
 
 # M3: File Monitoring. M4: targets + metric samples. M5: log streams/events.
 # M6: alert rules + instances. M7: dashboard aggregates + suggest-incident.
+# M8: diagnostics history rehome + retention sweeper.
 MONITOR_COLLECTIONS: tuple[str, ...] = (
     "file_watch_targets",
     "file_version_events",
@@ -18,4 +19,5 @@ MONITOR_COLLECTIONS: tuple[str, ...] = (
     "monitor_simulate_ticks",
     "alert_rules",
     "alert_instances",
+    "diagnostic_history",
 )

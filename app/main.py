@@ -190,6 +190,12 @@ def create_app() -> FastAPI:
             """Optional ITSM entry path — same SPA/auth; client defaults to ITSM dashboard."""
             return _spa_index()
 
+        @app.get("/monitor", include_in_schema=False)
+        @app.get("/monitor/", include_in_schema=False)
+        def ui_monitor_entry() -> FileResponse:
+            """Optional Monitoring entry path — same SPA/auth; client defaults to Monitoring dashboard."""
+            return _spa_index()
+
     @app.get("/health", tags=["health"])
     def health() -> dict[str, Any]:
         """Public liveness probe — no authentication required."""

@@ -1,4 +1,4 @@
-"""Monitoring M7 — Dashboard aggregates + ITSM suggest-incident (0.70.0)."""
+"""Monitoring M7 — Dashboard aggregates + ITSM suggest-incident (0.71.0)."""
 
 from __future__ import annotations
 
@@ -35,12 +35,12 @@ def _create_ci(
 
 
 def test_version_bump_for_monitor_m7() -> None:
-    assert __version__ == "0.70.0"
+    assert __version__ == "0.71.0"
     html = FRONTEND_INDEX.read_text(encoding="utf-8")
-    assert 'content="0.70.0"' in html
-    assert "monitor/dashboard.js?v=0.70.0" in html
-    assert "monitor/alerts.js?v=0.70.0" in html
-    assert "monitor/index.js?v=0.70.0" in html
+    assert 'content="0.71.0"' in html
+    assert "monitor/dashboard.js?v=0.71.0" in html
+    assert "monitor/alerts.js?v=0.71.0" in html
+    assert "monitor/index.js?v=0.71.0" in html
 
 
 def test_dashboard_and_suggest_ui_markers() -> None:
@@ -55,9 +55,9 @@ def test_dashboard_and_suggest_ui_markers() -> None:
         'id="tab-monitor-servers"'
     )[0]
     assert "Create incident" in html.split('id="tab-monitor-alerts"')[1].split(
-        'id="tab-cmdb-redirect-file-monitoring"'
+        'id="tab-itsm-dashboard"'
     )[0] or "draft→Apply" in html.split('id="tab-monitor-alerts"')[1].split(
-        'id="tab-cmdb-redirect-file-monitoring"'
+        'id="tab-itsm-dashboard"'
     )[0]
 
     dash_js = MONITOR_DASH_JS.read_text(encoding="utf-8")

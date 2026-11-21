@@ -4,7 +4,7 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <meta name="svrmon24-ui" content="login-enterprise-v13" />
-  <meta name="svrmon24-version" content="0.70.0" />
+  <meta name="svrmon24-version" content="0.71.0" />
   <title>SVRMON24</title>
   <link rel="icon" href="/static/img/svrmon-favicon.png" type="image/png" sizes="32x32" />
   <link rel="apple-touch-icon" href="/static/img/svrmon-apple-touch.png" sizes="180x180" />
@@ -15,11 +15,11 @@
     body.is-app .login-gate { display: none !important; }
     #authPanel, .auth-panel-legacy { display: none !important; }
   </style>
-  <link rel="stylesheet" href="/static/css/cmdb.css?v=0.70.0" />
-  <link rel="stylesheet" href="/static/css/itsm.css?v=0.70.0" />
-  <link rel="stylesheet" href="/static/css/monitor.css?v=0.70.0" />
-  <script src="/static/js/config.js?v=0.70.0"></script>
-  <script src="/static/js/brand.js?v=0.70.0"></script>
+  <link rel="stylesheet" href="/static/css/cmdb.css?v=0.71.0" />
+  <link rel="stylesheet" href="/static/css/itsm.css?v=0.71.0" />
+  <link rel="stylesheet" href="/static/css/monitor.css?v=0.71.0" />
+  <script src="/static/js/config.js?v=0.71.0"></script>
+  <script src="/static/js/brand.js?v=0.71.0"></script>
 </head>
 <body class="is-login">
   <!-- Enterprise login: showcase (left) + sign-in panel (right); stacks on small viewports -->
@@ -285,14 +285,6 @@
           <button type="button" class="nav-item" data-tab="dependencies">
             <span class="nav-ico" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M5 6h6v6H5zM13 12h6v6h-6z"/><path d="M11 9h4v4"/></svg></span>
             Dependencies
-          </button>
-          <button type="button" class="nav-item" data-tab="cmdb-redirect-file-monitoring" data-cmdb-monitor-redirect="file-monitoring">
-            <span class="nav-ico" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M4 4h7l2 2h7v14H4z"/><path d="M8 12h8M8 16h5"/></svg></span>
-            File Monitoring <span class="coming moved">Moved</span>
-          </button>
-          <button type="button" class="nav-item" data-tab="cmdb-redirect-diagnostics" data-cmdb-monitor-redirect="diagnostics">
-            <span class="nav-ico" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M9 18h6M10 21h4"/><path d="M8 14a6 6 0 1 1 8 0"/><path d="M12 3v2"/></svg></span>
-            Diagnostics <span class="coming moved">Moved</span>
           </button>
         </div>
 
@@ -1254,23 +1246,6 @@
                 <tbody id="maRulesBody"></tbody>
               </table>
             </div>
-          </section>
-        </section>
-
-        <section id="tab-cmdb-redirect-file-monitoring" class="tab-panel hidden" data-cmdb-monitor-redirect-panel="1">
-          <section class="panel">
-            <h2>File Monitoring moved to Monitoring</h2>
-            <div class="demo-banner">File Monitoring is now under the <strong>Monitoring</strong> sidebar section. This CMDB entry is a temporary redirect stub.</div>
-            <p class="hint">Deep-link <code>#tab=file-monitoring</code> still opens the same SIMULATED File Monitoring UI.</p>
-            <button type="button" class="primary" data-open-monitor-tab="file-monitoring">Open in Monitoring</button>
-          </section>
-        </section>
-        <section id="tab-cmdb-redirect-diagnostics" class="tab-panel hidden" data-cmdb-monitor-redirect-panel="1">
-          <section class="panel">
-            <h2>Diagnostics moved to Monitoring</h2>
-            <div class="demo-banner">Diagnostics is now under the <strong>Monitoring</strong> sidebar section. This CMDB entry is a temporary redirect stub.</div>
-            <p class="hint">Deep-link <code>#tab=diagnostics</code> still opens the same SIMULATED Diagnostics UI.</p>
-            <button type="button" class="primary" data-open-monitor-tab="diagnostics">Open in Monitoring</button>
           </section>
         </section>
 
@@ -3650,26 +3625,26 @@
     </div>
   </div>
 
-  <script src="/static/js/cmdb.js?v=0.70.0"></script>
-  <script src="/static/js/monitor/dashboard.js?v=0.70.0"></script>
-  <script src="/static/js/monitor/targets.js?v=0.70.0"></script>
-  <script src="/static/js/monitor/logs.js?v=0.70.0"></script>
-  <script src="/static/js/monitor/alerts.js?v=0.70.0"></script>
-  <script src="/static/js/monitor/index.js?v=0.70.0"></script>
-  <script src="/static/js/itsm/api.js?v=0.70.0"></script>
-  <script src="/static/js/itsm/routing.js?v=0.70.0"></script>
-  <script src="/static/js/itsm/deeplinks.js?v=0.70.0"></script>
-  <script src="/static/js/itsm/dashboard.js?v=0.70.0"></script>
-  <script src="/static/js/itsm/reports.js?v=0.70.0"></script>
-  <script src="/static/js/itsm/incidents.js?v=0.70.0"></script>
-  <script src="/static/js/itsm/changes.js?v=0.70.0"></script>
-  <script src="/static/js/itsm/problems.js?v=0.70.0"></script>
-  <script src="/static/js/itsm/approvals.js?v=0.70.0"></script>
-  <script src="/static/js/itsm/workflows.js?v=0.70.0"></script>
-  <script src="/static/js/itsm/sla.js?v=0.70.0"></script>
-  <script src="/static/js/itsm/knowledge.js?v=0.70.0"></script>
-  <script src="/static/js/itsm/notifications.js?v=0.70.0"></script>
-  <script src="/static/js/itsm/groups.js?v=0.70.0"></script>
-  <script src="/static/js/itsm/index.js?v=0.70.0"></script>
+  <script src="/static/js/cmdb.js?v=0.71.0"></script>
+  <script src="/static/js/monitor/dashboard.js?v=0.71.0"></script>
+  <script src="/static/js/monitor/targets.js?v=0.71.0"></script>
+  <script src="/static/js/monitor/logs.js?v=0.71.0"></script>
+  <script src="/static/js/monitor/alerts.js?v=0.71.0"></script>
+  <script src="/static/js/monitor/index.js?v=0.71.0"></script>
+  <script src="/static/js/itsm/api.js?v=0.71.0"></script>
+  <script src="/static/js/itsm/routing.js?v=0.71.0"></script>
+  <script src="/static/js/itsm/deeplinks.js?v=0.71.0"></script>
+  <script src="/static/js/itsm/dashboard.js?v=0.71.0"></script>
+  <script src="/static/js/itsm/reports.js?v=0.71.0"></script>
+  <script src="/static/js/itsm/incidents.js?v=0.71.0"></script>
+  <script src="/static/js/itsm/changes.js?v=0.71.0"></script>
+  <script src="/static/js/itsm/problems.js?v=0.71.0"></script>
+  <script src="/static/js/itsm/approvals.js?v=0.71.0"></script>
+  <script src="/static/js/itsm/workflows.js?v=0.71.0"></script>
+  <script src="/static/js/itsm/sla.js?v=0.71.0"></script>
+  <script src="/static/js/itsm/knowledge.js?v=0.71.0"></script>
+  <script src="/static/js/itsm/notifications.js?v=0.71.0"></script>
+  <script src="/static/js/itsm/groups.js?v=0.71.0"></script>
+  <script src="/static/js/itsm/index.js?v=0.71.0"></script>
 </body>
 </html>

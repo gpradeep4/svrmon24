@@ -321,6 +321,34 @@ def count_targets(*, tenant_id: str) -> int:
     return int(_targets().count_documents(tenant_filter(tid)))
 
 
+def count_metric_samples(*, tenant_id: str) -> int:
+    tid = require_tenant_id(tenant_id)
+    return int(_samples().count_documents(tenant_filter(tid)))
+
+
+def enforce_metric_samples_retention(*, tenant_id: str) -> int:
+    """Trim oldest metric samples when over ``metric_samples_retained``."""
+    tid = require_tenant_id(tenant_id)
+    limit = entitlements_service.metric_samples_retained_limit(tid)
+    if limit is None:
+        return 0
+    coll = _samples()
+    total = coll.count_documents(tenant_filter(tid))
+    if total <= limit:
+        return 0
+    excess = total - limit
+    oldest = list(
+        coll.find(tenant_filter(tid), {"_id": 1})
+        .sort([("observed_at", ASCENDING), ("_id", ASCENDING)])
+        .limit(excess)
+    )
+    if not oldest:
+        return 0
+    ids = [row["_id"] for row in oldest]
+    result = coll.delete_many({"_id": {"$in": ids}})
+    return int(result.deleted_count)
+
+
 def assert_can_create_monitor_target(tenant_id: str) -> None:
     """Enforce ``monitor_targets`` entitlement before creating a new target."""
     tid = require_tenant_id(tenant_id)
@@ -417,6 +445,8 @@ def sync_from_cmdb(*, tenant_id: str) -> dict[str, Any]:
         mode = str(doc.get("collect_mode") or "AGENTLESS").upper()
         collect_modes[mode] = collect_modes.get(mode, 0) + 1
 
+    samples_trimmed = enforce_metric_samples_retention(tenant_id=tid)
+
     return {
         "tenant_id": tid,
         "scanned": len(cis),
@@ -424,6 +454,7 @@ def sync_from_cmdb(*, tenant_id: str) -> dict[str, Any]:
         "updated": updated,
         "skipped": skipped,
         "samples_seeded": samples_seeded,
+        "samples_trimmed": samples_trimmed,
         "entitlement_limit": limit,
         "entitlement_truncated": entitlement_truncated,
         "domains": domains,

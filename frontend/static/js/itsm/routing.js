@@ -1,11 +1,13 @@
 /**
- * Bookmarkable SPA routes for ITSM (and shared tab navigation).
+ * Bookmarkable SPA routes for ITSM / Monitoring (and shared tab navigation).
  *
  * Supported hashes:
  *   #tab=itsm-incidents&component_id=srv-1
  *   #tab-itsm-incidents&component_id=srv-1   (backlog-style alias)
  *
- * Optional path entry: /itsm or /itsm/ defaults to ITSM dashboard when no hash.
+ * Optional path entries:
+ *   /itsm or /itsm/ → ITSM dashboard when no hash
+ *   /monitor or /monitor/ → Monitoring dashboard when no hash
  */
 (function (global) {
   "use strict";
@@ -24,6 +26,18 @@
     "itsm-groups",
   ]);
 
+  const MONITOR_TABS = new Set([
+    "monitor-dashboard",
+    "monitor-servers",
+    "monitor-network",
+    "monitor-applications",
+    "monitor-databases",
+    "monitor-logs",
+    "monitor-alerts",
+    "file-monitoring",
+    "diagnostics",
+  ]);
+
   let applying = false;
   let showTabFn = null;
   let onRouteApplied = null;
@@ -31,6 +45,11 @@
   function isItsmEntryPath(pathname) {
     const p = (pathname || "").replace(/\/+$/, "") || "/";
     return p === "/itsm";
+  }
+
+  function isMonitorEntryPath(pathname) {
+    const p = (pathname || "").replace(/\/+$/, "") || "/";
+    return p === "/monitor";
   }
 
   function normalizeHashRaw(hash) {
@@ -109,6 +128,9 @@
     if (isItsmEntryPath(global.location?.pathname)) {
       return { ...route, tab: "itsm-dashboard" };
     }
+    if (isMonitorEntryPath(global.location?.pathname)) {
+      return { ...route, tab: "monitor-dashboard" };
+    }
     return route;
   }
 
@@ -119,7 +141,11 @@
     try {
       if (write) {
         writeHash(r, { replace: true });
-      } else if (!global.location.hash && isItsmEntryPath(global.location.pathname)) {
+      } else if (
+        !global.location.hash &&
+        (isItsmEntryPath(global.location.pathname) ||
+          isMonitorEntryPath(global.location.pathname))
+      ) {
         writeHash({ tab: r.tab }, { replace: true });
       }
       showTabFn(r.tab);
@@ -171,7 +197,9 @@
 
   global.SVRMON24ItsmRouting = {
     ITSM_TABS,
+    MONITOR_TABS,
     isItsmEntryPath,
+    isMonitorEntryPath,
     parseAppRoute,
     buildAppHash,
     writeHash,
