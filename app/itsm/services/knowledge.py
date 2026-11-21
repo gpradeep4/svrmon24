@@ -250,16 +250,44 @@ def suggest_articles(
     tenant_id: str,
     category: str | None = None,
     tags: list[str] | None = None,
+    q: str | None = None,
     exclude_article_id: str | None = None,
     limit: int = 5,
 ) -> dict[str, Any]:
-    """Suggest published articles by category and/or overlapping tags."""
+    """Suggest published articles by category, tags, and/or query token overlap."""
     tid = require_tenant_id(tenant_id)
     limit = min(max(1, int(limit)), 25)
     clean_tags = _clean_tags(tags)
     category_norm = (category or "").strip()
+    query_text = (q or "").strip()
+    tokens = [
+        t
+        for t in re.findall(r"[a-z0-9]{3,}", query_text.lower())
+        if t
+        not in {
+            "the",
+            "and",
+            "for",
+            "with",
+            "from",
+            "this",
+            "that",
+            "have",
+            "been",
+            "were",
+            "are",
+            "was",
+            "not",
+            "but",
+            "can",
+            "all",
+            "any",
+            "user",
+            "users",
+        }
+    ][:24]
 
-    if not category_norm and not clean_tags:
+    if not category_norm and not clean_tags and not tokens:
         return {"items": [], "count": 0, "tenant_id": tid, "match": "none"}
 
     or_clauses: list[dict[str, Any]] = []
@@ -274,44 +302,69 @@ def suggest_articles(
         )
     if clean_tags:
         or_clauses.append({"tags": {"$in": clean_tags}})
+    for tok in tokens[:8]:
+        rx = {"$regex": re.escape(tok), "$options": "i"}
+        or_clauses.append({"title": rx})
+        or_clauses.append({"body": rx})
+        or_clauses.append({"tags": tok})
 
-    query: dict[str, Any] = {"status": "published", "$or": or_clauses}
+    query: dict[str, Any] = {"status": "published"}
+    if or_clauses:
+        query["$or"] = or_clauses
     if exclude_article_id:
         query["article_id"] = {"$ne": exclude_article_id.strip()}
     scoped = merge_tenant_filter(query, tid)
 
     coll = _coll()
     candidates = list(
-        coll.find(scoped).sort([("updated_at", DESCENDING)]).limit(limit * 4)
+        coll.find(scoped).sort([("updated_at", DESCENDING)]).limit(limit * 6)
     )
 
-    scored: list[tuple[int, dict[str, Any]]] = []
+    scored: list[tuple[int, dict[str, Any], str]] = []
     cat_lower = category_norm.lower()
     tag_set = set(clean_tags)
+    token_set = set(tokens)
     for doc in candidates:
         score = 0
+        reasons: list[str] = []
         doc_cat = str(doc.get("category") or "").strip().lower()
         if cat_lower and doc_cat == cat_lower:
             score += 10
+            reasons.append("category")
         doc_tags = {str(t).lower() for t in (doc.get("tags") or [])}
         overlap = len(tag_set & doc_tags)
-        score += overlap * 3
+        if overlap:
+            score += overlap * 3
+            reasons.append(f"tags×{overlap}")
+        blob = " ".join(
+            [
+                str(doc.get("title") or ""),
+                str(doc.get("body") or "")[:2000],
+                " ".join(doc_tags),
+            ]
+        ).lower()
+        tok_hits = [t for t in token_set if t in blob]
+        if tok_hits:
+            score += len(tok_hits) * 2
+            reasons.append(f"tokens:{','.join(tok_hits[:4])}")
         if score > 0:
-            scored.append((score, doc))
+            scored.append((score, doc, "; ".join(reasons) or "overlap"))
     scored.sort(key=lambda pair: (-pair[0], str(pair[1].get("updated_at") or "")))
 
     items = []
-    for score, doc in scored[:limit]:
+    for score, doc, reason in scored[:limit]:
         row = serialize_document(doc)
         if isinstance(row, dict):
             row["match_score"] = score
+            row["match_reason"] = reason
             items.append(row)
 
+    match_mode = "category_tags_or_tokens" if tokens else "category_or_tags"
     return {
         "items": items,
         "count": len(items),
         "tenant_id": tid,
-        "match": "category_or_tags",
+        "match": match_mode,
     }
 
 
