@@ -21,7 +21,8 @@ RESOURCE_CUSTOM_RECORDS = "custom_records"
 RESOURCE_MAX_DEPENDENCY_DEPTH = "max_dependency_depth"
 # Max SIMULATED diagnostic history rows a tenant may retain / create.
 RESOURCE_MAX_DIAGNOSTIC_RUNS = "max_diagnostic_runs"
-# Max Ollama-sourced AI analyses a tenant may store (rule fallback unlimited).
+# Max generative AI assists a tenant may store (Ollama + optional cloud
+# suggestions). Rule fallback is unlimited. Key name kept for plan compatibility.
 RESOURCE_MAX_OLLAMA_ANALYSES = "max_ollama_analyses"
 
 PLAN_LEGACY_UNLIMITED = "legacy_unlimited"
@@ -48,7 +49,8 @@ _PLAN_CATALOG: dict[str, dict[str, Any]] = {
         "notes": (
             "Default entitlements for migration / unlimited tenants. "
             "No payment provider is wired. "
-            "Ollama AI also requires OLLAMA_ENABLED=true; shared-local contention "
+            "Generative AI requires OLLAMA_ENABLED=true and/or optional cloud "
+            "suggestions (tenant opt-in + BYO key env ref). Shared-local contention "
             "applies when multiple tenants hit one Ollama host."
         ),
     },
@@ -247,7 +249,7 @@ def assert_can_run_diagnostic(tenant_id: str) -> None:
 
 
 def ollama_analysis_limit(tenant_id: str) -> int | None:
-    """Max Ollama-sourced analyses allowed for tenant, or None when unlimited."""
+    """Max generative AI assists allowed for tenant, or None when unlimited."""
     entitlements = get_tenant_entitlements(tenant_id)
     limit = entitlements["limits"].get(RESOURCE_MAX_OLLAMA_ANALYSES)
     if limit is None:
@@ -256,17 +258,25 @@ def ollama_analysis_limit(tenant_id: str) -> int | None:
 
 
 def count_ollama_analyses(tenant_id: str) -> int:
-    """Count stored Ollama-sourced analyses for the tenant (history entries)."""
-    from ..cmdb.services import diagnostics as diagnostics_service
+    """Count stored generative AI uses for the tenant.
 
-    return diagnostics_service.count_ollama_analyses(tenant_id=tenant_id)
+    Includes diagnostic history entries with ``source`` in
+    ``ollama`` / ``cloud_suggestion`` plus non-diagnostic ``ai_assist_usage``
+    rows. Rule-based fallbacks are excluded.
+    """
+    from ..cmdb.services import diagnostics as diagnostics_service
+    from . import ai_facade as ai_facade_service
+
+    diag = diagnostics_service.count_ollama_analyses(tenant_id=tenant_id)
+    assist = ai_facade_service.count_assist_usage(tenant_id=tenant_id)
+    return int(diag) + int(assist)
 
 
 def ollama_analysis_allowed(tenant_id: str) -> dict[str, Any]:
-    """Snapshot of whether this tenant may call Ollama (entitlements only).
+    """Snapshot of whether this tenant may call generative AI (entitlements only).
 
-    Does not check OLLAMA_ENABLED — callers combine with settings. Rule-based
-    fallback is never blocked by this limit.
+    Does not check OLLAMA_ENABLED / cloud flags — callers combine with settings.
+    Rule-based fallback is never blocked by this limit.
     """
     tid = require_tenant_id(tenant_id)
     limit = ollama_analysis_limit(tid)
@@ -290,19 +300,19 @@ def ollama_analysis_allowed(tenant_id: str) -> dict[str, Any]:
 
 
 def assert_can_run_ollama_analysis(tenant_id: str) -> None:
-    """Enforce Ollama analyze against tenant entitlements.
+    """Enforce generative AI assist against tenant entitlements.
 
     Unlimited (None) always passes. When a numeric limit is set, count stored
-    Ollama-sourced analysis history entries and raise EntitlementError (403)
-    at/over the ceiling. Rule-based fallback remains available regardless.
+    generative uses and raise EntitlementError (403) at/over the ceiling.
+    Rule-based fallback remains available regardless.
     """
     tid = require_tenant_id(tenant_id)
     status = ollama_analysis_allowed(tid)
     if status["allowed"]:
         return
     raise EntitlementError(
-        f"Ollama analysis limit reached for this tenant "
+        f"Generative AI assist limit reached for this tenant "
         f"({status['used']}/{status['limit']}). Upgrade entitlements for more "
-        "local Ollama analyses, or use rule-based fallback.",
+        "Ollama/cloud assists, or use rule-based fallback.",
         status_code=403,
     )

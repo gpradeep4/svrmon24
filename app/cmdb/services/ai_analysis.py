@@ -1,5 +1,7 @@
-"""AI-assisted diagnostic analysis (local Ollama) with rule-based fallback.
+"""AI-assisted diagnostic analysis via shared AI facade + rule-based fallback.
 
+Default path: local Ollama (disabled unless enabled). Optional cloud suggestion
+provider may run when platform-enabled + tenant opt-in + BYO key env ref.
 Never invents metrics/logs/verification results. Never auto-executes remediation.
 Analysis derived from SIMULATED diagnostics is clearly labeled.
 """
@@ -11,9 +13,10 @@ import uuid
 from datetime import datetime, timezone
 from typing import Any
 
-from ...config import get_settings
 from ...serialization import serialize_document
 from . import diagnostics as diagnostics_service
+from ...services import ai_facade as ai_facade_service
+from ...services.ai_providers import SOURCE_CLOUD, SOURCE_OLLAMA, SOURCE_RULE
 from ...services.ollama_client import OllamaClient, OllamaError
 
 logger = logging.getLogger(__name__)
@@ -292,15 +295,14 @@ def analyze_with_ollama(
     *,
     client: OllamaClient | None = None,
 ) -> dict[str, Any]:
-    """Call Ollama; raise OllamaError on failure (caller may fallback)."""
-    settings = get_settings()
-    ollama = client or OllamaClient.from_settings(settings)
+    """Call Ollama directly; raise OllamaError on failure (tests / low-level use)."""
+    ollama = client or OllamaClient.from_settings()
     evidence_label = _evidence_label(diagnostic)
     raw = ollama.chat_json(_build_prompt_messages(diagnostic))
     _validate_model_analysis(raw)
     return _normalize_analysis_payload(
         raw,
-        source="ollama",
+        source=SOURCE_OLLAMA,
         model=ollama.model,
         evidence_label=evidence_label,
     )
@@ -315,9 +317,9 @@ def analyze_diagnostic(
 ) -> dict[str, Any]:
     """Produce analysis, persist onto the diagnostic record, return updated record.
 
-    Ollama is used only when ``OLLAMA_ENABLED=true`` and the tenant still has
-    ``max_ollama_analyses`` headroom. Otherwise (or on Ollama errors) the
-    deterministic rule-based fallback runs. No external model providers.
+    Uses the shared AI facade: optional cloud suggestions (opt-in) → local Ollama
+    when ``OLLAMA_ENABLED=true`` and entitlement headroom remains → deterministic
+    rule-based fallback. Generative failures never raise past this boundary.
     """
     diagnostic = diagnostics_service.get_diagnostic(
         diagnostic_id, tenant_id=tenant_id
@@ -325,48 +327,38 @@ def analyze_diagnostic(
     if diagnostic is None:
         raise AnalysisError(f"Diagnostic '{diagnostic_id}' not found", status_code=404)
 
-    analysis: dict[str, Any]
-    if force_fallback:
-        analysis = build_rule_based_fallback(
-            diagnostic, reason="forced_fallback_for_tests_or_operator_request"
+    evidence_label = _evidence_label(diagnostic)
+
+    def _fallback(reason: str) -> dict[str, Any]:
+        return build_rule_based_fallback(diagnostic, reason=reason)
+
+    # Diagnostic history already counts toward entitlements — do not double-debit
+    # via ai_assist_usage.
+    result = ai_facade_service.safe_run_structured_task(
+        task_key="diagnostics.analyze",
+        tenant_id=tenant_id,
+        messages=_build_prompt_messages(diagnostic),
+        fallback_builder=_fallback,
+        validate_fn=_validate_model_analysis,
+        force_fallback=force_fallback,
+        record_usage=False,
+        ollama_client=client,
+    )
+
+    if result.source in {SOURCE_OLLAMA, SOURCE_CLOUD}:
+        analysis = _normalize_analysis_payload(
+            result.payload,
+            source=result.source,
+            model=result.model,
+            evidence_label=evidence_label,
         )
     else:
-        settings = get_settings()
-        if not settings.ollama_enabled:
-            analysis = build_rule_based_fallback(
-                diagnostic,
-                reason="ollama_disabled: set OLLAMA_ENABLED=true to use local Ollama",
+        # Fallback builder already returns a normalized analysis document.
+        analysis = result.payload
+        if not isinstance(analysis, dict) or analysis.get("source") != SOURCE_RULE:
+            analysis = _fallback(
+                result.fallback_reason or "rule_based_fallback"
             )
-        else:
-            from ...services import entitlements as entitlements_service
-            from ...services.entitlements import EntitlementError
-
-            try:
-                entitlements_service.assert_can_run_ollama_analysis(tenant_id)
-            except EntitlementError as exc:
-                logger.info(
-                    "ollama_entitlement_fallback diagnostic_id=%s detail=%s",
-                    diagnostic_id,
-                    exc.message,
-                )
-                analysis = build_rule_based_fallback(
-                    diagnostic,
-                    reason=f"ollama_entitlement_limit: {exc.message}",
-                )
-            else:
-                try:
-                    analysis = analyze_with_ollama(diagnostic, client=client)
-                except OllamaError as exc:
-                    logger.warning(
-                        "ollama_analysis_fallback diagnostic_id=%s kind=%s detail=%s",
-                        diagnostic_id,
-                        exc.kind,
-                        exc.message,
-                    )
-                    analysis = build_rule_based_fallback(
-                        diagnostic,
-                        reason=f"ollama_{exc.kind}: {exc.message}",
-                    )
 
     updated = diagnostics_service.attach_ai_analysis(
         diagnostic_id, analysis, tenant_id=tenant_id
@@ -374,59 +366,9 @@ def analyze_diagnostic(
     return updated
 
 
-SHARED_LOCAL_CONTENTION_NOTE = (
-    "Ollama is a shared local process (one host/GPU/CPU pool). Concurrent tenant "
-    "analyze requests contend for the same model capacity — expect queueing, "
-    "timeouts, or slower responses under load. There is no per-tenant model "
-    "isolation in v1; disable Ollama or lower max_ollama_analyses if contention "
-    "hurts other workloads. No external/cloud model providers are used."
-)
+SHARED_LOCAL_CONTENTION_NOTE = ai_facade_service.SHARED_LOCAL_CONTENTION_NOTE
 
 
 def ollama_runtime_status(*, tenant_id: str) -> dict[str, Any]:
     """Combined enable flag + entitlement + optional probe for Diagnostics UI."""
-    settings = get_settings()
-    from ...services import entitlements as entitlements_service
-
-    entitlement = entitlements_service.ollama_analysis_allowed(tenant_id)
-    base: dict[str, Any] = {
-        "enabled": bool(settings.ollama_enabled),
-        "base_url": settings.ollama_url,
-        "configured_model": settings.ollama_model,
-        "timeout_seconds": settings.ollama_timeout_seconds,
-        "entitlement": entitlement,
-        "shared_local_contention": SHARED_LOCAL_CONTENTION_NOTE,
-        "external_providers": False,
-        "rule_fallback_always_available": True,
-    }
-    if not settings.ollama_enabled:
-        base.update(
-            {
-                "ok": False,
-                "error": "disabled",
-                "detail": "OLLAMA_ENABLED is false (default). Set OLLAMA_ENABLED=true to probe/use local Ollama.",
-                "will_use_ollama": False,
-            }
-        )
-        return base
-
-    if entitlement.get("limited"):
-        probe = OllamaClient.from_settings(settings).is_available()
-        base.update(probe)
-        base.update(
-            {
-                "will_use_ollama": False,
-                "error": base.get("error") or "entitlement_limit",
-                "detail": (
-                    f"Tenant Ollama analysis limit reached "
-                    f"({entitlement.get('used')}/{entitlement.get('limit')}). "
-                    "Analyze will use rule-based fallback."
-                ),
-            }
-        )
-        return base
-
-    probe = OllamaClient.from_settings(settings).is_available()
-    base.update(probe)
-    base["will_use_ollama"] = bool(probe.get("ok"))
-    return base
+    return ai_facade_service.ai_runtime_status(tenant_id=tenant_id)

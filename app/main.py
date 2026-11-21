@@ -28,6 +28,7 @@ from .cmdb.routers import dependencies as dependencies_router
 from .cmdb.routers import diagnostics as diagnostics_router
 from .cmdb.routers import file_monitoring as file_monitoring_router
 from .cmdb.routers import relationships as relationships_router
+from .routers import ai as ai_router
 from .routers import audit as audit_router
 from .routers import auth_routes
 from .routers import entitlements as entitlements_router
@@ -153,6 +154,7 @@ def create_app() -> FastAPI:
     app.include_router(custom_tables_router.router)
     app.include_router(custom_tables_router.entity_refs_router)
     app.include_router(entitlements_router.router)
+    app.include_router(ai_router.router)
     app.include_router(relationships_router.router)
     app.include_router(dependencies_router.router)
     app.include_router(diagnostics_router.router)

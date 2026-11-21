@@ -82,11 +82,29 @@ class Settings(BaseSettings):
 
     # Local Ollama (Phase 7 + Master Phase 12 entitlements). Prefer OLLAMA_URL;
     # OLLAMA_HOST is accepted as alias. Disabled unless explicitly enabled —
-    # no external model providers; rule-based fallback always remains available.
+    # default local AI path; rule-based fallback always remains available.
     ollama_enabled: bool = Field(default=False, alias="OLLAMA_ENABLED")
     ollama_url: str = Field(default="http://localhost:11434", alias="OLLAMA_URL")
     ollama_model: str = Field(default="llama3.2:3b", alias="OLLAMA_MODEL")
     ollama_timeout_seconds: float = Field(default=60.0, alias="OLLAMA_TIMEOUT_SECONDS")
+
+    # Optional OpenAI-compatible cloud suggestion provider (assist only).
+    # Disabled by default. Requires platform flag + tenant opt-in + API key via
+    # env/secret ref (never store the key in Mongo). Failures fall back to
+    # Ollama (if enabled) then rule-based fallback. Never auto-transitions.
+    ai_cloud_suggestions_enabled: bool = Field(
+        default=False, alias="AI_CLOUD_SUGGESTIONS_ENABLED"
+    )
+    ai_cloud_base_url: str = Field(
+        default="https://api.openai.com/v1", alias="AI_CLOUD_BASE_URL"
+    )
+    ai_cloud_model: str = Field(default="gpt-4o-mini", alias="AI_CLOUD_MODEL")
+    ai_cloud_api_key_env_ref: str = Field(
+        default="AI_CLOUD_API_KEY", alias="AI_CLOUD_API_KEY_ENV_REF"
+    )
+    ai_cloud_timeout_seconds: float = Field(
+        default=60.0, alias="AI_CLOUD_TIMEOUT_SECONDS"
+    )
 
     # ITSM in-process job runner (N2). Off by default — enable for SLA sweeper /
     # delivery retries / report-schedule hook without opening the UI.

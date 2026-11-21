@@ -1,4 +1,4 @@
-"""ITSM N7 — workflow auto-triggers on_create / on_status / schedule (0.52.0)."""
+"""ITSM N7 — workflow auto-triggers on_create / on_status / schedule (0.53.0)."""
 
 from __future__ import annotations
 
@@ -14,7 +14,7 @@ from fastapi.testclient import TestClient
 
 
 def test_version_bump_for_workflow_triggers_slice() -> None:
-    assert __version__ == "0.52.0"
+    assert __version__ == "0.53.0"
 
 
 def _simple_graph(*, target_status: str = "submitted") -> dict:
