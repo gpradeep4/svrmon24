@@ -51,6 +51,18 @@
     createIncident: (payload) => itsmSend("/incidents", "POST", payload),
     updateIncident: (id, payload) =>
       itsmSend(`/incidents/${encodeURIComponent(id)}`, "PATCH", payload),
+    triageIncident: (id, payload) =>
+      itsmSend(
+        `/incidents/${encodeURIComponent(id)}/ai/triage`,
+        "POST",
+        payload || {}
+      ),
+    summarizeIncident: (id, payload) =>
+      itsmSend(
+        `/incidents/${encodeURIComponent(id)}/ai/summarize`,
+        "POST",
+        payload || {}
+      ),
     transitionIncident: (id, payload) =>
       itsmSend(`/incidents/${encodeURIComponent(id)}/transition`, "POST", payload),
     addCiLink: (id, componentId) =>

@@ -5,6 +5,7 @@ from __future__ import annotations
 from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
+from pydantic import BaseModel, Field
 
 from ...permissions import PERM_ITSM_INCIDENT_READ, PERM_ITSM_INCIDENT_WRITE, require_permission
 from ...services import audit as audit_service
@@ -15,6 +16,7 @@ from ..models.incidents import (
     IncidentTransition,
     IncidentUpdate,
 )
+from ..services import ai_assist as ai_assist_service
 from ..services import incidents as incidents_service
 from ..services.incidents import IncidentError
 
@@ -27,6 +29,10 @@ def _raise(exc: IncidentError) -> None:
 
 def _actor(tenant: TenantContext) -> dict[str, Any]:
     return audit_service.actor_from_tenant(tenant)
+
+
+class IncidentAiRequest(BaseModel):
+    force_fallback: bool = Field(default=False)
 
 
 @router.get("")
@@ -96,6 +102,42 @@ def get_incident(
             status_code=404, detail=f"Incident '{incident_id}' not found"
         )
     return doc
+
+
+@router.post("/{incident_id}/ai/triage")
+def incident_ai_triage(
+    incident_id: str,
+    payload: IncidentAiRequest | None = None,
+    tenant: TenantContext = Depends(require_permission(PERM_ITSM_INCIDENT_READ)),
+) -> dict[str, Any]:
+    """Assist-only triage suggestion. Does not write — Apply via PATCH."""
+    try:
+        return ai_assist_service.suggest_incident_triage(
+            incident_id,
+            tenant_id=tenant.tenant_id,
+            force_fallback=bool(payload.force_fallback) if payload else False,
+        )
+    except IncidentError as exc:
+        _raise(exc)
+        raise  # pragma: no cover
+
+
+@router.post("/{incident_id}/ai/summarize")
+def incident_ai_summarize(
+    incident_id: str,
+    payload: IncidentAiRequest | None = None,
+    tenant: TenantContext = Depends(require_permission(PERM_ITSM_INCIDENT_READ)),
+) -> dict[str, Any]:
+    """Assist-only summary / resolution draft. Never auto-transitions."""
+    try:
+        return ai_assist_service.summarize_incident(
+            incident_id,
+            tenant_id=tenant.tenant_id,
+            force_fallback=bool(payload.force_fallback) if payload else False,
+        )
+    except IncidentError as exc:
+        _raise(exc)
+        raise  # pragma: no cover
 
 
 @router.patch("/{incident_id}")
