@@ -1,4 +1,4 @@
-/* global SVRMON24MonitorDashboard, SVRMON24MonitorTargets */
+/* global SVRMON24MonitorDashboard, SVRMON24MonitorTargets, SVRMON24MonitorLogs */
 (function (global) {
   "use strict";
 
@@ -66,6 +66,10 @@
       global.SVRMON24MonitorTargets.bindApi(api, { toast, can });
       global.SVRMON24MonitorTargets.initTargetsUi();
     }
+    if (api && global.SVRMON24MonitorLogs?.bindApi) {
+      global.SVRMON24MonitorLogs.bindApi(api, { toast, can });
+      global.SVRMON24MonitorLogs.initLogsUi();
+    }
 
     if (pageMeta) {
       pageMeta["monitor-dashboard"] = {
@@ -90,7 +94,7 @@
       };
       pageMeta["monitor-logs"] = {
         title: "Logs",
-        subtitle: "Placeholder — SIMULATED log streams (later slice)",
+        subtitle: "SIMULATED log streams · search · no live ingest",
       };
       pageMeta["monitor-alerts"] = {
         title: "Alerts",
@@ -133,12 +137,22 @@
         if (global.SVRMON24MonitorTargets?.onShowTab) {
           global.SVRMON24MonitorTargets.onShowTab(name);
         }
+        if (global.SVRMON24MonitorLogs?.onShowTab) {
+          global.SVRMON24MonitorLogs.onShowTab(name);
+        }
       });
     }
 
     // Hide Sync buttons without write permission.
     document.querySelectorAll("[data-monitor-perm-write]").forEach((btn) => {
       const perm = btn.getAttribute("data-monitor-perm-write");
+      if (perm && typeof can === "function") {
+        btn.hidden = !can(perm);
+      }
+    });
+    // Hide admin-only controls (e.g. simulate-tick).
+    document.querySelectorAll("[data-monitor-perm-admin]").forEach((btn) => {
+      const perm = btn.getAttribute("data-monitor-perm-admin");
       if (perm && typeof can === "function") {
         btn.hidden = !can(perm);
       }

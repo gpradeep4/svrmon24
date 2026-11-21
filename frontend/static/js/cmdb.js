@@ -631,7 +631,7 @@
     },
     "monitor-logs": {
       title: "Logs",
-      subtitle: "Placeholder — SIMULATED log streams (later slice)",
+      subtitle: "SIMULATED log streams · search · no live ingest",
     },
     "monitor-alerts": {
       title: "Alerts",

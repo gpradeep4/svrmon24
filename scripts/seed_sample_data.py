@@ -547,6 +547,28 @@ def seed() -> dict[str, int]:
     )
     stats["created"] += int(mt.get("created") or 0) + int(mt.get("samples_seeded") or 0)
 
+    print("Seeding SIMULATED log streams + events (simulate-tick)…")
+    from app.monitor.services import logs as monitor_logs_service
+
+    # ensure_default_streams is idempotent; tick appends demo events.
+    streams = monitor_logs_service.ensure_default_streams(tenant_id=SEED_TENANT_ID)
+    existing_events = monitor_logs_service.count_log_events(tenant_id=SEED_TENANT_ID)
+    if existing_events == 0:
+        tick = monitor_logs_service.simulate_tick(
+            tenant_id=SEED_TENANT_ID, events_per_stream=2
+        )
+        _ok(
+            f"log streams={tick.get('streams_ensured')} "
+            f"events={tick.get('events_created')}"
+        )
+        stats["created"] += int(tick.get("events_created") or 0) + len(streams)
+    else:
+        _skip(
+            f"log events already present "
+            f"(streams={len(streams)} events={existing_events})"
+        )
+        stats["skipped"] += 1
+
     return stats
 
 
