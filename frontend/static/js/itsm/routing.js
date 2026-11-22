@@ -31,6 +31,7 @@
     "monitor-servers",
     "monitor-network",
     "monitor-applications",
+    "monitor-middleware",
     "monitor-databases",
     "monitor-logs",
     "monitor-alerts",

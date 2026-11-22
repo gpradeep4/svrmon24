@@ -97,6 +97,10 @@
         title: "Applications (Monitoring)",
         subtitle: "SIMULATED application health · sync from CMDB",
       };
+      pageMeta["monitor-middleware"] = {
+        title: "Middleware (Monitoring)",
+        subtitle: "SIMULATED middleware health · sync from CMDB",
+      };
       pageMeta["monitor-databases"] = {
         title: "Databases (Monitoring)",
         subtitle: "SIMULATED database health · sync from CMDB",

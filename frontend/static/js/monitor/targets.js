@@ -10,6 +10,7 @@
     "monitor-servers": "server",
     "monitor-network": "network",
     "monitor-applications": "application",
+    "monitor-middleware": "middleware",
     "monitor-databases": "database",
   };
 
@@ -17,6 +18,7 @@
     server: "mtSrv",
     network: "mtNet",
     application: "mtApp",
+    middleware: "mtMw",
     database: "mtDb",
   };
 
@@ -27,6 +29,8 @@
       "SIMULATED — switches, routers, firewalls, load balancers, APs. Live ICMP/SNMP stay off until gates + allowlist.",
     application:
       "SIMULATED — application health from CMDB Application CIs. Live APM stays off.",
+    middleware:
+      "SIMULATED — middleware health from CMDB Middleware CIs. Live HTTP/TCP checks stay off until gates + allowlist.",
     database:
       "SIMULATED — database health from CMDB Database CIs. Live DB agents stay off.",
   };
@@ -38,6 +42,8 @@
       "Live gates ON — rows may be SIMULATED or LIVE (agentless ICMP/SNMP/HTTP/TCP). Per-row Mode badge shows execution_mode.",
     application:
       "Live gates ON — series may be SIMULATED or LIVE. Application live checks use agentless HTTP/TCP when configured.",
+    middleware:
+      "Live gates ON — series may be SIMULATED or LIVE. Middleware live checks use agentless HTTP/TCP from CMDB listen fields.",
     database:
       "Live gates ON — series may be SIMULATED or LIVE. Database live checks use agentless paths when configured.",
   };
@@ -196,6 +202,10 @@
             row.live_status_reason && String(row.execution_mode).toUpperCase() === "LIVE"
               ? ` <span class="hint" title="${esc(row.live_status_reason)}">·</span>`
               : "";
+          const suggestBtn =
+            domain === "middleware"
+              ? `<button type="button" class="ghost mt-suggest-check" data-target-id="${esc(row.target_id)}">Suggest check</button>`
+              : "";
           return `<tr data-target-id="${esc(row.target_id)}" data-component-id="${esc(row.component_id)}" data-execution-mode="${esc(row.execution_mode || "SIMULATED")}">
             <td>${esc(row.name_snapshot || "—")}</td>
             <td class="mono">${esc(row.component_id)}</td>
@@ -207,6 +217,7 @@
             <td class="hint">${esc(metrics)}</td>
             <td>
               <button type="button" class="ghost mt-open-cmdb" data-id="${esc(row.component_id)}" data-type="${esc(row.component_type || "")}">Open CI</button>
+              ${suggestBtn}
             </td>
           </tr>`;
         })
@@ -216,10 +227,62 @@
           openCmdbCi(btn.getAttribute("data-id"), btn.getAttribute("data-type"));
         });
       });
+      body.querySelectorAll(".mt-suggest-check").forEach((btn) => {
+        btn.addEventListener("click", () => {
+          suggestCheck(btn.getAttribute("data-target-id"), { toast: notify });
+        });
+      });
     } catch (err) {
       const colSpan = domain === "server" || domain === "network" ? 9 : 8;
       body.innerHTML = `<tr><td colspan="${colSpan}" class="hint">${esc(err.message || "Failed to load targets")}</td></tr>`;
       if (typeof notify === "function") notify(err.message || "Targets load failed", true);
+    }
+  }
+
+  async function suggestCheck(targetId, { toast } = {}) {
+    const notify = toast || toastFn;
+    const tid = (targetId || "").trim();
+    if (!apiFn || !tid) return;
+    try {
+      const result = await apiFn(
+        `/api/monitor/targets/${encodeURIComponent(tid)}/suggest-check`
+      );
+      if (!result.draft) {
+        if (typeof notify === "function") {
+          notify(result.reason || "No check draft available", true);
+        }
+        return;
+      }
+      if (!canFn("monitor:targets:write")) {
+        if (typeof notify === "function") {
+          notify(
+            `Draft ${result.draft.protocol} check ready — missing monitor:targets:write to save`,
+            true
+          );
+        }
+        return;
+      }
+      const save = window.confirm(
+        `Save suggested ${result.draft.protocol.toUpperCase()} check for ${tid}?\n` +
+          JSON.stringify(result.draft.endpoint || {}, null, 2)
+      );
+      if (!save) {
+        if (typeof notify === "function") {
+          notify("Check draft discarded (not saved)", false);
+        }
+        return;
+      }
+      await apiFn("/api/monitor/checks", {
+        method: "POST",
+        body: JSON.stringify(result.draft),
+      });
+      if (typeof notify === "function") {
+        notify("Suggested check saved (human confirm)", false);
+      }
+    } catch (err) {
+      if (typeof notify === "function") {
+        notify(err.message || "Suggest check failed", true);
+      }
     }
   }
 
@@ -290,6 +353,7 @@
     initTargetsUi,
     loadDomain,
     syncFromCmdb,
+    suggestCheck,
     onShowTab,
     DOMAIN_TABS,
   };

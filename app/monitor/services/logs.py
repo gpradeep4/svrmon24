@@ -227,6 +227,7 @@ def ensure_default_streams(*, tenant_id: str) -> list[dict[str, Any]]:
                 "network": "network",
                 "application": "application",
                 "database": "database",
+                "middleware": "application",
             }
             mode = str(target.get("collect_mode") or _stable_collect_mode(cid)).upper()
             if mode not in {"AGENTLESS", "AGENT"}:
