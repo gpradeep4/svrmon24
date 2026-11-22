@@ -6,7 +6,6 @@ from typing import Any
 
 from ...config import Settings, get_settings
 from ..models.literals import DOMAINS, EXECUTION_MODES
-from . import agent_ingest as agent_ingest_service
 from . import live_gates as live_gates_service
 from . import mtls as mtls_service
 
@@ -44,6 +43,9 @@ def module_meta(
     tenant_id: str | None = None,
 ) -> dict[str, Any]:
     """Stable meta payload for ``GET /api/monitor/meta``."""
+    # Lazy import avoids logs → meta → agent_ingest → ingest → logs cycles.
+    from . import agent_ingest as agent_ingest_service
+
     cfg = settings or get_settings()
     tid = (tenant_id or "").strip()
     gates: dict[str, Any]
