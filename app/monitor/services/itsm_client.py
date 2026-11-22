@@ -1,7 +1,11 @@
-"""ITSM boundary helpers for Monitoring — draft payloads only.
+"""ITSM boundary helpers for Monitoring — drafts + optional auto-create.
 
-Monitoring never writes ITSM collections. Incident create happens only when
-the human applies a draft via the ITSM API (``POST /api/itsm/incidents``).
+Monitoring never writes ITSM Mongo collections directly. Incident create happens
+via the ITSM **service** (same shape as ``POST /api/itsm/incidents``):
+
+* Human path: suggest draft → Apply via ITSM API.
+* Auto path (L8): tenant ``monitor_auto_incident_opt_in`` + rule ``auto_incident``
+  → ``create_incident_from_alert`` with actor ``monitor-auto-incident``.
 """
 
 from __future__ import annotations
@@ -16,16 +20,26 @@ SEVERITY_TO_PRIORITY: dict[str, str] = {
     "info": "p4",
 }
 
+AUTO_INCIDENT_ACTOR: dict[str, str] = {
+    "user_id": "monitor-auto-incident",
+    "username": "monitor-auto-incident",
+}
+
 
 def severity_to_priority(severity: str | None) -> str:
     key = str(severity or "warning").strip().lower()
     return SEVERITY_TO_PRIORITY.get(key, "p3")
 
 
-def draft_incident_from_alert(alert: dict[str, Any]) -> dict[str, Any]:
+def draft_incident_from_alert(
+    alert: dict[str, Any],
+    *,
+    auto_create: bool = False,
+) -> dict[str, Any]:
     """Build an ITSM ``IncidentCreate``-shaped draft from a monitor alert.
 
-    Returns suggestion JSON only — does **not** create an incident.
+    When ``auto_create`` is False (default), returns suggestion JSON only —
+    does **not** create an incident.
     """
     severity = str(alert.get("severity") or "warning").lower()
     priority = severity_to_priority(severity)
@@ -59,16 +73,29 @@ def draft_incident_from_alert(alert: dict[str, Any]) -> dict[str, Any]:
                 bits.append(f"{key}={ref.get(key)}")
         evidence_lines.append(" ".join(bits))
 
-    desc_parts = [
-        "Draft incident suggested from Monitoring alert (SIMULATED).",
-        "Human must Apply via ITSM — Monitoring does not auto-create tickets.",
-        "",
-        f"Alert ID: {alert_id}",
-        f"Rule: {rule_name}",
-        f"Severity: {severity}",
-        f"Status: {alert.get('status') or '—'}",
-        f"Summary: {summary}",
-    ]
+    if auto_create:
+        desc_parts = [
+            "Incident auto-created from Monitoring alert "
+            "(tenant monitor_auto_incident_opt_in + rule.auto_incident).",
+            "Actor: monitor-auto-incident. No AI auto-approve of unrelated flows.",
+            "",
+        ]
+    else:
+        desc_parts = [
+            "Draft incident suggested from Monitoring alert.",
+            "Human must Apply via ITSM — Monitoring does not auto-create "
+            "unless tenant opt-in + rule.auto_incident (L8).",
+            "",
+        ]
+    desc_parts.extend(
+        [
+            f"Alert ID: {alert_id}",
+            f"Rule: {rule_name}",
+            f"Severity: {severity}",
+            f"Status: {alert.get('status') or '—'}",
+            f"Summary: {summary}",
+        ]
+    )
     if component_id:
         desc_parts.append(f"Component ID: {component_id}")
     if alert.get("target_id"):
@@ -99,9 +126,43 @@ def draft_incident_from_alert(alert: dict[str, Any]) -> dict[str, Any]:
         "alert_id": alert_id,
         "suggested_incident_id": alert.get("suggested_incident_id"),
         "apply_via": "POST /api/itsm/incidents",
-        "auto_create": False,
+        "auto_create": bool(auto_create),
         "notice": (
-            "Draft only. Creating an incident requires itsm:incident:write "
-            "and an explicit user Apply action — Monitoring never writes ITSM."
+            "Auto-created via ITSM service (actor=monitor-auto-incident)."
+            if auto_create
+            else (
+                "Draft only. Creating an incident requires itsm:incident:write "
+                "and an explicit user Apply action — or tenant auto-incident "
+                "opt-in with rule.auto_incident (L8). Monitoring never writes "
+                "ITSM Mongo directly."
+            )
         ),
     }
+
+
+def create_incident_from_alert(
+    alert: dict[str, Any],
+    *,
+    tenant_id: str,
+) -> dict[str, Any]:
+    """Create an ITSM incident via the ITSM service client (no cross-DB write).
+
+    Uses the same ``IncidentCreate`` shape as human Apply. Actor is the
+    Monitoring system principal ``monitor-auto-incident``.
+    """
+    from ...itsm.models.incidents import IncidentCreate
+    from ...itsm.services import incidents as incidents_service
+
+    draft = draft_incident_from_alert(alert, auto_create=True)
+    payload = IncidentCreate(
+        title=draft["title"],
+        description=draft.get("description"),
+        priority=draft.get("priority") or "p3",
+        category=draft.get("category") or "monitoring",
+        ci_links=draft.get("ci_links") or [],
+    )
+    return incidents_service.create_incident(
+        payload,
+        tenant_id=tenant_id,
+        actor=dict(AUTO_INCIDENT_ACTOR),
+    )

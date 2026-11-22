@@ -1,7 +1,9 @@
-"""SIMULATED alert rules + instances (tenant-scoped, monitor DB).
+"""Alert rules + instances (tenant-scoped, monitor DB).
 
-Evaluation runs against synthetic metrics / log events / file events only.
-Never auto-creates ITSM incidents.
+Evaluation runs against metrics / log events / file events (SIMULATED by
+default). Optional auto-create of ITSM incidents (L8) is fail-closed behind
+tenant ``monitor_auto_incident_opt_in`` + rule ``auto_incident`` and uses the
+ITSM service client only — never writes ITSM Mongo from Monitoring.
 """
 
 from __future__ import annotations
@@ -14,14 +16,17 @@ from pymongo import ASCENDING, DESCENDING
 from pymongo.collection import Collection
 
 from ...serialization import serialize_document
+from ...services import audit as audit_service
 from ...services import entitlements as entitlements_service
 from ...services.entitlements import EntitlementError
 from ...tenancy import merge_tenant_filter, require_tenant_id, stamp_tenant_id, tenant_filter
-from .indexes import ensure_monitor_indexes
+from .indexes import AUTO_INCIDENTS_DAILY_COLLECTION, ensure_monitor_indexes
 from .meta import DATA_SOURCE, EXECUTION_MODE
+from . import itsm_client, live_gates as live_gates_service
 
 RULES_COLLECTION = "alert_rules"
 INSTANCES_COLLECTION = "alert_instances"
+AUTO_INCIDENTS_DAILY = AUTO_INCIDENTS_DAILY_COLLECTION
 
 CONDITION_TYPES: tuple[str, ...] = ("threshold", "log_match", "file_change")
 OPERATORS: tuple[str, ...] = ("gt", "gte", "lt", "lte", "eq")
@@ -71,6 +76,60 @@ def _instances() -> Collection:
     from ...db import require_monitor_database
 
     return require_monitor_database()[INSTANCES_COLLECTION]
+
+
+def _auto_incidents_daily() -> Collection:
+    ensure_monitor_indexes()
+    from ...db import require_monitor_database
+
+    return require_monitor_database()[AUTO_INCIDENTS_DAILY]
+
+
+def _day_key(when: datetime | None = None) -> str:
+    stamp = when or _now()
+    return stamp.astimezone(timezone.utc).strftime("%Y-%m-%d")
+
+
+def auto_incidents_today_count(*, tenant_id: str) -> int:
+    tid = require_tenant_id(tenant_id)
+    doc = _auto_incidents_daily().find_one({"tenant_id": tid, "day": _day_key()})
+    if not doc:
+        return 0
+    return int(doc.get("count") or 0)
+
+
+def _assert_can_auto_incident(*, tenant_id: str) -> None:
+    tid = require_tenant_id(tenant_id)
+    limit = entitlements_service.monitor_auto_incidents_per_day_limit(tid)
+    if limit is None:
+        return
+    used = auto_incidents_today_count(tenant_id=tid)
+    if used >= limit:
+        raise EntitlementError(
+            f"Plan limit reached for monitor_auto_incidents_per_day "
+            f"({used}/{limit}).",
+            status_code=403,
+        )
+
+
+def _record_auto_incident(*, tenant_id: str) -> int:
+    tid = require_tenant_id(tenant_id)
+    day = _day_key()
+    now = _now()
+    _auto_incidents_daily().update_one(
+        {"tenant_id": tid, "day": day},
+        {
+            "$inc": {"count": 1},
+            "$set": {"updated_at": now},
+            "$setOnInsert": {
+                "tenant_id": tid,
+                "day": day,
+                "created_at": now,
+            },
+        },
+        upsert=True,
+    )
+    return auto_incidents_today_count(tenant_id=tid)
 
 
 def _serialize(doc: dict[str, Any] | None) -> dict[str, Any] | None:
@@ -289,6 +348,7 @@ def ensure_default_rules(*, tenant_id: str) -> list[dict[str, Any]]:
                 "condition": spec["condition"],
                 "severity": spec["severity"],
                 "description": spec["description"],
+                "auto_incident": False,
                 "execution_mode": EXECUTION_MODE,
                 "data_source": DATA_SOURCE,
                 "created_at": now + timedelta(milliseconds=idx),
@@ -594,8 +654,6 @@ def resolve_instance(
 
 def suggest_incident(*, tenant_id: str, alert_id: str) -> dict[str, Any]:
     """Build an ITSM incident **draft** from alert evidence (no ITSM write)."""
-    from . import itsm_client
-
     tid = require_tenant_id(tenant_id)
     aid = alert_id.strip()
     doc = get_instance(tenant_id=tid, alert_id=aid)
@@ -668,6 +726,178 @@ def _has_open_fingerprint(*, tenant_id: str, fingerprint: str) -> bool:
     return doc is not None
 
 
+def _stamp_auto_create(
+    *,
+    tenant_id: str,
+    alert_id: str,
+    status: str,
+    incident_id: str | None = None,
+    reason: str | None = None,
+) -> None:
+    tid = require_tenant_id(tenant_id)
+    updates: dict[str, Any] = {
+        "auto_create_status": status,
+        "updated_at": _now(),
+    }
+    if incident_id:
+        updates["auto_created_incident_id"] = incident_id
+        # Keep suggest link in sync when auto-created.
+        updates["suggested_incident_id"] = incident_id
+    if reason:
+        updates["auto_create_reason"] = reason[:500]
+    _instances().update_one(
+        merge_tenant_filter({"alert_id": alert_id}, tid),
+        {"$set": updates},
+    )
+
+
+def maybe_auto_create_incident(
+    *,
+    tenant_id: str,
+    rule: dict[str, Any],
+    alert_doc: dict[str, Any],
+) -> dict[str, Any]:
+    """Optionally create an ITSM incident for a newly fired alert (L8).
+
+    Fail-closed: requires live ``auto_incident`` gate + rule.auto_incident.
+    Uses ITSM service client only; audits every create/skip/fail outcome.
+    Dedup: never opens a second incident while this open alert already has
+    ``auto_created_incident_id``.
+    """
+    tid = require_tenant_id(tenant_id)
+    aid = str(alert_doc.get("alert_id") or "").strip()
+    result: dict[str, Any] = {
+        "attempted": False,
+        "created": False,
+        "status": None,
+        "incident_id": None,
+        "reason": None,
+    }
+    if not aid:
+        return result
+
+    if alert_doc.get("auto_created_incident_id"):
+        result["status"] = "skipped"
+        result["reason"] = "already_has_auto_created_incident"
+        result["incident_id"] = alert_doc.get("auto_created_incident_id")
+        return result
+
+    if not bool(rule.get("auto_incident")):
+        # Rule opt-out — leave stamps null (no attempt).
+        result["status"] = "skipped"
+        result["reason"] = "rule_auto_incident_off"
+        return result
+
+    if not live_gates_service.live_allowed(
+        tenant_id=tid, capability="auto_incident"
+    ):
+        _stamp_auto_create(
+            tenant_id=tid,
+            alert_id=aid,
+            status="skipped",
+            reason="auto_incident_gate_off",
+        )
+        result["status"] = "skipped"
+        result["reason"] = "auto_incident_gate_off"
+        audit_service.record_event(
+            tenant_id=tid,
+            action="monitor.alerts.auto_incident",
+            resource_type="alert_instance",
+            resource_id=aid,
+            actor=dict(itsm_client.AUTO_INCIDENT_ACTOR),
+            details={
+                "outcome": "skipped",
+                "reason": "auto_incident_gate_off",
+                "rule_id": rule.get("rule_id"),
+            },
+            outcome="skipped",
+        )
+        return result
+
+    result["attempted"] = True
+    try:
+        _assert_can_auto_incident(tenant_id=tid)
+    except EntitlementError as exc:
+        _stamp_auto_create(
+            tenant_id=tid,
+            alert_id=aid,
+            status="failed",
+            reason=exc.message,
+        )
+        result["status"] = "failed"
+        result["reason"] = exc.message
+        audit_service.record_event(
+            tenant_id=tid,
+            action="monitor.alerts.auto_incident",
+            resource_type="alert_instance",
+            resource_id=aid,
+            actor=dict(itsm_client.AUTO_INCIDENT_ACTOR),
+            details={
+                "outcome": "failed",
+                "reason": exc.message,
+                "rule_id": rule.get("rule_id"),
+            },
+            outcome="failure",
+        )
+        return result
+
+    try:
+        incident = itsm_client.create_incident_from_alert(
+            alert_doc, tenant_id=tid
+        )
+        iid = str(incident.get("incident_id") or "").strip()
+        if not iid:
+            raise RuntimeError("ITSM create returned no incident_id")
+        _record_auto_incident(tenant_id=tid)
+        _stamp_auto_create(
+            tenant_id=tid,
+            alert_id=aid,
+            status="created",
+            incident_id=iid,
+        )
+        result["created"] = True
+        result["status"] = "created"
+        result["incident_id"] = iid
+        audit_service.record_event(
+            tenant_id=tid,
+            action="monitor.alerts.auto_incident",
+            resource_type="alert_instance",
+            resource_id=aid,
+            actor=dict(itsm_client.AUTO_INCIDENT_ACTOR),
+            details={
+                "outcome": "created",
+                "incident_id": iid,
+                "rule_id": rule.get("rule_id"),
+                "fingerprint": alert_doc.get("fingerprint"),
+            },
+            outcome="success",
+        )
+    except Exception as exc:  # noqa: BLE001 — never fail alert evaluate
+        reason = str(exc)[:500] or "auto_incident_create_failed"
+        _stamp_auto_create(
+            tenant_id=tid,
+            alert_id=aid,
+            status="failed",
+            reason=reason,
+        )
+        result["status"] = "failed"
+        result["reason"] = reason
+        audit_service.record_event(
+            tenant_id=tid,
+            action="monitor.alerts.auto_incident",
+            resource_type="alert_instance",
+            resource_id=aid,
+            actor=dict(itsm_client.AUTO_INCIDENT_ACTOR),
+            details={
+                "outcome": "failed",
+                "reason": reason,
+                "rule_id": rule.get("rule_id"),
+            },
+            outcome="failure",
+        )
+    return result
+
+
 def _create_instance(
     *,
     tenant_id: str,
@@ -705,6 +935,8 @@ def _create_instance(
             "summary": summary,
             "evidence_refs": evidence_refs or [],
             "suggested_incident_id": None,
+            "auto_created_incident_id": None,
+            "auto_create_status": None,
             "fired_at": now,
             "acked_at": None,
             "resolved_at": None,
@@ -718,7 +950,12 @@ def _create_instance(
         tenant_id=tid,
     )
     _instances().insert_one(doc)
-    return doc, False
+    maybe_auto_create_incident(tenant_id=tid, rule=rule, alert_doc=doc)
+    # Refresh stamps after optional auto-create.
+    refreshed = _instances().find_one(
+        merge_tenant_filter({"alert_id": doc["alert_id"]}, tid)
+    )
+    return (refreshed or doc), False
 
 
 def _scope_filter(scope: dict[str, Any]) -> dict[str, Any]:
@@ -927,7 +1164,7 @@ def _eval_file_change(
 
 
 def evaluate_rules(*, tenant_id: str) -> dict[str, Any]:
-    """Run enabled rules against SIMULATED telemetry. No ITSM side effects."""
+    """Run enabled rules against telemetry; optional L8 ITSM auto-create."""
     tid = require_tenant_id(tenant_id)
     ensure_default_rules(tenant_id=tid)
     rules = list(
@@ -935,6 +1172,7 @@ def evaluate_rules(*, tenant_id: str) -> dict[str, Any]:
     )
     created_total = 0
     matches = 0
+    auto_created = 0
     for rule in rules:
         ctype = (rule.get("condition") or {}).get("type")
         if ctype == "threshold":
@@ -947,14 +1185,28 @@ def evaluate_rules(*, tenant_id: str) -> dict[str, Any]:
             continue
         created_total += len(made)
         matches += len(made)
+        for doc in made:
+            if doc.get("auto_create_status") == "created" or doc.get(
+                "auto_created_incident_id"
+            ):
+                auto_created += 1
     open_count = _instances().count_documents(
         merge_tenant_filter({"status": {"$in": list(OPEN_STATUSES)}}, tid)
+    )
+    auto_gate = live_gates_service.live_allowed(
+        tenant_id=tid, capability="auto_incident"
     )
     return {
         "tenant_id": tid,
         "rules_evaluated": len(rules),
         "matches": matches,
         "created": created_total,
+        "auto_incidents_created": auto_created,
+        "auto_incident_gate": auto_gate,
+        "auto_incidents_today": auto_incidents_today_count(tenant_id=tid),
+        "auto_incidents_limit": entitlements_service.monitor_auto_incidents_per_day_limit(
+            tid
+        ),
         "open_count": open_count,
         "execution_mode": EXECUTION_MODE,
         "live_probes": False,

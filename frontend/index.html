@@ -4,7 +4,7 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <meta name="svrmon24-ui" content="login-enterprise-v13" />
-  <meta name="svrmon24-version" content="0.79.0" />
+  <meta name="svrmon24-version" content="0.80.0" />
   <title>SVRMON24</title>
   <link rel="icon" href="/static/img/svrmon-favicon.png" type="image/png" sizes="32x32" />
   <link rel="apple-touch-icon" href="/static/img/svrmon-apple-touch.png" sizes="180x180" />
@@ -15,11 +15,11 @@
     body.is-app .login-gate { display: none !important; }
     #authPanel, .auth-panel-legacy { display: none !important; }
   </style>
-  <link rel="stylesheet" href="/static/css/cmdb.css?v=0.79.0" />
-  <link rel="stylesheet" href="/static/css/itsm.css?v=0.79.0" />
-  <link rel="stylesheet" href="/static/css/monitor.css?v=0.79.0" />
-  <script src="/static/js/config.js?v=0.79.0"></script>
-  <script src="/static/js/brand.js?v=0.79.0"></script>
+  <link rel="stylesheet" href="/static/css/cmdb.css?v=0.80.0" />
+  <link rel="stylesheet" href="/static/css/itsm.css?v=0.80.0" />
+  <link rel="stylesheet" href="/static/css/monitor.css?v=0.80.0" />
+  <script src="/static/js/config.js?v=0.80.0"></script>
+  <script src="/static/js/brand.js?v=0.80.0"></script>
 </head>
 <body class="is-login">
   <!-- Enterprise login: showcase (left) + sign-in panel (right); stacks on small viewports -->
@@ -1257,7 +1257,7 @@
         <section id="tab-monitor-alerts" class="tab-panel hidden" data-monitor-module="1">
           <section class="panel monitor-panel">
             <h2>Alerts</h2>
-            <div class="demo-banner" data-monitor-simulated="1">SIMULATED — rules evaluate synthetic metrics/logs/file events only. No auto-incident create — Create incident is draft→Apply via ITSM.</div>
+            <div class="demo-banner" data-monitor-simulated="1">SIMULATED default — rules evaluate synthetic metrics/logs/file events. Auto-create ITSM incidents is <strong>OFF</strong> unless tenant opt-in + rule toggle (L8). Manual Create incident is draft→Apply via ITSM.</div>
             <div class="toolbar monitor-alerts-toolbar">
               <label>Search<input id="maSearch" placeholder="summary, rule, CI…" /></label>
               <label>Status
@@ -1330,8 +1330,13 @@
               <span data-ma-cond="file_change" hidden>
                 <label>Path contains<input id="maRulePath" placeholder="optional" /></label>
               </span>
+              <label class="ma-auto-incident-label" title="Requires tenant monitor_auto_incident_opt_in (live gates)">
+                <input type="checkbox" id="maRuleAutoIncident" disabled />
+                Auto-create ITSM incident
+              </label>
               <button type="button" id="maCreateRule" class="primary">Create rule</button>
             </div>
+            <p class="hint" id="maAutoIncidentHint">Auto-incident rule toggle stays disabled until live gates auto_incident is on (platform + tenant live + monitor_auto_incident_opt_in).</p>
             <div class="table-wrap">
               <table class="data-table" id="maRulesTable">
                 <thead>
@@ -1340,6 +1345,7 @@
                     <th>Severity</th>
                     <th>Condition</th>
                     <th>Enabled</th>
+                    <th>Auto-incident</th>
                     <th>Rule ID</th>
                     <th>Actions</th>
                   </tr>
@@ -3759,27 +3765,27 @@
     </div>
   </div>
 
-  <script src="/static/js/cmdb.js?v=0.79.0"></script>
-  <script src="/static/js/monitor/dashboard.js?v=0.79.0"></script>
-  <script src="/static/js/monitor/targets.js?v=0.79.0"></script>
-  <script src="/static/js/monitor/logs.js?v=0.79.0"></script>
-  <script src="/static/js/monitor/alerts.js?v=0.79.0"></script>
-  <script src="/static/js/monitor/agents.js?v=0.79.0"></script>
-  <script src="/static/js/monitor/index.js?v=0.79.0"></script>
-  <script src="/static/js/itsm/api.js?v=0.79.0"></script>
-  <script src="/static/js/itsm/routing.js?v=0.79.0"></script>
-  <script src="/static/js/itsm/deeplinks.js?v=0.79.0"></script>
-  <script src="/static/js/itsm/dashboard.js?v=0.79.0"></script>
-  <script src="/static/js/itsm/reports.js?v=0.79.0"></script>
-  <script src="/static/js/itsm/incidents.js?v=0.79.0"></script>
-  <script src="/static/js/itsm/changes.js?v=0.79.0"></script>
-  <script src="/static/js/itsm/problems.js?v=0.79.0"></script>
-  <script src="/static/js/itsm/approvals.js?v=0.79.0"></script>
-  <script src="/static/js/itsm/workflows.js?v=0.79.0"></script>
-  <script src="/static/js/itsm/sla.js?v=0.79.0"></script>
-  <script src="/static/js/itsm/knowledge.js?v=0.79.0"></script>
-  <script src="/static/js/itsm/notifications.js?v=0.79.0"></script>
-  <script src="/static/js/itsm/groups.js?v=0.79.0"></script>
-  <script src="/static/js/itsm/index.js?v=0.79.0"></script>
+  <script src="/static/js/cmdb.js?v=0.80.0"></script>
+  <script src="/static/js/monitor/dashboard.js?v=0.80.0"></script>
+  <script src="/static/js/monitor/targets.js?v=0.80.0"></script>
+  <script src="/static/js/monitor/logs.js?v=0.80.0"></script>
+  <script src="/static/js/monitor/alerts.js?v=0.80.0"></script>
+  <script src="/static/js/monitor/agents.js?v=0.80.0"></script>
+  <script src="/static/js/monitor/index.js?v=0.80.0"></script>
+  <script src="/static/js/itsm/api.js?v=0.80.0"></script>
+  <script src="/static/js/itsm/routing.js?v=0.80.0"></script>
+  <script src="/static/js/itsm/deeplinks.js?v=0.80.0"></script>
+  <script src="/static/js/itsm/dashboard.js?v=0.80.0"></script>
+  <script src="/static/js/itsm/reports.js?v=0.80.0"></script>
+  <script src="/static/js/itsm/incidents.js?v=0.80.0"></script>
+  <script src="/static/js/itsm/changes.js?v=0.80.0"></script>
+  <script src="/static/js/itsm/problems.js?v=0.80.0"></script>
+  <script src="/static/js/itsm/approvals.js?v=0.80.0"></script>
+  <script src="/static/js/itsm/workflows.js?v=0.80.0"></script>
+  <script src="/static/js/itsm/sla.js?v=0.80.0"></script>
+  <script src="/static/js/itsm/knowledge.js?v=0.80.0"></script>
+  <script src="/static/js/itsm/notifications.js?v=0.80.0"></script>
+  <script src="/static/js/itsm/groups.js?v=0.80.0"></script>
+  <script src="/static/js/itsm/index.js?v=0.80.0"></script>
 </body>
 </html>
