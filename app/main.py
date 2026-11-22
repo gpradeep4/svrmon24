@@ -114,7 +114,7 @@ def create_app() -> FastAPI:
             "(viewer/member/admin/owner) enforced on mutating APIs. Diagnostics and "
             "File Monitoring are demo-only / SIMULATED; no remote execution or live "
             "filesystem watching. ITSM Incident Management is additive under /api/itsm. "
-            "Monitoring scaffolding is under /api/monitor (SIMULATED; live_probes off). "
+            "Monitoring is under /api/monitor (SIMULATED default; live fail-closed). "
             "Audit events collected for sensitive mutating SaaS actions."
         ),
         lifespan=lifespan,

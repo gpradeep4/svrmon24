@@ -1,4 +1,4 @@
-"""File Monitoring request/response models — SIMULATED mode only."""
+"""File Monitoring request/response models — SIMULATED default; LIVE later."""
 
 from __future__ import annotations
 
@@ -7,13 +7,14 @@ from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field
 
-ExecutionMode = Literal["SIMULATED"]
+from .literals import DataSource, ExecutionMode, WatchMode
+
 WatchStatus = Literal["active", "paused", "error"]
 ChangeKind = Literal["created", "modified", "renamed", "deleted", "permission"]
 
 
 class FileWatchTarget(BaseModel):
-    """A watched file or path (demo / SIMULATED)."""
+    """A watched file or path (demo / SIMULATED by default)."""
 
     model_config = ConfigDict(extra="ignore")
 
@@ -24,6 +25,9 @@ class FileWatchTarget(BaseModel):
     component_id: str | None = None
     status: WatchStatus = "active"
     execution_mode: ExecutionMode = "SIMULATED"
+    watch_mode: WatchMode = "SIMULATED"
+    agent_id: str | None = None
+    os_watcher: str | None = None
     latest_version: int = 0
     latest_actor: str | None = None
     latest_changed_at: datetime | None = None
@@ -34,7 +38,7 @@ class FileWatchTarget(BaseModel):
 
 
 class FileVersionEvent(BaseModel):
-    """One simulated version / change event for a watched target."""
+    """One version / change event for a watched target."""
 
     model_config = ConfigDict(extra="ignore")
 
@@ -50,7 +54,7 @@ class FileVersionEvent(BaseModel):
     content_hash: str | None = None
     size_bytes: int | None = None
     execution_mode: ExecutionMode = "SIMULATED"
-    data_source: Literal["SYNTHETIC_DEMO"] = "SYNTHETIC_DEMO"
+    data_source: DataSource = "SYNTHETIC_DEMO"
     note: str = "Synthetic demo event — not a live filesystem change."
     tenant_id: str | None = None
     created_at: datetime | None = None

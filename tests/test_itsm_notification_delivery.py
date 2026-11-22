@@ -25,7 +25,7 @@ from tests.frontend_paths import FRONTEND_INDEX
 
 
 def test_version_bump_for_notification_delivery_slice() -> None:
-    assert __version__ == "0.71.0"
+    assert __version__ == "0.72.0"
 
 
 def test_notification_admin_permission_in_catalog() -> None:
@@ -341,8 +341,8 @@ def test_emit_best_effort_survives_provider_failure(
 
 def test_frontend_delivery_markers() -> None:
     html = FRONTEND_INDEX.read_text(encoding="utf-8")
-    assert 'content="0.71.0"' in html
+    assert 'content="0.72.0"' in html
     assert 'id="itsmNotifChannelsPanel"' in html
     assert 'id="itsmNotifEmailEnabled"' in html
     assert 'id="itsmNotifDeliveryBody"' in html
-    assert "itsm/notifications.js?v=0.71.0" in html
+    assert "itsm/notifications.js?v=0.72.0" in html

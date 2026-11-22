@@ -1,4 +1,4 @@
-"""Monitoring log streams + events — SIMULATED mode only."""
+"""Monitoring log streams + events — SIMULATED default; LIVE ingest later."""
 
 from __future__ import annotations
 
@@ -7,9 +7,8 @@ from typing import Any, Literal
 
 from pydantic import BaseModel, ConfigDict, Field
 
-ExecutionMode = Literal["SIMULATED"]
-DataSource = Literal["SYNTHETIC_DEMO"]
-CollectMode = Literal["AGENTLESS", "AGENT"]
+from .literals import CollectMode, DataSource, ExecutionMode
+
 # Demo source tag: collect-path labels plus explicit simulated.
 LogSource = Literal["agentless", "agent", "simulated"]
 LogSeverity = Literal["debug", "info", "warning", "error", "critical"]
@@ -26,7 +25,7 @@ SourceKind = Literal[
 
 
 class LogStream(BaseModel):
-    """Logical SIMULATED log stream, optionally linked to a CMDB CI."""
+    """Logical log stream, optionally linked to a CMDB CI."""
 
     model_config = ConfigDict(extra="ignore")
 
@@ -45,7 +44,7 @@ class LogStream(BaseModel):
 
 
 class LogEvent(BaseModel):
-    """One searchable SIMULATED log event."""
+    """One searchable log event (SIMULATED or LIVE)."""
 
     model_config = ConfigDict(extra="ignore")
 

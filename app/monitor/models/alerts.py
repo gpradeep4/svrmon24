@@ -1,4 +1,4 @@
-"""Monitoring alert rules + instances — SIMULATED evaluation only."""
+"""Monitoring alert rules + instances — SIMULATED evaluation default."""
 
 from __future__ import annotations
 
@@ -7,12 +7,13 @@ from typing import Any, Literal
 
 from pydantic import BaseModel, ConfigDict, Field
 
-ExecutionMode = Literal["SIMULATED"]
-DataSource = Literal["SYNTHETIC_DEMO"]
+from .literals import DataSource, ExecutionMode
+
 AlertSeverity = Literal["info", "warning", "error", "critical"]
 AlertStatus = Literal["firing", "acked", "resolved"]
 ConditionType = Literal["threshold", "log_match", "file_change"]
 ThresholdOperator = Literal["gt", "gte", "lt", "lte", "eq"]
+AutoCreateStatus = Literal["skipped", "created", "failed"]
 
 
 class AlertScope(BaseModel):
@@ -28,7 +29,7 @@ class AlertScope(BaseModel):
 
 
 class AlertCondition(BaseModel):
-    """SIMULATED condition evaluated against synthetic metrics/logs/file events."""
+    """Condition evaluated against metrics/logs/file events."""
 
     model_config = ConfigDict(extra="ignore")
 
@@ -56,6 +57,7 @@ class AlertRule(BaseModel):
     condition: AlertCondition
     severity: AlertSeverity = "warning"
     description: str | None = None
+    auto_incident: bool = False
     execution_mode: ExecutionMode = "SIMULATED"
     data_source: DataSource = "SYNTHETIC_DEMO"
     tenant_id: str | None = None
@@ -72,6 +74,7 @@ class AlertRuleCreate(BaseModel):
     condition: AlertCondition
     severity: AlertSeverity = "warning"
     description: str | None = None
+    auto_incident: bool = False
 
 
 class AlertRulePatch(BaseModel):
@@ -83,6 +86,7 @@ class AlertRulePatch(BaseModel):
     condition: AlertCondition | None = None
     severity: AlertSeverity | None = None
     description: str | None = None
+    auto_incident: bool | None = None
 
 
 class AlertInstance(BaseModel):
@@ -103,6 +107,8 @@ class AlertInstance(BaseModel):
     summary: str
     evidence_refs: list[dict[str, Any]] = Field(default_factory=list)
     suggested_incident_id: str | None = None
+    auto_created_incident_id: str | None = None
+    auto_create_status: AutoCreateStatus | None = None
     fired_at: datetime
     acked_at: datetime | None = None
     resolved_at: datetime | None = None

@@ -128,6 +128,41 @@ class Settings(BaseSettings):
         default=5, alias="ITSM_DELIVERY_MAX_ATTEMPTS"
     )
 
+    # Monitoring live path (L0+). Master switch defaults OFF — SIMULATED paths
+    # ignore these flags. Sub-gates default "follow master" (True) so demos can
+    # flip one env; production can disable agent/syslog/ingest independently.
+    monitor_live_probes_enabled: bool = Field(
+        default=False, alias="MONITOR_LIVE_PROBES_ENABLED"
+    )
+    monitor_live_agentless_enabled: bool = Field(
+        default=True, alias="MONITOR_LIVE_AGENTLESS_ENABLED"
+    )
+    monitor_live_agent_enabled: bool = Field(
+        default=True, alias="MONITOR_LIVE_AGENT_ENABLED"
+    )
+    monitor_live_syslog_bind: str = Field(
+        default="", alias="MONITOR_LIVE_SYSLOG_BIND"
+    )
+    monitor_live_http_ingest_enabled: bool = Field(
+        default=True, alias="MONITOR_LIVE_HTTP_INGEST_ENABLED"
+    )
+    monitor_poller_enabled: bool = Field(
+        default=False, alias="MONITOR_POLLER_ENABLED"
+    )
+    monitor_poller_interval_seconds: int = Field(
+        default=60, alias="MONITOR_POLLER_INTERVAL_SECONDS"
+    )
+    monitor_agent_token_pepper_env_ref: str = Field(
+        default="MONITOR_AGENT_TOKEN_PEPPER",
+        alias="MONITOR_AGENT_TOKEN_PEPPER_ENV_REF",
+    )
+    monitor_egress_allowlist: str = Field(
+        default="", alias="MONITOR_EGRESS_ALLOWLIST"
+    )
+    monitor_cold_storage_uri: str = Field(
+        default="", alias="MONITOR_COLD_STORAGE_URI"
+    )
+
     def model_post_init(self, __context: Any) -> None:  # noqa: ANN401
         # Allow OLLAMA_HOST when OLLAMA_URL was left at default / unset in env loading
         import os
