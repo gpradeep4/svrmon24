@@ -1,7 +1,7 @@
-"""Monitoring dashboard aggregates — monitor DB only (SIMULATED).
+"""Monitoring dashboard aggregates — monitor DB only.
 
 Counts targets, open alerts, log/file volume from ``svrmon-monitor``.
-Never joins CMDB or ITSM MongoDB.
+Never joins CMDB or ITSM MongoDB. Live/SIMULATED mix reflected via meta gates.
 """
 
 from __future__ import annotations
@@ -17,7 +17,13 @@ from .indexes import (
     MONITOR_TARGETS_COLLECTION,
     ensure_monitor_indexes,
 )
-from .meta import BANNER, DATA_SOURCE, EXECUTION_MODE
+from . import live_gates as live_gates_service
+from .meta import (
+    BANNER_LIVE_GATED,
+    BANNER_SIMULATED,
+    DATA_SOURCE,
+    EXECUTION_MODE,
+)
 
 OPEN_ALERT_STATUSES: tuple[str, ...] = ("firing", "acked")
 RECENT_LIMIT = 8
@@ -110,6 +116,7 @@ def summary(*, tenant_id: str, settings: Any | None = None) -> dict[str, Any]:
             "severity": 1,
             "message": 1,
             "observed_at": 1,
+            "execution_mode": 1,
         },
     )
     recent_file_events = _recent(
@@ -125,16 +132,20 @@ def summary(*, tenant_id: str, settings: Any | None = None) -> dict[str, Any]:
             "changed_at": 1,
             "changed_by": 1,
             "component_id": 1,
+            "execution_mode": 1,
         },
     )
 
+    live_probes = live_gates_service.live_probes_effective(
+        tenant_id=tid, settings=cfg
+    )
     return {
         "module": "monitoring",
         "execution_mode": EXECUTION_MODE,
         "data_source": DATA_SOURCE,
-        "demo_only": True,
-        "live_probes": False,
-        "banner": BANNER,
+        "demo_only": not live_probes,
+        "live_probes": live_probes,
+        "banner": BANNER_LIVE_GATED if live_probes else BANNER_SIMULATED,
         "monitor_database": cfg.monitor_database_name,
         "tenant_id": tid,
         "targets_total": targets_total,

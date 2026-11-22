@@ -31,7 +31,7 @@ from tests.frontend_paths import FRONTEND_INDEX
 
 
 def test_version_bump_for_job_runner_slice() -> None:
-    assert __version__ == "0.81.0"
+    assert __version__ == "0.82.0"
 
 
 def test_jobs_admin_permission_in_catalog() -> None:
@@ -309,4 +309,4 @@ def test_forced_tick_api_and_report_placeholder(
 
 def test_frontend_version_pin_for_n2() -> None:
     html = FRONTEND_INDEX.read_text(encoding="utf-8")
-    assert 'content="0.81.0"' in html
+    assert 'content="0.82.0"' in html

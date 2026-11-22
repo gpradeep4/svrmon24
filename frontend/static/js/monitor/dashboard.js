@@ -1,4 +1,4 @@
-/* Monitoring Dashboard — real aggregates from /api/monitor/dashboard (SIMULATED). */
+/* Monitoring Dashboard — aggregates from /api/monitor/dashboard + live gate chips. */
 (function (global) {
   "use strict";
 
@@ -62,6 +62,39 @@
     return `<span class="${cls}">${esc(s || "—")}</span>`;
   }
 
+  function modeBadge(mode) {
+    const m = String(mode || "SIMULATED").toUpperCase();
+    const cls =
+      m === "LIVE" ? "status-pill ok monitor-mode-live" : "status-pill muted monitor-mode-sim";
+    return `<span class="${cls}" title="execution_mode">${esc(m)}</span>`;
+  }
+
+  function gateChip(label, on) {
+    const cls = on ? "monitor-gate-chip on" : "monitor-gate-chip off";
+    return `<span class="${cls}" data-gate="${esc(label)}">${esc(label)}: ${
+      on ? "on" : "off"
+    }</span>`;
+  }
+
+  function renderLiveGateChips(meta) {
+    const el = document.getElementById("monitorLiveGateChips");
+    if (!el) return;
+    const gates = (meta && meta.live_gates) || {};
+    const egress = (meta && meta.egress) || {};
+    const chips = [
+      gateChip("platform", !!gates.platform_enabled),
+      gateChip("tenant", !!gates.tenant_opt_in),
+      gateChip("agentless", !!gates.agentless),
+      gateChip("agent", !!gates.agent),
+      gateChip("http_ingest", !!gates.http_ingest),
+      gateChip("syslog", !!gates.syslog_bound),
+      gateChip("poller", !!gates.poller_enabled),
+      gateChip("auto_incident", !!gates.auto_incident),
+      gateChip("egress", !!egress.configured),
+    ];
+    el.innerHTML = chips.join("");
+  }
+
   function renderRecentAlerts(items) {
     const body = document.getElementById("monitorDashAlertsBody");
     if (!body) return;
@@ -88,12 +121,13 @@
     if (!body) return;
     if (!items || !items.length) {
       body.innerHTML =
-        `<tr><td colspan="4" class="hint">No log events yet.</td></tr>`;
+        `<tr><td colspan="5" class="hint">No log events yet.</td></tr>`;
       return;
     }
     body.innerHTML = items
       .map(
-        (row) => `<tr>
+        (row) => `<tr data-execution-mode="${esc(row.execution_mode || "SIMULATED")}">
+          <td>${modeBadge(row.execution_mode)}</td>
           <td class="mono">${formatWhen(row.observed_at)}</td>
           <td>${statusPill(row.severity)}</td>
           <td class="mono">${esc(row.component_id || "—")}</td>
@@ -108,12 +142,13 @@
     if (!body) return;
     if (!items || !items.length) {
       body.innerHTML =
-        `<tr><td colspan="4" class="hint">No file events yet.</td></tr>`;
+        `<tr><td colspan="5" class="hint">No file events yet.</td></tr>`;
       return;
     }
     body.innerHTML = items
       .map(
-        (row) => `<tr>
+        (row) => `<tr data-execution-mode="${esc(row.execution_mode || "SIMULATED")}">
+          <td>${modeBadge(row.execution_mode)}</td>
           <td class="mono">${formatWhen(row.changed_at)}</td>
           <td class="mono">${esc(row.path || "—")}</td>
           <td class="mono">v${esc(row.version == null ? "—" : row.version)}</td>
@@ -140,13 +175,26 @@
         banner.textContent =
           dash.banner ||
           meta.banner ||
-          "SIMULATED / SYNTHETIC_DEMO — Monitoring does not run live probes or agents.";
+          "SIMULATED / SYNTHETIC_DEMO — live gates off (fail-closed).";
+        if (meta.live_probes) {
+          banner.removeAttribute("data-monitor-simulated");
+        } else {
+          banner.setAttribute("data-monitor-simulated", "1");
+        }
       }
+      renderLiveGateChips(meta);
       const live = dash.live_probes === true || meta.live_probes === true;
       const liveEl = document.getElementById("monitorDashLiveProbes");
       if (liveEl) {
         liveEl.textContent = live ? "true" : "false";
         liveEl.className = live ? "status-pill ok" : "status-pill warning";
+      }
+      const egressEl = document.getElementById("monitorDashEgress");
+      if (egressEl) {
+        const configured = !!(meta.egress && meta.egress.configured);
+        const count = (meta.egress && meta.egress.entry_count) || 0;
+        egressEl.textContent = configured ? `${count} entr${count === 1 ? "y" : "ies"}` : "deny-all";
+        egressEl.className = configured ? "status-pill ok" : "status-pill warning";
       }
       setText("monitorDashExecMode", dash.execution_mode || meta.execution_mode || "SIMULATED");
       setText("monitorDashCollectModes", meta.collect_modes);
@@ -165,10 +213,12 @@
       renderRecentLogs(dash.recent_log_events || []);
       renderRecentFiles(dash.recent_file_events || []);
 
+      const modeLabel = live ? "gates ON (SIMULATED/LIVE mix)" : "SIMULATED (fail-closed)";
       if (notes) {
         notes.textContent =
-          `Aggregates from monitor collections · open alerts ${dash.open_alerts ?? 0} · ` +
-          `targets ${dash.targets_total ?? 0} · SIMULATED · no auto-incident`;
+          `Aggregates from monitor collections · ${modeLabel} · open alerts ${
+            dash.open_alerts ?? 0
+          } · targets ${dash.targets_total ?? 0}`;
       }
     } catch (err) {
       if (notes) notes.textContent = err.message || "Failed to load Monitoring dashboard.";

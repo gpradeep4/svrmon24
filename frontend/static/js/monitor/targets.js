@@ -24,15 +24,15 @@
 
   const BANNER_SIM = {
     server:
-      "SIMULATED — synthetic server health + metrics. Live probes / agents remain off.",
+      "SIMULATED — synthetic server health + metrics (fail-closed until platform + tenant live gates).",
     network:
-      "SIMULATED — switches, routers, firewalls, load balancers, APs. Live ICMP/SNMP stay off until gates + allowlist.",
+      "SIMULATED — switches, routers, firewalls, load balancers, APs (LIVE ICMP/SNMP needs gates + egress allowlist).",
     application:
-      "SIMULATED — application health from CMDB Application CIs. Live APM stays off.",
+      "SIMULATED — application health from CMDB Application CIs (LIVE agentless HTTP/TCP when gated).",
     middleware:
-      "SIMULATED — middleware health from CMDB Middleware CIs. Live HTTP/TCP checks stay off until gates + allowlist.",
+      "SIMULATED — middleware health from CMDB Middleware CIs (LIVE HTTP/TCP needs gates + egress allowlist).",
     database:
-      "SIMULATED — database health from CMDB Database CIs. Live DB agents stay off.",
+      "SIMULATED — database health from CMDB Database CIs (LIVE checks when gated).",
   };
 
   const BANNER_LIVE = {

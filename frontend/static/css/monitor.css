@@ -98,3 +98,36 @@
 .monitor-mode-sim {
   letter-spacing: 0.02em;
 }
+
+.monitor-gate-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 10px 0 4px;
+}
+
+.monitor-gate-chip {
+  display: inline-flex;
+  align-items: center;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+  padding: 4px 8px;
+  background: #f8fafc;
+  color: #475569;
+}
+
+.monitor-gate-chip.on {
+  background: #ecfdf5;
+  border-color: #6ee7b7;
+  color: #047857;
+}
+
+.monitor-gate-chip.off {
+  background: #fff7ed;
+  border-color: #fdba74;
+  color: #9a3412;
+}

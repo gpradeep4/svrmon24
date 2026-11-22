@@ -4,8 +4,10 @@ from __future__ import annotations
 
 import ipaddress
 import socket
-from typing import Iterable
+from typing import Any, Iterable
 from urllib.parse import urlparse
+
+from ...config import Settings, get_settings
 
 
 class EgressDenied(Exception):
@@ -30,6 +32,25 @@ def parse_allowlist(raw: str | Iterable[str] | None) -> list[str]:
         if token:
             out.append(token)
     return out
+
+
+def egress_status(*, settings: Settings | None = None) -> dict[str, Any]:
+    """Admin/meta summary of platform egress allowlist (fail-closed when empty)."""
+    cfg = settings or get_settings()
+    entries = parse_allowlist(cfg.monitor_egress_allowlist or "")
+    return {
+        "env_var": "MONITOR_EGRESS_ALLOWLIST",
+        "configured": bool(entries),
+        "entry_count": len(entries),
+        "entries": entries,
+        "deny_all_when_empty": True,
+        "docs": (
+            "Comma-separated hosts/CIDRs for agentless egress. Empty = deny-all "
+            "when live gates are on (fail-closed). Loopback/link-local/metadata "
+            "IPs require an explicit allowlist entry. Platform-only — set via "
+            "env; not editable through tenant live-settings."
+        ),
+    }
 
 
 def host_from_endpoint(*, url: str | None = None, host: str | None = None) -> str:

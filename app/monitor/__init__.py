@@ -20,6 +20,7 @@ from __future__ import annotations
 # L7: Middleware Monitoring nav + domain sync from CMDB.
 # L8: optional auto-create ITSM incidents from alerts (tenant flag default OFF).
 # L9: retention tiers + SIEM search + cold-archive hooks (monitor_retention_jobs).
+# L10: live hardening (indexes, fail-closed matrix, egress admin UX, meta rewrite).
 MONITOR_COLLECTIONS: tuple[str, ...] = (
     "file_watch_targets",
     "file_version_events",
