@@ -1,4 +1,4 @@
-"""File Monitoring request/response models — SIMULATED default; LIVE later."""
+"""File Monitoring request/response models — SIMULATED default; LIVE watch modes (L6)."""
 
 from __future__ import annotations
 
@@ -11,6 +11,12 @@ from .literals import DataSource, ExecutionMode, WatchMode
 
 WatchStatus = Literal["active", "paused", "error"]
 ChangeKind = Literal["created", "modified", "renamed", "deleted", "permission"]
+OsWatcher = Literal[
+    "inotify",
+    "readdirectorychanges",
+    "fsevents",
+    "kqueue_or_poll",
+]
 
 
 class FileWatchTarget(BaseModel):
@@ -28,6 +34,14 @@ class FileWatchTarget(BaseModel):
     watch_mode: WatchMode = "SIMULATED"
     agent_id: str | None = None
     os_watcher: str | None = None
+    # Agentless HTTP checksum poll (limited path — L6).
+    poll_url: str | None = None
+    poll_interval_seconds: int | None = Field(default=None, ge=5, le=86400)
+    poll_method: Literal["GET", "HEAD"] | None = None
+    egress_allowlist: list[str] | None = None
+    last_content_hash: str | None = None
+    last_size_bytes: int | None = None
+    last_polled_at: datetime | None = None
     latest_version: int = 0
     latest_actor: str | None = None
     latest_changed_at: datetime | None = None
@@ -35,6 +49,23 @@ class FileWatchTarget(BaseModel):
     tenant_id: str | None = None
     created_at: datetime | None = None
     updated_at: datetime | None = None
+
+
+class FileWatchPatch(BaseModel):
+    """PATCH /api/monitor/files/watches/{watch_id} — set live watch mode."""
+
+    model_config = ConfigDict(extra="ignore")
+
+    watch_mode: WatchMode | None = None
+    agent_id: str | None = None
+    os_watcher: OsWatcher | str | None = None
+    status: WatchStatus | None = None
+    label: str | None = Field(default=None, max_length=128)
+    notes: str | None = Field(default=None, max_length=512)
+    poll_url: str | None = Field(default=None, max_length=2048)
+    poll_interval_seconds: int | None = Field(default=None, ge=5, le=86400)
+    poll_method: Literal["GET", "HEAD"] | None = None
+    egress_allowlist: list[str] | None = None
 
 
 class FileVersionEvent(BaseModel):
@@ -56,5 +87,8 @@ class FileVersionEvent(BaseModel):
     execution_mode: ExecutionMode = "SIMULATED"
     data_source: DataSource = "SYNTHETIC_DEMO"
     note: str = "Synthetic demo event — not a live filesystem change."
+    agent_id: str | None = None
+    os_watcher: str | None = None
+    os_family: str | None = None
     tenant_id: str | None = None
     created_at: datetime | None = None

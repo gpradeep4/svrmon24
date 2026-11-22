@@ -19,7 +19,7 @@ from .checks import (
     MonitorCheckPatch,
     MonitorCheckResult,
 )
-from .file_monitoring import FileVersionEvent, FileWatchTarget
+from .file_monitoring import FileVersionEvent, FileWatchPatch, FileWatchTarget
 from .literals import (
     CollectMode,
     DataSource,
@@ -74,6 +74,7 @@ __all__ = [
     "MonitorCheckPatch",
     "MonitorCheckResult",
     "FileVersionEvent",
+    "FileWatchPatch",
     "FileWatchTarget",
     "CollectMode",
     "DataSource",

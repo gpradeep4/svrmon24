@@ -5,7 +5,19 @@ from __future__ import annotations
 from fastapi import APIRouter, Depends
 
 from ...auth import require_user
-from . import admin, agents, alerts, checks, dashboard, ingest, live, logs, meta, targets
+from . import (
+    admin,
+    agents,
+    alerts,
+    checks,
+    dashboard,
+    files,
+    ingest,
+    live,
+    logs,
+    meta,
+    targets,
+)
 
 router = APIRouter(
     prefix="/api/monitor",
@@ -21,6 +33,7 @@ _secured.include_router(logs.router)
 _secured.include_router(alerts.router)
 _secured.include_router(checks.router)
 _secured.include_router(agents.router)
+_secured.include_router(files.router)
 _secured.include_router(admin.router)
 _secured.include_router(live.router)
 

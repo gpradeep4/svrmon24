@@ -3431,6 +3431,8 @@
     drawer.hidden = true;
     drawer.setAttribute("aria-hidden", "true");
     state.fmSelectedWatchId = null;
+    const panel = $("#fmModePanel");
+    if (panel) panel.hidden = true;
   }
 
   function openFmDrawer() {
@@ -3440,6 +3442,20 @@
     drawer.setAttribute("aria-hidden", "false");
   }
 
+  function fillFmModeForm(target) {
+    const panel = $("#fmModePanel");
+    if (panel) panel.hidden = !target;
+    if (!target) return;
+    const mode = $("#fmWatchMode");
+    const agent = $("#fmAgentId");
+    const watcher = $("#fmOsWatcher");
+    const pollUrl = $("#fmPollUrl");
+    if (mode) mode.value = target.watch_mode || "SIMULATED";
+    if (agent) agent.value = target.agent_id || "";
+    if (watcher) watcher.value = target.os_watcher || "";
+    if (pollUrl) pollUrl.value = target.poll_url || "";
+  }
+
   function renderFmTargetDetail(target) {
     const el = $("#fmDrawerDetail");
     const title = $("#fmDrawerTitle");
@@ -3447,26 +3463,34 @@
     if (!el || !target) return;
     if (title) title.textContent = target.label || target.watch_id || "Watch detail";
     if (sub) {
-      sub.textContent = `${target.execution_mode || "SIMULATED"} · ${target.path || ""}`;
+      sub.textContent = `${target.watch_mode || "SIMULATED"} · ${
+        target.execution_mode || "SIMULATED"
+      } · ${target.path || ""}`;
     }
+    const modeNote =
+      (target.watch_mode || "SIMULATED") === "SIMULATED"
+        ? "SYNTHETIC_DEMO — not a live filesystem watch."
+        : target.watch_mode === "AGENT"
+          ? "LIVE AGENT — OS watcher events via agent ingest."
+          : "LIVE AGENTLESS_POLL — HTTP ETag/checksum where feasible.";
     el.innerHTML = `
       <div><strong>Watch ID:</strong> <code>${escapeHtml(target.watch_id || "—")}</code></div>
       <div><strong>Path:</strong> <code>${escapeHtml(target.path || "—")}</code></div>
       <div><strong>Host / CI:</strong> ${escapeHtml(target.host || "—")}
         ${target.component_id ? ` · <code>${escapeHtml(target.component_id)}</code>` : ""}</div>
       <div><strong>Status:</strong> <span class="fm-pill ${escapeAttr(target.status || "")}">${escapeHtml(target.status || "—")}</span>
+        <span class="fm-pill sim">${escapeHtml(target.watch_mode || "SIMULATED")}</span>
         <span class="fm-pill sim">${escapeHtml(target.execution_mode || "SIMULATED")}</span></div>
       <div><strong>Latest version:</strong> v${escapeHtml(String(target.latest_version ?? "—"))}
         by <strong>${escapeHtml(target.latest_actor || "—")}</strong>
         at ${escapeHtml(target.latest_changed_at || "—")}</div>
-      <div class="hint" style="margin-top:8px">${escapeHtml(
-        "SYNTHETIC_DEMO — not a live filesystem watch."
-      )}</div>`;
+      <div class="hint" style="margin-top:8px">${escapeHtml(modeNote)}</div>`;
+    fillFmModeForm(target);
   }
 
   async function loadFileMonitoringVersions(watchId) {
     const data = await api(
-      `/api/file-monitoring/targets/${encodeURIComponent(watchId)}/versions?page=1&page_size=50`
+      `/api/monitor/files/watches/${encodeURIComponent(watchId)}/versions?page=1&page_size=50`
     );
     if (data.target) renderFmTargetDetail(data.target);
     const tbody = $("#fmVersionsBody");
@@ -3476,7 +3500,7 @@
     if (!items.length) {
       tbody.innerHTML = emptyStateHtml(
         "No version events",
-        "SIMULATED history is empty for this watch."
+        "History is empty for this watch."
       );
       return;
     }
@@ -3489,9 +3513,42 @@
           <span class="hint">(${escapeHtml(item.actor_type || "user")})</span></td>
         <td>${escapeHtml(item.change_kind || "—")}</td>
         <td>${escapeHtml(item.summary || "—")}</td>
-        <td class="mono">${escapeHtml(item.content_hash || "—")}</td>`;
+        <td class="mono">${escapeHtml(item.content_hash || "—")}</td>
+        <td class="mono">${escapeHtml(item.data_source || item.execution_mode || "—")}</td>`;
       tbody.appendChild(tr);
     }
+  }
+
+  async function saveFileMonitoringMode() {
+    const watchId = state.fmSelectedWatchId;
+    if (!watchId) {
+      toast("Select a watch first", true);
+      return;
+    }
+    const mode = ($("#fmWatchMode")?.value || "SIMULATED").trim();
+    const payload = { watch_mode: mode };
+    const agentId = ($("#fmAgentId")?.value || "").trim();
+    const osWatcher = ($("#fmOsWatcher")?.value || "").trim();
+    const pollUrl = ($("#fmPollUrl")?.value || "").trim();
+    if (agentId) payload.agent_id = agentId;
+    if (osWatcher) payload.os_watcher = osWatcher;
+    if (pollUrl) payload.poll_url = pollUrl;
+    if (mode === "AGENTLESS_POLL" && !pollUrl) {
+      toast("AGENTLESS_POLL requires poll_url", true);
+      return;
+    }
+    if (mode === "AGENT" && !agentId) {
+      toast("AGENT mode requires agent_id", true);
+      return;
+    }
+    const updated = await api(
+      `/api/monitor/files/watches/${encodeURIComponent(watchId)}`,
+      { method: "PATCH", body: JSON.stringify(payload) }
+    );
+    toast(`Watch mode → ${updated.watch_mode || mode}`);
+    renderFmTargetDetail(updated);
+    await loadFileMonitoringTargets();
+    await loadFileMonitoringVersions(watchId);
   }
 
   async function openFileMonitoringDetail(watchId) {
@@ -3506,15 +3563,19 @@
     const params = new URLSearchParams({ page: "1", page_size: "50" });
     if (q) params.set("q", q);
     if (status) params.set("status", status);
-    const data = await api(`/api/file-monitoring/targets?${params.toString()}`);
+    const data = await api(`/api/monitor/files/watches?${params.toString()}`);
     const meta = $("#fmListMeta");
     if (meta) {
       const tid = data.tenant_id || state.tenantId || "—";
-      meta.textContent = `Tenant-scoped watches · tenant_id ${tid} · mode ${
+      meta.textContent = `Tenant-scoped watches · tenant_id ${tid} · default ${
         data.execution_mode || "SIMULATED"
       } · ${data.total || 0} target(s) · live_watching=${
         data.live_watching === true ? "yes" : "no"
       }`;
+    }
+    const banner = $("#fmBanner");
+    if (banner) {
+      banner.dataset.fmLive = data.live_watching === true ? "1" : "0";
     }
     const tbody = $("#fmTargetsBody");
     if (!tbody) return;
@@ -3529,6 +3590,7 @@
     }
     for (const item of items) {
       const tr = document.createElement("tr");
+      const watchMode = item.watch_mode || "SIMULATED";
       tr.innerHTML = `
         <td>${escapeHtml(item.label || "—")}</td>
         <td class="mono">${escapeHtml(item.path || "—")}</td>
@@ -3539,6 +3601,7 @@
         <td class="mono">v${escapeHtml(String(item.latest_version ?? "—"))}</td>
         <td>${escapeHtml(item.latest_actor || "—")}</td>
         <td>${escapeHtml(item.latest_changed_at || "—")}</td>
+        <td><span class="fm-pill sim">${escapeHtml(watchMode)}</span></td>
         <td><span class="fm-pill sim">${escapeHtml(
           item.execution_mode || "SIMULATED"
         )}</span></td>
@@ -5587,6 +5650,13 @@
       }
     });
     $("#btnCloseFmDrawer")?.addEventListener("click", () => closeFmDrawer());
+    $("#btnSaveFmMode")?.addEventListener("click", async () => {
+      try {
+        await saveFileMonitoringMode();
+      } catch (err) {
+        toast(err.message, true);
+      }
+    });
     $("#fmDrawer")?.addEventListener("click", (e) => {
       if (e.target === $("#fmDrawer")) closeFmDrawer();
     });

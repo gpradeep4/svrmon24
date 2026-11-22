@@ -9,7 +9,7 @@ from tests.frontend_paths import FRONTEND_INDEX, FRONTEND_STATIC
 
 
 def test_version_patch_for_file_monitoring() -> None:
-    assert __version__ == "0.77.0"
+    assert __version__ == "0.78.0"
 
 
 def test_meta_is_simulated(
@@ -192,12 +192,14 @@ def test_frontend_file_monitoring_markers() -> None:
     assert 'data-fm-module="1"' in html
     assert 'data-fm-simulated="1"' in html
     assert 'id="tab-file-monitoring"' in html
-    assert "File Monitoring (DEMO / SIMULATED)" in html
+    assert "File Monitoring" in html
+    assert 'id="fmWatchMode"' in html
     assert 'id="fmTargetsBody"' in html
     assert 'id="fmVersionsBody"' in html
     assert 'id="fmDrawer"' in html
     assert "loadFileMonitoringTargets" in js
     assert "openFileMonitoringDetail" in js
-    assert "/api/file-monitoring/targets" in js
+    assert "saveFileMonitoringMode" in js
+    assert "/api/monitor/files/watches" in js
     assert ".fm-drawer" in css
-    assert 'content="0.77.0"' in html
+    assert 'content="0.78.0"' in html
