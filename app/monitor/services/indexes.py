@@ -22,6 +22,9 @@ ALERT_INSTANCES_COLLECTION = "alert_instances"
 DIAGNOSTIC_HISTORY_COLLECTION = "diagnostic_history"
 MONITOR_CHECKS_COLLECTION = "monitor_checks"
 MONITOR_CHECK_RESULTS_COLLECTION = "monitor_check_results"
+LOG_INGEST_KEYS_COLLECTION = "log_ingest_keys"
+SYSLOG_SOURCES_COLLECTION = "syslog_sources"
+LOG_INGEST_DAILY_COLLECTION = "monitor_log_ingest_daily"
 
 
 def ensure_monitor_indexes(db: Database | None = None) -> dict[str, Any]:
@@ -386,6 +389,65 @@ def ensure_monitor_indexes(db: Database | None = None) -> dict[str, Any]:
                     ("observed_at", DESCENDING),
                 ],
                 name="tenant_check_observed_idx",
+            )
+        ),
+    ]
+
+    ingest_keys = handle[LOG_INGEST_KEYS_COLLECTION]
+    created[LOG_INGEST_KEYS_COLLECTION] = [
+        str(
+            ingest_keys.create_index(
+                [("tenant_id", ASCENDING), ("key_id", ASCENDING)],
+                unique=True,
+                name="tenant_ingest_key_id_unique",
+            )
+        ),
+        str(
+            ingest_keys.create_index(
+                [("key_hash", ASCENDING)],
+                unique=True,
+                name="ingest_key_hash_unique",
+            )
+        ),
+        str(
+            ingest_keys.create_index(
+                [("tenant_id", ASCENDING), ("status", ASCENDING)],
+                name="tenant_ingest_key_status_idx",
+            )
+        ),
+    ]
+
+    syslog_sources = handle[SYSLOG_SOURCES_COLLECTION]
+    created[SYSLOG_SOURCES_COLLECTION] = [
+        str(
+            syslog_sources.create_index(
+                [("tenant_id", ASCENDING), ("source_id", ASCENDING)],
+                unique=True,
+                name="tenant_syslog_source_id_unique",
+            )
+        ),
+        str(
+            syslog_sources.create_index(
+                [("tenant_id", ASCENDING), ("source_ip", ASCENDING)],
+                unique=True,
+                name="tenant_syslog_source_ip_unique",
+            )
+        ),
+        str(
+            syslog_sources.create_index(
+                [("status", ASCENDING), ("source_ip", ASCENDING)],
+                name="syslog_status_ip_idx",
+            )
+        ),
+    ]
+
+    ingest_daily = handle[LOG_INGEST_DAILY_COLLECTION]
+    created[LOG_INGEST_DAILY_COLLECTION] = [
+        str(
+            ingest_daily.create_index(
+                [("tenant_id", ASCENDING), ("day", ASCENDING)],
+                unique=True,
+                name="tenant_log_ingest_day_unique",
             )
         ),
     ]

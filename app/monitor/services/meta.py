@@ -28,7 +28,8 @@ BANNER_SIMULATED = (
 BANNER_LIVE_GATED = (
     "Live monitoring gates are ON for this tenant — series may be SIMULATED or LIVE. "
     "SIMULATED seed / simulate-tick remain available; agentless HTTP/TCP/ICMP/SNMP "
-    "polls require poller/allowlist (L1/L2)."
+    "polls require poller/allowlist (L1/L2); HTTP log ingest (+ optional syslog) "
+    "writes LIVE log_events when ingest gates are on (L3)."
 )
 # Back-compat alias for SIMULATED services (dashboard / targets / logs / alerts).
 BANNER = BANNER_SIMULATED
@@ -80,10 +81,12 @@ def module_meta(
             "Monitoring defaults to SIMULATED. Sync targets from CMDB (API client "
             "only); domain health views stamp AGENTLESS/AGENT collect modes for "
             "all OS families and networking kinds. Log streams are searchable "
-            "synthetic events (no live syslog ingest until L3); simulate-tick is "
-            "admin-only. Alert rules evaluate thresholds / log matches / file "
-            "changes on synthetic data by default — no auto-incident create "
-            "unless tenant opt-in (L8). Dashboard aggregates come from monitor "
+            "SIMULATED events by default; LIVE HTTP ingest "
+            "(`/api/monitor/ingest/logs`) and optional syslog bind write "
+            "LIVE rows when gates are on. simulate-tick is admin-only. Alert "
+            "rules evaluate thresholds / log matches / file changes on "
+            "synthetic data by default — no auto-incident create unless "
+            "tenant opt-in (L8). Dashboard aggregates come from monitor "
             "collections. Alert→incident is draft/suggest only — Apply via ITSM "
             "API. Live probes require platform MONITOR_LIVE_PROBES_ENABLED plus "
             "tenant monitor_live_opt_in (fail-closed). File Monitoring and "
@@ -126,4 +129,7 @@ def module_meta(
         "live_probe_stub": "/api/monitor/live/probe-stub",
         "checks": "/api/monitor/checks",
         "poller_tick": "/api/monitor/admin/poller/tick",
+        "ingest_logs": "/api/monitor/ingest/logs",
+        "syslog_sources": "/api/monitor/logs/syslog-sources",
+        "ingest_keys": "/api/monitor/logs/ingest-keys",
     }

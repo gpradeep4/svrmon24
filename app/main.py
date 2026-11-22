@@ -40,6 +40,7 @@ from .monitor.routers import router as monitor_router
 from .serialization import serialize_document
 from .itsm.services import job_runner as itsm_job_runner
 from .monitor.services import poller as monitor_poller
+from .monitor.services import syslog_receiver as monitor_syslog
 from .services.bootstrap import ensure_tenancy_ready
 
 logger = logging.getLogger(__name__)
@@ -53,7 +54,8 @@ async def lifespan(_app: FastAPI):
     settings = get_settings()
     configure_logging(settings.log_level)
     logger.info(
-        "startup app=%s version=%s env=%s oidc=%s basic=%s job_runner=%s monitor_poller=%s",
+        "startup app=%s version=%s env=%s oidc=%s basic=%s job_runner=%s "
+        "monitor_poller=%s syslog_bind=%s",
         settings.app_name,
         __version__,
         settings.app_env,
@@ -61,6 +63,7 @@ async def lifespan(_app: FastAPI):
         settings.basic_auth_enabled,
         settings.itsm_job_runner_enabled,
         settings.monitor_poller_enabled,
+        bool((settings.monitor_live_syslog_bind or "").strip()),
     )
     db_status = ping_database(settings)
     if db_status.get("ok"):
@@ -93,9 +96,13 @@ async def lifespan(_app: FastAPI):
     itsm_job_runner.start_job_runner(settings)
     # Feature-flagged Monitoring agentless poller. No-op when disabled.
     monitor_poller.start_poller(settings)
+    # Optional syslog UDP receiver — binds only when MONITOR_LIVE_SYSLOG_BIND set
+    # and platform live master is on (fail-closed otherwise).
+    monitor_syslog.start_receiver(settings)
     try:
         yield
     finally:
+        monitor_syslog.stop_receiver()
         monitor_poller.stop_poller()
         itsm_job_runner.stop_job_runner()
         close_client()
