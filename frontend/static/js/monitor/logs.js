@@ -1,4 +1,4 @@
-/* Monitoring Logs — SIMULATED + LIVE ingest (HTTP/syslog when gates on). */
+/* Monitoring Logs — SIMULATED + LIVE ingest + SIEM search (L9). */
 (function (global) {
   "use strict";
 
@@ -7,6 +7,9 @@
   let canFn = () => false;
   let streamNameById = {};
   let liveProbes = false;
+  let retentionTier = { hot: null, extended: null, siem: null };
+  let retentionTierLabel = "hot";
+  let nextCursor = null;
 
   function bindApi(api, { toast, can } = {}) {
     if (typeof api === "function") apiFn = api;
@@ -50,13 +53,24 @@
     }
   }
 
+  function selectedSeverities() {
+    const el = document.getElementById("mlSeverity");
+    if (!el) return "";
+    if (!el.multiple) return el.value?.trim() || "";
+    return Array.from(el.selectedOptions || [])
+      .map((o) => o.value)
+      .filter(Boolean)
+      .join(",");
+  }
+
   function readFilters() {
     return {
       q: document.getElementById("mlSearch")?.value?.trim() || "",
-      severity: document.getElementById("mlSeverity")?.value?.trim() || "",
+      severity: selectedSeverities(),
       component_id: document.getElementById("mlComponentId")?.value?.trim() || "",
       stream_id: document.getElementById("mlStream")?.value?.trim() || "",
       source: document.getElementById("mlSource")?.value?.trim() || "",
+      attr: document.getElementById("mlAttr")?.value?.trim() || "",
     };
   }
 
@@ -64,6 +78,20 @@
     const btn = document.getElementById("mlSimulate");
     if (!btn) return;
     btn.hidden = !canFn("monitor:admin");
+  }
+
+  function renderRetentionBadge(data) {
+    const badge = document.getElementById("mlRetentionBadge");
+    if (!badge) return;
+    const tier = data.retention_tier || retentionTierLabel || "hot";
+    const days =
+      data.retention_days == null
+        ? retentionTier[tier] == null
+          ? "unlimited"
+          : String(retentionTier[tier])
+        : String(data.retention_days);
+    badge.hidden = false;
+    badge.textContent = `Retention tier: ${tier} · ${days} day(s)`;
   }
 
   async function loadStreams() {
@@ -91,21 +119,57 @@
     }
   }
 
-  async function loadEvents({ toast } = {}) {
+  function renderRows(items, { append } = {}) {
+    const body = document.getElementById("mlEventsBody");
+    if (!body) return;
+    if (!items.length && !append) {
+      body.innerHTML =
+        `<tr><td colspan="7" class="hint">No log events yet. Admins can use ` +
+        `<strong>Simulate tick</strong> for SIMULATED demo events, or POST ` +
+        `<code>/api/monitor/ingest/logs</code> when live gates are on.</td></tr>`;
+      return;
+    }
+    const html = items
+      .map((row) => {
+        const streamLabel =
+          streamNameById[row.stream_id] || row.stream_id || "—";
+        return `<tr data-event-id="${esc(row.event_id)}" data-execution-mode="${esc(row.execution_mode || "SIMULATED")}">
+            <td class="mono">${formatWhen(row.observed_at)}</td>
+            <td>${modeBadge(row.execution_mode)}</td>
+            <td>${severityPill(row.severity)}</td>
+            <td>${esc(row.source || "—")}</td>
+            <td title="${esc(row.stream_id)}">${esc(streamLabel)}</td>
+            <td class="mono">${esc(row.component_id || "—")}</td>
+            <td>${esc(row.message || "")}</td>
+          </tr>`;
+      })
+      .join("");
+    if (append) body.insertAdjacentHTML("beforeend", html);
+    else body.innerHTML = html;
+  }
+
+  async function loadEvents({ toast, append, cursor } = {}) {
     const notify = toast || toastFn;
     const body = document.getElementById("mlEventsBody");
     const meta = document.getElementById("mlMeta");
+    const moreBtn = document.getElementById("mlLoadMore");
     if (!apiFn || !body) return;
     applyAdminGate();
     const filters = readFilters();
     const params = new URLSearchParams();
     params.set("page_size", "50");
     Object.entries(filters).forEach(([k, v]) => {
-      if (v) params.set(k, v);
+      if (!v) return;
+      if (k === "attr") params.append("attr", v);
+      else params.set(k, v);
     });
+    if (cursor) params.set("cursor", cursor);
     try {
       const data = await apiFn(`/api/monitor/logs/events?${params.toString()}`);
       const items = data.items || [];
+      nextCursor = data.next_cursor || null;
+      if (moreBtn) moreBtn.hidden = !nextCursor;
+      renderRetentionBadge(data);
       const retained = data.retained_total != null ? data.retained_total : items.length;
       const limit =
         data.retention_limit == null ? "unlimited" : String(data.retention_limit);
@@ -120,34 +184,16 @@
       if (meta) {
         meta.textContent =
           `${data.total || 0} match(es) · retained ${retained}/${limit} · ` +
+          `tier ${data.retention_tier || retentionTierLabel} · ` +
           `${modeLabel} · live_probes=${liveProbes ? "true" : "false"}`;
       }
-      if (!items.length) {
-        body.innerHTML =
-          `<tr><td colspan="7" class="hint">No log events yet. Admins can use ` +
-          `<strong>Simulate tick</strong> for SIMULATED demo events, or POST ` +
-          `<code>/api/monitor/ingest/logs</code> when live gates are on.</td></tr>`;
-        return;
-      }
-      body.innerHTML = items
-        .map((row) => {
-          const streamLabel =
-            streamNameById[row.stream_id] || row.stream_id || "—";
-          return `<tr data-event-id="${esc(row.event_id)}" data-execution-mode="${esc(row.execution_mode || "SIMULATED")}">
-            <td class="mono">${formatWhen(row.observed_at)}</td>
-            <td>${modeBadge(row.execution_mode)}</td>
-            <td>${severityPill(row.severity)}</td>
-            <td>${esc(row.source || "—")}</td>
-            <td title="${esc(row.stream_id)}">${esc(streamLabel)}</td>
-            <td class="mono">${esc(row.component_id || "—")}</td>
-            <td>${esc(row.message || "")}</td>
-          </tr>`;
-        })
-        .join("");
+      renderRows(items, { append: Boolean(append) });
     } catch (err) {
-      body.innerHTML = `<tr><td colspan="7" class="hint">${esc(
-        err.message || "Failed to load log events"
-      )}</td></tr>`;
+      if (!append) {
+        body.innerHTML = `<tr><td colspan="7" class="hint">${esc(
+          err.message || "Failed to load log events"
+        )}</td></tr>`;
+      }
       if (typeof notify === "function") {
         notify(err.message || "Log events load failed", true);
       }
@@ -173,6 +219,7 @@
           ? ` · trimmed ${result.events_trimmed} for retention`
           : "");
       if (typeof notify === "function") notify(msg, false);
+      nextCursor = null;
       await loadStreams();
       await loadEvents({ toast: notify });
     } catch (err) {
@@ -185,20 +232,32 @@
   function initLogsUi() {
     applyAdminGate();
     document.getElementById("mlRefresh")?.addEventListener("click", () => {
+      nextCursor = null;
       loadStreams().then(() => loadEvents());
+    });
+    document.getElementById("mlLoadMore")?.addEventListener("click", () => {
+      if (!nextCursor) return;
+      loadEvents({ append: true, cursor: nextCursor });
     });
     document.getElementById("mlSimulate")?.addEventListener("click", () => {
       simulateTick();
     });
     const onEnter = (ev) => {
-      if (ev.key === "Enter") loadEvents();
+      if (ev.key === "Enter") {
+        nextCursor = null;
+        loadEvents();
+      }
     };
     document.getElementById("mlSearch")?.addEventListener("keydown", onEnter);
     document
       .getElementById("mlComponentId")
       ?.addEventListener("keydown", onEnter);
+    document.getElementById("mlAttr")?.addEventListener("keydown", onEnter);
     ["mlSeverity", "mlStream", "mlSource"].forEach((id) => {
-      document.getElementById(id)?.addEventListener("change", () => loadEvents());
+      document.getElementById(id)?.addEventListener("change", () => {
+        nextCursor = null;
+        loadEvents();
+      });
     });
   }
 
@@ -207,6 +266,12 @@
     try {
       const meta = await apiFn("/api/monitor/meta");
       liveProbes = Boolean(meta.live_probes);
+      retentionTierLabel = meta.retention_tier || "hot";
+      retentionTier = meta.retention_days_by_tier || retentionTier;
+      renderRetentionBadge({
+        retention_tier: retentionTierLabel,
+        retention_days: meta.retention_days,
+      });
       const banner = document.querySelector(
         '#tab-monitor-logs [data-monitor-simulated="1"]'
       );
@@ -223,6 +288,7 @@
   function onShowTab(name) {
     if (name !== "monitor-logs") return;
     applyAdminGate();
+    nextCursor = null;
     refreshLiveMeta().then(() => loadStreams().then(() => loadEvents()));
   }
 

@@ -1,10 +1,10 @@
-"""Monitoring admin APIs — retention sweeper + live settings (fail-closed)."""
+"""Monitoring admin APIs — retention sweeper + cold archive + live settings."""
 
 from __future__ import annotations
 
 from typing import Any
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from pydantic import BaseModel, ConfigDict, Field
 
 from ...config import Settings, get_settings
@@ -13,9 +13,11 @@ from ...services import audit as audit_service
 from ...services import tenants as tenants_service
 from ...services.tenants import TenantError
 from ...tenant_context import TenantContext
+from ..services import cold_storage as cold_storage_service
 from ..services import live_gates as live_gates_service
 from ..services import poller as poller_service
 from ..services import retention as retention_service
+from ..services.cold_storage import ColdStorageError
 
 router = APIRouter(prefix="/admin", tags=["monitor-admin"])
 
@@ -64,8 +66,61 @@ def _live_settings_payload(
 def retention_sweep(
     tenant: TenantContext = Depends(require_permission(PERM_MONITOR_ADMIN)),
 ) -> dict[str, Any]:
-    """Trim over-limit metric samples / log events / diagnostics for the tenant."""
+    """Trim over-age + over-limit metric samples / log events / diagnostics."""
     return retention_service.sweep_tenant_retention(tenant_id=tenant.tenant_id)
+
+
+@router.post("/cold-archive")
+def cold_archive(
+    request: Request,
+    older_than_days: int | None = Query(
+        default=None, ge=1, le=3650, description="Archive events older than N days"
+    ),
+    limit: int = Query(default=5000, ge=1, le=50_000),
+    tenant: TenantContext = Depends(require_permission(PERM_MONITOR_ADMIN)),
+    settings: Settings = Depends(get_settings),
+) -> dict[str, Any]:
+    """Export aged log events to MONITOR_COLD_STORAGE_URI (file:// first).
+
+    Empty URI → explicit no-op success with reason ``cold storage not configured``.
+    Does not delete hot Mongo rows (sweeper owns deletes).
+    """
+    try:
+        result = retention_service.run_cold_archive(
+            tenant_id=tenant.tenant_id,
+            older_than_days=older_than_days,
+            limit=limit,
+            settings=settings,
+        )
+    except ColdStorageError as exc:
+        raise HTTPException(status_code=exc.status_code, detail=exc.message) from exc
+    audit_service.record_from_tenant(
+        tenant,
+        action="monitor.admin.cold_archive",
+        resource_type="monitor_retention_jobs",
+        resource_id=result.get("job_id") or tenant.tenant_id,
+        details={
+            "archived": result.get("archived"),
+            "reason": result.get("reason"),
+            "event_count": result.get("event_count"),
+            "status": result.get("status"),
+            "older_than_days": result.get("older_than_days"),
+        },
+        request_method=request.method,
+        request_path=str(request.url.path),
+    )
+    return result
+
+
+@router.get("/retention-jobs")
+def list_retention_jobs(
+    limit: int = Query(default=20, ge=1, le=100),
+    tenant: TenantContext = Depends(require_permission(PERM_MONITOR_ADMIN)),
+) -> dict[str, Any]:
+    """List recent cold-archive / retention jobs for the tenant."""
+    return cold_storage_service.list_retention_jobs(
+        tenant_id=tenant.tenant_id, limit=limit
+    )
 
 
 @router.get("/live-settings")

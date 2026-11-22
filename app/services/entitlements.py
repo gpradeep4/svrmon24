@@ -35,6 +35,9 @@ RESOURCE_MONITOR_LIVE_CHECKS = "monitor_live_checks"
 RESOURCE_MONITOR_LOG_INGEST_EVENTS_PER_DAY = "monitor_log_ingest_events_per_day"
 RESOURCE_MONITOR_AGENTS = "monitor_agents"
 RESOURCE_MONITOR_AUTO_INCIDENTS_PER_DAY = "monitor_auto_incidents_per_day"
+RESOURCE_MONITOR_RETENTION_DAYS_HOT = "monitor_retention_days_hot"
+RESOURCE_MONITOR_RETENTION_DAYS_EXTENDED = "monitor_retention_days_extended"
+RESOURCE_MONITOR_RETENTION_DAYS_SIEM = "monitor_retention_days_siem"
 
 PLAN_LEGACY_UNLIMITED = "legacy_unlimited"
 PLAN_STARTER = "starter"
@@ -66,6 +69,9 @@ _PLAN_CATALOG: dict[str, dict[str, Any]] = {
             RESOURCE_MONITOR_LOG_INGEST_EVENTS_PER_DAY: None,
             RESOURCE_MONITOR_AGENTS: None,
             RESOURCE_MONITOR_AUTO_INCIDENTS_PER_DAY: None,
+            RESOURCE_MONITOR_RETENTION_DAYS_HOT: None,
+            RESOURCE_MONITOR_RETENTION_DAYS_EXTENDED: None,
+            RESOURCE_MONITOR_RETENTION_DAYS_SIEM: None,
         },
         "notes": (
             "Default entitlements for migration / unlimited tenants. "
@@ -96,6 +102,9 @@ _PLAN_CATALOG: dict[str, dict[str, Any]] = {
             RESOURCE_MONITOR_LOG_INGEST_EVENTS_PER_DAY: 10_000,
             RESOURCE_MONITOR_AGENTS: 5,
             RESOURCE_MONITOR_AUTO_INCIDENTS_PER_DAY: 10,
+            RESOURCE_MONITOR_RETENTION_DAYS_HOT: 7,
+            RESOURCE_MONITOR_RETENTION_DAYS_EXTENDED: 0,
+            RESOURCE_MONITOR_RETENTION_DAYS_SIEM: 0,
         },
         "notes": (
             "Entitlements-only starter ceiling for small orgs. "
@@ -123,6 +132,9 @@ _PLAN_CATALOG: dict[str, dict[str, Any]] = {
             RESOURCE_MONITOR_LOG_INGEST_EVENTS_PER_DAY: 500_000,
             RESOURCE_MONITOR_AGENTS: 50,
             RESOURCE_MONITOR_AUTO_INCIDENTS_PER_DAY: 100,
+            RESOURCE_MONITOR_RETENTION_DAYS_HOT: 30,
+            RESOURCE_MONITOR_RETENTION_DAYS_EXTENDED: 90,
+            RESOURCE_MONITOR_RETENTION_DAYS_SIEM: 0,
         },
         "notes": (
             "Entitlements-only standard ceiling. "
@@ -448,3 +460,74 @@ def assert_can_register_monitor_agent(tenant_id: str) -> None:
 def monitor_auto_incidents_per_day_limit(tenant_id: str) -> int | None:
     """Max auto-created ITSM incidents per day, or None when unlimited."""
     return _monitor_limit(tenant_id, RESOURCE_MONITOR_AUTO_INCIDENTS_PER_DAY)
+
+
+def monitor_retention_days_hot_limit(tenant_id: str) -> int | None:
+    """Wall-clock hot retention days, or None when unlimited."""
+    return _monitor_limit(tenant_id, RESOURCE_MONITOR_RETENTION_DAYS_HOT)
+
+
+def monitor_retention_days_extended_limit(tenant_id: str) -> int | None:
+    """Wall-clock extended retention days (0 = locked), or None unlimited."""
+    return _monitor_limit(tenant_id, RESOURCE_MONITOR_RETENTION_DAYS_EXTENDED)
+
+
+def monitor_retention_days_siem_limit(tenant_id: str) -> int | None:
+    """Wall-clock SIEM retention days (0 = locked), or None unlimited."""
+    return _monitor_limit(tenant_id, RESOURCE_MONITOR_RETENTION_DAYS_SIEM)
+
+
+_RETENTION_TIER_LIMIT_FN = {
+    "hot": monitor_retention_days_hot_limit,
+    "extended": monitor_retention_days_extended_limit,
+    "siem": monitor_retention_days_siem_limit,
+}
+
+
+def monitor_retention_days_for_tier(
+    tenant_id: str, tier: str
+) -> int | None:
+    """Days entitlement for a retention tier, or None when unlimited.
+
+    ``0`` means the tier is locked for the plan (cannot select / no wall-clock).
+    """
+    key = (tier or "hot").strip().lower()
+    fn = _RETENTION_TIER_LIMIT_FN.get(key, monitor_retention_days_hot_limit)
+    return fn(tenant_id)
+
+
+def retention_tier_allowed(tenant_id: str, tier: str) -> bool:
+    """True when the plan allows selecting ``tier`` (hot always; others need days>0 or unlimited)."""
+    key = (tier or "hot").strip().lower()
+    if key == "hot":
+        return True
+    if key not in _RETENTION_TIER_LIMIT_FN:
+        return False
+    days = monitor_retention_days_for_tier(tenant_id, key)
+    return days is None or int(days) > 0
+
+
+def effective_monitor_retention_days(tenant_id: str) -> int | None:
+    """Wall-clock days for the tenant's selected retention tier.
+
+    Falls back to hot when the selected tier is locked (0 days). ``None`` =
+    unlimited (skip wall-clock delete).
+    """
+    from . import tenants as tenants_service
+
+    tid = require_tenant_id(tenant_id)
+    doc = tenants_service.get_tenant(tid) or {}
+    tier = str(doc.get("monitor_retention_tier") or "hot").strip().lower()
+    if tier not in _RETENTION_TIER_LIMIT_FN:
+        tier = "hot"
+    days = monitor_retention_days_for_tier(tid, tier)
+    if days is None:
+        return None
+    if int(days) > 0:
+        return int(days)
+    # Locked / zero for non-hot → use hot entitlement.
+    if tier != "hot":
+        hot = monitor_retention_days_hot_limit(tid)
+        if hot is None or int(hot) > 0:
+            return hot
+    return int(days)

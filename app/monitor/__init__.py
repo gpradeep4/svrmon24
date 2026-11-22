@@ -19,6 +19,7 @@ from __future__ import annotations
 # L6: live file watching (watch_mode AGENT / AGENTLESS_POLL).
 # L7: Middleware Monitoring nav + domain sync from CMDB.
 # L8: optional auto-create ITSM incidents from alerts (tenant flag default OFF).
+# L9: retention tiers + SIEM search + cold-archive hooks (monitor_retention_jobs).
 MONITOR_COLLECTIONS: tuple[str, ...] = (
     "file_watch_targets",
     "file_version_events",
@@ -39,4 +40,5 @@ MONITOR_COLLECTIONS: tuple[str, ...] = (
     "monitor_agent_enrollments",
     "monitor_ingest_cursors",
     "monitor_auto_incidents_daily",
+    "monitor_retention_jobs",
 )
