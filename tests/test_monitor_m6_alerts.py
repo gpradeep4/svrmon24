@@ -1,4 +1,4 @@
-"""Monitoring M6 — SIMULATED alert rules + instances (0.79.0)."""
+"""Monitoring M6 — SIMULATED alert rules + instances (0.80.0)."""
 
 from __future__ import annotations
 
@@ -34,11 +34,11 @@ def _create_ci(
 
 
 def test_version_bump_for_monitor_m6() -> None:
-    assert __version__ == "0.79.0"
+    assert __version__ == "0.80.0"
     html = FRONTEND_INDEX.read_text(encoding="utf-8")
-    assert 'content="0.79.0"' in html
-    assert "monitor/alerts.js?v=0.79.0" in html
-    assert "monitor/index.js?v=0.79.0" in html
+    assert 'content="0.80.0"' in html
+    assert "monitor/alerts.js?v=0.80.0" in html
+    assert "monitor/index.js?v=0.80.0" in html
 
 
 def test_alerts_ui_markers() -> None:
@@ -48,7 +48,16 @@ def test_alerts_ui_markers() -> None:
     assert 'id="maRulesBody"' in html
     assert 'id="maEvaluate"' in html
     assert 'id="maCreateRule"' in html
-    assert "No auto-incident" in html or "no auto-incident" in html.lower()
+    # Default remains off; L8 adds opt-in auto-create (banner still says OFF).
+    alerts_panel = html.split('id="tab-monitor-alerts"')[1].split(
+        'id="tab-itsm-dashboard"'
+    )[0]
+    assert (
+        "No auto-incident" in alerts_panel
+        or "no auto-incident" in alerts_panel.lower()
+        or "Auto-create ITSM incidents is" in alerts_panel
+    )
+    assert "OFF" in alerts_panel or "no auto-incident" in alerts_panel.lower()
     assert "placeholder-panel" not in html.split('id="tab-monitor-alerts"')[1].split(
         'id="tab-itsm-dashboard"'
     )[0]

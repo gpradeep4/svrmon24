@@ -1,10 +1,11 @@
-/* Monitoring Alerts — SIMULATED rules + instances (ack/resolve; draft incident only). */
+/* Monitoring Alerts — rules + instances (ack/resolve; suggest + optional L8 auto-create). */
 (function (global) {
   "use strict";
 
   let apiFn = null;
   let toastFn = null;
   let canFn = () => false;
+  let autoIncidentGate = false;
 
   function bindApi(api, { toast, can } = {}) {
     if (typeof api === "function") apiFn = api;
@@ -19,6 +20,31 @@
   function canCreateIncident() {
     // Explicit ITSM permission required to Apply draft via ITSM API.
     return canFn("itsm:incident:write");
+  }
+
+  async function refreshAutoIncidentGate() {
+    if (!apiFn) {
+      autoIncidentGate = false;
+      return false;
+    }
+    try {
+      const meta = await apiFn("/api/monitor/meta");
+      autoIncidentGate = !!(meta && meta.live_gates && meta.live_gates.auto_incident);
+    } catch (_err) {
+      autoIncidentGate = false;
+    }
+    const box = document.getElementById("maRuleAutoIncident");
+    if (box) {
+      box.disabled = !autoIncidentGate || !canFn("monitor:alerts:write");
+      if (!autoIncidentGate) box.checked = false;
+    }
+    const hint = document.getElementById("maAutoIncidentHint");
+    if (hint) {
+      hint.textContent = autoIncidentGate
+        ? "Tenant auto-incident opt-in is on — rule toggle creates via ITSM service (audited; daily cap)."
+        : "Auto-incident rule toggle stays disabled until live gates auto_incident is on (platform + tenant live + monitor_auto_incident_opt_in).";
+    }
+    return autoIncidentGate;
   }
 
   function esc(s) {
@@ -101,35 +127,57 @@
     const meta = document.getElementById("maRulesMeta");
     if (!apiFn || !body) return;
     applyWriteGates();
+    await refreshAutoIncidentGate();
     try {
       const data = await apiFn("/api/monitor/alerts/rules?page_size=100");
       const items = data.items || [];
       const limit = data.rules_limit == null ? "unlimited" : String(data.rules_limit);
       if (meta) {
         meta.textContent =
-          `${data.total || 0} rule(s) · limit ${limit} · SIMULATED · live_probes=false`;
+          `${data.total || 0} rule(s) · limit ${limit} · ` +
+          `auto_incident_gate=${autoIncidentGate ? "on" : "off"}`;
       }
       if (!items.length) {
         body.innerHTML =
-          `<tr><td colspan="6" class="hint">No alert rules yet.</td></tr>`;
+          `<tr><td colspan="7" class="hint">No alert rules yet.</td></tr>`;
         return;
       }
       const canWrite = canFn("monitor:alerts:write");
       body.innerHTML = items
         .map((row) => {
           const enabled = row.enabled ? "yes" : "no";
-          const actions = canWrite
-            ? `<button type="button" class="secondary ma-toggle" data-rule-id="${esc(
+          const autoOn = !!row.auto_incident;
+          const autoLabel = autoOn ? "on" : "off";
+          const bits = [];
+          if (canWrite) {
+            bits.push(
+              `<button type="button" class="secondary ma-toggle" data-rule-id="${esc(
                 row.rule_id
               )}" data-enabled="${row.enabled ? "1" : "0"}">${
                 row.enabled ? "Disable" : "Enable"
               }</button>`
-            : "—";
+            );
+            if (autoIncidentGate) {
+              bits.push(
+                `<button type="button" class="secondary ma-auto-toggle" data-rule-id="${esc(
+                  row.rule_id
+                )}" data-auto="${autoOn ? "1" : "0"}" title="Toggle rule auto-incident">${
+                  autoOn ? "Auto off" : "Auto on"
+                }</button>`
+              );
+            }
+          }
+          const actions = bits.length ? bits.join(" ") : "—";
           return `<tr data-rule-id="${esc(row.rule_id)}">
             <td>${esc(row.name || row.rule_id)}</td>
             <td>${severityPill(row.severity)}</td>
             <td class="mono">${esc(conditionLabel(row.condition))}</td>
             <td>${esc(enabled)}</td>
+            <td>${esc(autoLabel)}${
+              !autoIncidentGate && autoOn
+                ? ' <span class="hint">(gated off)</span>'
+                : ""
+            }</td>
             <td class="mono">${esc(row.rule_id)}</td>
             <td>${actions}</td>
           </tr>`;
@@ -142,8 +190,15 @@
           toggleRule(id, !currently, { toast: notify });
         });
       });
+      body.querySelectorAll(".ma-auto-toggle").forEach((btn) => {
+        btn.addEventListener("click", () => {
+          const id = btn.getAttribute("data-rule-id");
+          const currently = btn.getAttribute("data-auto") === "1";
+          toggleRuleAutoIncident(id, !currently, { toast: notify });
+        });
+      });
     } catch (err) {
-      body.innerHTML = `<tr><td colspan="6" class="hint">${esc(
+      body.innerHTML = `<tr><td colspan="7" class="hint">${esc(
         err.message || "Failed to load rules"
       )}</td></tr>`;
       if (typeof notify === "function") {
@@ -172,7 +227,7 @@
       if (meta) {
         meta.textContent =
           `${data.total || 0} match(es) · open ${data.open_count || 0} · ` +
-          `SIMULATED · no auto-incident`;
+          `auto_incident_gate=${autoIncidentGate ? "on" : "off"}`;
       }
       if (!items.length) {
         body.innerHTML =
@@ -206,11 +261,23 @@
                 row.alert_id
               )}" title="Suggest draft then create via ITSM (explicit Apply)">Create incident</button>`
             );
+          } else if (row.auto_created_incident_id) {
+            bits.push(
+              `<span class="hint mono" title="Auto-created ITSM incident">${esc(
+                row.auto_created_incident_id
+              )} (auto)</span>`
+            );
           } else if (row.suggested_incident_id) {
             bits.push(
               `<span class="hint mono" title="Linked ITSM incident">${esc(
                 row.suggested_incident_id
               )}</span>`
+            );
+          } else if (row.auto_create_status === "failed") {
+            bits.push(
+              `<span class="hint" title="${esc(
+                row.auto_create_reason || "auto-create failed"
+              )}">auto failed</span>`
             );
           }
           const actions = bits.length ? bits.join(" ") : "—";
@@ -272,6 +339,35 @@
     }
   }
 
+  async function toggleRuleAutoIncident(ruleId, autoIncident, { toast } = {}) {
+    const notify = toast || toastFn;
+    if (!apiFn || !ruleId) return;
+    if (!autoIncidentGate) {
+      if (typeof notify === "function") {
+        notify("Auto-incident gate is off (tenant opt-in required)", true);
+      }
+      return;
+    }
+    try {
+      await apiFn(`/api/monitor/alerts/rules/${encodeURIComponent(ruleId)}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ auto_incident: !!autoIncident }),
+      });
+      if (typeof notify === "function") {
+        notify(
+          autoIncident ? "Rule auto-incident enabled" : "Rule auto-incident disabled",
+          false
+        );
+      }
+      await loadRules({ toast: notify });
+    } catch (err) {
+      if (typeof notify === "function") {
+        notify(err.message || "Rule auto-incident update failed", true);
+      }
+    }
+  }
+
   async function createRuleFromForm({ toast } = {}) {
     const notify = toast || toastFn;
     if (!apiFn) return;
@@ -317,6 +413,13 @@
       condition = { type: "file_change" };
       if (path) condition.path_contains = path;
     }
+    const autoBox = document.getElementById("maRuleAutoIncident");
+    const autoIncident = !!(
+      autoIncidentGate &&
+      autoBox &&
+      !autoBox.disabled &&
+      autoBox.checked
+    );
     try {
       const doc = await apiFn("/api/monitor/alerts/rules", {
         method: "POST",
@@ -327,6 +430,7 @@
           enabled: true,
           condition,
           scope: {},
+          auto_incident: autoIncident,
         }),
       });
       if (typeof notify === "function") {
@@ -334,6 +438,7 @@
       }
       const nameEl = document.getElementById("maRuleName");
       if (nameEl) nameEl.value = "";
+      if (autoBox) autoBox.checked = false;
       await loadRules({ toast: notify });
     } catch (err) {
       if (typeof notify === "function") {
@@ -488,6 +593,7 @@
   function initAlertsUi() {
     applyWriteGates();
     syncConditionFields();
+    refreshAutoIncidentGate();
     document.getElementById("maRefresh")?.addEventListener("click", () => {
       loadRules().then(() => loadInstances());
     });
@@ -515,7 +621,9 @@
   function onShowTab(name) {
     if (name !== "monitor-alerts") return;
     applyWriteGates();
-    loadRules().then(() => loadInstances());
+    refreshAutoIncidentGate().then(() =>
+      loadRules().then(() => loadInstances())
+    );
   }
 
   global.SVRMON24MonitorAlerts = {

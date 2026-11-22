@@ -34,6 +34,7 @@ RESOURCE_MONITOR_SIMULATE_TICKS_PER_DAY = "monitor_simulate_ticks_per_day"
 RESOURCE_MONITOR_LIVE_CHECKS = "monitor_live_checks"
 RESOURCE_MONITOR_LOG_INGEST_EVENTS_PER_DAY = "monitor_log_ingest_events_per_day"
 RESOURCE_MONITOR_AGENTS = "monitor_agents"
+RESOURCE_MONITOR_AUTO_INCIDENTS_PER_DAY = "monitor_auto_incidents_per_day"
 
 PLAN_LEGACY_UNLIMITED = "legacy_unlimited"
 PLAN_STARTER = "starter"
@@ -64,6 +65,7 @@ _PLAN_CATALOG: dict[str, dict[str, Any]] = {
             RESOURCE_MONITOR_LIVE_CHECKS: None,
             RESOURCE_MONITOR_LOG_INGEST_EVENTS_PER_DAY: None,
             RESOURCE_MONITOR_AGENTS: None,
+            RESOURCE_MONITOR_AUTO_INCIDENTS_PER_DAY: None,
         },
         "notes": (
             "Default entitlements for migration / unlimited tenants. "
@@ -93,6 +95,7 @@ _PLAN_CATALOG: dict[str, dict[str, Any]] = {
             RESOURCE_MONITOR_LIVE_CHECKS: 20,
             RESOURCE_MONITOR_LOG_INGEST_EVENTS_PER_DAY: 10_000,
             RESOURCE_MONITOR_AGENTS: 5,
+            RESOURCE_MONITOR_AUTO_INCIDENTS_PER_DAY: 10,
         },
         "notes": (
             "Entitlements-only starter ceiling for small orgs. "
@@ -119,6 +122,7 @@ _PLAN_CATALOG: dict[str, dict[str, Any]] = {
             RESOURCE_MONITOR_LIVE_CHECKS: 200,
             RESOURCE_MONITOR_LOG_INGEST_EVENTS_PER_DAY: 500_000,
             RESOURCE_MONITOR_AGENTS: 50,
+            RESOURCE_MONITOR_AUTO_INCIDENTS_PER_DAY: 100,
         },
         "notes": (
             "Entitlements-only standard ceiling. "
@@ -439,3 +443,8 @@ def assert_can_register_monitor_agent(tenant_id: str) -> None:
     from ..monitor.services import agents as agents_service
 
     agents_service.assert_can_register_agent(tenant_id)
+
+
+def monitor_auto_incidents_per_day_limit(tenant_id: str) -> int | None:
+    """Max auto-created ITSM incidents per day, or None when unlimited."""
+    return _monitor_limit(tenant_id, RESOURCE_MONITOR_AUTO_INCIDENTS_PER_DAY)

@@ -28,6 +28,7 @@ LOG_INGEST_DAILY_COLLECTION = "monitor_log_ingest_daily"
 MONITOR_AGENTS_COLLECTION = "monitor_agents"
 MONITOR_AGENT_ENROLLMENTS_COLLECTION = "monitor_agent_enrollments"
 MONITOR_INGEST_CURSORS_COLLECTION = "monitor_ingest_cursors"
+AUTO_INCIDENTS_DAILY_COLLECTION = "monitor_auto_incidents_daily"
 
 
 def ensure_monitor_indexes(db: Database | None = None) -> dict[str, Any]:
@@ -543,6 +544,17 @@ def ensure_monitor_indexes(db: Database | None = None) -> dict[str, Any]:
             cursors.create_index(
                 [("tenant_id", ASCENDING), ("agent_id", ASCENDING)],
                 name="tenant_agent_cursor_idx",
+            )
+        ),
+    ]
+
+    auto_daily = handle[AUTO_INCIDENTS_DAILY_COLLECTION]
+    created[AUTO_INCIDENTS_DAILY_COLLECTION] = [
+        str(
+            auto_daily.create_index(
+                [("tenant_id", ASCENDING), ("day", ASCENDING)],
+                unique=True,
+                name="tenant_auto_incident_day_unique",
             )
         ),
     ]
