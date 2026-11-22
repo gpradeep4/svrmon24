@@ -12,6 +12,8 @@ from __future__ import annotations
 # M8: diagnostics history rehome + retention sweeper.
 # L0: live gates + meta + model widenings.
 # L1: agentless monitor_checks + check results (HTTP/TCP poller).
+# L2: ICMP/SNMP executors.
+# L3: live HTTP/syslog log ingest + ingest keys + syslog source maps.
 MONITOR_COLLECTIONS: tuple[str, ...] = (
     "file_watch_targets",
     "file_version_events",
@@ -25,4 +27,7 @@ MONITOR_COLLECTIONS: tuple[str, ...] = (
     "diagnostic_history",
     "monitor_checks",
     "monitor_check_results",
+    "log_ingest_keys",
+    "syslog_sources",
+    "monitor_log_ingest_daily",
 )

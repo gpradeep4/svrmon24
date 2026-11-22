@@ -1,4 +1,4 @@
-"""Monitoring log streams + events — SIMULATED default; LIVE ingest later."""
+"""Monitoring log streams + events — SIMULATED default; LIVE via L3 ingest."""
 
 from __future__ import annotations
 

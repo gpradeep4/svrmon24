@@ -110,8 +110,11 @@ def live_allowed(
     if capability == "log_ingest_http":
         return bool(cfg.monitor_live_http_ingest_enabled)
     if capability == "log_ingest_syslog":
-        return bool((cfg.monitor_live_syslog_bind or "").strip()) and bool(
-            cfg.monitor_live_agentless_enabled
+        # Syslog is an agentless receiver — needs bind + agentless platform/tenant.
+        return (
+            bool((cfg.monitor_live_syslog_bind or "").strip())
+            and bool(cfg.monitor_live_agentless_enabled)
+            and bool(tenant["monitor_live_agentless_opt_in"])
         )
     if capability in {"agent_register", "agent_ingest", "file_watch_live"}:
         # file_watch_live via agent path for L0 gate matrix

@@ -1,4 +1,4 @@
-/* Monitoring Logs — SIMULATED streams + search (no live ingest). */
+/* Monitoring Logs — SIMULATED + LIVE ingest (HTTP/syslog when gates on). */
 (function (global) {
   "use strict";
 
@@ -6,6 +6,7 @@
   let toastFn = null;
   let canFn = () => false;
   let streamNameById = {};
+  let liveProbes = false;
 
   function bindApi(api, { toast, can } = {}) {
     if (typeof api === "function") apiFn = api;
@@ -29,6 +30,13 @@
     else if (s === "info") cls += " ok";
     else cls += " muted";
     return `<span class="${cls}">${esc(s)}</span>`;
+  }
+
+  function modeBadge(mode) {
+    const m = String(mode || "SIMULATED").toUpperCase();
+    const cls =
+      m === "LIVE" ? "status-pill ok monitor-mode-live" : "status-pill muted";
+    return `<span class="${cls}" title="execution_mode">${esc(m)}</span>`;
   }
 
   function formatWhen(iso) {
@@ -101,23 +109,33 @@
       const retained = data.retained_total != null ? data.retained_total : items.length;
       const limit =
         data.retention_limit == null ? "unlimited" : String(data.retention_limit);
+      const hasLive = items.some(
+        (row) => String(row.execution_mode || "").toUpperCase() === "LIVE"
+      );
+      const modeLabel = hasLive
+        ? "SIMULATED+LIVE"
+        : liveProbes
+          ? "gates on (awaiting LIVE ingest)"
+          : "SIMULATED";
       if (meta) {
         meta.textContent =
           `${data.total || 0} match(es) · retained ${retained}/${limit} · ` +
-          `SIMULATED · live_probes=false`;
+          `${modeLabel} · live_probes=${liveProbes ? "true" : "false"}`;
       }
       if (!items.length) {
         body.innerHTML =
-          `<tr><td colspan="6" class="hint">No log events yet. Admins can use ` +
-          `<strong>Simulate tick</strong> to append SIMULATED demo events.</td></tr>`;
+          `<tr><td colspan="7" class="hint">No log events yet. Admins can use ` +
+          `<strong>Simulate tick</strong> for SIMULATED demo events, or POST ` +
+          `<code>/api/monitor/ingest/logs</code> when live gates are on.</td></tr>`;
         return;
       }
       body.innerHTML = items
         .map((row) => {
           const streamLabel =
             streamNameById[row.stream_id] || row.stream_id || "—";
-          return `<tr data-event-id="${esc(row.event_id)}">
+          return `<tr data-event-id="${esc(row.event_id)}" data-execution-mode="${esc(row.execution_mode || "SIMULATED")}">
             <td class="mono">${formatWhen(row.observed_at)}</td>
+            <td>${modeBadge(row.execution_mode)}</td>
             <td>${severityPill(row.severity)}</td>
             <td>${esc(row.source || "—")}</td>
             <td title="${esc(row.stream_id)}">${esc(streamLabel)}</td>
@@ -127,7 +145,7 @@
         })
         .join("");
     } catch (err) {
-      body.innerHTML = `<tr><td colspan="6" class="hint">${esc(
+      body.innerHTML = `<tr><td colspan="7" class="hint">${esc(
         err.message || "Failed to load log events"
       )}</td></tr>`;
       if (typeof notify === "function") {
@@ -184,10 +202,28 @@
     });
   }
 
+  async function refreshLiveMeta() {
+    if (!apiFn) return;
+    try {
+      const meta = await apiFn("/api/monitor/meta");
+      liveProbes = Boolean(meta.live_probes);
+      const banner = document.querySelector(
+        '#tab-monitor-logs [data-monitor-simulated="1"]'
+      );
+      if (banner && liveProbes) {
+        banner.textContent =
+          "Live gates ON — Logs may mix SIMULATED and LIVE events. HTTP ingest " +
+          "and optional syslog write LIVE rows when capability gates allow.";
+      }
+    } catch (_err) {
+      liveProbes = false;
+    }
+  }
+
   function onShowTab(name) {
     if (name !== "monitor-logs") return;
     applyAdminGate();
-    loadStreams().then(() => loadEvents());
+    refreshLiveMeta().then(() => loadStreams().then(() => loadEvents()));
   }
 
   global.SVRMON24MonitorLogs = {

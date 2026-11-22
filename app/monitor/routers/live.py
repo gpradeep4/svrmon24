@@ -1,7 +1,8 @@
-"""Live probe / ingest stubs — fail-closed 403 unless platform + tenant gates on.
+"""Live probe stubs — fail-closed 403 unless platform + tenant gates on.
 
-HTTP/TCP check run-once lives in ``routers.checks`` (L1). Remaining stubs
-mark ``execution_mode=LIVE`` until later L* slices implement real ingest.
+HTTP log ingest lives in ``routers.ingest`` (L3). Check run-once is in
+``routers.checks`` (L1). Remaining stubs mark ``execution_mode=LIVE`` until
+later L* slices implement real agent ingest.
 """
 
 from __future__ import annotations
@@ -13,7 +14,6 @@ from fastapi import APIRouter, Depends
 from ...config import Settings, get_settings
 from ...permissions import (
     PERM_MONITOR_ADMIN,
-    PERM_MONITOR_LOGS_WRITE,
     PERM_MONITOR_TARGETS_WRITE,
     require_permission,
 )
@@ -58,22 +58,6 @@ def live_probe_stub(
     )
     return _stub_ok(
         tenant_id=tenant.tenant_id, kind="probe_stub", settings=settings
-    )
-
-
-@router.post("/ingest/logs")
-def ingest_logs_stub(
-    tenant: TenantContext = Depends(require_permission(PERM_MONITOR_LOGS_WRITE)),
-    settings: Settings = Depends(get_settings),
-) -> dict[str, Any]:
-    """HTTP log ingest stub — fail-closed until L3 implements real ingest."""
-    live_gates_service.require_live_capability(
-        tenant_id=tenant.tenant_id,
-        capability="log_ingest_http",
-        settings=settings,
-    )
-    return _stub_ok(
-        tenant_id=tenant.tenant_id, kind="ingest_logs", settings=settings
     )
 
 

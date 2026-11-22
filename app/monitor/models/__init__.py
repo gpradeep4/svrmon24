@@ -27,6 +27,17 @@ from .literals import (
     ExecutionMode,
     WatchMode,
 )
+from .ingest import (
+    LogIngestBatch,
+    LogIngestEventItem,
+    LogIngestKey,
+    LogIngestKeyCreate,
+    LogIngestKeyCreated,
+    LogIngestResult,
+    SyslogSource,
+    SyslogSourceUpsert,
+    SyslogSourcesPut,
+)
 from .logs import LogEvent, LogStream, SimulateTickResult
 from .targets import MetricSample, MonitorTarget, SyncFromCmdbResult
 
@@ -56,6 +67,15 @@ __all__ = [
     "LogEvent",
     "LogStream",
     "SimulateTickResult",
+    "LogIngestBatch",
+    "LogIngestEventItem",
+    "LogIngestKey",
+    "LogIngestKeyCreate",
+    "LogIngestKeyCreated",
+    "LogIngestResult",
+    "SyslogSource",
+    "SyslogSourceUpsert",
+    "SyslogSourcesPut",
     "MonitorTarget",
     "MetricSample",
     "SyncFromCmdbResult",
