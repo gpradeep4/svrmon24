@@ -1,6 +1,7 @@
 """Live probe / ingest stubs — fail-closed 403 unless platform + tenant gates on.
 
-No real HTTP/TCP polls yet (L1). Stub responses mark ``execution_mode=LIVE``.
+HTTP/TCP check run-once lives in ``routers.checks`` (L1). Remaining stubs
+mark ``execution_mode=LIVE`` until later L* slices implement real ingest.
 """
 
 from __future__ import annotations
@@ -106,22 +107,3 @@ def ingest_file_events_stub(
     return _stub_ok(
         tenant_id=tenant.tenant_id, kind="ingest_file_events", settings=settings
     )
-
-
-@router.post("/checks/{check_id}/run-once")
-def run_check_once_stub(
-    check_id: str,
-    tenant: TenantContext = Depends(require_permission(PERM_MONITOR_TARGETS_WRITE)),
-    settings: Settings = Depends(get_settings),
-) -> dict[str, Any]:
-    """Agentless poll stub — fail-closed until L1 poller."""
-    live_gates_service.require_live_capability(
-        tenant_id=tenant.tenant_id,
-        capability="agentless_poll",
-        settings=settings,
-    )
-    payload = _stub_ok(
-        tenant_id=tenant.tenant_id, kind="check_run_once", settings=settings
-    )
-    payload["check_id"] = check_id
-    return payload

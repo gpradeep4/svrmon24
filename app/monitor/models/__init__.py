@@ -10,6 +10,13 @@ from .alerts import (
     EvaluateAlertsResult,
     LinkSuggestedIncident,
 )
+from .checks import (
+    CheckEndpoint,
+    MonitorCheck,
+    MonitorCheckCreate,
+    MonitorCheckPatch,
+    MonitorCheckResult,
+)
 from .file_monitoring import FileVersionEvent, FileWatchTarget
 from .literals import (
     CollectMode,
@@ -30,6 +37,11 @@ __all__ = [
     "AlertScope",
     "EvaluateAlertsResult",
     "LinkSuggestedIncident",
+    "CheckEndpoint",
+    "MonitorCheck",
+    "MonitorCheckCreate",
+    "MonitorCheckPatch",
+    "MonitorCheckResult",
     "FileVersionEvent",
     "FileWatchTarget",
     "CollectMode",
