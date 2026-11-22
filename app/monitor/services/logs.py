@@ -2,13 +2,19 @@
 
 No real syslog/HTTP ingest. Demo events are written only via admin
 ``simulate-tick``. Retention is enforced via ``log_events_retained``
-entitlements (trim oldest after inserts).
+count ceilings plus entitlement wall-clock days (L9). Search supports
+phrase ``q``, severity multi-select, ``attrs.*`` exact match, and cursor
+pagination.
 """
 
 from __future__ import annotations
 
+import base64
+import copy
 import hashlib
+import json
 import random
+import re
 import uuid
 from datetime import datetime, timedelta, timezone
 from typing import Any
@@ -116,6 +122,23 @@ def count_log_streams(*, tenant_id: str) -> int:
     return int(_streams().count_documents(tenant_filter(tid)))
 
 
+def enforce_log_events_age_retention(
+    *, tenant_id: str, retention_days: int | None = None
+) -> int:
+    """Delete log events older than wall-clock retention days. Returns deleted count."""
+    tid = require_tenant_id(tenant_id)
+    days = retention_days
+    if days is None:
+        days = entitlements_service.effective_monitor_retention_days(tid)
+    if days is None or int(days) <= 0:
+        return 0
+    cutoff = _now() - timedelta(days=int(days))
+    result = _events().delete_many(
+        {**tenant_filter(tid), "observed_at": {"$lt": cutoff}}
+    )
+    return int(result.deleted_count)
+
+
 def enforce_log_events_retention(*, tenant_id: str) -> int:
     """Trim oldest events when over ``log_events_retained``. Returns trimmed count."""
     tid = require_tenant_id(tenant_id)
@@ -137,6 +160,94 @@ def enforce_log_events_retention(*, tenant_id: str) -> int:
     ids = [row["_id"] for row in oldest]
     result = coll.delete_many({"_id": {"$in": ids}})
     return int(result.deleted_count)
+
+
+def _encode_search_cursor(*, observed_at: datetime, event_id: str) -> str:
+    payload = {
+        "o": observed_at.astimezone(timezone.utc).isoformat(),
+        "e": event_id,
+    }
+    raw = json.dumps(payload, separators=(",", ":")).encode("utf-8")
+    return base64.urlsafe_b64encode(raw).decode("ascii").rstrip("=")
+
+
+def _decode_search_cursor(cursor: str) -> tuple[datetime, str]:
+    token = (cursor or "").strip()
+    if not token:
+        raise MonitorLogsError("Empty search cursor", status_code=422)
+    pad = "=" * (-len(token) % 4)
+    try:
+        raw = base64.urlsafe_b64decode(token + pad)
+        payload = json.loads(raw.decode("utf-8"))
+        observed = datetime.fromisoformat(str(payload["o"]))
+        if observed.tzinfo is None:
+            observed = observed.replace(tzinfo=timezone.utc)
+        event_id = str(payload["e"])
+    except (KeyError, ValueError, json.JSONDecodeError, UnicodeDecodeError) as exc:
+        raise MonitorLogsError("Invalid search cursor", status_code=422) from exc
+    if not event_id:
+        raise MonitorLogsError("Invalid search cursor", status_code=422)
+    return observed, event_id
+
+
+def _parse_attr_filters(attrs: list[str] | None) -> dict[str, Any]:
+    """Parse ``key:value`` / ``key=value`` attr filters into Mongo equality clauses."""
+    if not attrs:
+        return {}
+    out: dict[str, Any] = {}
+    for raw in attrs:
+        text = (raw or "").strip()
+        if not text:
+            continue
+        if "=" in text:
+            key, _, value = text.partition("=")
+        elif ":" in text:
+            key, _, value = text.partition(":")
+        else:
+            raise MonitorLogsError(
+                f"Invalid attr filter '{raw}' (expected key:value or key=value)",
+                status_code=422,
+            )
+        key = key.strip()
+        if not key or not re.fullmatch(r"[A-Za-z0-9_.-]+", key):
+            raise MonitorLogsError(
+                f"Invalid attr key '{key}'",
+                status_code=422,
+            )
+        value = value.strip()
+        parsed: Any = value
+        if value.lower() in {"true", "false", "null"}:
+            parsed = {"true": True, "false": False, "null": None}[value.lower()]
+        else:
+            try:
+                parsed = json.loads(value)
+            except (json.JSONDecodeError, TypeError):
+                parsed = value
+        out[f"attrs.{key}"] = parsed
+    return out
+
+
+def _build_q_clause(q: str | None) -> dict[str, Any] | None:
+    """Build Mongo clause for ``q``. Quoted strings → phrase match on message."""
+    if not q:
+        return None
+    term = q.strip()
+    if not term:
+        return None
+    if len(term) >= 2 and term[0] == '"' and term[-1] == '"':
+        phrase = term[1:-1]
+        if not phrase:
+            return None
+        escaped = re.escape(phrase)
+        return {"message": {"$regex": escaped, "$options": "i"}}
+    return {
+        "$or": [
+            {"message": {"$regex": term, "$options": "i"}},
+            {"event_id": {"$regex": term, "$options": "i"}},
+            {"stream_id": {"$regex": term, "$options": "i"}},
+            {"component_id": {"$regex": term, "$options": "i"}},
+        ]
+    }
 
 
 def _day_key(when: datetime | None = None) -> str:
@@ -363,6 +474,8 @@ def list_events(
     component_id: str | None = None,
     source: str | None = None,
     collect_mode: str | None = None,
+    attr: list[str] | None = None,
+    cursor: str | None = None,
     page: int = 1,
     page_size: int = 50,
     sort_dir: str = "desc",
@@ -370,14 +483,15 @@ def list_events(
     tid = require_tenant_id(tenant_id)
     page = max(1, page)
     page_size = min(max(1, page_size), 200)
-    direction = DESCENDING if sort_dir.lower() != "asc" else ASCENDING
+    descending = sort_dir.lower() != "asc"
+    direction = DESCENDING if descending else ASCENDING
     query: dict[str, Any] = {}
     if stream_id:
         query["stream_id"] = stream_id.strip()
     if component_id:
         query["component_id"] = component_id.strip()
     if severity:
-        # Allow comma-separated severities.
+        # Allow comma-separated severities (severity multi-select).
         parts = [p.strip().lower() for p in severity.split(",") if p.strip()]
         bad = [p for p in parts if p not in SEVERITIES]
         if bad:
@@ -407,38 +521,78 @@ def list_events(
                 status_code=422,
             )
         query["collect_mode"] = mode
-    if q:
-        term = q.strip()
-        if term:
-            query["$or"] = [
-                {"message": {"$regex": term, "$options": "i"}},
-                {"event_id": {"$regex": term, "$options": "i"}},
-                {"stream_id": {"$regex": term, "$options": "i"}},
-                {"component_id": {"$regex": term, "$options": "i"}},
-            ]
-    filt = merge_tenant_filter(query, tid)
+    query.update(_parse_attr_filters(attr))
+    q_clause = _build_q_clause(q)
+    if q_clause:
+        if "$or" in q_clause:
+            query.setdefault("$and", []).append(q_clause)
+        else:
+            query.update(q_clause)
+
+    # Total ignores cursor so clients see full match count across pages.
+    base_filt = merge_tenant_filter(copy.deepcopy(query), tid)
     coll = _events()
-    total = coll.count_documents(filt)
-    cursor = (
-        coll.find(filt)
-        .sort([("observed_at", direction), ("event_id", direction)])
-        .skip((page - 1) * page_size)
-        .limit(page_size)
+    total = coll.count_documents(base_filt)
+
+    search_after: tuple[datetime, str] | None = None
+    page_query = copy.deepcopy(query)
+    if cursor:
+        search_after = _decode_search_cursor(cursor)
+        observed, event_id = search_after
+        cmp = "$lt" if descending else "$gt"
+        # search_after / cursor pagination (stable on observed_at + event_id).
+        page_query.setdefault("$and", []).append(
+            {
+                "$or": [
+                    {"observed_at": {cmp: observed}},
+                    {
+                        "observed_at": observed,
+                        "event_id": {cmp: event_id},
+                    },
+                ]
+            }
+        )
+
+    filt = merge_tenant_filter(page_query, tid)
+    find_cursor = coll.find(filt).sort(
+        [("observed_at", direction), ("event_id", direction)]
     )
-    items = [_serialize(doc) for doc in cursor]
+    if not search_after:
+        find_cursor = find_cursor.skip((page - 1) * page_size)
+    docs = list(find_cursor.limit(page_size))
+    items = [_serialize(doc) for doc in docs]
+    next_cursor = None
+    if docs and len(docs) == page_size:
+        last = docs[-1]
+        observed_at = last.get("observed_at")
+        event_id = last.get("event_id")
+        if isinstance(observed_at, datetime) and event_id:
+            next_cursor = _encode_search_cursor(
+                observed_at=observed_at, event_id=str(event_id)
+            )
     retention_limit = entitlements_service.log_events_retained_limit(tid)
+    retention_days = entitlements_service.effective_monitor_retention_days(tid)
+    from . import live_gates as live_gates_service
+
+    retention_tier = live_gates_service.tenant_live_settings(tid)[
+        "monitor_retention_tier"
+    ]
     return {
         "total": total,
-        "page": page,
+        "page": 1 if search_after else page,
         "page_size": page_size,
         "total_pages": (total + page_size - 1) // page_size if page_size else 0,
         "items": items,
+        "next_cursor": next_cursor,
+        "cursor": cursor,
         "tenant_id": tid,
         "execution_mode": EXECUTION_MODE,
         "live_probes": False,
         "data_source": DATA_SOURCE,
         "retained_total": count_log_events(tenant_id=tid),
         "retention_limit": retention_limit,
+        "retention_tier": retention_tier,
+        "retention_days": retention_days,
         "filters": {
             "q": q,
             "severity": severity,
@@ -446,6 +600,7 @@ def list_events(
             "component_id": component_id,
             "source": source,
             "collect_mode": collect_mode,
+            "attr": list(attr or []),
         },
     }
 

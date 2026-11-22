@@ -29,6 +29,7 @@ MONITOR_AGENTS_COLLECTION = "monitor_agents"
 MONITOR_AGENT_ENROLLMENTS_COLLECTION = "monitor_agent_enrollments"
 MONITOR_INGEST_CURSORS_COLLECTION = "monitor_ingest_cursors"
 AUTO_INCIDENTS_DAILY_COLLECTION = "monitor_auto_incidents_daily"
+RETENTION_JOBS_COLLECTION = "monitor_retention_jobs"
 
 
 def ensure_monitor_indexes(db: Database | None = None) -> dict[str, Any]:
@@ -555,6 +556,29 @@ def ensure_monitor_indexes(db: Database | None = None) -> dict[str, Any]:
                 [("tenant_id", ASCENDING), ("day", ASCENDING)],
                 unique=True,
                 name="tenant_auto_incident_day_unique",
+            )
+        ),
+    ]
+
+    retention_jobs = handle[RETENTION_JOBS_COLLECTION]
+    created[RETENTION_JOBS_COLLECTION] = [
+        str(
+            retention_jobs.create_index(
+                [("tenant_id", ASCENDING), ("job_id", ASCENDING)],
+                unique=True,
+                name="tenant_retention_job_id_unique",
+            )
+        ),
+        str(
+            retention_jobs.create_index(
+                [("tenant_id", ASCENDING), ("created_at", DESCENDING)],
+                name="tenant_retention_job_created_idx",
+            )
+        ),
+        str(
+            retention_jobs.create_index(
+                [("tenant_id", ASCENDING), ("status", ASCENDING)],
+                name="tenant_retention_job_status_idx",
             )
         ),
     ]

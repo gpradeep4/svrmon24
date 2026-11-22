@@ -220,6 +220,14 @@ def set_monitor_live_settings(
                     "Invalid monitor_retention_tier (expected hot|extended|siem)",
                     status_code=400,
                 )
+            from . import entitlements as entitlements_service
+
+            if not entitlements_service.retention_tier_allowed(tid, tier):
+                raise TenantError(
+                    f"Retention tier '{tier}' is locked for this plan "
+                    f"(entitlement days is 0). Upgrade or use hot.",
+                    status_code=403,
+                )
             to_set[key] = tier
         else:
             to_set[key] = bool(value)

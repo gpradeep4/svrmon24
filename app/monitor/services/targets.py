@@ -336,6 +336,25 @@ def count_metric_samples(*, tenant_id: str) -> int:
     return int(_samples().count_documents(tenant_filter(tid)))
 
 
+def enforce_metric_samples_age_retention(
+    *, tenant_id: str, retention_days: int | None = None
+) -> int:
+    """Delete metric samples older than wall-clock retention days. Returns deleted count."""
+    tid = require_tenant_id(tenant_id)
+    days = retention_days
+    if days is None:
+        days = entitlements_service.effective_monitor_retention_days(tid)
+    if days is None or int(days) <= 0:
+        return 0
+    from datetime import datetime, timedelta, timezone
+
+    cutoff = datetime.now(timezone.utc) - timedelta(days=int(days))
+    result = _samples().delete_many(
+        {**tenant_filter(tid), "observed_at": {"$lt": cutoff}}
+    )
+    return int(result.deleted_count)
+
+
 def enforce_metric_samples_retention(*, tenant_id: str) -> int:
     """Trim oldest metric samples when over ``metric_samples_retained``."""
     tid = require_tenant_id(tenant_id)

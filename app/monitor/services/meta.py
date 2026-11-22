@@ -51,12 +51,30 @@ def module_meta(
     tid = (tenant_id or "").strip()
     gates: dict[str, Any]
     retention_tier = "hot"
+    retention_days: int | None = None
+    retention_days_by_tier: dict[str, int | None] = {
+        "hot": None,
+        "extended": None,
+        "siem": None,
+    }
     if tid:
+        from ...services import entitlements as entitlements_service
+        from . import cold_storage as cold_storage_service
+
         gates = live_gates_service.live_gates(tenant_id=tid, settings=cfg)
         retention_tier = live_gates_service.tenant_live_settings(tid)[
             "monitor_retention_tier"
         ]
+        retention_days = entitlements_service.effective_monitor_retention_days(tid)
+        retention_days_by_tier = {
+            "hot": entitlements_service.monitor_retention_days_hot_limit(tid),
+            "extended": entitlements_service.monitor_retention_days_extended_limit(tid),
+            "siem": entitlements_service.monitor_retention_days_siem_limit(tid),
+        }
+        cold = cold_storage_service.cold_storage_status(settings=cfg)
     else:
+        from . import cold_storage as cold_storage_service
+
         gates = {
             "platform_enabled": bool(cfg.monitor_live_probes_enabled),
             "tenant_opt_in": False,
@@ -67,6 +85,7 @@ def module_meta(
             "poller_enabled": False,
             "http_ingest": False,
         }
+        cold = cold_storage_service.cold_storage_status(settings=cfg)
     live_probes = bool(gates.get("platform_enabled") and gates.get("tenant_opt_in"))
     banner = BANNER_LIVE_GATED if live_probes else BANNER_SIMULATED
     return {
@@ -78,6 +97,12 @@ def module_meta(
         "live_probes": live_probes,
         "live_gates": gates,
         "retention_tier": retention_tier,
+        "retention_days": retention_days,
+        "retention_days_by_tier": retention_days_by_tier,
+        "cold_storage": {
+            "configured": bool(cold.get("configured")),
+            "scheme": cold.get("scheme"),
+        },
         "collect_modes": list(COLLECT_MODES),
         "domains": list(DOMAINS),
         "os_families": list(OS_FAMILIES),
@@ -106,7 +131,11 @@ def module_meta(
             "expose watch_mode SIMULATED|AGENT|AGENTLESS_POLL (L6); agentless "
             "poll uses HTTP ETag/checksum where feasible. Middleware is a "
             "first-class Monitoring domain (L7) synced from CMDB Middleware "
-            "CIs. File Monitoring and Diagnostics are under Monitoring "
+            "CIs. Retention tiers (hot/extended/siem) add wall-clock days to "
+            "the count sweeper; Logs search supports phrase q, severity "
+            "multi-select, attrs filters, and cursor pagination; optional "
+            "cold-archive via MONITOR_COLD_STORAGE_URI (file:// first) (L9). "
+            "File Monitoring and Diagnostics are under Monitoring "
             "(CMDB redirect stubs removed in M8)."
         ),
         "watch_modes": list(WATCH_MODES),
@@ -146,6 +175,8 @@ def module_meta(
         },
         "entry_path": "/monitor",
         "retention_sweep": "/api/monitor/admin/retention-sweep",
+        "cold_archive": "/api/monitor/admin/cold-archive",
+        "retention_jobs": "/api/monitor/admin/retention-jobs",
         "live_settings": "/api/monitor/admin/live-settings",
         "live_probe_stub": "/api/monitor/live/probe-stub",
         "checks": "/api/monitor/checks",

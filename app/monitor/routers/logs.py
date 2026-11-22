@@ -57,12 +57,24 @@ def list_streams(
 
 @router.get("/events")
 def list_events(
-    q: str | None = Query(default=None),
-    severity: str | None = Query(default=None),
+    q: str | None = Query(
+        default=None,
+        description='Search text; wrap in quotes for phrase match on message',
+    ),
+    severity: str | None = Query(
+        default=None, description="Comma-separated severities (multi-select)"
+    ),
     stream_id: str | None = Query(default=None),
     component_id: str | None = Query(default=None),
     source: str | None = Query(default=None),
     collect_mode: str | None = Query(default=None),
+    attr: list[str] | None = Query(
+        default=None,
+        description="Repeatable attrs.* exact filters as key:value or key=value",
+    ),
+    cursor: str | None = Query(
+        default=None, description="Opaque search_after cursor from next_cursor"
+    ),
     page: int = Query(default=1, ge=1),
     page_size: int = Query(default=50, ge=1, le=200),
     sort_dir: str = Query(default="desc"),
@@ -77,6 +89,8 @@ def list_events(
             component_id=component_id,
             source=source,
             collect_mode=collect_mode,
+            attr=attr,
+            cursor=cursor,
             page=page,
             page_size=page_size,
             sort_dir=sort_dir,
