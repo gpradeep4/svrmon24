@@ -13,6 +13,7 @@ from typing import Any
 from ...config import Settings, get_settings
 from ...services import tenants as tenants_service
 from . import checks as checks_service
+from . import file_monitoring as file_service
 from .live_gates import live_allowed
 
 logger = logging.getLogger(__name__)
@@ -91,8 +92,20 @@ def run_tick(
         outcome = checks_service.run_due_checks_for_tenant(
             tenant_id=tid, settings=cfg
         )
+        file_outcome = file_service.run_due_file_polls_for_tenant(
+            tenant_id=tid, settings=cfg
+        )
         ran += int(outcome.get("ran") or 0)
-        tenant_results.append(outcome)
+        ran += int(file_outcome.get("ran") or 0)
+        tenant_results.append(
+            {
+                "tenant_id": tid,
+                "checks": outcome,
+                "file_polls": file_outcome,
+                "ran": int(outcome.get("ran") or 0)
+                + int(file_outcome.get("ran") or 0),
+            }
+        )
 
     result = {
         "ok": True,

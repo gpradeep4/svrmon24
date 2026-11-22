@@ -4,7 +4,7 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <meta name="svrmon24-ui" content="login-enterprise-v13" />
-  <meta name="svrmon24-version" content="0.77.0" />
+  <meta name="svrmon24-version" content="0.78.0" />
   <title>SVRMON24</title>
   <link rel="icon" href="/static/img/svrmon-favicon.png" type="image/png" sizes="32x32" />
   <link rel="apple-touch-icon" href="/static/img/svrmon-apple-touch.png" sizes="180x180" />
@@ -15,11 +15,11 @@
     body.is-app .login-gate { display: none !important; }
     #authPanel, .auth-panel-legacy { display: none !important; }
   </style>
-  <link rel="stylesheet" href="/static/css/cmdb.css?v=0.77.0" />
-  <link rel="stylesheet" href="/static/css/itsm.css?v=0.77.0" />
-  <link rel="stylesheet" href="/static/css/monitor.css?v=0.77.0" />
-  <script src="/static/js/config.js?v=0.77.0"></script>
-  <script src="/static/js/brand.js?v=0.77.0"></script>
+  <link rel="stylesheet" href="/static/css/cmdb.css?v=0.78.0" />
+  <link rel="stylesheet" href="/static/css/itsm.css?v=0.78.0" />
+  <link rel="stylesheet" href="/static/css/monitor.css?v=0.78.0" />
+  <script src="/static/js/config.js?v=0.78.0"></script>
+  <script src="/static/js/brand.js?v=0.78.0"></script>
 </head>
 <body class="is-login">
   <!-- Enterprise login: showcase (left) + sign-in panel (right); stacks on small viewports -->
@@ -2384,18 +2384,18 @@
 
         <section id="tab-file-monitoring" class="tab-panel hidden" data-fm-module="1">
           <section class="panel">
-            <h2>File Monitoring (DEMO / SIMULATED)</h2>
+            <h2>File Monitoring</h2>
             <p class="hint" id="fmSaasIntro">
-              Tenant-scoped SIMULATED file watches and version history.
-              Paths, actors, and change events are demo data filtered by your
-              current <code>tenant_id</code>. Live filesystem watching is
-              <strong>not</strong> enabled.
-              <button type="button" class="help-balloon" aria-label="Help: file monitoring SaaS" data-help="List and version history always use the session tenant. Cross-tenant watch_id / event_id lookups return 404. No inotify, agent, or SSH file probes in v1.">i</button>
+              Tenant-scoped file watches and version history. Default
+              <code>watch_mode</code> is <strong>SIMULATED</strong>. Live modes
+              (<code>AGENT</code> / <code>AGENTLESS_POLL</code>) require platform
+              + tenant live gates.
+              <button type="button" class="help-balloon" aria-label="Help: file monitoring SaaS" data-help="List and version history use the session tenant. AGENT mode accepts OS watcher events via agent ingest. AGENTLESS_POLL uses HTTP ETag/checksum where feasible. Live modes fail-closed when gates are off.">i</button>
             </p>
             <div class="demo-banner" id="fmBanner" data-fm-simulated="1">
-              All File Monitoring output is <strong>SIMULATED / SYNTHETIC_DEMO</strong>.
-              execution_mode is always SIMULATED. No live paths are watched; agents and
-              remote filesystem probes remain disabled until explicitly approved.
+              Default watches are <strong>SIMULATED / SYNTHETIC_DEMO</strong>.
+              Use the watch mode selector to switch a target to AGENT or
+              AGENTLESS_POLL when live gates are on.
             </div>
             <div class="toolbar" style="grid-template-columns: 1.6fr 1fr auto;">
               <label>Search
@@ -2416,7 +2416,7 @@
 
           <section class="panel">
             <h2>Watched files / paths
-              <button type="button" class="help-balloon" aria-label="Help: watched paths" data-help="Demo watch targets with latest version, actor, and timestamp. Open a row for version history.">i</button>
+              <button type="button" class="help-balloon" aria-label="Help: watched paths" data-help="Watch targets with latest version, actor, watch_mode, and timestamp. Open a row for version history and mode selector.">i</button>
             </h2>
             <div class="table-wrap">
               <table class="inventory" id="fmTargetsTable" data-fm-targets-table="1">
@@ -2429,7 +2429,8 @@
                     <th>Version</th>
                     <th>Changed by</th>
                     <th>Changed at</th>
-                    <th>Mode</th>
+                    <th>Watch mode</th>
+                    <th>Exec</th>
                     <th>Actions</th>
                   </tr>
                 </thead>
@@ -2443,13 +2444,44 @@
               <header class="fm-drawer-head">
                 <div>
                   <h3 id="fmDrawerTitle">Watch detail</h3>
-                  <p class="hint" id="fmDrawerSub">SIMULATED version history</p>
+                  <p class="hint" id="fmDrawerSub">Version history</p>
                 </div>
                 <button type="button" id="btnCloseFmDrawer" class="ghost" aria-label="Close detail">Close</button>
               </header>
               <div id="fmDrawerDetail" class="fm-drawer-detail hint">Select a watched path.</div>
+              <div class="fm-drawer-mode" id="fmModePanel" data-fm-mode-panel="1" hidden>
+                <h4 class="fm-drawer-section">Live watch mode
+                  <button type="button" class="help-balloon" aria-label="Help: watch mode" data-help="SIMULATED keeps demo events. AGENT binds an enrolled agent (inotify/FSEvents/…). AGENTLESS_POLL needs poll_url for HTTP ETag/checksum. Live modes return 403 when gates are off.">i</button>
+                </h4>
+                <div class="toolbar" style="grid-template-columns: 1fr 1fr; gap: 8px;">
+                  <label>watch_mode
+                    <select id="fmWatchMode" data-fm-watch-mode="1">
+                      <option value="SIMULATED">SIMULATED</option>
+                      <option value="AGENT">AGENT</option>
+                      <option value="AGENTLESS_POLL">AGENTLESS_POLL</option>
+                    </select>
+                  </label>
+                  <label>agent_id
+                    <input id="fmAgentId" placeholder="agt-…" data-fm-agent-id="1" />
+                  </label>
+                  <label>os_watcher
+                    <select id="fmOsWatcher" data-fm-os-watcher="1">
+                      <option value="">(default)</option>
+                      <option value="inotify">inotify</option>
+                      <option value="readdirectorychanges">readdirectorychanges</option>
+                      <option value="fsevents">fsevents</option>
+                      <option value="kqueue_or_poll">kqueue_or_poll</option>
+                    </select>
+                  </label>
+                  <label>poll_url
+                    <input id="fmPollUrl" placeholder="https://host/path" data-fm-poll-url="1" />
+                  </label>
+                </div>
+                <p class="hint" id="fmModeHint">Live modes require platform + tenant file_watch_live gates.</p>
+                <button type="button" id="btnSaveFmMode" class="secondary" data-fm-save-mode="1" data-monitor-perm-write="monitor:targets:write">Save watch mode</button>
+              </div>
               <h4 class="fm-drawer-section">Version history
-                <button type="button" class="help-balloon" aria-label="Help: version history" data-help="Each row is a SYNTHETIC_DEMO change event with actor and timestamp. Not a live filesystem audit.">i</button>
+                <button type="button" class="help-balloon" aria-label="Help: version history" data-help="SIMULATED rows are SYNTHETIC_DEMO. LIVE rows come from AGENT_FILE_WATCH or AGENTLESS_FILE_POLL.">i</button>
               </h4>
               <div class="table-wrap">
                 <table class="inventory" data-fm-versions-table="1">
@@ -2461,6 +2493,7 @@
                       <th>Kind</th>
                       <th>Summary</th>
                       <th>Hash</th>
+                      <th>Source</th>
                     </tr>
                   </thead>
                   <tbody id="fmVersionsBody" data-fm-versions-body="1"></tbody>
@@ -3675,27 +3708,27 @@
     </div>
   </div>
 
-  <script src="/static/js/cmdb.js?v=0.77.0"></script>
-  <script src="/static/js/monitor/dashboard.js?v=0.77.0"></script>
-  <script src="/static/js/monitor/targets.js?v=0.77.0"></script>
-  <script src="/static/js/monitor/logs.js?v=0.77.0"></script>
-  <script src="/static/js/monitor/alerts.js?v=0.77.0"></script>
-  <script src="/static/js/monitor/agents.js?v=0.77.0"></script>
-  <script src="/static/js/monitor/index.js?v=0.77.0"></script>
-  <script src="/static/js/itsm/api.js?v=0.77.0"></script>
-  <script src="/static/js/itsm/routing.js?v=0.77.0"></script>
-  <script src="/static/js/itsm/deeplinks.js?v=0.77.0"></script>
-  <script src="/static/js/itsm/dashboard.js?v=0.77.0"></script>
-  <script src="/static/js/itsm/reports.js?v=0.77.0"></script>
-  <script src="/static/js/itsm/incidents.js?v=0.77.0"></script>
-  <script src="/static/js/itsm/changes.js?v=0.77.0"></script>
-  <script src="/static/js/itsm/problems.js?v=0.77.0"></script>
-  <script src="/static/js/itsm/approvals.js?v=0.77.0"></script>
-  <script src="/static/js/itsm/workflows.js?v=0.77.0"></script>
-  <script src="/static/js/itsm/sla.js?v=0.77.0"></script>
-  <script src="/static/js/itsm/knowledge.js?v=0.77.0"></script>
-  <script src="/static/js/itsm/notifications.js?v=0.77.0"></script>
-  <script src="/static/js/itsm/groups.js?v=0.77.0"></script>
-  <script src="/static/js/itsm/index.js?v=0.77.0"></script>
+  <script src="/static/js/cmdb.js?v=0.78.0"></script>
+  <script src="/static/js/monitor/dashboard.js?v=0.78.0"></script>
+  <script src="/static/js/monitor/targets.js?v=0.78.0"></script>
+  <script src="/static/js/monitor/logs.js?v=0.78.0"></script>
+  <script src="/static/js/monitor/alerts.js?v=0.78.0"></script>
+  <script src="/static/js/monitor/agents.js?v=0.78.0"></script>
+  <script src="/static/js/monitor/index.js?v=0.78.0"></script>
+  <script src="/static/js/itsm/api.js?v=0.78.0"></script>
+  <script src="/static/js/itsm/routing.js?v=0.78.0"></script>
+  <script src="/static/js/itsm/deeplinks.js?v=0.78.0"></script>
+  <script src="/static/js/itsm/dashboard.js?v=0.78.0"></script>
+  <script src="/static/js/itsm/reports.js?v=0.78.0"></script>
+  <script src="/static/js/itsm/incidents.js?v=0.78.0"></script>
+  <script src="/static/js/itsm/changes.js?v=0.78.0"></script>
+  <script src="/static/js/itsm/problems.js?v=0.78.0"></script>
+  <script src="/static/js/itsm/approvals.js?v=0.78.0"></script>
+  <script src="/static/js/itsm/workflows.js?v=0.78.0"></script>
+  <script src="/static/js/itsm/sla.js?v=0.78.0"></script>
+  <script src="/static/js/itsm/knowledge.js?v=0.78.0"></script>
+  <script src="/static/js/itsm/notifications.js?v=0.78.0"></script>
+  <script src="/static/js/itsm/groups.js?v=0.78.0"></script>
+  <script src="/static/js/itsm/index.js?v=0.78.0"></script>
 </body>
 </html>

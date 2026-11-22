@@ -5,7 +5,7 @@ from __future__ import annotations
 from typing import Any
 
 from ...config import Settings, get_settings
-from ..models.literals import DOMAINS, EXECUTION_MODES
+from ..models.literals import DOMAINS, EXECUTION_MODES, WATCH_MODES
 from . import live_gates as live_gates_service
 from . import mtls as mtls_service
 
@@ -31,7 +31,8 @@ BANNER_LIVE_GATED = (
     "SIMULATED seed / simulate-tick remain available; agentless HTTP/TCP/ICMP/SNMP "
     "polls require poller/allowlist (L1/L2); HTTP log ingest (+ optional syslog) "
     "writes LIVE log_events when ingest gates are on (L3); agent enroll/register "
-    "requires agent opt-in (L4); agents push metrics/logs/file-events (L5)."
+    "requires agent opt-in (L4); agents push metrics/logs/file-events (L5); "
+    "file watches support watch_mode AGENT / AGENTLESS_POLL (L6)."
 )
 # Back-compat alias for SIMULATED services (dashboard / targets / logs / alerts).
 BANNER = BANNER_SIMULATED
@@ -97,9 +98,12 @@ def module_meta(
             "tenant monitor_live_opt_in (fail-closed). Agents register via "
             "enrollment codes (token hash-at-rest; optional mTLS sketch) and "
             "push LIVE metrics/logs/file-events with ingest cursors (L5). "
+            "File watches expose watch_mode SIMULATED|AGENT|AGENTLESS_POLL "
+            "(L6); agentless poll uses HTTP ETag/checksum where feasible. "
             "File Monitoring and Diagnostics are under Monitoring "
             "(CMDB redirect stubs removed in M8)."
         ),
+        "watch_modes": list(WATCH_MODES),
         "agent_ingest_contract": agent_ingest_service.os_contract_meta(),
         "log_sources": ["agentless", "agent", "simulated"],
         "log_severities": [
@@ -149,4 +153,5 @@ def module_meta(
         "ingest_metrics": "/api/monitor/ingest/metrics",
         "ingest_file_events": "/api/monitor/ingest/file-events",
         "agent_desired_state": "/api/monitor/agents/{agent_id}/desired-state",
+        "files_watches": "/api/monitor/files/watches",
     }

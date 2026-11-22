@@ -16,6 +16,7 @@ from __future__ import annotations
 # L3: live HTTP/syslog log ingest + ingest keys + syslog source maps.
 # L4: monitor_agents + enrollments (token + mTLS sketch).
 # L5: agent metrics/logs/file-events ingest + monitor_ingest_cursors.
+# L6: live file watching (watch_mode AGENT / AGENTLESS_POLL).
 MONITOR_COLLECTIONS: tuple[str, ...] = (
     "file_watch_targets",
     "file_version_events",

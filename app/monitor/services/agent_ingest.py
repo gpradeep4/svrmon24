@@ -47,14 +47,14 @@ OS_CORE_METRICS: tuple[str, ...] = (
     "disk.used_pct",
 )
 
-# Suggested OS watcher identifiers for file-event payloads (L5 ingest contract;
-# L6 configures live watchers). Agents may send these in ``os_watcher``.
+# OS watcher identifiers for agent file-event payloads (L5/L6 contract).
 OS_WATCHERS: dict[str, str] = {
     "linux": "inotify",
     "windows": "readdirectorychanges",
     "macos": "fsevents",
     "unix": "kqueue_or_poll",
 }
+VALID_OS_WATCHERS = frozenset(OS_WATCHERS.values())
 
 CHANGE_KINDS = frozenset(
     {"created", "modified", "renamed", "deleted", "permission"}
@@ -208,8 +208,18 @@ def os_contract_meta() -> dict[str, Any]:
             "(or X-Monitor-Agent-Token). Payload os_family must match the "
             "registered agent. File events should set os_watcher per OS "
             f"({', '.join(f'{k}={v}' for k, v in OS_WATCHERS.items())}). "
-            "Production-signed installers are out of scope for L5."
+            "Existing watches must have watch_mode=AGENT (L6); SIMULATED / "
+            "AGENTLESS_POLL targets reject agent file-events. "
+            "Production-signed installers are out of scope."
         ),
+        "file_watch_modes": ["SIMULATED", "AGENT", "AGENTLESS_POLL"],
+        "agent_watcher_schema": {
+            "required": ["path_or_watch_id", "change_kind"],
+            "change_kinds": sorted(CHANGE_KINDS),
+            "os_watcher_by_family": dict(OS_WATCHERS),
+            "execution_mode": "LIVE",
+            "data_source": "AGENT_FILE_WATCH",
+        },
     }
 
 
@@ -339,17 +349,23 @@ def _check_seq_dedup(
 
 
 def get_desired_state(*, tenant_id: str, agent_id: str) -> dict[str, Any]:
-    """Minimal desired-state: watch_ids / stream_ids / target_ids for the agent."""
+    """Minimal desired-state: watch_ids / stream_ids / target_ids for the agent.
+
+    Only ``watch_mode=AGENT`` targets are returned (L6).
+    """
     tid = require_tenant_id(tenant_id)
     agent = agents_service.get_agent(tenant_id=tid, agent_id=agent_id)
     watch_ids = list(agent.get("desired_watch_ids") or [])
     stream_ids = list(agent.get("desired_stream_ids") or [])
     target_ids = list(agent.get("desired_target_ids") or [])
 
-    # Also surface watches already tagged with this agent_id (prep for L6).
+    # Surface watches already tagged with this agent_id in AGENT mode.
     tagged = list(
         _file_targets().find(
-            merge_tenant_filter({"agent_id": agent_id}, tid),
+            merge_tenant_filter(
+                {"agent_id": agent_id, "watch_mode": "AGENT"},
+                tid,
+            ),
             {"watch_id": 1},
         )
     )
@@ -357,6 +373,19 @@ def get_desired_state(*, tenant_id: str, agent_id: str) -> dict[str, Any]:
         wid = str(row.get("watch_id") or "").strip()
         if wid and wid not in watch_ids:
             watch_ids.append(wid)
+
+    # Drop desired ids that are not AGENT-mode (SIMULATED / AGENTLESS_POLL).
+    if watch_ids:
+        allowed: list[str] = []
+        for wid in watch_ids:
+            doc = _file_targets().find_one(
+                merge_tenant_filter({"watch_id": wid}, tid)
+            )
+            if doc is None:
+                continue
+            if str(doc.get("watch_mode") or "SIMULATED") == "AGENT":
+                allowed.append(wid)
+        watch_ids = allowed
 
     return {
         "agent_id": agent_id,
@@ -366,6 +395,7 @@ def get_desired_state(*, tenant_id: str, agent_id: str) -> dict[str, Any]:
         "watch_ids": watch_ids,
         "stream_ids": stream_ids,
         "target_ids": target_ids,
+        "watch_mode": "AGENT",
         "contract": os_contract_meta(),
     }
 
@@ -655,8 +685,7 @@ def ingest_file_events(
             if target:
                 watch_id = str(target.get("watch_id") or watch_id)
         if target is None:
-            # Auto-bind a LIVE watch target for agent-reported paths (ingest only;
-            # L6 owns watch_mode configuration UX).
+            # Auto-bind a LIVE AGENT watch for new agent-reported paths.
             if not path:
                 errors.append(f"event[{idx}]: unknown watch_id '{watch_id}'")
                 continue
@@ -684,6 +713,22 @@ def ingest_file_events(
                 tenant_id=tid,
             )
             _file_targets().insert_one(target)
+        else:
+            # L6: existing watches must be AGENT mode to accept agent events.
+            mode = str(target.get("watch_mode") or "SIMULATED").upper()
+            if mode != "AGENT":
+                errors.append(
+                    f"event[{idx}]: watch '{watch_id or target.get('watch_id')}' "
+                    f"has watch_mode={mode}; set watch_mode=AGENT to accept "
+                    "agent file-events"
+                )
+                continue
+            bound_agent = str(target.get("agent_id") or "").strip()
+            if bound_agent and bound_agent != agent_id:
+                errors.append(
+                    f"event[{idx}]: watch bound to agent '{bound_agent}'"
+                )
+                continue
 
         path = path or str(target.get("path") or "")
         change_kind = str(raw.get("change_kind") or "modified").strip().lower()
@@ -712,7 +757,15 @@ def ingest_file_events(
         if actor_type not in {"user", "service", "system"}:
             actor_type = "service"
         summary = str(raw.get("summary") or f"{change_kind} {path}").strip()[:512]
-        os_watcher = str(raw.get("os_watcher") or target.get("os_watcher") or default_watcher)
+        os_watcher = str(
+            raw.get("os_watcher") or target.get("os_watcher") or default_watcher
+        ).strip().lower()
+        if os_watcher not in VALID_OS_WATCHERS:
+            errors.append(
+                f"event[{idx}]: invalid os_watcher '{os_watcher}' "
+                f"(expected one of {sorted(VALID_OS_WATCHERS)})"
+            )
+            continue
         content_hash = raw.get("content_hash")
         size_bytes = raw.get("size_bytes")
         try:

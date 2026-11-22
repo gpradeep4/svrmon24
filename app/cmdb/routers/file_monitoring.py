@@ -45,8 +45,8 @@ def _raise(exc: FileMonitoringError) -> None:
 def get_meta(
     tenant: TenantContext = Depends(_require_file_monitoring_read),
 ) -> dict[str, Any]:
-    """Module metadata — always SIMULATED; no live watching."""
-    meta = file_monitoring_service.module_meta()
+    """Module metadata — SIMULATED default; live gates may enable watching."""
+    meta = file_monitoring_service.module_meta(tenant_id=tenant.tenant_id)
     meta["tenant_id"] = tenant.tenant_id
     return meta
 

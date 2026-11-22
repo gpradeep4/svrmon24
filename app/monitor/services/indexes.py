@@ -55,6 +55,22 @@ def ensure_monitor_indexes(db: Database | None = None) -> dict[str, Any]:
                 [("tenant_id", ASCENDING)], name="tenant_id_idx"
             )
         ),
+        str(
+            file_targets.create_index(
+                [
+                    ("tenant_id", ASCENDING),
+                    ("watch_mode", ASCENDING),
+                    ("status", ASCENDING),
+                ],
+                name="tenant_watch_mode_status_idx",
+            )
+        ),
+        str(
+            file_targets.create_index(
+                [("tenant_id", ASCENDING), ("agent_id", ASCENDING)],
+                name="tenant_agent_id_idx",
+            )
+        ),
     ]
 
     file_events = handle[FILE_EVENTS_COLLECTION]
