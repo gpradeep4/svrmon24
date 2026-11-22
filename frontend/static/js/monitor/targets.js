@@ -1,4 +1,4 @@
-/* Monitoring domain health — SIMULATED targets synced from CMDB. */
+/* Monitoring domain health — SIMULATED targets + LIVE row badges when gated. */
 (function (global) {
   "use strict";
 
@@ -18,6 +18,28 @@
     network: "mtNet",
     application: "mtApp",
     database: "mtDb",
+  };
+
+  const BANNER_SIM = {
+    server:
+      "SIMULATED — synthetic server health + metrics. Live probes / agents remain off.",
+    network:
+      "SIMULATED — switches, routers, firewalls, load balancers, APs. Live ICMP/SNMP stay off until gates + allowlist.",
+    application:
+      "SIMULATED — application health from CMDB Application CIs. Live APM stays off.",
+    database:
+      "SIMULATED — database health from CMDB Database CIs. Live DB agents stay off.",
+  };
+
+  const BANNER_LIVE = {
+    server:
+      "Live gates ON — rows may be SIMULATED or LIVE (agentless HTTP/TCP/ICMP). Per-row Mode badge shows execution_mode.",
+    network:
+      "Live gates ON — rows may be SIMULATED or LIVE (agentless ICMP/SNMP/HTTP/TCP). Per-row Mode badge shows execution_mode.",
+    application:
+      "Live gates ON — series may be SIMULATED or LIVE. Application live checks use agentless HTTP/TCP when configured.",
+    database:
+      "Live gates ON — series may be SIMULATED or LIVE. Database live checks use agentless paths when configured.",
   };
 
   function bindApi(api, { toast, can } = {}) {
@@ -49,6 +71,13 @@
     return `<span class="${cls}">${esc(s)}</span>`;
   }
 
+  function modeBadge(executionMode) {
+    const mode = String(executionMode || "SIMULATED").toUpperCase();
+    const live = mode === "LIVE";
+    const cls = live ? "status-pill ok monitor-mode-live" : "status-pill muted monitor-mode-sim";
+    return `<span class="${cls}" title="execution_mode">${esc(mode)}</span>`;
+  }
+
   function metricsSummary(metrics) {
     const rows = Array.isArray(metrics) ? metrics : [];
     if (!rows.length) return "—";
@@ -56,7 +85,8 @@
       .slice(0, 3)
       .map((m) => {
         const unit = m.unit ? ` ${m.unit}` : "";
-        return `${m.metric_name}=${m.value}${unit}`;
+        const mode = m.execution_mode === "LIVE" ? " · LIVE" : "";
+        return `${m.metric_name}=${m.value}${unit}${mode}`;
       })
       .join(" · ");
   }
@@ -104,6 +134,20 @@
     return { q, status, collect_mode: collectMode, os_family: osFamily, target_kind: targetKind };
   }
 
+  function updateBanner(domain, { liveProbes, hasLiveRows }) {
+    const banner = document.getElementById(idFor(domain, "Banner"));
+    if (!banner) return;
+    if (liveProbes || hasLiveRows) {
+      banner.textContent = BANNER_LIVE[domain] || BANNER_LIVE.server;
+      banner.removeAttribute("data-monitor-simulated");
+      banner.setAttribute("data-monitor-live", "1");
+    } else {
+      banner.textContent = BANNER_SIM[domain] || BANNER_SIM.server;
+      banner.setAttribute("data-monitor-simulated", "1");
+      banner.removeAttribute("data-monitor-live");
+    }
+  }
+
   async function loadDomain(domain, { toast } = {}) {
     const notify = toast || toastFn;
     const body = document.getElementById(idFor(domain, "Body"));
@@ -117,13 +161,26 @@
       if (v) params.set(k, v);
     });
     try {
+      let liveProbes = false;
+      try {
+        const metaBody = await apiFn("/api/monitor/meta");
+        liveProbes = Boolean(metaBody.live_probes);
+      } catch (_err) {
+        liveProbes = false;
+      }
       const data = await apiFn(`/api/monitor/targets?${params.toString()}`);
       const items = data.items || [];
+      const hasLiveRows = items.some(
+        (row) => String(row.execution_mode || "").toUpperCase() === "LIVE"
+      );
+      updateBanner(domain, { liveProbes, hasLiveRows });
+      const modeLabel = liveProbes || hasLiveRows ? "SIMULATED/LIVE mix" : "SIMULATED";
       if (meta) {
-        meta.textContent = `${data.total || 0} target(s) · SIMULATED · live_probes=false`;
+        meta.textContent = `${data.total || 0} target(s) · ${modeLabel} · live_probes=${liveProbes}`;
       }
+      const colSpan = domain === "server" || domain === "network" ? 9 : 8;
       if (!items.length) {
-        body.innerHTML = `<tr><td colspan="8" class="hint">No targets yet. Use <strong>Sync from CMDB</strong> to create SIMULATED monitor targets for this domain.</td></tr>`;
+        body.innerHTML = `<tr><td colspan="${colSpan}" class="hint">No targets yet. Use <strong>Sync from CMDB</strong> to create SIMULATED monitor targets for this domain.</td></tr>`;
         return;
       }
       body.innerHTML = items
@@ -131,13 +188,22 @@
           const metrics = metricsSummary(row.latest_metrics);
           const kind = row.target_kind || "—";
           const os = row.os_family || row.os_name || "—";
-          return `<tr data-target-id="${esc(row.target_id)}" data-component-id="${esc(row.component_id)}">
+          const showModeCol = domain === "server" || domain === "network";
+          const modeCell = showModeCol
+            ? `<td>${modeBadge(row.execution_mode)}</td>`
+            : "";
+          const reason =
+            row.live_status_reason && String(row.execution_mode).toUpperCase() === "LIVE"
+              ? ` <span class="hint" title="${esc(row.live_status_reason)}">·</span>`
+              : "";
+          return `<tr data-target-id="${esc(row.target_id)}" data-component-id="${esc(row.component_id)}" data-execution-mode="${esc(row.execution_mode || "SIMULATED")}">
             <td>${esc(row.name_snapshot || "—")}</td>
             <td class="mono">${esc(row.component_id)}</td>
             <td>${esc(kind)}</td>
             <td>${esc(domain === "server" ? os : kind)}</td>
             <td>${esc(row.collect_mode || "—")}</td>
-            <td>${statusPill(row.status)}</td>
+            ${modeCell}
+            <td>${statusPill(row.status)}${reason}</td>
             <td class="hint">${esc(metrics)}</td>
             <td>
               <button type="button" class="ghost mt-open-cmdb" data-id="${esc(row.component_id)}" data-type="${esc(row.component_type || "")}">Open CI</button>
@@ -151,7 +217,8 @@
         });
       });
     } catch (err) {
-      body.innerHTML = `<tr><td colspan="8" class="hint">${esc(err.message || "Failed to load targets")}</td></tr>`;
+      const colSpan = domain === "server" || domain === "network" ? 9 : 8;
+      body.innerHTML = `<tr><td colspan="${colSpan}" class="hint">${esc(err.message || "Failed to load targets")}</td></tr>`;
       if (typeof notify === "function") notify(err.message || "Targets load failed", true);
     }
   }

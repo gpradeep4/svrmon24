@@ -81,3 +81,12 @@
   color: #b91c1c;
   border-color: #fecaca;
 }
+
+.monitor-mode-live {
+  letter-spacing: 0.04em;
+  font-weight: 700;
+}
+
+.monitor-mode-sim {
+  letter-spacing: 0.02em;
+}
