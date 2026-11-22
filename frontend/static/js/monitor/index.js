@@ -83,35 +83,35 @@
     if (pageMeta) {
       pageMeta["monitor-dashboard"] = {
         title: "Monitoring Dashboard",
-        subtitle: "SIMULATED aggregates · targets · alerts · logs/files",
+        subtitle: "Aggregates · live gate chips · SIMULATED default / LIVE when gated",
       };
       pageMeta["monitor-servers"] = {
         title: "Servers (Monitoring)",
-        subtitle: "SIMULATED server health · sync from CMDB",
+        subtitle: "Server health · sync from CMDB · SIMULATED/LIVE per series",
       };
       pageMeta["monitor-network"] = {
         title: "Network (Monitoring)",
-        subtitle: "SIMULATED network kinds · sync from CMDB",
+        subtitle: "Network kinds · sync from CMDB · SIMULATED/LIVE per series",
       };
       pageMeta["monitor-applications"] = {
         title: "Applications (Monitoring)",
-        subtitle: "SIMULATED application health · sync from CMDB",
+        subtitle: "Application health · sync from CMDB · SIMULATED/LIVE per series",
       };
       pageMeta["monitor-middleware"] = {
         title: "Middleware (Monitoring)",
-        subtitle: "SIMULATED middleware health · sync from CMDB",
+        subtitle: "Middleware health · sync from CMDB · SIMULATED/LIVE per series",
       };
       pageMeta["monitor-databases"] = {
         title: "Databases (Monitoring)",
-        subtitle: "SIMULATED database health · sync from CMDB",
+        subtitle: "Database health · sync from CMDB · SIMULATED/LIVE per series",
       };
       pageMeta["monitor-logs"] = {
         title: "Logs",
-        subtitle: "SIMULATED log streams · search · no live ingest",
+        subtitle: "Log streams · search · SIMULATED default · LIVE ingest when gated",
       };
       pageMeta["monitor-alerts"] = {
         title: "Alerts",
-        subtitle: "SIMULATED rules · ack/resolve · draft incident Apply via ITSM",
+        subtitle: "Rules · ack/resolve · draft incident · optional auto-create (opt-in)",
       };
       pageMeta["monitor-agents"] = {
         title: "Agents",

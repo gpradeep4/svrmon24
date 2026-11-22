@@ -105,6 +105,16 @@ def ensure_monitor_indexes(db: Database | None = None) -> dict[str, Any]:
                 [("tenant_id", ASCENDING)], name="tenant_id_idx"
             )
         ),
+        str(
+            file_events.create_index(
+                [
+                    ("tenant_id", ASCENDING),
+                    ("execution_mode", ASCENDING),
+                    ("changed_at", DESCENDING),
+                ],
+                name="tenant_file_event_execution_mode_idx",
+            )
+        ),
     ]
 
     monitor_targets = handle[MONITOR_TARGETS_COLLECTION]
@@ -149,6 +159,22 @@ def ensure_monitor_indexes(db: Database | None = None) -> dict[str, Any]:
                 name="tenant_os_family_idx",
             )
         ),
+        str(
+            monitor_targets.create_index(
+                [
+                    ("tenant_id", ASCENDING),
+                    ("execution_mode", ASCENDING),
+                    ("status", ASCENDING),
+                ],
+                name="tenant_target_execution_mode_idx",
+            )
+        ),
+        str(
+            monitor_targets.create_index(
+                [("tenant_id", ASCENDING), ("agent_id", ASCENDING)],
+                name="tenant_target_agent_id_idx",
+            )
+        ),
     ]
 
     samples = handle[METRIC_SAMPLES_COLLECTION]
@@ -178,6 +204,16 @@ def ensure_monitor_indexes(db: Database | None = None) -> dict[str, Any]:
                     ("metric_name", ASCENDING),
                 ],
                 name="tenant_component_metric_idx",
+            )
+        ),
+        str(
+            samples.create_index(
+                [
+                    ("tenant_id", ASCENDING),
+                    ("execution_mode", ASCENDING),
+                    ("observed_at", DESCENDING),
+                ],
+                name="tenant_sample_execution_mode_idx",
             )
         ),
     ]
@@ -250,6 +286,16 @@ def ensure_monitor_indexes(db: Database | None = None) -> dict[str, Any]:
                 [("message", TEXT)],
                 name="log_message_text_idx",
                 default_language="english",
+            )
+        ),
+        str(
+            events.create_index(
+                [
+                    ("tenant_id", ASCENDING),
+                    ("execution_mode", ASCENDING),
+                    ("observed_at", DESCENDING),
+                ],
+                name="tenant_log_execution_mode_idx",
             )
         ),
     ]
@@ -410,6 +456,16 @@ def ensure_monitor_indexes(db: Database | None = None) -> dict[str, Any]:
                     ("observed_at", DESCENDING),
                 ],
                 name="tenant_check_observed_idx",
+            )
+        ),
+        str(
+            check_results.create_index(
+                [
+                    ("tenant_id", ASCENDING),
+                    ("execution_mode", ASCENDING),
+                    ("observed_at", DESCENDING),
+                ],
+                name="tenant_check_result_execution_mode_idx",
             )
         ),
     ]

@@ -6,6 +6,7 @@ from typing import Any
 
 from ...config import Settings, get_settings
 from ..models.literals import DOMAINS, EXECUTION_MODES, WATCH_MODES
+from . import egress as egress_service
 from . import live_gates as live_gates_service
 from . import mtls as mtls_service
 
@@ -23,19 +24,93 @@ NETWORK_TARGET_KINDS: tuple[str, ...] = (
     "other_network",
 )
 BANNER_SIMULATED = (
-    "SIMULATED / SYNTHETIC_DEMO — Monitoring does not run live probes or agents. "
-    "Target health, metric samples, and log streams are synthetic; live probes stay off."
+    "SIMULATED / SYNTHETIC_DEMO — platform MONITOR_LIVE_PROBES_ENABLED and/or "
+    "tenant monitor_live_opt_in are off (fail-closed). Target health, metric "
+    "samples, and log streams stay synthetic until both gates are on."
 )
 BANNER_LIVE_GATED = (
     "Live monitoring gates are ON for this tenant — series may be SIMULATED or LIVE. "
-    "SIMULATED seed / simulate-tick remain available; agentless HTTP/TCP/ICMP/SNMP "
-    "polls require poller/allowlist (L1/L2); HTTP log ingest (+ optional syslog) "
-    "writes LIVE log_events when ingest gates are on (L3); agent enroll/register "
-    "requires agent opt-in (L4); agents push metrics/logs/file-events (L5); "
-    "file watches support watch_mode AGENT / AGENTLESS_POLL (L6)."
+    "Per-row execution_mode badges distinguish sources. SIMULATED seed / "
+    "simulate-tick remain available; agentless polls need egress allowlist; "
+    "HTTP/syslog ingest, agents, file watches, and optional auto-incident "
+    "each require their capability gates."
 )
 # Back-compat alias for SIMULATED services (dashboard / targets / logs / alerts).
 BANNER = BANNER_SIMULATED
+
+# Fail-closed capability matrix documented in meta (L10).
+FAIL_CLOSED_MATRIX: dict[str, dict[str, Any]] = {
+    "agentless_poll": {
+        "requires": [
+            "MONITOR_LIVE_PROBES_ENABLED",
+            "tenant.monitor_live_opt_in",
+            "MONITOR_LIVE_AGENTLESS_ENABLED",
+            "tenant.monitor_live_agentless_opt_in",
+            "MONITOR_EGRESS_ALLOWLIST (non-empty)",
+        ],
+        "when_off": "403 / denied — no LIVE check results or samples written",
+    },
+    "log_ingest_http": {
+        "requires": [
+            "MONITOR_LIVE_PROBES_ENABLED",
+            "tenant.monitor_live_opt_in",
+            "MONITOR_LIVE_HTTP_INGEST_ENABLED",
+        ],
+        "when_off": "403 on POST /api/monitor/ingest/logs",
+    },
+    "log_ingest_syslog": {
+        "requires": [
+            "MONITOR_LIVE_PROBES_ENABLED",
+            "tenant.monitor_live_opt_in",
+            "MONITOR_LIVE_AGENTLESS_ENABLED",
+            "tenant.monitor_live_agentless_opt_in",
+            "MONITOR_LIVE_SYSLOG_BIND (set)",
+        ],
+        "when_off": "socket unbound / drop — no LIVE syslog ingest",
+    },
+    "agent_register": {
+        "requires": [
+            "MONITOR_LIVE_PROBES_ENABLED",
+            "tenant.monitor_live_opt_in",
+            "MONITOR_LIVE_AGENT_ENABLED",
+            "tenant.monitor_live_agent_opt_in",
+        ],
+        "when_off": "403 on enroll/register/heartbeat",
+    },
+    "agent_ingest": {
+        "requires": [
+            "MONITOR_LIVE_PROBES_ENABLED",
+            "tenant.monitor_live_opt_in",
+            "MONITOR_LIVE_AGENT_ENABLED",
+            "tenant.monitor_live_agent_opt_in",
+        ],
+        "when_off": "403 on POST /api/monitor/ingest/metrics|logs|file-events (agent token)",
+    },
+    "file_watch_live": {
+        "requires": [
+            "MONITOR_LIVE_PROBES_ENABLED",
+            "tenant.monitor_live_opt_in",
+            "agent or agentless capability (mode-dependent)",
+        ],
+        "when_off": "LIVE watch_mode rejected; SIMULATED watches unchanged",
+    },
+    "auto_incident": {
+        "requires": [
+            "MONITOR_LIVE_PROBES_ENABLED",
+            "tenant.monitor_live_opt_in",
+            "tenant.monitor_auto_incident_opt_in",
+            "rule.auto_incident",
+        ],
+        "when_off": "never creates ITSM incidents; suggest-incident draft remains",
+    },
+    "live_stub": {
+        "requires": [
+            "MONITOR_LIVE_PROBES_ENABLED",
+            "tenant.monitor_live_opt_in",
+        ],
+        "when_off": "403 on POST /api/monitor/live/probe-stub",
+    },
+}
 
 
 def module_meta(
@@ -88,6 +163,15 @@ def module_meta(
         cold = cold_storage_service.cold_storage_status(settings=cfg)
     live_probes = bool(gates.get("platform_enabled") and gates.get("tenant_opt_in"))
     banner = BANNER_LIVE_GATED if live_probes else BANNER_SIMULATED
+    egress = egress_service.egress_status(settings=cfg)
+    # Meta is readable by dashboard:read — omit host list; admin live-settings has full entries.
+    egress_public = {
+        "env_var": egress["env_var"],
+        "configured": egress["configured"],
+        "entry_count": egress["entry_count"],
+        "deny_all_when_empty": egress["deny_all_when_empty"],
+        "docs": egress["docs"],
+    }
     return {
         "module": "monitoring",
         "execution_mode": EXECUTION_MODE,
@@ -96,6 +180,8 @@ def module_meta(
         "demo_only": not live_probes,
         "live_probes": live_probes,
         "live_gates": gates,
+        "fail_closed_matrix": FAIL_CLOSED_MATRIX,
+        "egress": egress_public,
         "retention_tier": retention_tier,
         "retention_days": retention_days,
         "retention_days_by_tier": retention_days_by_tier,
@@ -109,34 +195,25 @@ def module_meta(
         "network_target_kinds": list(NETWORK_TARGET_KINDS),
         "banner": banner,
         "notice": (
-            "Monitoring defaults to SIMULATED. Sync targets from CMDB (API client "
-            "only); domain health views stamp AGENTLESS/AGENT collect modes for "
-            "all OS families and networking kinds. Log streams are searchable "
-            "SIMULATED events by default; LIVE HTTP ingest "
-            "(`/api/monitor/ingest/logs`) and optional syslog bind write "
-            "LIVE rows when gates are on. simulate-tick is admin-only. Alert "
-            "rules evaluate thresholds / log matches / file changes on "
-            "synthetic data by default. Optional alert→ITSM auto-create (L8) "
-            "requires platform live + tenant monitor_live_opt_in + "
-            "monitor_auto_incident_opt_in (default OFF) and rule.auto_incident; "
-            "creates via ITSM service (actor=monitor-auto-incident), audited, "
-            "daily-capped — never writes ITSM Mongo from Monitoring. "
-            "Suggest-incident draft→Apply remains for tenants with flag off. "
-            "No AI auto-approve of unrelated flows. Dashboard aggregates come "
-            "from monitor collections. Live probes require platform "
-            "MONITOR_LIVE_PROBES_ENABLED plus tenant monitor_live_opt_in "
-            "(fail-closed). Agents register via enrollment codes (token "
-            "hash-at-rest; optional mTLS sketch) and push LIVE "
-            "metrics/logs/file-events with ingest cursors (L5). File watches "
-            "expose watch_mode SIMULATED|AGENT|AGENTLESS_POLL (L6); agentless "
-            "poll uses HTTP ETag/checksum where feasible. Middleware is a "
-            "first-class Monitoring domain (L7) synced from CMDB Middleware "
-            "CIs. Retention tiers (hot/extended/siem) add wall-clock days to "
-            "the count sweeper; Logs search supports phrase q, severity "
-            "multi-select, attrs filters, and cursor pagination; optional "
-            "cold-archive via MONITOR_COLD_STORAGE_URI (file:// first) (L9). "
-            "File Monitoring and Diagnostics are under Monitoring "
-            "(CMDB redirect stubs removed in M8)."
+            "Monitoring defaults to SIMULATED (fail-closed). Enable platform "
+            "MONITOR_LIVE_PROBES_ENABLED plus tenant monitor_live_opt_in to "
+            "unlock LIVE series; capability sub-gates and MONITOR_EGRESS_ALLOWLIST "
+            "(deny-all when empty) still apply — see fail_closed_matrix. "
+            "Sync targets from CMDB (API client only); domains include "
+            "server/network/application/middleware/database. LIVE paths: "
+            "agentless HTTP/TCP/ICMP/SNMP checks + poller; HTTP/syslog log "
+            "ingest; agent enroll/token (+ optional mTLS sketch) + "
+            "metrics/logs/file-events ingest; file watch_mode "
+            "SIMULATED|AGENT|AGENTLESS_POLL; optional alert→ITSM auto-create "
+            "(tenant monitor_auto_incident_opt_in default OFF + rule.auto_incident; "
+            "ITSM service only, audited, daily-capped — never writes ITSM Mongo). "
+            "Suggest-incident draft→Apply remains when auto-incident is off. "
+            "No AI auto-approve of unrelated flows. Retention tiers "
+            "(hot/extended/siem) + SIEM search + optional cold-archive "
+            "(MONITOR_COLD_STORAGE_URI file://). File Monitoring and Diagnostics "
+            "live under Monitoring (CMDB redirect stubs removed in M8). "
+            "Live path L0–L10 complete; SIMULATED seed / simulate-tick unchanged "
+            "when live is off."
         ),
         "watch_modes": list(WATCH_MODES),
         "agent_ingest_contract": agent_ingest_service.os_contract_meta(),
@@ -172,12 +249,19 @@ def module_meta(
                 "Compat path /api/diagnostics/* remains; history is stored in "
                 f"{cfg.monitor_database_name} (dual-read migrate from CMDB)."
             ),
+            "live_never_copy": (
+                "Do not claim live probes are permanently unavailable. "
+                "Default is SIMULATED/fail-closed; LIVE unlocks when platform "
+                "+ tenant gates (and capability/egress) are on. See "
+                "fail_closed_matrix and live_gates."
+            ),
         },
         "entry_path": "/monitor",
         "retention_sweep": "/api/monitor/admin/retention-sweep",
         "cold_archive": "/api/monitor/admin/cold-archive",
         "retention_jobs": "/api/monitor/admin/retention-jobs",
         "live_settings": "/api/monitor/admin/live-settings",
+        "egress_admin": "/api/monitor/admin/egress",
         "live_probe_stub": "/api/monitor/live/probe-stub",
         "checks": "/api/monitor/checks",
         "poller_tick": "/api/monitor/admin/poller/tick",
@@ -191,4 +275,6 @@ def module_meta(
         "ingest_file_events": "/api/monitor/ingest/file-events",
         "agent_desired_state": "/api/monitor/agents/{agent_id}/desired-state",
         "files_watches": "/api/monitor/files/watches",
+        "live_path_complete": True,
+        "live_slices": ["L0", "L1", "L2", "L3", "L4", "L5", "L6", "L7", "L8", "L9", "L10"],
     }

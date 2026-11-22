@@ -14,6 +14,7 @@ from ...services import tenants as tenants_service
 from ...services.tenants import TenantError
 from ...tenant_context import TenantContext
 from ..services import cold_storage as cold_storage_service
+from ..services import egress as egress_service
 from ..services import live_gates as live_gates_service
 from ..services import poller as poller_service
 from ..services import retention as retention_service
@@ -55,10 +56,13 @@ def _live_settings_payload(
             "monitor_live_syslog_bind": (settings.monitor_live_syslog_bind or "").strip()
             or None,
             "monitor_poller_enabled": bool(settings.monitor_poller_enabled),
+            "monitor_egress_allowlist": (settings.monitor_egress_allowlist or "").strip()
+            or None,
         },
         "tenant": tenant,
         "live_gates": gates,
         "live_probes": bool(gates["platform_enabled"] and gates["tenant_opt_in"]),
+        "egress": egress_service.egress_status(settings=settings),
     }
 
 
@@ -170,4 +174,17 @@ def poller_tick(
         **result,
         "caller_tenant_id": tenant.tenant_id,
         "poller_running": poller_service.is_running(),
+    }
+
+
+@router.get("/egress")
+def get_egress_allowlist(
+    tenant: TenantContext = Depends(require_permission(PERM_MONITOR_ADMIN)),
+    settings: Settings = Depends(get_settings),
+) -> dict[str, Any]:
+    """Platform egress allowlist status (read-only). Edit via MONITOR_EGRESS_ALLOWLIST env."""
+    status = egress_service.egress_status(settings=settings)
+    return {
+        "tenant_id": tenant.tenant_id,
+        **status,
     }

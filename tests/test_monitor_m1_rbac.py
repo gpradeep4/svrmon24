@@ -46,7 +46,7 @@ REDIRECT_URI = "http://testserver/auth/callback"
 
 
 def test_version_bump_for_monitor_m1() -> None:
-    assert __version__ == "0.81.0"
+    assert __version__ == "0.82.0"
 
 
 def test_monitor_permissions_in_catalog() -> None:

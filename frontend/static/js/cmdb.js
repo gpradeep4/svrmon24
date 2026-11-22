@@ -604,42 +604,45 @@
     inventory: { title: "Inventory", subtitle: "CMDB components with separate OS and product columns" },
     relationships: { title: "Relationships", subtitle: "Manual links with separate protocol and ports" },
     dependencies: { title: "Dependencies", subtitle: "Tenant-scoped graph wrap · CMDB + custom edges · potentially affected apps" },
-    diagnostics: { title: "Diagnostics", subtitle: "DEMO / SIMULATED evidence only — no live probes" },
+    diagnostics: {
+      title: "Diagnostics",
+      subtitle: "DEMO / SIMULATED engine (Monitoring LIVE is separate, gate-backed)",
+    },
     "file-monitoring": {
       title: "File Monitoring",
-      subtitle: "DEMO / SIMULATED watched paths + version history — no live filesystem watching",
+      subtitle: "SIMULATED default · watch_mode AGENT / AGENTLESS_POLL when gated",
     },
     "monitor-dashboard": {
       title: "Monitoring Dashboard",
-      subtitle: "SIMULATED health overview — live probes off",
+      subtitle: "Aggregates · live gate chips · SIMULATED default / LIVE when gated",
     },
     "monitor-servers": {
       title: "Servers (Monitoring)",
-      subtitle: "SIMULATED server health · sync from CMDB",
+      subtitle: "Server health · sync from CMDB · SIMULATED/LIVE per series",
     },
     "monitor-network": {
       title: "Network (Monitoring)",
-      subtitle: "SIMULATED network kinds · sync from CMDB",
+      subtitle: "Network kinds · sync from CMDB · SIMULATED/LIVE per series",
     },
     "monitor-applications": {
       title: "Applications (Monitoring)",
-      subtitle: "SIMULATED application health · sync from CMDB",
+      subtitle: "Application health · sync from CMDB · SIMULATED/LIVE per series",
     },
     "monitor-middleware": {
       title: "Middleware (Monitoring)",
-      subtitle: "SIMULATED middleware health · sync from CMDB",
+      subtitle: "Middleware health · sync from CMDB · SIMULATED/LIVE per series",
     },
     "monitor-databases": {
       title: "Databases (Monitoring)",
-      subtitle: "SIMULATED database health · sync from CMDB",
+      subtitle: "Database health · sync from CMDB · SIMULATED/LIVE per series",
     },
     "monitor-logs": {
       title: "Logs",
-      subtitle: "SIMULATED log streams · search · no live ingest",
+      subtitle: "Log streams · search · SIMULATED default · LIVE ingest when gated",
     },
     "monitor-alerts": {
       title: "Alerts",
-      subtitle: "SIMULATED rules · ack/resolve · draft incident Apply via ITSM",
+      subtitle: "Rules · ack/resolve · draft incident · optional auto-create (opt-in)",
     },
     "monitor-agents": {
       title: "Agents",
