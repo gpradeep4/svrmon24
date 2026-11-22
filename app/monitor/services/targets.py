@@ -48,6 +48,7 @@ _DOMAIN_COLLECT_HINT: dict[str, str] = {
     "network": "AGENTLESS",
     "application": "AGENTLESS",
     "database": "AGENT",
+    "middleware": "AGENTLESS",
 }
 
 _NETWORK_KIND_ALIASES: dict[str, str] = {
@@ -197,6 +198,8 @@ def _target_kind_for_ci(domain: str, ci: dict[str, Any]) -> str | None:
         return (ci.get("application_type") or "application").strip() or "application"
     if domain == "database":
         return (ci.get("product_type") or "database").strip() or "database"
+    if domain == "middleware":
+        return (ci.get("product_type") or "middleware").strip() or "middleware"
     if domain == "server":
         family = normalize_os_family(ci.get("os_family"))
         return family or "host"
@@ -209,6 +212,7 @@ def _name_snapshot(ci: dict[str, Any]) -> str:
         or str(ci.get("hostname") or "").strip()
         or str(ci.get("device_name") or "").strip()
         or str(ci.get("application_name") or "").strip()
+        or str(ci.get("instance_name") or "").strip()
         or str(ci.get("component_id") or "").strip()
     )
 
@@ -222,7 +226,7 @@ def build_target_from_ci(ci: dict[str, Any], *, tenant_id: str) -> dict[str, Any
     domain = cmdb_client.domain_for_component_type(ci.get("component_type"))
     if domain is None:
         raise MonitorTargetsError(
-            f"Component '{cid}' type is not monitorable in v1",
+            f"Component '{cid}' type is not monitorable",
             status_code=422,
         )
     os_name = (ci.get("os_family") or None) if domain == "server" else None
@@ -269,6 +273,12 @@ def _metric_specs(domain: str) -> list[tuple[str, str, float, float]]:
             ("req_rate_rps", "rps", 120.0, 80.0),
             ("error_rate_pct", "%", 0.5, 2.0),
             ("p95_latency_ms", "ms", 85.0, 60.0),
+        ]
+    if domain == "middleware":
+        return [
+            ("listen_ok", "bool", 1.0, 0.0),
+            ("queue_depth", "count", 12.0, 40.0),
+            ("heap_pct", "%", 58.0, 25.0),
         ]
     # database
     return [
@@ -672,4 +682,115 @@ def list_metrics(
         "tenant_id": tid,
         "execution_mode": EXECUTION_MODE,
         "live_probes": False,
+    }
+
+
+def suggest_check_from_cmdb(*, tenant_id: str, target_id: str) -> dict[str, Any]:
+    """Build an agentless HTTP/TCP check **draft** from CMDB listen fields.
+
+    Does not create a check — human must POST ``/api/monitor/checks`` to save.
+    Uses ``cmdb_client.get_component`` only (no cross-DB join).
+    """
+    tid = require_tenant_id(tenant_id)
+    target = get_target(tenant_id=tid, target_id=target_id)
+    if target is None:
+        raise MonitorTargetsError(
+            f"Target '{target_id}' not found", status_code=404
+        )
+    if str(target.get("domain") or "") != "middleware":
+        raise MonitorTargetsError(
+            "Suggest-check is available for middleware targets only",
+            status_code=422,
+        )
+    cid = str(target.get("component_id") or "").strip()
+    if not cid:
+        raise MonitorTargetsError(
+            "Target has no component_id", status_code=422
+        )
+    ci = cmdb_client.get_component(tenant_id=tid, component_id=cid)
+    if ci is None:
+        raise MonitorTargetsError(
+            f"CMDB component '{cid}' not found for this tenant",
+            status_code=404,
+        )
+
+    listen_address = str(ci.get("listen_address") or "").strip() or None
+    listen_port_raw = ci.get("listen_port")
+    listen_port: int | None = None
+    if listen_port_raw is not None and str(listen_port_raw).strip() != "":
+        try:
+            listen_port = int(listen_port_raw)
+        except (TypeError, ValueError) as exc:
+            raise MonitorTargetsError(
+                f"Invalid listen_port on CMDB CI '{cid}'",
+                status_code=422,
+            ) from exc
+
+    product_type = str(ci.get("product_type") or "").strip() or None
+    instance_name = str(ci.get("instance_name") or "").strip() or None
+
+    if not listen_address and listen_port is None:
+        return {
+            "draft": None,
+            "reason": (
+                "CMDB Middleware CI has no listen_address / listen_port; "
+                "set those fields in CMDB then re-suggest."
+            ),
+            "target_id": target["target_id"],
+            "component_id": cid,
+            "cmdb_snapshot": {
+                "product_type": product_type,
+                "instance_name": instance_name,
+                "listen_address": listen_address,
+                "listen_port": listen_port,
+            },
+            "auto_create": False,
+        }
+
+    # Prefer TCP when only host:port; HTTP when address looks like a URL.
+    host = listen_address or "127.0.0.1"
+    protocol = "tcp"
+    endpoint: dict[str, Any] = {"host": host}
+    if listen_port is not None:
+        endpoint["port"] = listen_port
+    lowered = host.lower()
+    if lowered.startswith("http://") or lowered.startswith("https://"):
+        protocol = "http"
+        endpoint = {
+            "url": host if listen_port is None else host,
+            "method": "GET",
+            "expect_status": 200,
+        }
+        # If listen_port is set and URL has no port, leave as-is (URL authority).
+    elif listen_port is None:
+        # Host without port — still draft TCP with common middleware port hint.
+        endpoint["port"] = 8080
+        protocol = "tcp"
+
+    draft = {
+        "target_id": target["target_id"],
+        "component_id": cid,
+        "protocol": protocol,
+        "endpoint": endpoint,
+        "interval_seconds": 60,
+        "timeout_seconds": 5,
+        "enabled": True,
+        "egress_allowlist": [],
+    }
+    return {
+        "draft": draft,
+        "reason": None,
+        "target_id": target["target_id"],
+        "component_id": cid,
+        "cmdb_snapshot": {
+            "product_type": product_type,
+            "instance_name": instance_name,
+            "listen_address": listen_address,
+            "listen_port": listen_port,
+        },
+        "auto_create": False,
+        "notice": (
+            "Draft only — POST /api/monitor/checks to save. Live run still "
+            "requires platform + tenant live gates + egress allowlist."
+        ),
     }

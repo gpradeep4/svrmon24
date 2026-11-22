@@ -17,6 +17,7 @@ from __future__ import annotations
 # L4: monitor_agents + enrollments (token + mTLS sketch).
 # L5: agent metrics/logs/file-events ingest + monitor_ingest_cursors.
 # L6: live file watching (watch_mode AGENT / AGENTLESS_POLL).
+# L7: Middleware Monitoring nav + domain sync from CMDB.
 MONITOR_COLLECTIONS: tuple[str, ...] = (
     "file_watch_targets",
     "file_version_events",

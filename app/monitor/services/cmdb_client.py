@@ -7,12 +7,13 @@ from typing import Any
 from ...cmdb.models.components import COMPONENT_TYPES, ComponentType
 from ...cmdb.services import components as components_service
 
-# Monitoring domains map 1:1 to CMDB component types (middleware stays CMDB-only in v1).
+# Monitoring domains map 1:1 to CMDB component types (L7: middleware included).
 DOMAIN_COMPONENT_TYPES: dict[str, str] = {
     "server": ComponentType.SERVER.value,
     "network": ComponentType.NETWORK.value,
     "application": ComponentType.APPLICATION.value,
     "database": ComponentType.DATABASE.value,
+    "middleware": ComponentType.MIDDLEWARE.value,
 }
 
 MONITORABLE_COMPONENT_TYPES: tuple[str, ...] = tuple(DOMAIN_COMPONENT_TYPES.values())
@@ -26,7 +27,7 @@ class MonitorCmdbError(Exception):
 
 
 def domain_for_component_type(component_type: str | None) -> str | None:
-    """Map CMDB component_type → Monitoring domain (None for Middleware / unknown)."""
+    """Map CMDB component_type → Monitoring domain (None for unknown types)."""
     ctype = (component_type or "").strip()
     for domain, mapped in DOMAIN_COMPONENT_TYPES.items():
         if ctype == mapped:
@@ -54,7 +55,7 @@ def list_monitorable_components(
                     f"Unknown component_type '{component_type}'",
                     status_code=422,
                 )
-            # Middleware (and any non-monitorable type) → empty.
+            # Non-monitorable CMDB types → empty (do not raise).
             return []
         types = [ctype]
     else:

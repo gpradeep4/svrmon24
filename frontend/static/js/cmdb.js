@@ -24,6 +24,7 @@
     "monitor-servers": "monitoring",
     "monitor-network": "monitoring",
     "monitor-applications": "monitoring",
+    "monitor-middleware": "monitoring",
     "monitor-databases": "monitoring",
     "monitor-logs": "monitoring",
     "monitor-alerts": "monitoring",
@@ -623,6 +624,10 @@
     "monitor-applications": {
       title: "Applications (Monitoring)",
       subtitle: "SIMULATED application health · sync from CMDB",
+    },
+    "monitor-middleware": {
+      title: "Middleware (Monitoring)",
+      subtitle: "SIMULATED middleware health · sync from CMDB",
     },
     "monitor-databases": {
       title: "Databases (Monitoring)",

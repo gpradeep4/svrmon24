@@ -111,7 +111,13 @@ def _normalize_scope(raw: dict[str, Any] | None) -> dict[str, Any]:
             out[key] = text
     if out.get("domain"):
         domain = out["domain"].lower()
-        if domain not in {"server", "network", "application", "database"}:
+        if domain not in {
+            "server",
+            "network",
+            "application",
+            "database",
+            "middleware",
+        }:
             raise MonitorAlertsError(
                 f"Invalid scope.domain '{out['domain']}'",
                 status_code=422,

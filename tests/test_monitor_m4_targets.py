@@ -1,4 +1,4 @@
-"""Monitoring M4 — targets sync + domain health views (0.78.0)."""
+"""Monitoring M4 — targets sync + domain health views (0.79.0)."""
 
 from __future__ import annotations
 
@@ -34,16 +34,16 @@ def _create_ci(
 
 
 def test_version_bump_for_monitor_m4() -> None:
-    assert __version__ == "0.78.0"
+    assert __version__ == "0.79.0"
     html = FRONTEND_INDEX.read_text(encoding="utf-8")
-    assert 'content="0.78.0"' in html
-    assert "monitor/targets.js?v=0.78.0" in html
-    assert "monitor/index.js?v=0.78.0" in html
+    assert 'content="0.79.0"' in html
+    assert "monitor/targets.js?v=0.79.0" in html
+    assert "monitor/index.js?v=0.79.0" in html
 
 
 def test_domain_health_ui_markers() -> None:
     html = FRONTEND_INDEX.read_text(encoding="utf-8")
-    for prefix in ("mtSrv", "mtNet", "mtApp", "mtDb"):
+    for prefix in ("mtSrv", "mtNet", "mtApp", "mtMw", "mtDb"):
         assert f'id="{prefix}Body"' in html
         assert f'id="{prefix}Sync"' in html
         assert f'id="{prefix}CollectMode"' in html
@@ -100,14 +100,16 @@ def test_sync_from_cmdb_creates_targets_and_samples(
         product_type="Oracle",
         product_version="19c",
     )
-    # Middleware must not become a monitor target in v1.
-    _create_ci(
+    # L7: Middleware CIs sync into monitor targets.
+    mw = _create_ci(
         client,
         auth_headers,
         component_type="Middleware",
         name="M4 WebLogic",
         product_type="WebLogic",
         product_version="14.1",
+        listen_address="mw.example.local",
+        listen_port=7001,
     )
 
     sync = client.post(
@@ -115,21 +117,22 @@ def test_sync_from_cmdb_creates_targets_and_samples(
     )
     assert sync.status_code == 200, sync.text
     body = sync.json()
-    assert body["created"] == 4
+    assert body["created"] == 5
     assert body["execution_mode"] == "SIMULATED"
     assert body["live_probes"] is False
     assert body["domains"]["server"] == 1
     assert body["domains"]["network"] == 1
     assert body["domains"]["application"] == 1
     assert body["domains"]["database"] == 1
+    assert body["domains"]["middleware"] == 1
     assert body["samples_seeded"] > 0
     assert set(body["collect_modes"].keys()) <= {"AGENTLESS", "AGENT"}
-    assert sum(body["collect_modes"].values()) == 4
+    assert sum(body["collect_modes"].values()) == 5
 
     listed = client.get("/api/monitor/targets", headers=auth_headers)
     assert listed.status_code == 200, listed.text
     items = listed.json()["items"]
-    assert listed.json()["total"] == 4
+    assert listed.json()["total"] == 5
     by_ci = {i["component_id"]: i for i in items}
     assert by_ci[srv]["domain"] == "server"
     assert by_ci[srv]["os_family"] == "linux"
@@ -139,6 +142,8 @@ def test_sync_from_cmdb_creates_targets_and_samples(
     assert by_ci[app]["domain"] == "application"
     assert by_ci[db]["domain"] == "database"
     assert by_ci[db]["target_kind"] == "Oracle"
+    assert by_ci[mw]["domain"] == "middleware"
+    assert by_ci[mw]["target_kind"] == "WebLogic"
     assert all(i["execution_mode"] == "SIMULATED" for i in items)
     assert any(i.get("latest_metrics") for i in items)
 
@@ -184,8 +189,8 @@ def test_sync_from_cmdb_creates_targets_and_samples(
 
     monitor = get_monitor_database()
     filt = tenant_filter(MIGRATION_TENANT_ID)
-    assert monitor["monitor_targets"].count_documents(filt) == 4
-    assert monitor["metric_samples"].count_documents(filt) >= 4
+    assert monitor["monitor_targets"].count_documents(filt) == 5
+    assert monitor["metric_samples"].count_documents(filt) >= 5
 
     # Idempotent re-sync updates, does not duplicate.
     again = client.post(
@@ -193,8 +198,8 @@ def test_sync_from_cmdb_creates_targets_and_samples(
     )
     assert again.status_code == 200, again.text
     assert again.json()["created"] == 0
-    assert again.json()["updated"] == 4
-    assert monitor["monitor_targets"].count_documents(filt) == 4
+    assert again.json()["updated"] == 5
+    assert monitor["monitor_targets"].count_documents(filt) == 5
 
 
 def test_sync_requires_write_permission(

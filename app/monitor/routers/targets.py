@@ -113,6 +113,24 @@ def get_target(
     return doc
 
 
+@router.get("/targets/{target_id}/suggest-check")
+def suggest_check(
+    target_id: str,
+    tenant: TenantContext = Depends(require_permission(PERM_MONITOR_TARGETS_READ)),
+) -> dict[str, Any]:
+    """Return an HTTP/TCP check draft from CMDB Middleware listen fields.
+
+    Does not create a check — human saves via ``POST /api/monitor/checks``.
+    """
+    try:
+        return targets_service.suggest_check_from_cmdb(
+            tenant_id=tenant.tenant_id, target_id=target_id
+        )
+    except MonitorTargetsError as exc:
+        _raise(exc)
+        raise  # pragma: no cover
+
+
 @router.get("/targets/{target_id}/metrics")
 def list_target_metrics(
     target_id: str,

@@ -100,8 +100,9 @@ def module_meta(
             "push LIVE metrics/logs/file-events with ingest cursors (L5). "
             "File watches expose watch_mode SIMULATED|AGENT|AGENTLESS_POLL "
             "(L6); agentless poll uses HTTP ETag/checksum where feasible. "
-            "File Monitoring and Diagnostics are under Monitoring "
-            "(CMDB redirect stubs removed in M8)."
+            "Middleware is a first-class Monitoring domain (L7) synced from "
+            "CMDB Middleware CIs. File Monitoring and Diagnostics are under "
+            "Monitoring (CMDB redirect stubs removed in M8)."
         ),
         "watch_modes": list(WATCH_MODES),
         "agent_ingest_contract": agent_ingest_service.os_contract_meta(),
