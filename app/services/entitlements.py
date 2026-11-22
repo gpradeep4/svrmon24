@@ -31,6 +31,7 @@ RESOURCE_LOG_EVENTS_RETAINED = "log_events_retained"
 RESOURCE_FILE_WATCHES = "file_watches"
 RESOURCE_ALERT_RULES = "alert_rules"
 RESOURCE_MONITOR_SIMULATE_TICKS_PER_DAY = "monitor_simulate_ticks_per_day"
+RESOURCE_MONITOR_LIVE_CHECKS = "monitor_live_checks"
 
 PLAN_LEGACY_UNLIMITED = "legacy_unlimited"
 PLAN_STARTER = "starter"
@@ -58,6 +59,7 @@ _PLAN_CATALOG: dict[str, dict[str, Any]] = {
             RESOURCE_FILE_WATCHES: None,
             RESOURCE_ALERT_RULES: None,
             RESOURCE_MONITOR_SIMULATE_TICKS_PER_DAY: None,
+            RESOURCE_MONITOR_LIVE_CHECKS: None,
         },
         "notes": (
             "Default entitlements for migration / unlimited tenants. "
@@ -84,6 +86,7 @@ _PLAN_CATALOG: dict[str, dict[str, Any]] = {
             RESOURCE_FILE_WATCHES: 20,
             RESOURCE_ALERT_RULES: 10,
             RESOURCE_MONITOR_SIMULATE_TICKS_PER_DAY: 50,
+            RESOURCE_MONITOR_LIVE_CHECKS: 20,
         },
         "notes": (
             "Entitlements-only starter ceiling for small orgs. "
@@ -107,6 +110,7 @@ _PLAN_CATALOG: dict[str, dict[str, Any]] = {
             RESOURCE_FILE_WATCHES: 200,
             RESOURCE_ALERT_RULES: 100,
             RESOURCE_MONITOR_SIMULATE_TICKS_PER_DAY: 500,
+            RESOURCE_MONITOR_LIVE_CHECKS: 200,
         },
         "notes": (
             "Entitlements-only standard ceiling. "
@@ -398,3 +402,15 @@ def assert_can_create_alert_rule(tenant_id: str) -> None:
 def monitor_simulate_ticks_per_day_limit(tenant_id: str) -> int | None:
     """Max SIMULATED Monitoring ticks per day, or None when unlimited."""
     return _monitor_limit(tenant_id, RESOURCE_MONITOR_SIMULATE_TICKS_PER_DAY)
+
+
+def monitor_live_checks_limit(tenant_id: str) -> int | None:
+    """Max agentless live checks for tenant, or None when unlimited."""
+    return _monitor_limit(tenant_id, RESOURCE_MONITOR_LIVE_CHECKS)
+
+
+def assert_can_create_monitor_check(tenant_id: str) -> None:
+    """Enforce monitor_live_checks create against tenant entitlements."""
+    from ..monitor.services import checks as checks_service
+
+    checks_service.assert_can_create_monitor_check(tenant_id)

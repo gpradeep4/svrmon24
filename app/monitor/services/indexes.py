@@ -20,6 +20,8 @@ SIMULATE_TICKS_COLLECTION = "monitor_simulate_ticks"
 ALERT_RULES_COLLECTION = "alert_rules"
 ALERT_INSTANCES_COLLECTION = "alert_instances"
 DIAGNOSTIC_HISTORY_COLLECTION = "diagnostic_history"
+MONITOR_CHECKS_COLLECTION = "monitor_checks"
+MONITOR_CHECK_RESULTS_COLLECTION = "monitor_check_results"
 
 
 def ensure_monitor_indexes(db: Database | None = None) -> dict[str, Any]:
@@ -330,6 +332,60 @@ def ensure_monitor_indexes(db: Database | None = None) -> dict[str, Any]:
             diagnostics.create_index(
                 [("tenant_id", ASCENDING), ("profile_name", ASCENDING)],
                 name="tenant_diag_profile_idx",
+            )
+        ),
+    ]
+
+    checks = handle[MONITOR_CHECKS_COLLECTION]
+    created[MONITOR_CHECKS_COLLECTION] = [
+        str(
+            checks.create_index(
+                [("tenant_id", ASCENDING), ("check_id", ASCENDING)],
+                unique=True,
+                name="tenant_check_id_unique",
+            )
+        ),
+        str(
+            checks.create_index(
+                [("tenant_id", ASCENDING), ("target_id", ASCENDING)],
+                name="tenant_check_target_idx",
+            )
+        ),
+        str(
+            checks.create_index(
+                [
+                    ("tenant_id", ASCENDING),
+                    ("enabled", ASCENDING),
+                    ("protocol", ASCENDING),
+                ],
+                name="tenant_check_enabled_protocol_idx",
+            )
+        ),
+        str(
+            checks.create_index(
+                [("tenant_id", ASCENDING), ("last_run_at", ASCENDING)],
+                name="tenant_check_last_run_idx",
+            )
+        ),
+    ]
+
+    check_results = handle[MONITOR_CHECK_RESULTS_COLLECTION]
+    created[MONITOR_CHECK_RESULTS_COLLECTION] = [
+        str(
+            check_results.create_index(
+                [("tenant_id", ASCENDING), ("result_id", ASCENDING)],
+                unique=True,
+                name="tenant_check_result_id_unique",
+            )
+        ),
+        str(
+            check_results.create_index(
+                [
+                    ("tenant_id", ASCENDING),
+                    ("check_id", ASCENDING),
+                    ("observed_at", DESCENDING),
+                ],
+                name="tenant_check_observed_idx",
             )
         ),
     ]

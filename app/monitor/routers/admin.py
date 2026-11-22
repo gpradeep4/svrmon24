@@ -14,6 +14,7 @@ from ...services import tenants as tenants_service
 from ...services.tenants import TenantError
 from ...tenant_context import TenantContext
 from ..services import live_gates as live_gates_service
+from ..services import poller as poller_service
 from ..services import retention as retention_service
 
 router = APIRouter(prefix="/admin", tags=["monitor-admin"])
@@ -101,3 +102,17 @@ def patch_live_settings(
         request_path="/api/monitor/admin/live-settings",
     )
     return _live_settings_payload(tenant_id=tenant.tenant_id, settings=settings)
+
+
+@router.post("/poller/tick")
+def poller_tick(
+    tenant: TenantContext = Depends(require_permission(PERM_MONITOR_ADMIN)),
+    settings: Settings = Depends(get_settings),
+) -> dict[str, Any]:
+    """Manual poller tick (lab/tests). Forces a tick; still respects per-tenant gates."""
+    result = poller_service.run_tick(settings=settings, force=True)
+    return {
+        **result,
+        "caller_tenant_id": tenant.tenant_id,
+        "poller_running": poller_service.is_running(),
+    }

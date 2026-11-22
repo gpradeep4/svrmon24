@@ -10,7 +10,8 @@ from __future__ import annotations
 # M3: File Monitoring. M4: targets + metric samples. M5: log streams/events.
 # M6: alert rules + instances. M7: dashboard aggregates + suggest-incident.
 # M8: diagnostics history rehome + retention sweeper.
-# L0: live gates + meta + model widenings (no real polls yet).
+# L0: live gates + meta + model widenings.
+# L1: agentless monitor_checks + check results (HTTP/TCP poller).
 MONITOR_COLLECTIONS: tuple[str, ...] = (
     "file_watch_targets",
     "file_version_events",
@@ -22,4 +23,6 @@ MONITOR_COLLECTIONS: tuple[str, ...] = (
     "alert_rules",
     "alert_instances",
     "diagnostic_history",
+    "monitor_checks",
+    "monitor_check_results",
 )

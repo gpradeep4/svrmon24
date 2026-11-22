@@ -39,6 +39,7 @@ from .itsm.routers import router as itsm_router
 from .monitor.routers import router as monitor_router
 from .serialization import serialize_document
 from .itsm.services import job_runner as itsm_job_runner
+from .monitor.services import poller as monitor_poller
 from .services.bootstrap import ensure_tenancy_ready
 
 logger = logging.getLogger(__name__)
@@ -52,13 +53,14 @@ async def lifespan(_app: FastAPI):
     settings = get_settings()
     configure_logging(settings.log_level)
     logger.info(
-        "startup app=%s version=%s env=%s oidc=%s basic=%s job_runner=%s",
+        "startup app=%s version=%s env=%s oidc=%s basic=%s job_runner=%s monitor_poller=%s",
         settings.app_name,
         __version__,
         settings.app_env,
         settings.oidc_enabled,
         settings.basic_auth_enabled,
         settings.itsm_job_runner_enabled,
+        settings.monitor_poller_enabled,
     )
     db_status = ping_database(settings)
     if db_status.get("ok"):
@@ -89,9 +91,12 @@ async def lifespan(_app: FastAPI):
         )
     # Feature-flagged ITSM worker (monolith or API-only). No-op when disabled.
     itsm_job_runner.start_job_runner(settings)
+    # Feature-flagged Monitoring agentless poller. No-op when disabled.
+    monitor_poller.start_poller(settings)
     try:
         yield
     finally:
+        monitor_poller.stop_poller()
         itsm_job_runner.stop_job_runner()
         close_client()
         logger.info("shutdown complete")

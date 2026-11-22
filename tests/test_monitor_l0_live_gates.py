@@ -1,4 +1,7 @@
-"""Monitoring L0 — live gates, meta, model widenings, fail-closed stubs (0.72.0)."""
+"""Monitoring L0 — live gates, meta, model widenings, fail-closed stubs.
+
+Version assertion tracks current package (L1 bumped to 0.73.0).
+"""
 
 from __future__ import annotations
 
@@ -32,10 +35,10 @@ def live_platform_on(monkeypatch: pytest.MonkeyPatch):
 
 
 def test_version_bump_for_monitor_l0() -> None:
-    assert __version__ == "0.72.0"
+    assert __version__ == "0.73.0"
     html = FRONTEND_INDEX.read_text(encoding="utf-8")
-    assert 'content="0.72.0"' in html
-    assert "monitor/index.js?v=0.72.0" in html
+    assert 'content="0.73.0"' in html
+    assert "monitor/index.js?v=0.73.0" in html
 
 
 def test_platform_flag_defaults_false() -> None:
@@ -209,9 +212,9 @@ def test_ingest_stubs_open_when_capability_gates_on(
     assert logs.json()["execution_mode"] == "LIVE"
     metrics = client.post("/api/monitor/ingest/metrics", headers=auth_headers)
     assert metrics.status_code == 200, metrics.text
-    run = client.post("/api/monitor/checks/chk-1/run-once", headers=auth_headers)
-    assert run.status_code == 200, run.text
-    assert run.json()["check_id"] == "chk-1"
+    # L1: run-once is real — missing check → 404 (gate open), not 403.
+    missing = client.post("/api/monitor/checks/chk-1/run-once", headers=auth_headers)
+    assert missing.status_code == 404, missing.text
 
 
 def test_live_settings_audit_on_toggle(

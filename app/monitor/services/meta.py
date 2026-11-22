@@ -27,7 +27,8 @@ BANNER_SIMULATED = (
 )
 BANNER_LIVE_GATED = (
     "Live monitoring gates are ON for this tenant — series may be SIMULATED or LIVE. "
-    "SIMULATED seed / simulate-tick remain available; real polls still require L1+."
+    "SIMULATED seed / simulate-tick remain available; agentless HTTP/TCP polls require "
+    "poller/allowlist (L1+)."
 )
 # Back-compat alias for SIMULATED services (dashboard / targets / logs / alerts).
 BANNER = BANNER_SIMULATED
@@ -123,4 +124,6 @@ def module_meta(
         "retention_sweep": "/api/monitor/admin/retention-sweep",
         "live_settings": "/api/monitor/admin/live-settings",
         "live_probe_stub": "/api/monitor/live/probe-stub",
+        "checks": "/api/monitor/checks",
+        "poller_tick": "/api/monitor/admin/poller/tick",
     }

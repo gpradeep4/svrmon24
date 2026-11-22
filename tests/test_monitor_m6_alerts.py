@@ -1,4 +1,4 @@
-"""Monitoring M6 — SIMULATED alert rules + instances (0.72.0)."""
+"""Monitoring M6 — SIMULATED alert rules + instances (0.73.0)."""
 
 from __future__ import annotations
 
@@ -34,11 +34,11 @@ def _create_ci(
 
 
 def test_version_bump_for_monitor_m6() -> None:
-    assert __version__ == "0.72.0"
+    assert __version__ == "0.73.0"
     html = FRONTEND_INDEX.read_text(encoding="utf-8")
-    assert 'content="0.72.0"' in html
-    assert "monitor/alerts.js?v=0.72.0" in html
-    assert "monitor/index.js?v=0.72.0" in html
+    assert 'content="0.73.0"' in html
+    assert "monitor/alerts.js?v=0.73.0" in html
+    assert "monitor/index.js?v=0.73.0" in html
 
 
 def test_alerts_ui_markers() -> None:
