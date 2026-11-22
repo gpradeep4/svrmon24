@@ -33,6 +33,7 @@ RESOURCE_ALERT_RULES = "alert_rules"
 RESOURCE_MONITOR_SIMULATE_TICKS_PER_DAY = "monitor_simulate_ticks_per_day"
 RESOURCE_MONITOR_LIVE_CHECKS = "monitor_live_checks"
 RESOURCE_MONITOR_LOG_INGEST_EVENTS_PER_DAY = "monitor_log_ingest_events_per_day"
+RESOURCE_MONITOR_AGENTS = "monitor_agents"
 
 PLAN_LEGACY_UNLIMITED = "legacy_unlimited"
 PLAN_STARTER = "starter"
@@ -62,6 +63,7 @@ _PLAN_CATALOG: dict[str, dict[str, Any]] = {
             RESOURCE_MONITOR_SIMULATE_TICKS_PER_DAY: None,
             RESOURCE_MONITOR_LIVE_CHECKS: None,
             RESOURCE_MONITOR_LOG_INGEST_EVENTS_PER_DAY: None,
+            RESOURCE_MONITOR_AGENTS: None,
         },
         "notes": (
             "Default entitlements for migration / unlimited tenants. "
@@ -90,6 +92,7 @@ _PLAN_CATALOG: dict[str, dict[str, Any]] = {
             RESOURCE_MONITOR_SIMULATE_TICKS_PER_DAY: 50,
             RESOURCE_MONITOR_LIVE_CHECKS: 20,
             RESOURCE_MONITOR_LOG_INGEST_EVENTS_PER_DAY: 10_000,
+            RESOURCE_MONITOR_AGENTS: 5,
         },
         "notes": (
             "Entitlements-only starter ceiling for small orgs. "
@@ -115,6 +118,7 @@ _PLAN_CATALOG: dict[str, dict[str, Any]] = {
             RESOURCE_MONITOR_SIMULATE_TICKS_PER_DAY: 500,
             RESOURCE_MONITOR_LIVE_CHECKS: 200,
             RESOURCE_MONITOR_LOG_INGEST_EVENTS_PER_DAY: 500_000,
+            RESOURCE_MONITOR_AGENTS: 50,
         },
         "notes": (
             "Entitlements-only standard ceiling. "
@@ -423,3 +427,15 @@ def assert_can_create_monitor_check(tenant_id: str) -> None:
 def monitor_log_ingest_events_per_day_limit(tenant_id: str) -> int | None:
     """Max LIVE log ingest events per day, or None when unlimited."""
     return _monitor_limit(tenant_id, RESOURCE_MONITOR_LOG_INGEST_EVENTS_PER_DAY)
+
+
+def monitor_agents_limit(tenant_id: str) -> int | None:
+    """Max registered monitor agents for tenant, or None when unlimited."""
+    return _monitor_limit(tenant_id, RESOURCE_MONITOR_AGENTS)
+
+
+def assert_can_register_monitor_agent(tenant_id: str) -> None:
+    """Enforce monitor_agents create against tenant entitlements."""
+    from ..monitor.services import agents as agents_service
+
+    agents_service.assert_can_register_agent(tenant_id)

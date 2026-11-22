@@ -15,7 +15,7 @@ from fastapi.testclient import TestClient
 
 
 def test_version_bump_for_monitor_m0() -> None:
-    assert __version__ == "0.75.0"
+    assert __version__ == "0.76.0"
 
 
 def test_monitor_default_database_is_svrmon_monitor(monkeypatch) -> None:
@@ -82,7 +82,7 @@ def test_api_status_exposes_monitor_database(
     assert "monitor_database" in mongo
     assert mongo["monitor_database"] != mongo["cmdb_database"]
     assert mongo["monitor_database"] != mongo["itsm_database"]
-    assert payload.get("version") == "0.75.0"
+    assert payload.get("version") == "0.76.0"
 
 
 def test_monitor_meta_requires_auth(client: TestClient) -> None:

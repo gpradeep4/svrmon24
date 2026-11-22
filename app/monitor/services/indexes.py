@@ -25,6 +25,8 @@ MONITOR_CHECK_RESULTS_COLLECTION = "monitor_check_results"
 LOG_INGEST_KEYS_COLLECTION = "log_ingest_keys"
 SYSLOG_SOURCES_COLLECTION = "syslog_sources"
 LOG_INGEST_DAILY_COLLECTION = "monitor_log_ingest_daily"
+MONITOR_AGENTS_COLLECTION = "monitor_agents"
+MONITOR_AGENT_ENROLLMENTS_COLLECTION = "monitor_agent_enrollments"
 
 
 def ensure_monitor_indexes(db: Database | None = None) -> dict[str, Any]:
@@ -448,6 +450,60 @@ def ensure_monitor_indexes(db: Database | None = None) -> dict[str, Any]:
                 [("tenant_id", ASCENDING), ("day", ASCENDING)],
                 unique=True,
                 name="tenant_log_ingest_day_unique",
+            )
+        ),
+    ]
+
+    agents = handle[MONITOR_AGENTS_COLLECTION]
+    created[MONITOR_AGENTS_COLLECTION] = [
+        str(
+            agents.create_index(
+                [("tenant_id", ASCENDING), ("agent_id", ASCENDING)],
+                unique=True,
+                name="tenant_agent_id_unique",
+            )
+        ),
+        str(
+            agents.create_index(
+                [("token_hash", ASCENDING)],
+                unique=True,
+                name="agent_token_hash_unique",
+            )
+        ),
+        str(
+            agents.create_index(
+                [("tenant_id", ASCENDING), ("status", ASCENDING)],
+                name="tenant_agent_status_idx",
+            )
+        ),
+        str(
+            agents.create_index(
+                [("tenant_id", ASCENDING), ("last_seen_at", DESCENDING)],
+                name="tenant_agent_last_seen_idx",
+            )
+        ),
+    ]
+
+    enrollments = handle[MONITOR_AGENT_ENROLLMENTS_COLLECTION]
+    created[MONITOR_AGENT_ENROLLMENTS_COLLECTION] = [
+        str(
+            enrollments.create_index(
+                [("tenant_id", ASCENDING), ("enrollment_id", ASCENDING)],
+                unique=True,
+                name="tenant_enrollment_id_unique",
+            )
+        ),
+        str(
+            enrollments.create_index(
+                [("code_hash", ASCENDING)],
+                unique=True,
+                name="enrollment_code_hash_unique",
+            )
+        ),
+        str(
+            enrollments.create_index(
+                [("tenant_id", ASCENDING), ("status", ASCENDING), ("expires_at", ASCENDING)],
+                name="tenant_enrollment_status_expiry_idx",
             )
         ),
     ]

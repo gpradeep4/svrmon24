@@ -38,6 +38,16 @@ from .ingest import (
     SyslogSourceUpsert,
     SyslogSourcesPut,
 )
+from .agents import (
+    AgentEnrollment,
+    AgentEnrollmentCreate,
+    AgentEnrollmentCreated,
+    AgentHeartbeatRequest,
+    AgentRegisterRequest,
+    AgentTokenRotateResult,
+    MonitorAgent,
+    MonitorAgentRegistered,
+)
 from .logs import LogEvent, LogStream, SimulateTickResult
 from .targets import MetricSample, MonitorTarget, SyncFromCmdbResult
 
@@ -76,6 +86,14 @@ __all__ = [
     "SyslogSource",
     "SyslogSourceUpsert",
     "SyslogSourcesPut",
+    "AgentEnrollment",
+    "AgentEnrollmentCreate",
+    "AgentEnrollmentCreated",
+    "AgentHeartbeatRequest",
+    "AgentRegisterRequest",
+    "AgentTokenRotateResult",
+    "MonitorAgent",
+    "MonitorAgentRegistered",
     "MonitorTarget",
     "MetricSample",
     "SyncFromCmdbResult",

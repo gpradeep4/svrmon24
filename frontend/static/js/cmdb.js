@@ -27,6 +27,7 @@
     "monitor-databases": "monitoring",
     "monitor-logs": "monitoring",
     "monitor-alerts": "monitoring",
+    "monitor-agents": "monitoring",
     diagnostics: "monitoring",
     "file-monitoring": "monitoring",
     custom: "configuration",
@@ -634,6 +635,10 @@
     "monitor-alerts": {
       title: "Alerts",
       subtitle: "SIMULATED rules · ack/resolve · draft incident Apply via ITSM",
+    },
+    "monitor-agents": {
+      title: "Agents",
+      subtitle: "Enroll · register · revoke · token hash-at-rest (live gated)",
     },
     custom: { title: "Custom Fields", subtitle: "Extend inventory forms with typed definitions" },
     "custom-tables": {
@@ -3107,6 +3112,9 @@
     }
     if (name === "monitor-alerts" && state.authenticated) {
       window.SVRMON24MonitorAlerts?.onShowTab?.(name);
+    }
+    if (name === "monitor-agents" && state.authenticated) {
+      window.SVRMON24MonitorAgents?.onShowTab?.(name);
     }
     if (name === "itsm-dashboard" && state.authenticated) {
       window.SVRMON24ItsmDashboard?.loadItsmDashboard?.({ toast })?.catch?.((err) =>

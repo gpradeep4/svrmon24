@@ -156,6 +156,11 @@ class Settings(BaseSettings):
         default="MONITOR_AGENT_TOKEN_PEPPER",
         alias="MONITOR_AGENT_TOKEN_PEPPER_ENV_REF",
     )
+    # Optional mTLS acceptance sketch (L4). When true, agent routes also accept
+    # reverse-proxy client-cert headers (OU=agent_id). Token path remains primary.
+    monitor_agent_mtls_enabled: bool = Field(
+        default=False, alias="MONITOR_AGENT_MTLS_ENABLED"
+    )
     monitor_egress_allowlist: str = Field(
         default="", alias="MONITOR_EGRESS_ALLOWLIST"
     )

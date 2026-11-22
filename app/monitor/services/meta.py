@@ -7,6 +7,7 @@ from typing import Any
 from ...config import Settings, get_settings
 from ..models.literals import DOMAINS, EXECUTION_MODES
 from . import live_gates as live_gates_service
+from . import mtls as mtls_service
 
 EXECUTION_MODE = "SIMULATED"
 DATA_SOURCE = "SYNTHETIC_DEMO"
@@ -29,7 +30,8 @@ BANNER_LIVE_GATED = (
     "Live monitoring gates are ON for this tenant — series may be SIMULATED or LIVE. "
     "SIMULATED seed / simulate-tick remain available; agentless HTTP/TCP/ICMP/SNMP "
     "polls require poller/allowlist (L1/L2); HTTP log ingest (+ optional syslog) "
-    "writes LIVE log_events when ingest gates are on (L3)."
+    "writes LIVE log_events when ingest gates are on (L3); agent enroll/register "
+    "requires agent opt-in (L4)."
 )
 # Back-compat alias for SIMULATED services (dashboard / targets / logs / alerts).
 BANNER = BANNER_SIMULATED
@@ -89,8 +91,10 @@ def module_meta(
             "tenant opt-in (L8). Dashboard aggregates come from monitor "
             "collections. Alert→incident is draft/suggest only — Apply via ITSM "
             "API. Live probes require platform MONITOR_LIVE_PROBES_ENABLED plus "
-            "tenant monitor_live_opt_in (fail-closed). File Monitoring and "
-            "Diagnostics are under Monitoring (CMDB redirect stubs removed in M8)."
+            "tenant monitor_live_opt_in (fail-closed). Agents register via "
+            "enrollment codes (token hash-at-rest; optional mTLS sketch). "
+            "File Monitoring and Diagnostics are under Monitoring "
+            "(CMDB redirect stubs removed in M8)."
         ),
         "log_sources": ["agentless", "agent", "simulated"],
         "log_severities": [
@@ -103,6 +107,8 @@ def module_meta(
         "alert_condition_types": ["threshold", "log_match", "file_change"],
         "alert_statuses": ["firing", "acked", "resolved"],
         "alert_severities": ["info", "warning", "error", "critical"],
+        "agent_statuses": ["pending", "active", "revoked", "stale"],
+        "agent_mtls": mtls_service.mtls_sketch_meta(cfg),
         "database": cfg.monitor_database_name,
         "monitor_database": cfg.monitor_database_name,
         "deprecations": {
@@ -132,4 +138,7 @@ def module_meta(
         "ingest_logs": "/api/monitor/ingest/logs",
         "syslog_sources": "/api/monitor/logs/syslog-sources",
         "ingest_keys": "/api/monitor/logs/ingest-keys",
+        "agents": "/api/monitor/agents",
+        "agent_enrollments": "/api/monitor/agents/enrollments",
+        "agent_register": "/api/monitor/agents/register",
     }
