@@ -1,10 +1,12 @@
-"""Monitoring module metadata — SIMULATED v1 (no live probes)."""
+"""Monitoring module metadata — SIMULATED default; live gates fail-closed."""
 
 from __future__ import annotations
 
 from typing import Any
 
 from ...config import Settings, get_settings
+from ..models.literals import DOMAINS, EXECUTION_MODES
+from . import live_gates as live_gates_service
 
 EXECUTION_MODE = "SIMULATED"
 DATA_SOURCE = "SYNTHETIC_DEMO"
@@ -19,38 +21,72 @@ NETWORK_TARGET_KINDS: tuple[str, ...] = (
     "access_point",
     "other_network",
 )
-DOMAINS: tuple[str, ...] = ("server", "network", "application", "database")
-BANNER = (
+BANNER_SIMULATED = (
     "SIMULATED / SYNTHETIC_DEMO — Monitoring does not run live probes or agents. "
     "Target health, metric samples, and log streams are synthetic; live probes stay off."
 )
+BANNER_LIVE_GATED = (
+    "Live monitoring gates are ON for this tenant — series may be SIMULATED or LIVE. "
+    "SIMULATED seed / simulate-tick remain available; real polls still require L1+."
+)
+# Back-compat alias for SIMULATED services (dashboard / targets / logs / alerts).
+BANNER = BANNER_SIMULATED
 
 
-def module_meta(*, settings: Settings | None = None) -> dict[str, Any]:
+def module_meta(
+    *,
+    settings: Settings | None = None,
+    tenant_id: str | None = None,
+) -> dict[str, Any]:
     """Stable meta payload for ``GET /api/monitor/meta``."""
     cfg = settings or get_settings()
+    tid = (tenant_id or "").strip()
+    gates: dict[str, Any]
+    retention_tier = "hot"
+    if tid:
+        gates = live_gates_service.live_gates(tenant_id=tid, settings=cfg)
+        retention_tier = live_gates_service.tenant_live_settings(tid)[
+            "monitor_retention_tier"
+        ]
+    else:
+        gates = {
+            "platform_enabled": bool(cfg.monitor_live_probes_enabled),
+            "tenant_opt_in": False,
+            "agentless": False,
+            "agent": False,
+            "auto_incident": False,
+            "syslog_bound": False,
+            "poller_enabled": False,
+            "http_ingest": False,
+        }
+    live_probes = bool(gates.get("platform_enabled") and gates.get("tenant_opt_in"))
+    banner = BANNER_LIVE_GATED if live_probes else BANNER_SIMULATED
     return {
         "module": "monitoring",
         "execution_mode": EXECUTION_MODE,
+        "execution_modes": list(EXECUTION_MODES),
         "data_source": DATA_SOURCE,
-        "demo_only": True,
-        "live_probes": False,
+        "demo_only": not live_probes,
+        "live_probes": live_probes,
+        "live_gates": gates,
+        "retention_tier": retention_tier,
         "collect_modes": list(COLLECT_MODES),
         "domains": list(DOMAINS),
         "os_families": list(OS_FAMILIES),
         "network_target_kinds": list(NETWORK_TARGET_KINDS),
-        "banner": BANNER,
+        "banner": banner,
         "notice": (
-            "Monitoring v1 is SIMULATED. Sync targets from CMDB (API client only); "
-            "domain health views stamp AGENTLESS/AGENT collect modes for all OS "
-            "families and networking kinds. Log streams are searchable synthetic "
-            "events (no live syslog ingest); simulate-tick is admin-only. Alert "
-            "rules evaluate thresholds / log matches / file changes on synthetic "
-            "data only — no auto-incident create. Dashboard aggregates come from "
-            "monitor collections. Alert→incident is draft/suggest only — Apply "
-            "via ITSM API. Live probes stay off until explicitly approved. File "
-            "Monitoring and Diagnostics are under Monitoring (CMDB redirect stubs "
-            "removed in M8)."
+            "Monitoring defaults to SIMULATED. Sync targets from CMDB (API client "
+            "only); domain health views stamp AGENTLESS/AGENT collect modes for "
+            "all OS families and networking kinds. Log streams are searchable "
+            "synthetic events (no live syslog ingest until L3); simulate-tick is "
+            "admin-only. Alert rules evaluate thresholds / log matches / file "
+            "changes on synthetic data by default — no auto-incident create "
+            "unless tenant opt-in (L8). Dashboard aggregates come from monitor "
+            "collections. Alert→incident is draft/suggest only — Apply via ITSM "
+            "API. Live probes require platform MONITOR_LIVE_PROBES_ENABLED plus "
+            "tenant monitor_live_opt_in (fail-closed). File Monitoring and "
+            "Diagnostics are under Monitoring (CMDB redirect stubs removed in M8)."
         ),
         "log_sources": ["agentless", "agent", "simulated"],
         "log_severities": [
@@ -85,4 +121,6 @@ def module_meta(*, settings: Settings | None = None) -> dict[str, Any]:
         },
         "entry_path": "/monitor",
         "retention_sweep": "/api/monitor/admin/retention-sweep",
+        "live_settings": "/api/monitor/admin/live-settings",
+        "live_probe_stub": "/api/monitor/live/probe-stub",
     }

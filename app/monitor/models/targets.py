@@ -1,4 +1,4 @@
-"""Monitoring targets + metric sample models — SIMULATED mode only."""
+"""Monitoring targets + metric sample models — SIMULATED default; LIVE allowed."""
 
 from __future__ import annotations
 
@@ -7,10 +7,8 @@ from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field
 
-ExecutionMode = Literal["SIMULATED"]
-DataSource = Literal["SYNTHETIC_DEMO"]
-CollectMode = Literal["AGENTLESS", "AGENT"]
-Domain = Literal["server", "network", "application", "database"]
+from .literals import CollectMode, DataSource, Domain, ExecutionMode
+
 TargetStatus = Literal["unknown", "healthy", "degraded", "down", "maintenance"]
 OsFamily = Literal["linux", "windows", "macos", "unix"]
 NetworkTargetKind = Literal[
@@ -42,13 +40,16 @@ class MonitorTarget(BaseModel):
     last_sample_at: datetime | None = None
     execution_mode: ExecutionMode = "SIMULATED"
     data_source: DataSource = "SYNTHETIC_DEMO"
+    agent_id: str | None = None
+    check_ids: list[str] = Field(default_factory=list)
+    live_status_reason: str | None = None
     tenant_id: str | None = None
     created_at: datetime | None = None
     updated_at: datetime | None = None
 
 
 class MetricSample(BaseModel):
-    """Time-series lite sample (SIMULATED / SYNTHETIC_DEMO)."""
+    """Time-series lite sample (SIMULATED / LIVE)."""
 
     model_config = ConfigDict(extra="ignore")
 

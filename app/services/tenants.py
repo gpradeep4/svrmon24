@@ -182,6 +182,57 @@ def set_ai_cloud_suggestions_opt_in(tenant_id: str, enabled: bool) -> dict[str, 
     return serialize_document(doc)  # type: ignore[return-value]
 
 
+_MONITOR_LIVE_TENANT_FIELDS: frozenset[str] = frozenset(
+    {
+        "monitor_live_opt_in",
+        "monitor_live_agentless_opt_in",
+        "monitor_live_agent_opt_in",
+        "monitor_auto_incident_opt_in",
+        "monitor_retention_tier",
+    }
+)
+_MONITOR_RETENTION_TIERS: frozenset[str] = frozenset({"hot", "extended", "siem"})
+
+
+def set_monitor_live_settings(
+    tenant_id: str, updates: dict[str, Any]
+) -> dict[str, Any]:
+    """Patch tenant Monitoring live opt-in fields (defaults remain false / hot).
+
+    Platform env flags are not stored here — only per-tenant toggles.
+    """
+    tid = require_tenant_id(tenant_id)
+    if tid == MIGRATION_TENANT_ID:
+        ensure_migration_tenant()
+    coll = _collection()
+    existing = coll.find_one({"tenant_id": tid})
+    if existing is None:
+        raise TenantError(f"Tenant '{tid}' not found", status_code=404)
+
+    to_set: dict[str, Any] = {}
+    for key, value in updates.items():
+        if key not in _MONITOR_LIVE_TENANT_FIELDS:
+            continue
+        if key == "monitor_retention_tier":
+            tier = str(value or "hot").strip().lower()
+            if tier not in _MONITOR_RETENTION_TIERS:
+                raise TenantError(
+                    "Invalid monitor_retention_tier (expected hot|extended|siem)",
+                    status_code=400,
+                )
+            to_set[key] = tier
+        else:
+            to_set[key] = bool(value)
+
+    if not to_set:
+        raise TenantError("No valid monitor live settings to update", status_code=400)
+
+    to_set["updated_at"] = _now()
+    coll.update_one({"tenant_id": tid}, {"$set": to_set})
+    doc = coll.find_one({"tenant_id": tid})
+    return serialize_document(doc)  # type: ignore[return-value]
+
+
 def ensure_migration_tenant() -> dict[str, Any]:
     """Idempotently create the locked migration tenant ``SVRMON24 Legacy``.
 

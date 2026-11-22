@@ -1,4 +1,4 @@
-"""Monitoring meta API — SIMULATED banner + DB name (tenant-scoped)."""
+"""Monitoring meta API — SIMULATED banner + live gates (tenant-scoped)."""
 
 from __future__ import annotations
 
@@ -19,10 +19,12 @@ def get_meta(
     tenant: TenantContext = Depends(require_permission(PERM_MONITOR_DASHBOARD_READ)),
     settings: Settings = Depends(get_settings),
 ) -> dict[str, Any]:
-    """Module metadata — always SIMULATED; no live probes.
+    """Module metadata — live_probes effective only when platform + tenant gates on.
 
     Requires ``monitor:dashboard:read``.
     """
-    payload = meta_service.module_meta(settings=settings)
+    payload = meta_service.module_meta(
+        settings=settings, tenant_id=tenant.tenant_id
+    )
     payload["tenant_id"] = tenant.tenant_id
     return payload

@@ -367,6 +367,7 @@ def create_rule(
     description = payload.get("description")
     if description is not None:
         description = str(description).strip() or None
+    auto_incident = bool(payload.get("auto_incident", False))
     now = _now()
     doc = stamp_tenant_id(
         {
@@ -377,6 +378,7 @@ def create_rule(
             "condition": condition,
             "severity": severity,
             "description": description,
+            "auto_incident": auto_incident,
             "execution_mode": EXECUTION_MODE,
             "data_source": DATA_SOURCE,
             "created_at": now,
@@ -419,6 +421,8 @@ def patch_rule(
         updates["description"] = (
             None if desc is None else (str(desc).strip() or None)
         )
+    if "auto_incident" in payload and payload["auto_incident"] is not None:
+        updates["auto_incident"] = bool(payload["auto_incident"])
     if not updates:
         return _serialize(existing)  # type: ignore[return-value]
     updates["updated_at"] = _now()
