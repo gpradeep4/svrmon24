@@ -1,4 +1,4 @@
-"""Monitoring M2 — expandable Monitoring sidebar + dashboard shell (0.75.0)."""
+"""Monitoring M2 — expandable Monitoring sidebar + dashboard shell (0.76.0)."""
 
 from __future__ import annotations
 
@@ -15,12 +15,12 @@ MONITOR_CSS = Path("frontend/static/css/monitor.css")
 
 
 def test_version_bump_for_monitor_m2() -> None:
-    assert __version__ == "0.75.0"
+    assert __version__ == "0.76.0"
     html = FRONTEND_INDEX.read_text(encoding="utf-8")
-    assert 'content="0.75.0"' in html
-    assert "monitor.css?v=0.75.0" in html
-    assert "monitor/index.js?v=0.75.0" in html
-    assert "monitor/dashboard.js?v=0.75.0" in html
+    assert 'content="0.76.0"' in html
+    assert "monitor.css?v=0.76.0" in html
+    assert "monitor/index.js?v=0.76.0" in html
+    assert "monitor/dashboard.js?v=0.76.0" in html
 
 
 def test_monitoring_sidebar_section_and_order() -> None:
@@ -55,6 +55,7 @@ def test_monitoring_sidebar_section_and_order() -> None:
         "file-monitoring",
         "diagnostics",
         "monitor-alerts",
+        "monitor-agents",
     ]
     positions = [html.index(f'data-tab="{tab}"') for tab in ordered]
     assert positions == sorted(positions)
@@ -66,6 +67,7 @@ def test_monitoring_sidebar_section_and_order() -> None:
     assert 'data-monitor-perm="monitor:targets:read"' in html
     assert 'data-monitor-perm="monitor:logs:read"' in html
     assert 'data-monitor-perm="monitor:alerts:read"' in html
+    assert 'data-monitor-perm="monitor:admin"' in html[html.index('data-tab="monitor-agents"') : html.index('data-tab="monitor-agents"') + 200]
 
 
 def test_file_monitoring_and_diagnostics_moved_from_cmdb() -> None:
@@ -104,6 +106,7 @@ def test_monitor_dashboard_shell_markers() -> None:
         "monitor-databases",
         "monitor-logs",
         "monitor-alerts",
+        "monitor-agents",
     ):
         assert f'id="tab-{tab}"' in html
 

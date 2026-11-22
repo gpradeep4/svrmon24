@@ -4,7 +4,7 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <meta name="svrmon24-ui" content="login-enterprise-v13" />
-  <meta name="svrmon24-version" content="0.75.0" />
+  <meta name="svrmon24-version" content="0.76.0" />
   <title>SVRMON24</title>
   <link rel="icon" href="/static/img/svrmon-favicon.png" type="image/png" sizes="32x32" />
   <link rel="apple-touch-icon" href="/static/img/svrmon-apple-touch.png" sizes="180x180" />
@@ -15,11 +15,11 @@
     body.is-app .login-gate { display: none !important; }
     #authPanel, .auth-panel-legacy { display: none !important; }
   </style>
-  <link rel="stylesheet" href="/static/css/cmdb.css?v=0.75.0" />
-  <link rel="stylesheet" href="/static/css/itsm.css?v=0.75.0" />
-  <link rel="stylesheet" href="/static/css/monitor.css?v=0.75.0" />
-  <script src="/static/js/config.js?v=0.75.0"></script>
-  <script src="/static/js/brand.js?v=0.75.0"></script>
+  <link rel="stylesheet" href="/static/css/cmdb.css?v=0.76.0" />
+  <link rel="stylesheet" href="/static/css/itsm.css?v=0.76.0" />
+  <link rel="stylesheet" href="/static/css/monitor.css?v=0.76.0" />
+  <script src="/static/js/config.js?v=0.76.0"></script>
+  <script src="/static/js/brand.js?v=0.76.0"></script>
 </head>
 <body class="is-login">
   <!-- Enterprise login: showcase (left) + sign-in panel (right); stacks on small viewports -->
@@ -334,6 +334,10 @@
           <button type="button" class="nav-item" data-tab="monitor-alerts" data-monitor-nav="1" data-monitor-perm="monitor:alerts:read">
             <span class="nav-ico" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M12 22a2 2 0 0 0 2-2h-4a2 2 0 0 0 2 2zm6-6V11a6 6 0 1 0-12 0v5l-2 2v1h16v-1l-2-2z"/></svg></span>
             Alerts
+          </button>
+          <button type="button" class="nav-item" data-tab="monitor-agents" data-monitor-nav="1" data-monitor-perm="monitor:admin">
+            <span class="nav-ico" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M12 12a4 4 0 1 0-4-4 4 4 0 0 0 4 4zm0 2c-4 0-8 2-8 4v2h16v-2c0-2-4-4-8-4z"/><path d="M19 8v2m0 0v2m0-2h2m-2 0h-2" opacity=".7"/></svg></span>
+            Agents
           </button>
         </div>
 
@@ -1152,6 +1156,49 @@
                   </tr>
                 </thead>
                 <tbody id="mlEventsBody"></tbody>
+              </table>
+            </div>
+          </section>
+        </section>
+        <section id="tab-monitor-agents" class="tab-panel hidden" data-monitor-module="1">
+          <section class="panel monitor-panel">
+            <h2>Agents</h2>
+            <div class="demo-banner" id="magBanner" data-monitor-simulated="1">Agent registration is fail-closed — enable platform MONITOR_LIVE_* and tenant monitor_live_agent_opt_in to enroll agents. Tokens are hashed at rest; mTLS is an optional sketch.</div>
+            <div class="toolbar monitor-agents-toolbar" data-monitor-perm-admin="monitor:admin">
+              <label>Label<input id="magEnrollLabel" placeholder="Optional enrollment label" /></label>
+              <button type="button" id="magEnroll" class="primary">Create enrollment</button>
+              <button type="button" id="magRefresh" class="secondary">Refresh</button>
+            </div>
+            <p class="hint" id="magMeta">Sign in as admin to list agents and create one-time enrollment codes.</p>
+            <p class="hint" id="magEnrollResult" hidden></p>
+            <div class="table-wrap">
+              <table class="data-table" id="magAgentsTable">
+                <thead>
+                  <tr>
+                    <th>Agent</th>
+                    <th>Host</th>
+                    <th>OS</th>
+                    <th>Status</th>
+                    <th>Last seen</th>
+                    <th>Actions</th>
+                  </tr>
+                </thead>
+                <tbody id="magAgentsBody"></tbody>
+              </table>
+            </div>
+            <h3 class="monitor-subhead">Pending enrollments</h3>
+            <p class="hint" id="magEnrollMeta">One-time codes with short TTL. Plaintext code shown once on create.</p>
+            <div class="table-wrap">
+              <table class="data-table" id="magEnrollTable">
+                <thead>
+                  <tr>
+                    <th>Enrollment</th>
+                    <th>Label</th>
+                    <th>Status</th>
+                    <th>Expires</th>
+                  </tr>
+                </thead>
+                <tbody id="magEnrollBody"></tbody>
               </table>
             </div>
           </section>
@@ -3628,26 +3675,27 @@
     </div>
   </div>
 
-  <script src="/static/js/cmdb.js?v=0.75.0"></script>
-  <script src="/static/js/monitor/dashboard.js?v=0.75.0"></script>
-  <script src="/static/js/monitor/targets.js?v=0.75.0"></script>
-  <script src="/static/js/monitor/logs.js?v=0.75.0"></script>
-  <script src="/static/js/monitor/alerts.js?v=0.75.0"></script>
-  <script src="/static/js/monitor/index.js?v=0.75.0"></script>
-  <script src="/static/js/itsm/api.js?v=0.75.0"></script>
-  <script src="/static/js/itsm/routing.js?v=0.75.0"></script>
-  <script src="/static/js/itsm/deeplinks.js?v=0.75.0"></script>
-  <script src="/static/js/itsm/dashboard.js?v=0.75.0"></script>
-  <script src="/static/js/itsm/reports.js?v=0.75.0"></script>
-  <script src="/static/js/itsm/incidents.js?v=0.75.0"></script>
-  <script src="/static/js/itsm/changes.js?v=0.75.0"></script>
-  <script src="/static/js/itsm/problems.js?v=0.75.0"></script>
-  <script src="/static/js/itsm/approvals.js?v=0.75.0"></script>
-  <script src="/static/js/itsm/workflows.js?v=0.75.0"></script>
-  <script src="/static/js/itsm/sla.js?v=0.75.0"></script>
-  <script src="/static/js/itsm/knowledge.js?v=0.75.0"></script>
-  <script src="/static/js/itsm/notifications.js?v=0.75.0"></script>
-  <script src="/static/js/itsm/groups.js?v=0.75.0"></script>
-  <script src="/static/js/itsm/index.js?v=0.75.0"></script>
+  <script src="/static/js/cmdb.js?v=0.76.0"></script>
+  <script src="/static/js/monitor/dashboard.js?v=0.76.0"></script>
+  <script src="/static/js/monitor/targets.js?v=0.76.0"></script>
+  <script src="/static/js/monitor/logs.js?v=0.76.0"></script>
+  <script src="/static/js/monitor/alerts.js?v=0.76.0"></script>
+  <script src="/static/js/monitor/agents.js?v=0.76.0"></script>
+  <script src="/static/js/monitor/index.js?v=0.76.0"></script>
+  <script src="/static/js/itsm/api.js?v=0.76.0"></script>
+  <script src="/static/js/itsm/routing.js?v=0.76.0"></script>
+  <script src="/static/js/itsm/deeplinks.js?v=0.76.0"></script>
+  <script src="/static/js/itsm/dashboard.js?v=0.76.0"></script>
+  <script src="/static/js/itsm/reports.js?v=0.76.0"></script>
+  <script src="/static/js/itsm/incidents.js?v=0.76.0"></script>
+  <script src="/static/js/itsm/changes.js?v=0.76.0"></script>
+  <script src="/static/js/itsm/problems.js?v=0.76.0"></script>
+  <script src="/static/js/itsm/approvals.js?v=0.76.0"></script>
+  <script src="/static/js/itsm/workflows.js?v=0.76.0"></script>
+  <script src="/static/js/itsm/sla.js?v=0.76.0"></script>
+  <script src="/static/js/itsm/knowledge.js?v=0.76.0"></script>
+  <script src="/static/js/itsm/notifications.js?v=0.76.0"></script>
+  <script src="/static/js/itsm/groups.js?v=0.76.0"></script>
+  <script src="/static/js/itsm/index.js?v=0.76.0"></script>
 </body>
 </html>

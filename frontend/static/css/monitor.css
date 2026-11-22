@@ -48,7 +48,8 @@
 .monitor-targets-toolbar,
 .monitor-logs-toolbar,
 .monitor-alerts-toolbar,
-.monitor-alerts-rule-form {
+.monitor-alerts-rule-form,
+.monitor-agents-toolbar {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
   gap: 10px;
@@ -59,9 +60,16 @@
 .monitor-targets-toolbar button,
 .monitor-logs-toolbar button,
 .monitor-alerts-toolbar button,
-.monitor-alerts-rule-form button {
+.monitor-alerts-rule-form button,
+.monitor-agents-toolbar button {
   justify-self: start;
   white-space: nowrap;
+}
+
+.status-pill.ok {
+  background: #ecfdf5;
+  color: #047857;
+  border-color: #6ee7b7;
 }
 
 .monitor-subhead {

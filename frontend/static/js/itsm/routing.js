@@ -34,6 +34,7 @@
     "monitor-databases",
     "monitor-logs",
     "monitor-alerts",
+    "monitor-agents",
     "file-monitoring",
     "diagnostics",
   ]);

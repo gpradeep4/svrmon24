@@ -1,4 +1,4 @@
-/* global SVRMON24MonitorDashboard, SVRMON24MonitorTargets, SVRMON24MonitorLogs, SVRMON24MonitorAlerts */
+/* global SVRMON24MonitorDashboard, SVRMON24MonitorTargets, SVRMON24MonitorLogs, SVRMON24MonitorAlerts, SVRMON24MonitorAgents */
 (function (global) {
   "use strict";
 
@@ -75,6 +75,10 @@
       global.SVRMON24MonitorAlerts.bindApi(api, { toast, can });
       global.SVRMON24MonitorAlerts.initAlertsUi();
     }
+    if (api && global.SVRMON24MonitorAgents?.bindApi) {
+      global.SVRMON24MonitorAgents.bindApi(api, { toast, can });
+      global.SVRMON24MonitorAgents.initAgentsUi();
+    }
 
     if (pageMeta) {
       pageMeta["monitor-dashboard"] = {
@@ -105,6 +109,10 @@
         title: "Alerts",
         subtitle: "SIMULATED rules · ack/resolve · draft incident Apply via ITSM",
       };
+      pageMeta["monitor-agents"] = {
+        title: "Agents",
+        subtitle: "Enroll · register · revoke · token hash-at-rest (live gated)",
+      };
     }
 
     document.getElementById("btnRefreshMonitorDash")?.addEventListener("click", () => {
@@ -125,6 +133,9 @@
         }
         if (global.SVRMON24MonitorAlerts?.onShowTab) {
           global.SVRMON24MonitorAlerts.onShowTab(name);
+        }
+        if (global.SVRMON24MonitorAgents?.onShowTab) {
+          global.SVRMON24MonitorAgents.onShowTab(name);
         }
       });
     }
