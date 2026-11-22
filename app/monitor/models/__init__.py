@@ -12,6 +12,8 @@ from .alerts import (
 )
 from .checks import (
     CheckEndpoint,
+    L2_PROTOCOLS,
+    NETWORK_CHECK_EXAMPLES,
     MonitorCheck,
     MonitorCheckCreate,
     MonitorCheckPatch,
@@ -38,6 +40,8 @@ __all__ = [
     "EvaluateAlertsResult",
     "LinkSuggestedIncident",
     "CheckEndpoint",
+    "L2_PROTOCOLS",
+    "NETWORK_CHECK_EXAMPLES",
     "MonitorCheck",
     "MonitorCheckCreate",
     "MonitorCheckPatch",

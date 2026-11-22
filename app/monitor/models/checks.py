@@ -1,4 +1,4 @@
-"""Agentless monitor checks + results — LIVE path (L1 HTTP/TCP)."""
+"""Agentless monitor checks + results — LIVE path (L1 HTTP/TCP + L2 ICMP/SNMP)."""
 
 from __future__ import annotations
 
@@ -10,12 +10,53 @@ from pydantic import BaseModel, ConfigDict, Field
 from .literals import CollectMode, DataSource, ExecutionMode
 
 CheckProtocol = Literal["http", "tcp", "icmp", "snmp"]
-# L1 implements http + tcp only; icmp/snmp land in L2.
+# L2 implements all four agentless protocols.
+L2_PROTOCOLS: tuple[str, ...] = ("http", "tcp", "icmp", "snmp")
+# Back-compat alias for L1 callers.
 L1_PROTOCOLS: tuple[str, ...] = ("http", "tcp")
+
+# Example agentless checks for network target_kinds (docs / seed reference).
+NETWORK_CHECK_EXAMPLES: tuple[dict[str, Any], ...] = (
+    {
+        "target_kind": "switch",
+        "protocol": "snmp",
+        "endpoint": {"host": "switch.lab.example", "port": 161, "oid": "1.3.6.1.2.1.1.3.0"},
+        "secret_ref": "env:SNMP_COMMUNITY_LAB",
+        "notes": "sysUpTime gauge via SNMPv2c community from env",
+    },
+    {
+        "target_kind": "router",
+        "protocol": "icmp",
+        "endpoint": {"host": "router.lab.example"},
+        "secret_ref": None,
+        "notes": "ICMP echo RTT; errors when raw/ping unavailable (no crash)",
+    },
+    {
+        "target_kind": "firewall",
+        "protocol": "snmp",
+        "endpoint": {"host": "fw.lab.example", "port": 161, "oid": "1.3.6.1.2.1.2.1.0"},
+        "secret_ref": "insecure:public",
+        "notes": "Lab plaintext community — sets secret_insecure_demo",
+    },
+    {
+        "target_kind": "load_balancer",
+        "protocol": "icmp",
+        "endpoint": {"host": "lb.lab.example"},
+        "secret_ref": None,
+        "notes": "Reachability probe for LB VIP / mgmt IP",
+    },
+    {
+        "target_kind": "access_point",
+        "protocol": "snmp",
+        "endpoint": {"host": "ap.lab.example", "oid": "1.3.6.1.2.1.1.5.0"},
+        "secret_ref": "env:SNMP_COMMUNITY_LAB",
+        "notes": "sysName OID sample for AP inventory cross-check",
+    },
+)
 
 
 class CheckEndpoint(BaseModel):
-    """Probe destination — no secrets. Host/URL required depending on protocol."""
+    """Probe destination — no secrets. Host/URL/OID depending on protocol."""
 
     model_config = ConfigDict(extra="ignore")
 
@@ -25,6 +66,8 @@ class CheckEndpoint(BaseModel):
     method: str | None = "GET"
     expect_status: int | None = 200
     path: str | None = None
+    oid: str | None = None
+    snmp_version: str | None = "2c"
 
 
 class MonitorCheck(BaseModel):
@@ -39,6 +82,7 @@ class MonitorCheck(BaseModel):
     protocol: CheckProtocol
     endpoint: CheckEndpoint = Field(default_factory=CheckEndpoint)
     secret_ref: str | None = None
+    secret_insecure_demo: bool = False
     interval_seconds: int = 60
     timeout_seconds: int = 5
     enabled: bool = True
@@ -94,5 +138,6 @@ class MonitorCheckResult(BaseModel):
     execution_mode: ExecutionMode = "LIVE"
     data_source: DataSource | None = None
     protocol: CheckProtocol | None = None
+    secret_insecure_demo: bool | None = None
     tenant_id: str | None = None
     created_at: datetime | None = None

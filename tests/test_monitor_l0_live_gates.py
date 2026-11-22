@@ -1,6 +1,6 @@
 """Monitoring L0 — live gates, meta, model widenings, fail-closed stubs.
 
-Version assertion tracks current package (L1 bumped to 0.73.0).
+Version assertion tracks current package (L2 bumped to 0.74.0).
 """
 
 from __future__ import annotations
@@ -35,10 +35,10 @@ def live_platform_on(monkeypatch: pytest.MonkeyPatch):
 
 
 def test_version_bump_for_monitor_l0() -> None:
-    assert __version__ == "0.73.0"
+    assert __version__ == "0.74.0"
     html = FRONTEND_INDEX.read_text(encoding="utf-8")
-    assert 'content="0.73.0"' in html
-    assert "monitor/index.js?v=0.73.0" in html
+    assert 'content="0.74.0"' in html
+    assert "monitor/index.js?v=0.74.0" in html
 
 
 def test_platform_flag_defaults_false() -> None:

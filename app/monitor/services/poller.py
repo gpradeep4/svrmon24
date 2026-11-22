@@ -1,7 +1,7 @@
 """In-process agentless monitor poller (feature-flagged).
 
-When ``MONITOR_POLLER_ENABLED=true``, a daemon thread ticks due HTTP/TCP checks
-for tenants with live agentless gates on. Disabled by default — safe no-op.
+When ``MONITOR_POLLER_ENABLED=true``, a daemon thread ticks due HTTP/TCP/ICMP/SNMP
+checks for tenants with live agentless gates on. Disabled by default — safe no-op.
 """
 
 from __future__ import annotations

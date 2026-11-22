@@ -27,8 +27,8 @@ BANNER_SIMULATED = (
 )
 BANNER_LIVE_GATED = (
     "Live monitoring gates are ON for this tenant — series may be SIMULATED or LIVE. "
-    "SIMULATED seed / simulate-tick remain available; agentless HTTP/TCP polls require "
-    "poller/allowlist (L1+)."
+    "SIMULATED seed / simulate-tick remain available; agentless HTTP/TCP/ICMP/SNMP "
+    "polls require poller/allowlist (L1/L2)."
 )
 # Back-compat alias for SIMULATED services (dashboard / targets / logs / alerts).
 BANNER = BANNER_SIMULATED

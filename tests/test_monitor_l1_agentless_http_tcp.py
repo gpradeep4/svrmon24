@@ -1,4 +1,4 @@
-"""Monitoring L1 — agentless check CRUD + HTTP/TCP poller + egress (0.73.0)."""
+"""Monitoring L1 — agentless check CRUD + HTTP/TCP poller + egress (0.74.0)."""
 
 from __future__ import annotations
 
@@ -83,10 +83,10 @@ def _create_http_check(
 
 
 def test_version_bump_for_monitor_l1() -> None:
-    assert __version__ == "0.73.0"
+    assert __version__ == "0.74.0"
     html = FRONTEND_INDEX.read_text(encoding="utf-8")
-    assert 'content="0.73.0"' in html
-    assert "monitor/index.js?v=0.73.0" in html
+    assert 'content="0.74.0"' in html
+    assert "monitor/index.js?v=0.74.0" in html
 
 
 def test_monitor_live_checks_entitlement_in_catalog() -> None:
@@ -138,9 +138,10 @@ def test_checks_crud_tenant_scoped(
     )
 
 
-def test_icmp_rejected_in_l1(
+def test_icmp_accepted_as_l2_protocol(
     client: TestClient, auth_headers: dict[str, str], clean_db
 ) -> None:
+    """L2 unlocked icmp/snmp; L1 suite still covers HTTP/TCP paths."""
     tenants_service.ensure_migration_tenant()
     resp = client.post(
         "/api/monitor/checks",
@@ -151,7 +152,8 @@ def test_icmp_rejected_in_l1(
             "endpoint": {"host": "example.com"},
         },
     )
-    assert resp.status_code == 422, resp.text
+    assert resp.status_code == 201, resp.text
+    assert resp.json()["protocol"] == "icmp"
 
 
 def test_run_once_403_when_gates_off(
