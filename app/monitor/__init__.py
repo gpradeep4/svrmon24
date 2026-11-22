@@ -15,6 +15,7 @@ from __future__ import annotations
 # L2: ICMP/SNMP executors.
 # L3: live HTTP/syslog log ingest + ingest keys + syslog source maps.
 # L4: monitor_agents + enrollments (token + mTLS sketch).
+# L5: agent metrics/logs/file-events ingest + monitor_ingest_cursors.
 MONITOR_COLLECTIONS: tuple[str, ...] = (
     "file_watch_targets",
     "file_version_events",
@@ -33,4 +34,5 @@ MONITOR_COLLECTIONS: tuple[str, ...] = (
     "monitor_log_ingest_daily",
     "monitor_agents",
     "monitor_agent_enrollments",
+    "monitor_ingest_cursors",
 )

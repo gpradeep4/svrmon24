@@ -28,11 +28,11 @@
     if (!banner) return;
     if (liveAgent) {
       banner.textContent =
-        "Live agent gates are ON — enroll agents with one-time codes. Tokens are hashed at rest; mTLS sketch is optional (MONITOR_AGENT_MTLS_ENABLED).";
+        "Live agent gates are ON — enroll agents, then push metrics/logs/file-events with the agent token. Tokens are hashed at rest; mTLS sketch is optional (MONITOR_AGENT_MTLS_ENABLED).";
       banner.removeAttribute("data-monitor-simulated");
     } else {
       banner.textContent =
-        "Agent registration is fail-closed — enable platform MONITOR_LIVE_* and tenant monitor_live_agent_opt_in to enroll agents. Tokens are hashed at rest; mTLS is an optional sketch.";
+        "Agent registration/ingest is fail-closed — enable platform MONITOR_LIVE_* and tenant monitor_live_agent_opt_in. Tokens are hashed at rest; mTLS is an optional sketch.";
       banner.setAttribute("data-monitor-simulated", "1");
     }
   }

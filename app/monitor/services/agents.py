@@ -51,6 +51,10 @@ PUBLIC_AGENT_FIELDS = (
     "revoked_at",
     "tenant_id",
     "token_rotated_at",
+    "desired_watch_ids",
+    "desired_stream_ids",
+    "desired_target_ids",
+    "desired_updated_at",
 )
 
 
@@ -545,6 +549,32 @@ def revoke_agent(*, tenant_id: str, agent_id: str) -> dict[str, Any]:
                 "token_hash": dead_hash,
             }
         },
+        return_document=ReturnDocument.AFTER,
+    )
+    if not result:
+        raise MonitorAgentsError(f"agent '{aid}' not found", status_code=404)
+    return _public_agent(result) or {}
+
+
+def patch_agent_fields(
+    *,
+    tenant_id: str,
+    agent_id: str,
+    fields: dict[str, Any],
+) -> dict[str, Any]:
+    """Patch non-secret agent fields (desired-state lists, labels, etc.)."""
+    tid = require_tenant_id(tenant_id)
+    aid = (agent_id or "").strip()
+    if not fields:
+        return get_agent(tenant_id=tid, agent_id=aid)
+    # Never allow token_hash / status revoke via this helper.
+    blocked = {"token_hash", "code_hash", "status", "revoked_at", "tenant_id", "agent_id"}
+    updates = {k: v for k, v in fields.items() if k not in blocked}
+    if not updates:
+        return get_agent(tenant_id=tid, agent_id=aid)
+    result = _agents().find_one_and_update(
+        merge_tenant_filter({"agent_id": aid}, tid),
+        {"$set": updates},
         return_document=ReturnDocument.AFTER,
     )
     if not result:

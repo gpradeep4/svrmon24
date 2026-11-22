@@ -36,6 +36,8 @@ class LogIngestBatch(BaseModel):
 
     stream_id: str | None = None
     events: list[LogIngestEventItem] = Field(default_factory=list)
+    os_family: Literal["linux", "windows", "macos", "unix"] | None = None
+    seq: int | None = Field(default=None, ge=1)
 
 
 class LogIngestKeyCreate(BaseModel):
@@ -120,3 +122,62 @@ class LogIngestResult(BaseModel):
     live_probes: bool = True
     ingest_today: int | None = None
     ingest_limit: int | None = None
+
+
+class MetricIngestSample(BaseModel):
+    """One metric sample in an agent metrics batch."""
+
+    model_config = ConfigDict(extra="ignore")
+
+    metric_name: str = Field(min_length=1, max_length=128)
+    value: float
+    unit: str | None = Field(default=None, max_length=32)
+    observed_at: datetime | None = None
+    target_id: str | None = None
+    component_id: str | None = None
+    attrs: dict[str, Any] = Field(default_factory=dict)
+
+
+class MetricIngestBatch(BaseModel):
+    """POST /api/monitor/ingest/metrics body (agent token)."""
+
+    model_config = ConfigDict(extra="ignore")
+
+    os_family: Literal["linux", "windows", "macos", "unix"] | None = None
+    seq: int | None = Field(default=None, ge=1)
+    samples: list[MetricIngestSample] = Field(default_factory=list)
+
+
+class FileEventIngestItem(BaseModel):
+    """One file-version event in an agent file-events batch."""
+
+    model_config = ConfigDict(extra="ignore")
+
+    watch_id: str | None = None
+    path: str | None = Field(default=None, max_length=1024)
+    label: str | None = Field(default=None, max_length=128)
+    version: int | None = Field(default=None, ge=1)
+    change_kind: Literal[
+        "created", "modified", "renamed", "deleted", "permission"
+    ] = "modified"
+    actor: str | None = Field(default=None, max_length=128)
+    actor_type: Literal["user", "service", "system"] = "service"
+    changed_at: datetime | None = None
+    observed_at: datetime | None = None
+    summary: str | None = Field(default=None, max_length=512)
+    content_hash: str | None = Field(default=None, max_length=128)
+    size_bytes: int | None = Field(default=None, ge=0)
+    component_id: str | None = None
+    os_watcher: str | None = Field(default=None, max_length=64)
+
+
+class FileEventIngestBatch(BaseModel):
+    """POST /api/monitor/ingest/file-events body (agent token)."""
+
+    model_config = ConfigDict(extra="ignore")
+
+    os_family: Literal["linux", "windows", "macos", "unix"] | None = None
+    seq: int | None = Field(default=None, ge=1)
+    events: list[FileEventIngestItem] = Field(default_factory=list)
+
+
