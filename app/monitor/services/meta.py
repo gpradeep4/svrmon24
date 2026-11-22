@@ -31,7 +31,7 @@ BANNER_LIVE_GATED = (
     "SIMULATED seed / simulate-tick remain available; agentless HTTP/TCP/ICMP/SNMP "
     "polls require poller/allowlist (L1/L2); HTTP log ingest (+ optional syslog) "
     "writes LIVE log_events when ingest gates are on (L3); agent enroll/register "
-    "requires agent opt-in (L4)."
+    "requires agent opt-in (L4); agents push metrics/logs/file-events (L5)."
 )
 # Back-compat alias for SIMULATED services (dashboard / targets / logs / alerts).
 BANNER = BANNER_SIMULATED
@@ -43,6 +43,9 @@ def module_meta(
     tenant_id: str | None = None,
 ) -> dict[str, Any]:
     """Stable meta payload for ``GET /api/monitor/meta``."""
+    # Lazy import avoids logs → meta → agent_ingest → ingest → logs cycles.
+    from . import agent_ingest as agent_ingest_service
+
     cfg = settings or get_settings()
     tid = (tenant_id or "").strip()
     gates: dict[str, Any]
@@ -92,10 +95,12 @@ def module_meta(
             "collections. Alert→incident is draft/suggest only — Apply via ITSM "
             "API. Live probes require platform MONITOR_LIVE_PROBES_ENABLED plus "
             "tenant monitor_live_opt_in (fail-closed). Agents register via "
-            "enrollment codes (token hash-at-rest; optional mTLS sketch). "
+            "enrollment codes (token hash-at-rest; optional mTLS sketch) and "
+            "push LIVE metrics/logs/file-events with ingest cursors (L5). "
             "File Monitoring and Diagnostics are under Monitoring "
             "(CMDB redirect stubs removed in M8)."
         ),
+        "agent_ingest_contract": agent_ingest_service.os_contract_meta(),
         "log_sources": ["agentless", "agent", "simulated"],
         "log_severities": [
             "debug",
@@ -141,4 +146,7 @@ def module_meta(
         "agents": "/api/monitor/agents",
         "agent_enrollments": "/api/monitor/agents/enrollments",
         "agent_register": "/api/monitor/agents/register",
+        "ingest_metrics": "/api/monitor/ingest/metrics",
+        "ingest_file_events": "/api/monitor/ingest/file-events",
+        "agent_desired_state": "/api/monitor/agents/{agent_id}/desired-state",
     }

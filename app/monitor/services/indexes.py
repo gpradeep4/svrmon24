@@ -27,6 +27,7 @@ SYSLOG_SOURCES_COLLECTION = "syslog_sources"
 LOG_INGEST_DAILY_COLLECTION = "monitor_log_ingest_daily"
 MONITOR_AGENTS_COLLECTION = "monitor_agents"
 MONITOR_AGENT_ENROLLMENTS_COLLECTION = "monitor_agent_enrollments"
+MONITOR_INGEST_CURSORS_COLLECTION = "monitor_ingest_cursors"
 
 
 def ensure_monitor_indexes(db: Database | None = None) -> dict[str, Any]:
@@ -504,6 +505,28 @@ def ensure_monitor_indexes(db: Database | None = None) -> dict[str, Any]:
             enrollments.create_index(
                 [("tenant_id", ASCENDING), ("status", ASCENDING), ("expires_at", ASCENDING)],
                 name="tenant_enrollment_status_expiry_idx",
+            )
+        ),
+    ]
+
+    cursors = handle[MONITOR_INGEST_CURSORS_COLLECTION]
+    created[MONITOR_INGEST_CURSORS_COLLECTION] = [
+        str(
+            cursors.create_index(
+                [
+                    ("tenant_id", ASCENDING),
+                    ("agent_id", ASCENDING),
+                    ("channel", ASCENDING),
+                    ("key", ASCENDING),
+                ],
+                unique=True,
+                name="tenant_agent_channel_key_unique",
+            )
+        ),
+        str(
+            cursors.create_index(
+                [("tenant_id", ASCENDING), ("agent_id", ASCENDING)],
+                name="tenant_agent_cursor_idx",
             )
         ),
     ]

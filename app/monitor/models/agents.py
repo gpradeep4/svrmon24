@@ -105,3 +105,27 @@ class AgentTokenRotateResult(BaseModel):
     status: AgentStatus = "active"
     rotated_at: datetime
     tenant_id: str
+
+
+class AgentDesiredState(BaseModel):
+    """Minimal desired-state returned to agents (watch/stream/target ids)."""
+
+    model_config = ConfigDict(extra="ignore")
+
+    agent_id: str
+    tenant_id: str
+    os_family: OsFamily | None = None
+    os_watcher: str | None = None
+    watch_ids: list[str] = Field(default_factory=list)
+    stream_ids: list[str] = Field(default_factory=list)
+    target_ids: list[str] = Field(default_factory=list)
+
+
+class AgentDesiredStatePatch(BaseModel):
+    """Admin PATCH body for agent desired-state lists."""
+
+    model_config = ConfigDict(extra="ignore")
+
+    watch_ids: list[str] | None = None
+    stream_ids: list[str] | None = None
+    target_ids: list[str] | None = None
