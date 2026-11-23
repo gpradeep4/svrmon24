@@ -39,6 +39,12 @@ class CancelBody(BaseModel):
     comment: str | None = Field(default=None, max_length=2000)
 
 
+class LinkIncidentBody(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    linked_incident_id: str = Field(min_length=1, max_length=64)
+
+
 @router.get("")
 def list_requests(
     status: str | None = Query(default=None),
@@ -189,4 +195,24 @@ def cancel_request(
             "status": doc.get("status"),
         },
     )
+    return doc
+
+
+@router.post("/{request_id}/link-incident")
+def link_incident(
+    request_id: str,
+    payload: LinkIncidentBody,
+    tenant: TenantContext = Depends(require_permission(PERM_SP_REQUEST_CREATE)),
+) -> dict[str, Any]:
+    """Optional incident link (SP8). Does not approve the request."""
+    try:
+        doc = requests_service.link_incident(
+            request_id,
+            tenant_id=tenant.tenant_id,
+            linked_incident_id=payload.linked_incident_id,
+            actor=_actor(tenant),
+        )
+    except RequestError as exc:
+        _raise(exc)
+        return {}
     return doc

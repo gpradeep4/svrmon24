@@ -471,6 +471,84 @@ def cancel_request(
     return serialize_document(result)  # type: ignore[return-value]
 
 
+def link_incident(
+    request_id: str,
+    *,
+    tenant_id: str,
+    linked_incident_id: str,
+    actor: dict[str, Any] | None = None,
+) -> dict[str, Any]:
+    """Attach an optional ITSM incident id (SP8). Does not auto-approve."""
+    tid = require_tenant_id(tenant_id)
+    existing = get_request(tenant_id=tid, request_id=request_id)
+    incident_id = (linked_incident_id or "").strip()
+    if not incident_id:
+        raise RequestError("linked_incident_id required", status_code=400)
+    # Validate incident exists in-tenant when possible.
+    try:
+        from ...itsm.services import incidents as incidents_service
+
+        inc = incidents_service.get_incident(incident_id, tenant_id=tid)
+        if not inc:
+            raise RequestError(
+                f"incident '{incident_id}' not found", status_code=404
+            )
+    except RequestError:
+        raise
+    except Exception as exc:  # noqa: BLE001
+        raise RequestError(
+            f"incident lookup failed: {exc}", status_code=400
+        ) from exc
+
+    result = _coll().find_one_and_update(
+        merge_tenant_filter({"request_id": request_id}, tid),
+        {
+            "$set": {
+                "linked_incident_id": incident_id,
+                "updated_at": _now(),
+                "updated_by": _actor_name(actor),
+            }
+        },
+        return_document=ReturnDocument.AFTER,
+    )
+    if not result:
+        raise RequestError("request not found", status_code=404)
+
+    # Best-effort: also attach to linked Change related_incident_ids.
+    change_id = existing.get("change_id")
+    if change_id:
+        try:
+            from ...itsm.models.changes import ChangeUpdate
+
+            change = changes_service.get_change(change_id, tenant_id=tid) or {}
+            related = list(change.get("related_incident_ids") or [])
+            if incident_id not in related:
+                related.append(incident_id)
+                changes_service.update_change(
+                    change_id,
+                    ChangeUpdate(related_incident_ids=related),
+                    tenant_id=tid,
+                    actor=actor,
+                )
+        except Exception:  # noqa: BLE001
+            pass
+
+    from . import audit as portal_audit
+
+    serialized = serialize_document(result)
+    portal_audit.record_portal_event(
+        tenant_id=tid,
+        action="portal.request.link_incident",
+        actor=actor,
+        request_id=request_id,
+        change_id=change_id,
+        resource_type="sp_request",
+        resource_id=request_id,
+        details={"linked_incident_id": incident_id},
+    )
+    return serialized  # type: ignore[return-value]
+
+
 def refresh_change_snapshot(
     request_id: str,
     *,

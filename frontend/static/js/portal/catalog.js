@@ -109,6 +109,8 @@
       <form id="spRequestForm" class="portal-request-form">
         <p class="hint"><strong>${esc(item.title)}</strong> · ${esc(item.domain)} · Change: <code>${esc(item.change_type_key)}</code></p>
         <label>Collect mode<select name="collect_mode">${modes.join("")}</select></label>
+        <label>Linked incident (optional)<input type="text" name="linked_incident_id" placeholder="INC-…" /></label>
+        <p class="hint">Approvals happen in ITSM Change — Portal does not auto-approve.</p>
         ${fields.map(fieldInput).join("")}
         <div class="toolbar" style="grid-template-columns:1fr auto auto;">
           <p class="hint" id="spRequestFormErrors"></p>
@@ -132,6 +134,9 @@
     const form = document.getElementById("spRequestForm");
     const errEl = document.getElementById("spRequestFormErrors");
     const collectMode = form?.querySelector('[name="collect_mode"]')?.value;
+    const linkedIncident = (
+      form?.querySelector('[name="linked_incident_id"]')?.value || ""
+    ).trim();
     const formValues = readFormValues(form);
     try {
       await validateCurrentForm();
@@ -145,7 +150,8 @@
       const doc = await global.SVRMON24PortalRequests.submitNewRequest(
         _selectedItem,
         formValues,
-        collectMode
+        collectMode,
+        linkedIncident || null
       );
       if (errEl) errEl.textContent = `Submitted ${doc.request_id}`;
       return doc;
@@ -160,7 +166,7 @@
     const data = {};
     const fd = new FormData(form);
     for (const [k, v] of fd.entries()) {
-      if (k === "collect_mode") continue;
+      if (k === "collect_mode" || k === "linked_incident_id") continue;
       data[k] = v;
     }
     form.querySelectorAll('input[type="checkbox"]').forEach((el) => {
