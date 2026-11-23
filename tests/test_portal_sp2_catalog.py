@@ -111,8 +111,10 @@ def test_catalog_rejects_unknown_action_key(
             "form_schema": {"version": 1, "fields": []},
         },
     )
-    assert resp.status_code == 400
-    assert "allowlist" in resp.json()["detail"].lower()
+    assert resp.status_code == 400, resp.text
+    detail = resp.json().get("detail")
+    detail_text = detail if isinstance(detail, str) else str(detail)
+    assert "allowlist" in detail_text.lower()
 
 
 def test_portal_catalog_fe_markers() -> None:

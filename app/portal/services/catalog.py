@@ -79,7 +79,8 @@ def list_catalog(
                 ]
             }
         )
-    query = merge_tenant_filter(tid, {"$and": clauses} if clauses else {})
+    base = {"$and": clauses} if clauses else None
+    query = merge_tenant_filter(base, tid)
     coll = _coll()
     total = coll.count_documents(query)
     skip = max(0, (page - 1) * page_size)
@@ -101,7 +102,7 @@ def list_catalog(
 
 def get_catalog_item(*, tenant_id: str, item_id: str) -> dict[str, Any]:
     tid = require_tenant_id(tenant_id)
-    doc = _coll().find_one(merge_tenant_filter(tid, {"item_id": item_id}))
+    doc = _coll().find_one(merge_tenant_filter({"item_id": item_id}, tid))
     if not doc:
         raise CatalogError("catalog item not found", status_code=404)
     return serialize_document(doc)
@@ -109,7 +110,7 @@ def get_catalog_item(*, tenant_id: str, item_id: str) -> dict[str, Any]:
 
 def get_catalog_item_by_key(*, tenant_id: str, key: str) -> dict[str, Any] | None:
     tid = require_tenant_id(tenant_id)
-    doc = _coll().find_one(merge_tenant_filter(tid, {"key": key}))
+    doc = _coll().find_one(merge_tenant_filter({"key": key}, tid))
     return serialize_document(doc) if doc else None
 
 
@@ -154,7 +155,7 @@ def create_catalog_item(
             "created_by": actor.get("user_id") or actor.get("username"),
             "updated_by": actor.get("user_id") or actor.get("username"),
         },
-        tid,
+        tenant_id=tid,
     )
     try:
         _coll().insert_one(doc)
@@ -195,7 +196,7 @@ def update_catalog_item(
             existing = get_catalog_item(tenant_id=tid, item_id=item_id)
             updates["schema_version"] = int(existing.get("schema_version") or 1) + 1
     result = _coll().find_one_and_update(
-        merge_tenant_filter(tid, {"item_id": item_id}),
+        merge_tenant_filter({"item_id": item_id}, tid),
         {"$set": updates},
         return_document=ReturnDocument.AFTER,
     )
