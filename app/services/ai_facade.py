@@ -405,6 +405,7 @@ def ai_runtime_status(*, tenant_id: str) -> dict[str, Any]:
         "enabled": bool(settings.ollama_enabled),
         "base_url": settings.ollama_url,
         "configured_model": settings.ollama_model,
+        "log_model": settings.ollama_log_model,
         "timeout_seconds": settings.ollama_timeout_seconds,
     }
     will_use_ollama = False
@@ -456,6 +457,7 @@ def ai_runtime_status(*, tenant_id: str) -> dict[str, Any]:
         "enabled": bool(settings.ollama_enabled),
         "base_url": settings.ollama_url,
         "configured_model": settings.ollama_model,
+        "log_model": settings.ollama_log_model,
         "timeout_seconds": settings.ollama_timeout_seconds,
         "ok": bool(ollama_block.get("ok")) if settings.ollama_enabled else False,
         "will_use_ollama": bool(ollama_block.get("will_use")),

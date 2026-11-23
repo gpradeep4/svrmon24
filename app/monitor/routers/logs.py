@@ -16,15 +16,20 @@ from ...services import audit as audit_service
 from ...services.entitlements import EntitlementError
 from ...tenant_context import TenantContext
 from ..models.ingest import LogIngestKeyCreate, SyslogSourcesPut
+from ..models.logs import LogAiAssistRequest
+from ..services import ai_log_assist as ai_log_assist_service
 from ..services import ingest as ingest_service
 from ..services import logs as logs_service
+from ..services.ai_log_assist import MonitorLogAiError
 from ..services.ingest import MonitorIngestError
 from ..services.logs import MonitorLogsError
 
 router = APIRouter(prefix="/logs", tags=["monitor-logs"])
 
 
-def _raise(exc: MonitorLogsError | EntitlementError | MonitorIngestError) -> None:
+def _raise(
+    exc: MonitorLogsError | EntitlementError | MonitorIngestError | MonitorLogAiError,
+) -> None:
     raise HTTPException(status_code=exc.status_code, detail=exc.message) from exc
 
 
@@ -98,6 +103,126 @@ def list_events(
     except MonitorLogsError as exc:
         _raise(exc)
         raise  # pragma: no cover
+
+
+@router.get("/ai/status")
+def log_ai_status(
+    tenant: TenantContext = Depends(require_permission(PERM_MONITOR_LOGS_READ)),
+) -> dict[str, Any]:
+    """Log AI assist status (fail-closed; assist-only safety flags)."""
+    return ai_log_assist_service.log_ai_status(tenant_id=tenant.tenant_id)
+
+
+@router.post("/ai/parse")
+def log_ai_parse(
+    payload: LogAiAssistRequest,
+    request: Request,
+    tenant: TenantContext = Depends(require_permission(PERM_MONITOR_LOGS_READ)),
+) -> dict[str, Any]:
+    """Assist-only field extraction. Does not mutate events or rules."""
+    try:
+        result = ai_log_assist_service.parse_log_fields(
+            tenant_id=tenant.tenant_id,
+            event_ids=payload.event_ids,
+            messages=payload.messages,
+            max_events=payload.max_events,
+            force_fallback=payload.force_fallback,
+        )
+    except MonitorLogAiError as exc:
+        _raise(exc)
+        raise  # pragma: no cover
+    audit_service.record_from_tenant(
+        tenant,
+        action="monitor.logs.ai.parse",
+        resource_type="log_ai",
+        resource_id=tenant.tenant_id,
+        details={
+            "source": result.get("source"),
+            "sample_count": result.get("sample_count"),
+            "field_count": len(result.get("fields") or []),
+        },
+        request_method=request.method,
+        request_path=str(request.url.path),
+    )
+    return result
+
+
+@router.post("/ai/suggest-filters")
+def log_ai_suggest_filters(
+    payload: LogAiAssistRequest,
+    request: Request,
+    tenant: TenantContext = Depends(require_permission(PERM_MONITOR_LOGS_READ)),
+) -> dict[str, Any]:
+    """Assist-only filter / log_match draft. Never writes alert rules."""
+    try:
+        result = ai_log_assist_service.suggest_log_filters(
+            tenant_id=tenant.tenant_id,
+            event_ids=payload.event_ids,
+            messages=payload.messages,
+            current_filters=(
+                payload.current_filters.model_dump(mode="python")
+                if payload.current_filters
+                else None
+            ),
+            max_events=payload.max_events,
+            force_fallback=payload.force_fallback,
+        )
+    except MonitorLogAiError as exc:
+        _raise(exc)
+        raise  # pragma: no cover
+    audit_service.record_from_tenant(
+        tenant,
+        action="monitor.logs.ai.suggest_filters",
+        resource_type="log_ai",
+        resource_id=tenant.tenant_id,
+        details={
+            "source": result.get("source"),
+            "sample_count": result.get("sample_count"),
+            "has_log_match_draft": bool(result.get("suggested_log_match")),
+        },
+        request_method=request.method,
+        request_path=str(request.url.path),
+    )
+    return result
+
+
+@router.post("/ai/predict-narrative")
+def log_ai_predict_narrative(
+    payload: LogAiAssistRequest,
+    request: Request,
+    tenant: TenantContext = Depends(require_permission(PERM_MONITOR_LOGS_READ)),
+) -> dict[str, Any]:
+    """Assist-only prediction narrative draft. Never creates incidents."""
+    try:
+        result = ai_log_assist_service.predict_log_narrative(
+            tenant_id=tenant.tenant_id,
+            event_ids=payload.event_ids,
+            messages=payload.messages,
+            current_filters=(
+                payload.current_filters.model_dump(mode="python")
+                if payload.current_filters
+                else None
+            ),
+            max_events=payload.max_events,
+            force_fallback=payload.force_fallback,
+        )
+    except MonitorLogAiError as exc:
+        _raise(exc)
+        raise  # pragma: no cover
+    audit_service.record_from_tenant(
+        tenant,
+        action="monitor.logs.ai.predict_narrative",
+        resource_type="log_ai",
+        resource_id=tenant.tenant_id,
+        details={
+            "source": result.get("source"),
+            "sample_count": result.get("sample_count"),
+            "confidence": result.get("confidence"),
+        },
+        request_method=request.method,
+        request_path=str(request.url.path),
+    )
+    return result
 
 
 @router.post("/simulate-tick")

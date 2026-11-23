@@ -1,4 +1,4 @@
-/* Monitoring Logs — SIMULATED + LIVE ingest + SIEM search (L9). */
+/* Monitoring Logs — SIMULATED + LIVE ingest + SIEM search (L9) + Log AI assist. */
 (function (global) {
   "use strict";
 
@@ -10,6 +10,8 @@
   let retentionTier = { hot: null, extended: null, siem: null };
   let retentionTierLabel = "hot";
   let nextCursor = null;
+  let lastSuggestedFilters = null;
+  let logAiStatus = null;
 
   function bindApi(api, { toast, can } = {}) {
     if (typeof api === "function") apiFn = api;
@@ -200,6 +202,235 @@
     }
   }
 
+  function visibleEventIds() {
+    const body = document.getElementById("mlEventsBody");
+    if (!body) return [];
+    return Array.from(body.querySelectorAll("tr[data-event-id]"))
+      .map((tr) => tr.getAttribute("data-event-id"))
+      .filter(Boolean)
+      .slice(0, 25);
+  }
+
+  function visibleMessages() {
+    const body = document.getElementById("mlEventsBody");
+    if (!body) return [];
+    return Array.from(body.querySelectorAll("tr[data-event-id] td:last-child"))
+      .map((td) => (td.textContent || "").trim())
+      .filter(Boolean)
+      .slice(0, 25);
+  }
+
+  function assistPayload() {
+    const filters = readFilters();
+    const eventIds = visibleEventIds();
+    const messages = eventIds.length ? [] : visibleMessages();
+    return {
+      event_ids: eventIds,
+      messages,
+      current_filters: {
+        q: filters.q || null,
+        severity: filters.severity || null,
+        stream_id: filters.stream_id || null,
+        component_id: filters.component_id || null,
+        source: filters.source || null,
+        attr: filters.attr ? [filters.attr] : [],
+      },
+      max_events: 25,
+      force_fallback: false,
+    };
+  }
+
+  function setSeverityMulti(value) {
+    const el = document.getElementById("mlSeverity");
+    if (!el) return;
+    const wanted = new Set(
+      String(value || "")
+        .split(",")
+        .map((s) => s.trim().toLowerCase())
+        .filter(Boolean)
+    );
+    Array.from(el.options || []).forEach((opt) => {
+      opt.selected = wanted.has(String(opt.value).toLowerCase());
+    });
+  }
+
+  function renderAiPanel(html) {
+    const panel = document.getElementById("mlAiAssistPanel");
+    if (!panel) return;
+    panel.hidden = !html;
+    panel.innerHTML = html || "";
+  }
+
+  function safetyLine(result) {
+    const src = esc(result.source || "assist");
+    const model = result.model ? ` · model ${esc(result.model)}` : "";
+    const fb = result.fallback_reason
+      ? ` · fallback: ${esc(result.fallback_reason)}`
+      : "";
+    return (
+      `<div class="ml-ai-meta">source=${src}${model}${fb} · assist only · ` +
+      `filters authoritative · no auto rules/incidents</div>`
+    );
+  }
+
+  async function refreshAiStatus() {
+    const el = document.getElementById("mlAiStatus");
+    if (!apiFn || !el) return;
+    try {
+      const data = await apiFn("/api/monitor/logs/ai/status");
+      logAiStatus = data;
+      const enabled = data.ollama_enabled ? "enabled" : "disabled (OLLAMA_ENABLED=false)";
+      const will =
+        data.will_use_cloud
+          ? "cloud then Ollama"
+          : data.will_use_ollama
+            ? "will use Ollama"
+            : "rule fallback";
+      el.textContent =
+        `Log AI: OLLAMA_LOG_MODEL=${data.log_model || "qwen2.5-coder:14b"} · ` +
+        `Ollama ${enabled} · ${will} · assist only — existing filters stay source of truth.`;
+    } catch (_err) {
+      el.textContent =
+        "Log AI assist uses OLLAMA_LOG_MODEL (default qwen2.5-coder:14b). " +
+        "Disabled unless OLLAMA_ENABLED — rule fallback always available.";
+    }
+  }
+
+  async function runAiAssist(kind, { toast } = {}) {
+    const notify = toast || toastFn;
+    if (!apiFn) return;
+    if (!canFn("monitor:logs:read")) {
+      if (typeof notify === "function") {
+        notify("Missing permission monitor:logs:read", true);
+      }
+      return;
+    }
+    const payload = assistPayload();
+    if (!payload.event_ids.length && !payload.messages.length) {
+      if (typeof notify === "function") {
+        notify("Load log events first (or Simulate tick)", true);
+      }
+      return;
+    }
+    const paths = {
+      parse: "/api/monitor/logs/ai/parse",
+      suggest: "/api/monitor/logs/ai/suggest-filters",
+      narrative: "/api/monitor/logs/ai/predict-narrative",
+    };
+    const path = paths[kind];
+    if (!path) return;
+    const applyBtn = document.getElementById("mlAiApplyFilters");
+    try {
+      const result = await apiFn(path, {
+        method: "POST",
+        body: JSON.stringify(payload),
+      });
+      let body = safetyLine(result);
+      if (kind === "parse") {
+        const fields = result.fields || [];
+        body += `<strong>Parsed fields</strong> (${fields.length}):`;
+        if (!fields.length) {
+          body += `<p class="hint">${esc(result.summary || "No fields extracted.")}</p>`;
+        } else {
+          body +=
+            "<ul>" +
+            fields
+              .slice(0, 12)
+              .map(
+                (f) =>
+                  `<li><code>${esc(f.name)}</code>=${esc(f.value)} ` +
+                  `<span class="hint">(${esc(f.confidence || "medium")})</span></li>`
+              )
+              .join("") +
+            "</ul>";
+        }
+        lastSuggestedFilters = null;
+        if (applyBtn) applyBtn.hidden = true;
+      } else if (kind === "suggest") {
+        const sf = result.suggested_filters || {};
+        lastSuggestedFilters = sf;
+        body += `<strong>Suggested filters</strong> (apply fills the toolbar only):`;
+        body +=
+          "<ul>" +
+          `<li>q: <code>${esc(sf.q || "—")}</code></li>` +
+          `<li>severity: <code>${esc(sf.severity || "—")}</code></li>` +
+          `<li>attr: <code>${esc((sf.attr || []).join(", ") || "—")}</code></li>` +
+          "</ul>";
+        const lm = result.suggested_log_match || {};
+        if (lm.message_contains) {
+          body +=
+            `<p class="hint">Alert log_match draft (not written): severity=` +
+            `${esc(lm.severity || "—")} contains <code>${esc(lm.message_contains)}</code>. ` +
+            `Create rules only via Alerts.</p>`;
+        }
+        if (applyBtn) applyBtn.hidden = false;
+      } else {
+        body += `<strong>Prediction narrative</strong> (${esc(
+          result.confidence || "low"
+        )}):`;
+        body += `<p>${esc(result.narrative || "")}</p>`;
+        const signals = result.signals || [];
+        if (signals.length) {
+          body +=
+            "<ul>" +
+            signals.map((s) => `<li>${esc(s)}</li>`).join("") +
+            "</ul>";
+        }
+        body += `<p class="hint">${esc(
+          result.disclaimer || "Assist draft only — human must approve any write."
+        )}</p>`;
+        lastSuggestedFilters = null;
+        if (applyBtn) applyBtn.hidden = true;
+      }
+      renderAiPanel(body);
+      if (typeof notify === "function") {
+        notify(`Log AI ${kind} ready (${result.source || "assist"})`, false);
+      }
+    } catch (err) {
+      renderAiPanel(
+        `<p class="hint">${esc(err.message || "Log AI assist failed")}</p>`
+      );
+      if (typeof notify === "function") {
+        notify(err.message || "Log AI assist failed", true);
+      }
+    }
+  }
+
+  function applySuggestedFilters({ toast } = {}) {
+    const notify = toast || toastFn;
+    if (!lastSuggestedFilters) {
+      if (typeof notify === "function") {
+        notify("No suggested filters to apply", true);
+      }
+      return;
+    }
+    const sf = lastSuggestedFilters;
+    const search = document.getElementById("mlSearch");
+    if (search && sf.q != null) search.value = sf.q || "";
+    if (sf.severity) setSeverityMulti(sf.severity);
+    const attr = document.getElementById("mlAttr");
+    if (attr) {
+      attr.value = Array.isArray(sf.attr) && sf.attr.length ? sf.attr[0] : "";
+    }
+    if (sf.component_id) {
+      const cid = document.getElementById("mlComponentId");
+      if (cid) cid.value = sf.component_id;
+    }
+    if (sf.stream_id) {
+      const stream = document.getElementById("mlStream");
+      if (stream) stream.value = sf.stream_id;
+    }
+    if (sf.source) {
+      const source = document.getElementById("mlSource");
+      if (source) source.value = sf.source;
+    }
+    nextCursor = null;
+    loadEvents({ toast: notify });
+    if (typeof notify === "function") {
+      notify("Applied suggested filters to toolbar (search re-run)", false);
+    }
+  }
+
   async function simulateTick({ toast } = {}) {
     const notify = toast || toastFn;
     if (!apiFn) return;
@@ -241,6 +472,18 @@
     });
     document.getElementById("mlSimulate")?.addEventListener("click", () => {
       simulateTick();
+    });
+    document.getElementById("mlAiParse")?.addEventListener("click", () => {
+      runAiAssist("parse");
+    });
+    document.getElementById("mlAiSuggest")?.addEventListener("click", () => {
+      runAiAssist("suggest");
+    });
+    document.getElementById("mlAiNarrative")?.addEventListener("click", () => {
+      runAiAssist("narrative");
+    });
+    document.getElementById("mlAiApplyFilters")?.addEventListener("click", () => {
+      applySuggestedFilters();
     });
     const onEnter = (ev) => {
       if (ev.key === "Enter") {
@@ -289,7 +532,9 @@
     if (name !== "monitor-logs") return;
     applyAdminGate();
     nextCursor = null;
-    refreshLiveMeta().then(() => loadStreams().then(() => loadEvents()));
+    refreshLiveMeta()
+      .then(() => refreshAiStatus())
+      .then(() => loadStreams().then(() => loadEvents()));
   }
 
   global.SVRMON24MonitorLogs = {
@@ -298,6 +543,9 @@
     loadEvents,
     loadStreams,
     simulateTick,
+    runAiAssist,
+    applySuggestedFilters,
+    refreshAiStatus,
     onShowTab,
   };
 })(window);
