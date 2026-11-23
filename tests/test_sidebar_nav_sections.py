@@ -1,4 +1,4 @@
-"""Sidebar IA — CMDB / Monitoring / ITSM expandable sections (0.84.0)."""
+"""Sidebar IA — CMDB / Monitoring / ITSM expandable sections (0.85.0)."""
 
 from __future__ import annotations
 
@@ -15,12 +15,12 @@ CMDB_CSS = Path("frontend/static/css/cmdb.css")
 
 
 def test_version_bump_for_sidebar_cmdb_dashboard() -> None:
-    assert __version__ == "0.84.0"
+    assert __version__ == "0.85.0"
 
 
 def test_frontend_sidebar_section_markers() -> None:
     html = FRONTEND_INDEX.read_text(encoding="utf-8")
-    assert 'content="0.84.0"' in html
+    assert 'content="0.85.0"' in html
 
     # No thin Operations section (Dashboard moved under CMDB).
     assert 'id="navOperationsSection"' not in html
@@ -97,15 +97,27 @@ def test_frontend_sidebar_section_markers() -> None:
     assert 'id="navAdministrationGroup"' in html
     assert 'data-nav-group="administration"' in html
 
-    # Order: CMDB → Custom tables → Monitoring → ITSM → Configuration → Administration
+    # Order: CMDB → Custom tables → Monitoring → ITSM → Service Portal → Configuration → Administration
     cmdb_i = html.index('id="navCmdbSection"')
     mon_i = html.index('id="navMonitoringSection"')
     itsm_group_i = html.index('id="navItsmGroup"')
+    portal_i = html.index('id="navPortalSection"')
+    portal_group_i = html.index('id="navPortalGroup"')
     config_i = html.index('id="navConfigurationSection"')
     admin_i = html.index('id="navAdministrationSection"')
-    assert cmdb_i < custom_i < mon_i < itsm_i < itsm_group_i < config_i < admin_i
+    assert (
+        cmdb_i
+        < custom_i
+        < mon_i
+        < itsm_i
+        < itsm_group_i
+        < portal_i
+        < portal_group_i
+        < config_i
+        < admin_i
+    )
 
-    # ITSM items live inside the ITSM group, not after Configuration.
+    # ITSM items live inside the ITSM group, not after Service Portal / Configuration.
     for tab in (
         "itsm-dashboard",
         "itsm-incidents",
@@ -121,8 +133,15 @@ def test_frontend_sidebar_section_markers() -> None:
     ):
         marker = f'data-tab="{tab}"'
         pos = html.index(marker)
-        assert itsm_group_i < pos < config_i, tab
+        assert itsm_group_i < pos < portal_i, tab
         assert 'data-itsm-nav="1"' in html[pos - 80 : pos + 120]
+
+    # Service Portal — Catalog first; permission-gated.
+    assert 'data-nav-collapse="portal"' in html
+    assert "Service Portal" in html
+    catalog_i = html.index('data-tab="sp-catalog"')
+    assert portal_group_i < catalog_i < config_i
+    assert 'data-portal-perm="sp:catalog:read"' in html
 
     # Configuration + Administration children stay in their groups.
     config_group_i = html.index('id="navConfigurationGroup"')
@@ -153,6 +172,8 @@ def test_nav_accordion_js_and_css_markers() -> None:
     assert "cmdb: true" in cmdb
     assert "monitoring: true" in cmdb
     assert '"monitor-dashboard": "monitoring"' in cmdb
+    assert "portal: true" in cmdb
+    assert '"sp-catalog": "portal"' in cmdb
     assert "configuration: true" in cmdb
     assert "administration: true" in cmdb
     assert "initNavAccordions" in cmdb
@@ -167,6 +188,10 @@ def test_nav_accordion_js_and_css_markers() -> None:
     mon = MONITOR_INDEX_JS.read_text(encoding="utf-8")
     assert 'getElementById("navMonitoringGroup")' in mon
     assert "applyMonitorNavGates" in mon
+
+    portal = Path("frontend/static/js/portal/index.js").read_text(encoding="utf-8")
+    assert 'getElementById("navPortalGroup")' in portal
+    assert "applyPortalNavGates" in portal
 
     css = CMDB_CSS.read_text(encoding="utf-8")
     assert ".nav-section-toggle" in css
