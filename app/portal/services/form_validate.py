@@ -15,7 +15,11 @@ class FormValidationError(Exception):
 
 
 _PATH_BAD = re.compile(r"(\.\.|[\x00])")
+# Reject shell/path metacharacters that could enable traversal or injection.
+_PATH_META = re.compile(r"[;|&$`<>\\\"'*?\n\r\t]")
 _USERNAME = re.compile(r"^[a-z_][a-z0-9_-]{0,31}$")
+# Windows-ish username variant still without shell metas.
+_USERNAME_WIN = re.compile(r"^[A-Za-z0-9._-]{1,64}$")
 _HOSTNAME = re.compile(
     r"^(?=.{1,253}$)[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?"
     r"(?:\.[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)*$"
@@ -104,10 +108,18 @@ def _coerce_field(ftype: str, value: Any, field: Any) -> Any:
         if not re.search(field.pattern, text):
             raise ValueError("pattern mismatch")
     if ftype == "path":
-        if _PATH_BAD.search(text) or text.startswith("-"):
+        if (
+            _PATH_BAD.search(text)
+            or _PATH_META.search(text)
+            or text.startswith("-")
+            or text.startswith("~")
+        ):
             raise ValueError("invalid path")
-    if ftype == "username" and not _USERNAME.match(text):
-        raise ValueError("invalid username")
+    if ftype == "username":
+        if not (_USERNAME.match(text) or _USERNAME_WIN.match(text)):
+            raise ValueError("invalid username")
+        if _PATH_META.search(text) or "/" in text or "\\" in text:
+            raise ValueError("invalid username")
     if ftype == "hostname" and not _HOSTNAME.match(text):
         raise ValueError("invalid hostname")
     if ftype == "ip" and not _IP.match(text):
