@@ -69,8 +69,8 @@
         subtitle: "Status · approvals · CMDB sync",
       };
       pageMeta["sp-approvals"] = {
-        title: "Approvals inbox",
-        subtitle: "Portal-only steps · quorum 1 · no self-approve",
+        title: "Change status",
+        subtitle: "ITSM Change SoT · mirror status · open in ITSM",
       };
       pageMeta["sp-executions"] = {
         title: "Execution history",

@@ -12,9 +12,7 @@ from __future__ import annotations
 # SP0: package + meta + RBAC. SP1: sidebar. SP2+: catalog / requests / …
 PORTAL_COLLECTIONS: tuple[str, ...] = (
     "sp_catalog_items",
-    "sp_approval_policies",
     "sp_requests",
-    "sp_approval_steps",
     "sp_execution_runs",
     "sp_audit_events",
 )

@@ -54,9 +54,12 @@ def test_portal_sidebar_section_and_order() -> None:
     assert 'data-portal-perm="sp:catalog:read"' in html
     assert 'data-portal-perm="sp:request:create"' in html
     assert 'data-portal-perm="sp:request:read"' in html
-    assert 'data-portal-perm="sp:approval:read"' in html
+    assert 'data-tab="sp-approvals"' in html
+    assert "Change status" in html
+    assert 'data-portal-perm="sp:request:read"' in html
     assert 'data-portal-perm="sp:execution:read"' in html
     assert 'data-portal-perm="sp:catalog:admin"' in html
+    assert "Approvals inbox" not in html
 
 
 def test_portal_stub_panels_and_simulated_banner() -> None:

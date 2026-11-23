@@ -82,3 +82,6 @@ def test_portal_meta_simulated_tenant_aware(
     assert body["database"] == body["itsm_database"]
     assert body["tenant_id"]
     assert "sp_catalog_items" in body["collections"]
+    assert "sp_requests" in body["collections"]
+    assert "sp_approval_steps" not in body["collections"]
+    assert "sp_approval_policies" not in body["collections"]

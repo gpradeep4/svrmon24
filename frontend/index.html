@@ -415,9 +415,9 @@
             <span class="nav-ico" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M5 4h14v16H5z"/><path d="M8 8h8M8 12h8M8 16h5"/></svg></span>
             My requests
           </button>
-          <button type="button" class="nav-item" data-tab="sp-approvals" data-portal-nav="1" data-portal-perm="sp:approval:read">
+          <button type="button" class="nav-item" data-tab="sp-approvals" data-portal-nav="1" data-portal-perm="sp:request:read">
             <span class="nav-ico" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M9 12l2 2 4-4"/><circle cx="12" cy="12" r="9"/></svg></span>
-            Approvals inbox
+            Change status
           </button>
           <button type="button" class="nav-item" data-tab="sp-executions" data-portal-nav="1" data-portal-perm="sp:execution:read">
             <span class="nav-ico" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M5 5h14v4H5zm0 5h14v4H5zm0 5h14v4H5z"/></svg></span>
@@ -2520,10 +2520,10 @@
 
         <section id="tab-sp-approvals" class="tab-panel hidden" data-portal-module="1">
           <section class="panel portal-panel">
-            <h2>Approvals inbox</h2>
-            <p class="hint">Portal-only approval steps assigned to you (quorum 1; no self-approve). Lands in SP4.</p>
-            <div class="demo-banner" data-portal-simulated="1">SIMULATED approvals — decide does not trigger live adapters.</div>
-            <p class="hint" id="spApprovalsStub">No pending portal approvals (SP4).</p>
+            <h2>Change status</h2>
+            <p class="hint">ITSM <strong>Change</strong> is the source of truth for portal approvals. This view mirrors linked Change status and deep-links to ITSM (SP3–SP4).</p>
+            <div class="demo-banner" data-portal-simulated="1">SIMULATED — decide in ITSM Changes/Approvals; Portal does not own a separate approval inbox.</div>
+            <p class="hint" id="spApprovalsStub">No linked Changes yet (SP3 creates Change on submit; SP4 syncs status).</p>
           </section>
         </section>
 
