@@ -10,7 +10,7 @@ from tests.frontend_paths import FRONTEND_INDEX
 
 
 def test_version_bump_for_approvals_workflows_slice() -> None:
-    assert __version__ == "0.90.0"
+    assert __version__ == "0.91.0"
 
 
 def _create_change(client: TestClient, headers: dict[str, str]) -> str:
@@ -270,13 +270,13 @@ def test_workflow_graph_validation_rejects_bad_graph(
 
 def test_frontend_approvals_workflows_markers() -> None:
     html = FRONTEND_INDEX.read_text(encoding="utf-8")
-    assert 'content="0.90.0"' in html
+    assert 'content="0.91.0"' in html
     assert 'data-tab="itsm-approvals"' in html
     assert 'data-tab="itsm-workflows"' in html
     assert 'id="tab-itsm-approvals"' in html
     assert 'id="tab-itsm-workflows"' in html
     assert 'id="itsmWfCanvas"' in html
-    assert "itsm/approvals.js?v=0.90.0" in html
-    assert "itsm/workflows.js?v=0.90.0" in html
+    assert "itsm/approvals.js?v=0.91.0" in html
+    assert "itsm/workflows.js?v=0.91.0" in html
     assert 'data-itsm-perm="itsm:approval:read"' in html
     assert 'data-itsm-perm="itsm:workflow:read"' in html

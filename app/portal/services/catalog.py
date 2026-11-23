@@ -121,6 +121,13 @@ def create_catalog_item(
     actor: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     tid = require_tenant_id(tenant_id)
+    from ...services import entitlements as entitlements_service
+    from ...services.entitlements import EntitlementError
+
+    try:
+        entitlements_service.assert_can_create_sp_catalog_item(tid)
+    except EntitlementError as exc:
+        raise CatalogError(exc.message, status_code=exc.status_code) from exc
     _validate_action_key(payload.action_key)
     if payload.default_collect_mode not in payload.allowed_collect_modes:
         raise CatalogError("default_collect_mode must be in allowed_collect_modes")

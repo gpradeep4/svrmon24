@@ -65,6 +65,13 @@ def enqueue_execution(
 ) -> dict[str, Any]:
     """Create a queued ``sp_execution_runs`` row for an approved request."""
     tid = require_tenant_id(tenant_id)
+    from ...services import entitlements as entitlements_service
+    from ...services.entitlements import EntitlementError
+
+    try:
+        entitlements_service.assert_can_enqueue_sp_execution(tid)
+    except EntitlementError as exc:
+        raise ExecutionError(exc.message, status_code=exc.status_code) from exc
     req = get_request(tenant_id=tid, request_id=request_id)
     status = req.get("status")
     if status not in ("approved", "queued", "failed") and not force:
@@ -136,6 +143,22 @@ def enqueue_execution(
                 "updated_at": now,
                 "updated_by": who,
             }
+        },
+    )
+    from . import audit as portal_audit
+
+    portal_audit.record_portal_event(
+        tenant_id=tid,
+        action="portal.execution.enqueue",
+        actor=actor,
+        request_id=request_id,
+        change_id=req.get("change_id"),
+        resource_type="sp_execution_run",
+        resource_id=doc["run_id"],
+        details={
+            "action_key": doc.get("action_key"),
+            "collect_mode": doc.get("collect_mode"),
+            "execution_mode": doc.get("execution_mode"),
         },
     )
     return serialize_document(doc)  # type: ignore[return-value]

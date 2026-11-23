@@ -164,6 +164,13 @@ def create_request(
     actor: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     tid = require_tenant_id(tenant_id)
+    from ...services import entitlements as entitlements_service
+    from ...services.entitlements import EntitlementError
+
+    try:
+        entitlements_service.assert_can_create_sp_request(tid)
+    except EntitlementError as exc:
+        raise RequestError(exc.message, status_code=exc.status_code) from exc
     try:
         item = catalog_service.get_catalog_item(
             tenant_id=tid, item_id=payload.item_id
@@ -385,10 +392,25 @@ def submit_request(
         raise RequestError("request not found after submit", status_code=404)
     serialized = serialize_document(result)
     assert serialized is not None
+    from . import audit as portal_audit
     from . import notifications as portal_notifications
 
     portal_notifications.notify_request_submitted(
         tenant_id=tid, request=serialized, actor=actor
+    )
+    portal_audit.record_portal_event(
+        tenant_id=tid,
+        action="portal.request.submit",
+        actor=actor,
+        request_id=serialized.get("request_id"),
+        change_id=serialized.get("change_id"),
+        resource_type="sp_request",
+        resource_id=serialized.get("request_id"),
+        details={
+            "change_type_key": serialized.get("change_type_key"),
+            "action_key": serialized.get("action_key"),
+            "collect_mode": serialized.get("collect_mode"),
+        },
     )
     return serialized
 

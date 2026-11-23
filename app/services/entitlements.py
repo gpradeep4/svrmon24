@@ -38,6 +38,10 @@ RESOURCE_MONITOR_AUTO_INCIDENTS_PER_DAY = "monitor_auto_incidents_per_day"
 RESOURCE_MONITOR_RETENTION_DAYS_HOT = "monitor_retention_days_hot"
 RESOURCE_MONITOR_RETENTION_DAYS_EXTENDED = "monitor_retention_days_extended"
 RESOURCE_MONITOR_RETENTION_DAYS_SIEM = "monitor_retention_days_siem"
+# Service Portal ceilings (SP7).
+RESOURCE_SP_OPEN_REQUESTS = "sp_open_requests"
+RESOURCE_SP_CATALOG_ITEMS = "sp_catalog_items"
+RESOURCE_SP_EXECUTIONS_PER_DAY = "sp_executions_per_day"
 
 PLAN_LEGACY_UNLIMITED = "legacy_unlimited"
 PLAN_STARTER = "starter"
@@ -72,6 +76,9 @@ _PLAN_CATALOG: dict[str, dict[str, Any]] = {
             RESOURCE_MONITOR_RETENTION_DAYS_HOT: None,
             RESOURCE_MONITOR_RETENTION_DAYS_EXTENDED: None,
             RESOURCE_MONITOR_RETENTION_DAYS_SIEM: None,
+            RESOURCE_SP_OPEN_REQUESTS: None,
+            RESOURCE_SP_CATALOG_ITEMS: None,
+            RESOURCE_SP_EXECUTIONS_PER_DAY: None,
         },
         "notes": (
             "Default entitlements for migration / unlimited tenants. "
@@ -105,6 +112,9 @@ _PLAN_CATALOG: dict[str, dict[str, Any]] = {
             RESOURCE_MONITOR_RETENTION_DAYS_HOT: 7,
             RESOURCE_MONITOR_RETENTION_DAYS_EXTENDED: 0,
             RESOURCE_MONITOR_RETENTION_DAYS_SIEM: 0,
+            RESOURCE_SP_OPEN_REQUESTS: 25,
+            RESOURCE_SP_CATALOG_ITEMS: 50,
+            RESOURCE_SP_EXECUTIONS_PER_DAY: 50,
         },
         "notes": (
             "Entitlements-only starter ceiling for small orgs. "
@@ -135,6 +145,9 @@ _PLAN_CATALOG: dict[str, dict[str, Any]] = {
             RESOURCE_MONITOR_RETENTION_DAYS_HOT: 30,
             RESOURCE_MONITOR_RETENTION_DAYS_EXTENDED: 90,
             RESOURCE_MONITOR_RETENTION_DAYS_SIEM: 0,
+            RESOURCE_SP_OPEN_REQUESTS: 200,
+            RESOURCE_SP_CATALOG_ITEMS: 200,
+            RESOURCE_SP_EXECUTIONS_PER_DAY: 500,
         },
         "notes": (
             "Entitlements-only standard ceiling. "
@@ -531,3 +544,92 @@ def effective_monitor_retention_days(tenant_id: str) -> int | None:
         if hot is None or int(hot) > 0:
             return hot
     return int(days)
+
+
+def sp_open_requests_limit(tenant_id: str) -> int | None:
+    """Max open Service Portal requests, or None when unlimited."""
+    return _monitor_limit(tenant_id, RESOURCE_SP_OPEN_REQUESTS)
+
+
+def sp_catalog_items_limit(tenant_id: str) -> int | None:
+    """Max Service Portal catalog items, or None when unlimited."""
+    return _monitor_limit(tenant_id, RESOURCE_SP_CATALOG_ITEMS)
+
+
+def sp_executions_per_day_limit(tenant_id: str) -> int | None:
+    """Max Service Portal execution enqueues per day, or None when unlimited."""
+    return _monitor_limit(tenant_id, RESOURCE_SP_EXECUTIONS_PER_DAY)
+
+
+def assert_can_create_sp_request(tenant_id: str) -> None:
+    """Enforce open-request ceiling for Service Portal."""
+    from ..db import require_itsm_database
+    from ..portal.services.indexes import REQUESTS, ensure_portal_indexes
+    from ..tenancy import merge_tenant_filter, require_tenant_id
+
+    tid = require_tenant_id(tenant_id)
+    limit = sp_open_requests_limit(tid)
+    if limit is None:
+        return
+    ensure_portal_indexes()
+    open_statuses = [
+        "draft",
+        "submitted",
+        "pending_approval",
+        "approved",
+        "queued",
+        "running",
+    ]
+    count = require_itsm_database()[REQUESTS].count_documents(
+        merge_tenant_filter({"status": {"$in": open_statuses}}, tid)
+    )
+    if count >= limit:
+        raise EntitlementError(
+            f"Plan limit reached for sp_open_requests ({count}/{limit})",
+            status_code=403,
+        )
+
+
+def assert_can_create_sp_catalog_item(tenant_id: str) -> None:
+    """Enforce catalog item ceiling for Service Portal."""
+    from ..portal.services.indexes import CATALOG_ITEMS, ensure_portal_indexes
+    from ..db import require_itsm_database
+    from ..tenancy import merge_tenant_filter, require_tenant_id
+
+    tid = require_tenant_id(tenant_id)
+    limit = sp_catalog_items_limit(tid)
+    if limit is None:
+        return
+    ensure_portal_indexes()
+    count = require_itsm_database()[CATALOG_ITEMS].count_documents(
+        merge_tenant_filter(None, tid)
+    )
+    if count >= limit:
+        raise EntitlementError(
+            f"Plan limit reached for sp_catalog_items ({count}/{limit})",
+            status_code=403,
+        )
+
+
+def assert_can_enqueue_sp_execution(tenant_id: str) -> None:
+    """Enforce executions-per-day ceiling for Service Portal."""
+    from datetime import datetime, timezone
+
+    from ..portal.services.indexes import EXECUTION_RUNS, ensure_portal_indexes
+    from ..db import require_itsm_database
+    from ..tenancy import merge_tenant_filter, require_tenant_id
+
+    tid = require_tenant_id(tenant_id)
+    limit = sp_executions_per_day_limit(tid)
+    if limit is None:
+        return
+    ensure_portal_indexes()
+    start = datetime.now(timezone.utc).replace(hour=0, minute=0, second=0, microsecond=0)
+    count = require_itsm_database()[EXECUTION_RUNS].count_documents(
+        merge_tenant_filter({"created_at": {"$gte": start}}, tid)
+    )
+    if count >= limit:
+        raise EntitlementError(
+            f"Plan limit reached for sp_executions_per_day ({count}/{limit})",
+            status_code=403,
+        )
