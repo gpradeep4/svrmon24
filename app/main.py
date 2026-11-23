@@ -37,6 +37,7 @@ from .routers import platform as platform_router
 from .routers import tenants as tenants_router
 from .itsm.routers import router as itsm_router
 from .monitor.routers import router as monitor_router
+from .portal.routers import router as portal_router
 from .serialization import serialize_document
 from .itsm.services import job_runner as itsm_job_runner
 from .monitor.services import poller as monitor_poller
@@ -177,6 +178,7 @@ def create_app() -> FastAPI:
     app.include_router(dashboard_router.router)
     app.include_router(itsm_router)
     app.include_router(monitor_router)
+    app.include_router(portal_router)
 
     if settings.serve_static:
         app.mount("/static", StaticFiles(directory=str(STATIC_DIR)), name="static")

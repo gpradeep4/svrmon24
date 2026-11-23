@@ -83,6 +83,19 @@ PERM_MONITOR_ALERTS_READ = "monitor:alerts:read"
 PERM_MONITOR_ALERTS_WRITE = "monitor:alerts:write"
 PERM_MONITOR_ADMIN = "monitor:admin"
 
+# Service Portal (additive) — SIMULATED catalog / request / approve / execute.
+PERM_SP_CATALOG_READ = "sp:catalog:read"
+PERM_SP_CATALOG_ADMIN = "sp:catalog:admin"
+PERM_SP_REQUEST_CREATE = "sp:request:create"
+PERM_SP_REQUEST_READ = "sp:request:read"
+PERM_SP_REQUEST_CANCEL = "sp:request:cancel"
+PERM_SP_APPROVAL_READ = "sp:approval:read"
+PERM_SP_APPROVAL_DECIDE = "sp:approval:decide"
+PERM_SP_APPROVAL_HIGH_RISK = "sp:approval:high-risk"
+PERM_SP_EXECUTION_READ = "sp:execution:read"
+PERM_SP_EXECUTION_RUN = "sp:execution:run"
+PERM_SP_ADMIN = "sp:admin"
+
 ALL_PERMISSIONS: tuple[str, ...] = (
     PERM_CMDB_READ,
     PERM_CMDB_WRITE,
@@ -130,6 +143,17 @@ ALL_PERMISSIONS: tuple[str, ...] = (
     PERM_MONITOR_ALERTS_READ,
     PERM_MONITOR_ALERTS_WRITE,
     PERM_MONITOR_ADMIN,
+    PERM_SP_CATALOG_READ,
+    PERM_SP_CATALOG_ADMIN,
+    PERM_SP_REQUEST_CREATE,
+    PERM_SP_REQUEST_READ,
+    PERM_SP_REQUEST_CANCEL,
+    PERM_SP_APPROVAL_READ,
+    PERM_SP_APPROVAL_DECIDE,
+    PERM_SP_APPROVAL_HIGH_RISK,
+    PERM_SP_EXECUTION_READ,
+    PERM_SP_EXECUTION_RUN,
+    PERM_SP_ADMIN,
 )
 
 PERMISSION_LABELS: dict[str, str] = {
@@ -179,6 +203,17 @@ PERMISSION_LABELS: dict[str, str] = {
     PERM_MONITOR_ALERTS_READ: "View Monitoring alert rules + instances",
     PERM_MONITOR_ALERTS_WRITE: "Manage Monitoring alert rules / ack / resolve",
     PERM_MONITOR_ADMIN: "Administer Monitoring retention, seeds, live-flag visibility",
+    PERM_SP_CATALOG_READ: "Browse Service Portal catalog",
+    PERM_SP_CATALOG_ADMIN: "Manage Service Portal catalog items + approval policies",
+    PERM_SP_REQUEST_CREATE: "Submit Service Portal requests",
+    PERM_SP_REQUEST_READ: "View Service Portal requests (own / permitted)",
+    PERM_SP_REQUEST_CANCEL: "Cancel own pending Service Portal requests",
+    PERM_SP_APPROVAL_READ: "View Service Portal approval steps",
+    PERM_SP_APPROVAL_DECIDE: "Decide assigned Service Portal approval steps",
+    PERM_SP_APPROVAL_HIGH_RISK: "Decide high-risk Service Portal approvals",
+    PERM_SP_EXECUTION_READ: "View Service Portal execution runs",
+    PERM_SP_EXECUTION_RUN: "Re-queue / admin-run Service Portal executions",
+    PERM_SP_ADMIN: "Administer Service Portal live settings + entitlements",
 }
 
 _ITSM_VIEWER_PERMS: frozenset[str] = frozenset(
@@ -236,6 +271,29 @@ _MONITOR_ADMIN_PERMS: frozenset[str] = frozenset(
         PERM_MONITOR_ADMIN,
     }
 )
+_SP_VIEWER_PERMS: frozenset[str] = frozenset(
+    {
+        PERM_SP_CATALOG_READ,
+        PERM_SP_REQUEST_READ,
+        PERM_SP_EXECUTION_READ,
+    }
+)
+_SP_MEMBER_WRITE_PERMS: frozenset[str] = frozenset(
+    {
+        PERM_SP_REQUEST_CREATE,
+        PERM_SP_REQUEST_CANCEL,
+        PERM_SP_APPROVAL_READ,
+        PERM_SP_APPROVAL_DECIDE,
+    }
+)
+_SP_ADMIN_PERMS: frozenset[str] = frozenset(
+    {
+        PERM_SP_CATALOG_ADMIN,
+        PERM_SP_APPROVAL_HIGH_RISK,
+        PERM_SP_EXECUTION_RUN,
+        PERM_SP_ADMIN,
+    }
+)
 
 # Role → permissions (tenant-scoped). Platform admin gets the full set separately.
 _ROLE_PERMISSIONS: dict[str, frozenset[str]] = {
@@ -249,6 +307,7 @@ _ROLE_PERMISSIONS: dict[str, frozenset[str]] = {
             PERM_PLANS_READ,
             *_ITSM_VIEWER_PERMS,
             *_MONITOR_VIEWER_PERMS,
+            *_SP_VIEWER_PERMS,
         }
     ),
     MEMBERSHIP_ROLE_MEMBER: frozenset(
@@ -266,6 +325,8 @@ _ROLE_PERMISSIONS: dict[str, frozenset[str]] = {
             *_ITSM_MEMBER_WRITE_PERMS,
             *_MONITOR_VIEWER_PERMS,
             *_MONITOR_MEMBER_WRITE_PERMS,
+            *_SP_VIEWER_PERMS,
+            *_SP_MEMBER_WRITE_PERMS,
         }
     ),
     MEMBERSHIP_ROLE_ADMIN: frozenset(
@@ -289,6 +350,9 @@ _ROLE_PERMISSIONS: dict[str, frozenset[str]] = {
             *_MONITOR_VIEWER_PERMS,
             *_MONITOR_MEMBER_WRITE_PERMS,
             *_MONITOR_ADMIN_PERMS,
+            *_SP_VIEWER_PERMS,
+            *_SP_MEMBER_WRITE_PERMS,
+            *_SP_ADMIN_PERMS,
         }
     ),
     MEMBERSHIP_ROLE_OWNER: frozenset(
@@ -313,6 +377,9 @@ _ROLE_PERMISSIONS: dict[str, frozenset[str]] = {
             *_MONITOR_VIEWER_PERMS,
             *_MONITOR_MEMBER_WRITE_PERMS,
             *_MONITOR_ADMIN_PERMS,
+            *_SP_VIEWER_PERMS,
+            *_SP_MEMBER_WRITE_PERMS,
+            *_SP_ADMIN_PERMS,
         }
     ),
 }
