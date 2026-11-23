@@ -1,4 +1,4 @@
-"""Service Portal SP9 — live gate stubs (fail-closed; adapters still stubbed) (0.93.0)."""
+"""Service Portal SP9 — live gate stubs (fail-closed; SP10 unlocks adapters) (0.94.0)."""
 
 from __future__ import annotations
 
@@ -15,9 +15,9 @@ from tests.frontend_paths import FRONTEND_INDEX
 
 
 def test_version_bump_for_portal_sp9() -> None:
-    assert __version__ == "0.93.0"
+    assert __version__ == "0.94.0"
     html = FRONTEND_INDEX.read_text(encoding="utf-8")
-    assert 'content="0.93.0"' in html
+    assert 'content="0.94.0"' in html
 
 
 def test_platform_live_flags_default_off() -> None:
@@ -42,7 +42,9 @@ def test_meta_live_gates_fail_closed(
     assert body["live_gates"]["fail_closed"] is True
     assert body["live_gates"]["live_exec"] is False
     assert body["live_gates"]["platform_enabled"] is False
-    assert body.get("live_adapters") is False
+    # SP10: adapter code is unlocked; effective LIVE still requires gates.
+    assert body.get("live_adapters") is True
+    assert body["live_gates"]["live_adapters"] is True
 
 
 @pytest.mark.usefixtures("clean_db")
@@ -55,7 +57,7 @@ def test_admin_live_settings_get_and_patch(
     assert payload["platform"]["SERVICE_PORTAL_LIVE_EXEC_ENABLED"] is False
     assert payload["tenant"]["sp_live_opt_in"] is False
     assert payload["effective"]["live_exec"] is False
-    assert payload["live_adapters"] is False
+    assert payload["live_adapters"] is True
 
     patched = client.patch(
         "/api/portal/admin/live-settings",
@@ -93,28 +95,33 @@ def test_assert_live_allowed_requires_both_gates(
 
     monkeypatch.setenv("SERVICE_PORTAL_LIVE_EXEC_ENABLED", "true")
     get_settings.cache_clear()
-    # Both open — assert passes (adapters remain stubbed separately).
+    # Both open — assert passes; SP10 adapters are unlocked.
     live_gates_service.assert_live_allowed(
         tenant_id=MIGRATION_TENANT_ID, capability="live_exec"
     )
     gates = live_gates_service.live_gates(tenant_id=MIGRATION_TENANT_ID)
     assert gates["live_exec"] is True
-    assert gates["live_adapters"] is False
+    assert gates["live_adapters"] is True
     get_settings.cache_clear()
 
 
 @pytest.mark.usefixtures("clean_db")
-def test_live_enqueue_still_stubbed_when_gates_open(
+def test_live_enqueue_allowed_when_gates_open(
     client: TestClient,
     auth_headers: dict[str, str],
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """Gates open still refuse LIVE enqueue — adapters stubbed until SPn unlock."""
+    """Gates open → LIVE enqueue succeeds (SP10 unlock)."""
     monkeypatch.setenv("SERVICE_PORTAL_LIVE_EXEC_ENABLED", "true")
+    monkeypatch.setenv("SERVICE_PORTAL_LIVE_AGENTLESS_ENABLED", "true")
     get_settings.cache_clear()
     tenants_service.ensure_migration_tenant()
     tenants_service.set_portal_live_settings(
-        MIGRATION_TENANT_ID, {"sp_live_opt_in": True}
+        MIGRATION_TENANT_ID,
+        {
+            "sp_live_opt_in": True,
+            "sp_live_agentless_opt_in": True,
+        },
     )
 
     seed = client.post("/api/portal/catalog/seed", headers=auth_headers)
@@ -151,19 +158,13 @@ def test_live_enqueue_still_stubbed_when_gates_open(
         headers=auth_headers,
     )
     assert synced.status_code == 200
-    # Auto-enqueue for LIVE fails closed (no run created).
     runs = client.get(
         "/api/portal/executions",
         headers=auth_headers,
         params={"request_id": req["request_id"]},
     )
     assert runs.status_code == 200
-    assert runs.json()["total"] == 0
-
-    # Explicit enqueue also 403 with stub message (gates open).
-    enq = client.post(
-        f"/api/portal/executions/{req['request_id']}/requeue",
-        headers=auth_headers,
-    )
-    assert enq.status_code == 403, enq.text
+    # Auto-enqueue on approve should create a LIVE run when gates open.
+    assert runs.json()["total"] >= 1
+    assert runs.json()["items"][0]["execution_mode"] == "LIVE"
     get_settings.cache_clear()
