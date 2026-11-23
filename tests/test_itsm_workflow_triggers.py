@@ -14,7 +14,7 @@ from fastapi.testclient import TestClient
 
 
 def test_version_bump_for_workflow_triggers_slice() -> None:
-    assert __version__ == "0.92.0"
+    assert __version__ == "0.93.0"
 
 
 def _simple_graph(*, target_status: str = "submitted") -> dict:

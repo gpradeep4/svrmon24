@@ -241,6 +241,41 @@ def set_monitor_live_settings(
     return serialize_document(doc)  # type: ignore[return-value]
 
 
+_PORTAL_LIVE_TENANT_FIELDS: frozenset[str] = frozenset(
+    {
+        "sp_live_opt_in",
+        "sp_live_agentless_opt_in",
+        "sp_live_agent_opt_in",
+    }
+)
+
+
+def set_portal_live_settings(
+    tenant_id: str, updates: dict[str, Any]
+) -> dict[str, Any]:
+    """Patch tenant Service Portal live opt-in fields (defaults false)."""
+    tid = require_tenant_id(tenant_id)
+    if tid == MIGRATION_TENANT_ID:
+        ensure_migration_tenant()
+    coll = _collection()
+    existing = coll.find_one({"tenant_id": tid})
+    if existing is None:
+        raise TenantError(f"Tenant '{tid}' not found", status_code=404)
+
+    to_set: dict[str, Any] = {}
+    for key, value in updates.items():
+        if key not in _PORTAL_LIVE_TENANT_FIELDS:
+            continue
+        to_set[key] = bool(value)
+    if not to_set:
+        raise TenantError("No valid portal live settings to update", status_code=400)
+
+    to_set["updated_at"] = _now()
+    coll.update_one({"tenant_id": tid}, {"$set": to_set})
+    doc = coll.find_one({"tenant_id": tid})
+    return serialize_document(doc)  # type: ignore[return-value]
+
+
 def ensure_migration_tenant() -> dict[str, Any]:
     """Idempotently create the locked migration tenant ``SVRMON24 Legacy``.
 
