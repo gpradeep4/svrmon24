@@ -5,7 +5,7 @@ from __future__ import annotations
 from fastapi import APIRouter, Depends
 
 from ...auth import require_user
-from . import admin, audit, catalog, changes, executions, meta, requests
+from . import admin, audit, catalog, changes, executions, meta, requests, vuln
 
 router = APIRouter(
     prefix="/api/portal",
@@ -18,5 +18,6 @@ router.include_router(catalog.router)
 router.include_router(requests.router)
 router.include_router(changes.router)
 router.include_router(executions.router)
+router.include_router(vuln.router)
 router.include_router(audit.router)
 router.include_router(admin.router)

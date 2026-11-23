@@ -1,4 +1,4 @@
-"""Monitoring M8 — hardening: indexes, retention, diagnostics rehome, /monitor (0.94.0)."""
+"""Monitoring M8 — hardening: indexes, retention, diagnostics rehome, /monitor (0.95.0)."""
 
 from __future__ import annotations
 
@@ -17,10 +17,10 @@ from tests.frontend_paths import FRONTEND_DIR, FRONTEND_INDEX
 
 
 def test_version_bump_for_monitor_m8() -> None:
-    assert __version__ == "0.94.0"
+    assert __version__ == "0.95.0"
     html = FRONTEND_INDEX.read_text(encoding="utf-8")
-    assert 'content="0.94.0"' in html
-    assert "monitor/index.js?v=0.94.0" in html
+    assert 'content="0.95.0"' in html
+    assert "monitor/index.js?v=0.95.0" in html
 
 
 def test_cmdb_redirect_stubs_removed() -> None:
@@ -295,8 +295,8 @@ def test_fe_be_smoke_markers() -> None:
     assert 'data-tab="monitor-dashboard"' in html
     assert 'data-tab="file-monitoring"' in html
     assert 'data-tab="diagnostics"' in html
-    assert "monitor.css?v=0.94.0" in html
-    assert "itsm/routing.js?v=0.94.0" in html
+    assert "monitor.css?v=0.95.0" in html
+    assert "itsm/routing.js?v=0.95.0" in html
     assert Path("app/monitor/services/retention.py").is_file()
     assert Path("app/monitor/services/diagnostics.py").is_file()
     assert Path("app/monitor/routers/admin.py").is_file()

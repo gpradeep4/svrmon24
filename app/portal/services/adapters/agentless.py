@@ -185,6 +185,15 @@ def execute_agentless(
     values = dict(req.get("form_values") or {})
     dry_run = bool(run.get("dry_run") or run.get("execution_mode") == "DRY_RUN")
 
+    if action.startswith("vuln.scan."):
+        from .. import vuln as vuln_service
+
+        return vuln_service.run_scan_for_request(
+            tenant_id=str(req.get("tenant_id") or ""),
+            req=req,
+            run={**run, "execution_mode": "LIVE" if not dry_run else "DRY_RUN"},
+        )
+
     if action == "cloud.vm.provision":
         try:
             return tf_cloud.provision_vm(values, dry_run=dry_run)

@@ -1,4 +1,4 @@
-"""Service Portal SP2 — catalog seed + form validation (0.94.0)."""
+"""Service Portal SP2 — catalog seed + form validation (0.95.0)."""
 
 from __future__ import annotations
 
@@ -14,10 +14,10 @@ from tests.frontend_paths import FRONTEND_INDEX
 
 
 def test_version_bump_for_portal_sp2() -> None:
-    assert __version__ == "0.94.0"
+    assert __version__ == "0.95.0"
     html = FRONTEND_INDEX.read_text(encoding="utf-8")
-    assert 'content="0.94.0"' in html
-    assert "portal/catalog.js?v=0.94.0" in html
+    assert 'content="0.95.0"' in html
+    assert "portal/catalog.js?v=0.95.0" in html
 
 
 def test_seed_specs_cover_all_domains() -> None:
@@ -30,6 +30,7 @@ def test_seed_specs_cover_all_domains() -> None:
         "networking",
         "cloud",
         "generic",
+        "vulnerability",
         "other",
     }
     assert all(s["change_type_key"].startswith("sp.") for s in specs)
@@ -52,6 +53,7 @@ def test_catalog_seed_list_validate(
     assert payload["total"] >= body["total_seed"]
     assert "cloud" in payload["domains"]
     assert "generic" in payload["domains"]
+    assert "vulnerability" in payload["domains"]
 
     cloud = client.get(
         "/api/portal/catalog",

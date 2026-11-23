@@ -1,4 +1,4 @@
-"""Monitoring Log AI assist — Ollama qwen2.5-coder:14b path (0.94.0)."""
+"""Monitoring Log AI assist — Ollama qwen2.5-coder:14b path (0.95.0)."""
 
 from __future__ import annotations
 
@@ -15,10 +15,10 @@ ENV_EXAMPLE = Path(".env.example")
 
 
 def test_version_and_ui_markers() -> None:
-    assert __version__ == "0.94.0"
+    assert __version__ == "0.95.0"
     html = FRONTEND_INDEX.read_text(encoding="utf-8")
-    assert 'content="0.94.0"' in html
-    assert "monitor/logs.js?v=0.94.0" in html
+    assert 'content="0.95.0"' in html
+    assert "monitor/logs.js?v=0.95.0" in html
     assert 'id="mlAiParse"' in html
     assert 'id="mlAiSuggest"' in html
     assert 'id="mlAiNarrative"' in html
