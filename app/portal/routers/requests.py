@@ -100,7 +100,7 @@ def get_request(
     try:
         if refresh_change:
             return requests_service.refresh_change_snapshot(
-                request_id, tenant_id=tenant.tenant_id
+                request_id, tenant_id=tenant.tenant_id, actor=_actor(tenant)
             )
         return requests_service.get_request(
             tenant_id=tenant.tenant_id, request_id=request_id

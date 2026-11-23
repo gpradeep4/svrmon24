@@ -4,7 +4,7 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <meta name="svrmon24-ui" content="login-enterprise-v13" />
-  <meta name="svrmon24-version" content="0.87.0" />
+  <meta name="svrmon24-version" content="0.88.0" />
   <title>SVRMON24</title>
   <link rel="icon" href="/static/img/svrmon-favicon.png" type="image/png" sizes="32x32" />
   <link rel="apple-touch-icon" href="/static/img/svrmon-apple-touch.png" sizes="180x180" />
@@ -15,12 +15,12 @@
     body.is-app .login-gate { display: none !important; }
     #authPanel, .auth-panel-legacy { display: none !important; }
   </style>
-  <link rel="stylesheet" href="/static/css/cmdb.css?v=0.87.0" />
-  <link rel="stylesheet" href="/static/css/itsm.css?v=0.87.0" />
-  <link rel="stylesheet" href="/static/css/monitor.css?v=0.87.0" />
-  <link rel="stylesheet" href="/static/css/portal.css?v=0.87.0" />
-  <script src="/static/js/config.js?v=0.87.0"></script>
-  <script src="/static/js/brand.js?v=0.87.0"></script>
+  <link rel="stylesheet" href="/static/css/cmdb.css?v=0.88.0" />
+  <link rel="stylesheet" href="/static/css/itsm.css?v=0.88.0" />
+  <link rel="stylesheet" href="/static/css/monitor.css?v=0.88.0" />
+  <link rel="stylesheet" href="/static/css/portal.css?v=0.88.0" />
+  <script src="/static/js/config.js?v=0.88.0"></script>
+  <script src="/static/js/brand.js?v=0.88.0"></script>
 </head>
 <body class="is-login">
   <!-- Enterprise login: showcase (left) + sign-in panel (right); stacks on small viewports -->
@@ -2523,7 +2523,7 @@
             <h2>Change status</h2>
             <p class="hint">ITSM <strong>Change</strong> is the source of truth for portal approvals. This view mirrors linked Change status and deep-links to ITSM (SP3–SP4).</p>
             <div class="demo-banner" data-portal-simulated="1">SIMULATED — decide in ITSM Changes/Approvals; Portal does not own a separate approval inbox.</div>
-            <p class="hint" id="spApprovalsStub">No linked Changes yet (SP3 creates Change on submit; SP4 syncs status).</p>
+            <div id="spApprovalsStub"><p class="hint">No linked Changes yet. Submit a Catalog request to create an ITSM Change.</p></div>
           </section>
         </section>
 
@@ -3871,30 +3871,31 @@
     </div>
   </div>
 
-  <script src="/static/js/cmdb.js?v=0.87.0"></script>
-  <script src="/static/js/monitor/dashboard.js?v=0.87.0"></script>
-  <script src="/static/js/monitor/targets.js?v=0.87.0"></script>
-  <script src="/static/js/monitor/logs.js?v=0.87.0"></script>
-  <script src="/static/js/monitor/alerts.js?v=0.87.0"></script>
-  <script src="/static/js/monitor/agents.js?v=0.87.0"></script>
-  <script src="/static/js/monitor/index.js?v=0.87.0"></script>
-  <script src="/static/js/itsm/api.js?v=0.87.0"></script>
-  <script src="/static/js/itsm/routing.js?v=0.87.0"></script>
-  <script src="/static/js/itsm/deeplinks.js?v=0.87.0"></script>
-  <script src="/static/js/itsm/dashboard.js?v=0.87.0"></script>
-  <script src="/static/js/itsm/reports.js?v=0.87.0"></script>
-  <script src="/static/js/itsm/incidents.js?v=0.87.0"></script>
-  <script src="/static/js/itsm/changes.js?v=0.87.0"></script>
-  <script src="/static/js/itsm/problems.js?v=0.87.0"></script>
-  <script src="/static/js/itsm/approvals.js?v=0.87.0"></script>
-  <script src="/static/js/itsm/workflows.js?v=0.87.0"></script>
-  <script src="/static/js/itsm/sla.js?v=0.87.0"></script>
-  <script src="/static/js/itsm/knowledge.js?v=0.87.0"></script>
-  <script src="/static/js/itsm/notifications.js?v=0.87.0"></script>
-  <script src="/static/js/itsm/groups.js?v=0.87.0"></script>
-  <script src="/static/js/itsm/index.js?v=0.87.0"></script>
-  <script src="/static/js/portal/catalog.js?v=0.87.0"></script>
-  <script src="/static/js/portal/requests.js?v=0.87.0"></script>
-  <script src="/static/js/portal/index.js?v=0.87.0"></script>
+  <script src="/static/js/cmdb.js?v=0.88.0"></script>
+  <script src="/static/js/monitor/dashboard.js?v=0.88.0"></script>
+  <script src="/static/js/monitor/targets.js?v=0.88.0"></script>
+  <script src="/static/js/monitor/logs.js?v=0.88.0"></script>
+  <script src="/static/js/monitor/alerts.js?v=0.88.0"></script>
+  <script src="/static/js/monitor/agents.js?v=0.88.0"></script>
+  <script src="/static/js/monitor/index.js?v=0.88.0"></script>
+  <script src="/static/js/itsm/api.js?v=0.88.0"></script>
+  <script src="/static/js/itsm/routing.js?v=0.88.0"></script>
+  <script src="/static/js/itsm/deeplinks.js?v=0.88.0"></script>
+  <script src="/static/js/itsm/dashboard.js?v=0.88.0"></script>
+  <script src="/static/js/itsm/reports.js?v=0.88.0"></script>
+  <script src="/static/js/itsm/incidents.js?v=0.88.0"></script>
+  <script src="/static/js/itsm/changes.js?v=0.88.0"></script>
+  <script src="/static/js/itsm/problems.js?v=0.88.0"></script>
+  <script src="/static/js/itsm/approvals.js?v=0.88.0"></script>
+  <script src="/static/js/itsm/workflows.js?v=0.88.0"></script>
+  <script src="/static/js/itsm/sla.js?v=0.88.0"></script>
+  <script src="/static/js/itsm/knowledge.js?v=0.88.0"></script>
+  <script src="/static/js/itsm/notifications.js?v=0.88.0"></script>
+  <script src="/static/js/itsm/groups.js?v=0.88.0"></script>
+  <script src="/static/js/itsm/index.js?v=0.88.0"></script>
+  <script src="/static/js/portal/catalog.js?v=0.88.0"></script>
+  <script src="/static/js/portal/requests.js?v=0.88.0"></script>
+  <script src="/static/js/portal/approvals.js?v=0.88.0"></script>
+  <script src="/static/js/portal/index.js?v=0.88.0"></script>
 </body>
 </html>
