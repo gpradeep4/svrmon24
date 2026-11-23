@@ -120,6 +120,10 @@ def clean_db(client: TestClient) -> Generator[None, None, None]:
         "itsm_report_schedule_runs",
         "itsm_assignment_groups",
         "itsm_ticket_attachments",
+        "sp_catalog_items",
+        "sp_requests",
+        "sp_execution_runs",
+        "sp_audit_events",
     )
     monitor_db = get_monitor_database()
     monitor_collections = (
