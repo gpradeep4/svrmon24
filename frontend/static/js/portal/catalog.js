@@ -113,7 +113,7 @@
         <div class="toolbar" style="grid-template-columns:1fr auto auto;">
           <p class="hint" id="spRequestFormErrors"></p>
           <button type="button" class="secondary" id="spRequestValidate">Validate</button>
-          <button type="submit" id="spRequestSubmit" disabled title="Submit lands in SP3 (creates ITSM Change)">Submit (SP3)</button>
+          <button type="submit" id="spRequestSubmit">Submit</button>
         </div>
       </form>`;
     document.getElementById("spRequestValidate")?.addEventListener("click", () =>
@@ -121,8 +121,39 @@
     );
     document.getElementById("spRequestForm")?.addEventListener("submit", (ev) => {
       ev.preventDefault();
-      _toast?.("Request submit arrives in SP3 (ITSM Change on submit).", false);
+      submitCurrentForm().catch((err) =>
+        _toast?.(err.message || "Submit failed", true)
+      );
     });
+  }
+
+  async function submitCurrentForm() {
+    if (!_selectedItem || !_api) return;
+    const form = document.getElementById("spRequestForm");
+    const errEl = document.getElementById("spRequestFormErrors");
+    const collectMode = form?.querySelector('[name="collect_mode"]')?.value;
+    const formValues = readFormValues(form);
+    try {
+      await validateCurrentForm();
+    } catch (err) {
+      throw err;
+    }
+    if (!global.SVRMON24PortalRequests?.submitNewRequest) {
+      throw new Error("Portal requests module not loaded");
+    }
+    try {
+      const doc = await global.SVRMON24PortalRequests.submitNewRequest(
+        _selectedItem,
+        formValues,
+        collectMode
+      );
+      if (errEl) errEl.textContent = `Submitted ${doc.request_id}`;
+      return doc;
+    } catch (err) {
+      const detail = err?.detail || err?.message;
+      if (errEl) errEl.textContent = String(detail || "submit failed");
+      throw err;
+    }
   }
 
   function readFormValues(form) {
