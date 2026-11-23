@@ -442,27 +442,15 @@ def refresh_change_snapshot(
     request_id: str,
     *,
     tenant_id: str,
+    actor: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
-    """Pull current ITSM Change status into ``change_status_snapshot`` (SP3 light)."""
-    tid = require_tenant_id(tenant_id)
-    existing = get_request(tenant_id=tid, request_id=request_id)
-    change_id = existing.get("change_id")
-    if not change_id:
-        return existing
-    change = changes_service.get_change(change_id, tenant_id=tid)
-    if not change:
-        raise RequestError("linked Change not found", status_code=404)
-    result = _coll().find_one_and_update(
-        merge_tenant_filter({"request_id": request_id}, tid),
-        {
-            "$set": {
-                "change_status_snapshot": change.get("status"),
-                "change_number_display": change.get("number_display"),
-                "updated_at": _now(),
-            }
-        },
-        return_document=ReturnDocument.AFTER,
-    )
-    if not result:
-        raise RequestError("request not found", status_code=404)
-    return serialize_document(result)  # type: ignore[return-value]
+    """Pull ITSM Change status and mirror request status (SP4 sync)."""
+    from . import approvals as approvals_service
+    from .approvals import ApprovalError
+
+    try:
+        return approvals_service.sync_request_from_change(
+            request_id, tenant_id=tenant_id, actor=actor
+        )
+    except ApprovalError as exc:
+        raise RequestError(exc.message, status_code=exc.status_code) from exc
