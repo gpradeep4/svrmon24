@@ -1,13 +1,15 @@
-/* Service Portal vulnerability reports (SP11). */
+/* Service Portal vulnerability reports + fix/rollback (SP11/SP12). */
 (function (global) {
   "use strict";
 
   let _api = null;
   let _toast = null;
+  let _showTab = null;
 
   function bindApi(api, opts) {
     _api = api;
     _toast = opts?.toast;
+    _showTab = opts?.showTab || global.SvrmonPortalShowTab;
   }
 
   function esc(s) {
@@ -23,6 +25,32 @@
     if (s === "critical" || s === "high") return "danger";
     if (s === "medium") return "warning";
     return "muted";
+  }
+
+  async function catalogItemByKey(key) {
+    const data = await _api("/api/portal/catalog?domain=vulnerability&page_size=50");
+    return (data.items || []).find((i) => i.key === key) || null;
+  }
+
+  async function submitCatalogRequest(itemKey, formValues) {
+    const item = await catalogItemByKey(itemKey);
+    if (!item) throw new Error(`Catalog item ${itemKey} not found — seed catalog first`);
+    const doc = await _api("/api/portal/requests", {
+      method: "POST",
+      body: JSON.stringify({
+        item_id: item.item_id,
+        form_values: formValues,
+        collect_mode: item.default_collect_mode || "agentless",
+        requested_execution_mode: "SIMULATED",
+        submit: true,
+      }),
+    });
+    _toast?.(
+      `Request ${doc.request_id} submitted · Change ${doc.change_number_display || doc.change_id} (approve in ITSM)`,
+      false
+    );
+    if (typeof _showTab === "function") _showTab("sp-my-requests");
+    return doc;
   }
 
   async function loadReports() {
@@ -89,6 +117,7 @@
       <h3>Report ${esc(report.report_id)}</h3>
       <p class="hint">Request <code>${esc(report.request_id || "—")}</code> ·
         servers: ${(report.component_ids || []).map((c) => `<code>${esc(c)}</code>`).join(" ")}</p>
+      <p class="hint">Fix and rollback create an <strong>ITSM Change</strong> for approval before execution.</p>
       <table class="data-table">
         <thead>
           <tr>
@@ -96,27 +125,57 @@
             <th>CVE / ID</th>
             <th>Package</th>
             <th>Server</th>
-            <th>Title</th>
+            <th>Status</th>
             <th>Suggestion</th>
+            <th>Actions</th>
           </tr>
         </thead>
         <tbody>
           ${findings
             .map((f) => {
               const sug = suggestByFinding[f.finding_id]?.suggestion || "—";
-              return `<tr>
+              const status = f.status || "open";
+              const fixBtn =
+                status === "open" || status === "fixing"
+                  ? `<button type="button" class="secondary" data-sp-vuln-fix="${esc(f.finding_id)}">Request fix</button>`
+                  : "";
+              const rbBtn =
+                status === "fixed" && f.fix_run_id
+                  ? `<button type="button" class="secondary" data-sp-vuln-rollback="${esc(f.fix_run_id)}">Request rollback</button>`
+                  : "";
+              return `<tr data-finding-id="${esc(f.finding_id)}" data-vuln-id="${esc(f.vuln_id)}" data-component-id="${esc(f.component_id)}" data-fix-run-id="${esc(f.fix_run_id || "")}">
                 <td><span class="status-pill ${severityClass(f.severity)}">${esc(f.severity)}</span></td>
                 <td><code>${esc(f.vuln_id)}</code></td>
                 <td>${esc(f.package)}</td>
                 <td><code>${esc(f.component_id)}</code></td>
-                <td>${esc(f.title)}</td>
+                <td><span class="status-pill muted">${esc(status)}</span></td>
                 <td class="hint">${esc(sug)}</td>
+                <td>${fixBtn} ${rbBtn}</td>
               </tr>`;
             })
             .join("")}
         </tbody>
-      </table>
-      <p class="hint">Fix / rollback catalog items land in the next slice (Change-gated apply).</p>`;
+      </table>`;
+
+    detail.querySelectorAll("[data-sp-vuln-fix]").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        const row = btn.closest("tr");
+        submitCatalogRequest("vuln.fix.apply", {
+          report_id: report.report_id,
+          vuln_id: row.getAttribute("data-vuln-id"),
+          component_ids: row.getAttribute("data-component-id"),
+          finding_ids: row.getAttribute("data-finding-id"),
+        }).catch((err) => _toast?.(err.message || "Fix request failed", true));
+      });
+    });
+    detail.querySelectorAll("[data-sp-vuln-rollback]").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        const fixRunId = btn.getAttribute("data-sp-vuln-rollback");
+        submitCatalogRequest("vuln.fix.rollback", {
+          fix_run_id: fixRunId,
+        }).catch((err) => _toast?.(err.message || "Rollback request failed", true));
+      });
+    });
   }
 
   function onShowTab(name) {

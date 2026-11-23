@@ -238,11 +238,11 @@ def _simulate_handler(run: dict[str, Any], req: dict[str, Any]) -> dict[str, Any
     """Produce synthetic AGENT / AGENTLESS results (no sockets)."""
     collect = (run.get("collect_mode") or "agentless").lower()
     action = run.get("action_key") or "unknown"
-    if str(action).startswith("vuln.scan."):
+    if str(action).startswith("vuln."):
         from . import vuln as vuln_service
 
         tid = str(req.get("tenant_id") or run.get("tenant_id") or "")
-        out = vuln_service.run_scan_for_request(
+        out = vuln_service.dispatch_vuln_action(
             tenant_id=tid,
             req=req,
             run={**run, "execution_mode": run.get("execution_mode") or "SIMULATED"},
