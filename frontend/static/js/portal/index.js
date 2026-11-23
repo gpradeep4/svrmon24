@@ -65,6 +65,9 @@
     if (api && global.SVRMON24PortalApprovals?.bindApi) {
       global.SVRMON24PortalApprovals.bindApi(api, { toast, showTab });
     }
+    if (api && global.SVRMON24PortalExecutions?.bindApi) {
+      global.SVRMON24PortalExecutions.bindApi(api, { toast, showTab });
+    }
 
     if (pageMeta) {
       pageMeta["sp-catalog"] = {
@@ -114,6 +117,11 @@
       ?.addEventListener("click", () => {
         global.SVRMON24PortalApprovals?.onShowTab?.("sp-approvals");
       });
+    document
+      .querySelector('[data-tab="sp-executions"]')
+      ?.addEventListener("click", () => {
+        global.SVRMON24PortalExecutions?.onShowTab?.("sp-executions");
+      });
     if (typeof onShowTab === "function") {
       onShowTab((name, ctx) => {
         if (!ctx?.authenticated) return;
@@ -123,6 +131,7 @@
         global.SVRMON24PortalCatalog?.onShowTab?.(name);
         global.SVRMON24PortalRequests?.onShowTab?.(name);
         global.SVRMON24PortalApprovals?.onShowTab?.(name);
+        global.SVRMON24PortalExecutions?.onShowTab?.(name);
       });
     }
 
