@@ -93,6 +93,12 @@ class Settings(BaseSettings):
     ollama_enabled: bool = Field(default=False, alias="OLLAMA_ENABLED")
     ollama_url: str = Field(default="http://localhost:11434", alias="OLLAMA_URL")
     ollama_model: str = Field(default="llama3.2:3b", alias="OLLAMA_MODEL")
+    # Dedicated tag for Monitoring Log AI assists (parse / suggest filters /
+    # prediction narratives). Defaults to qwen2.5-coder:14b; general CMDB/ITSM
+    # assists keep using OLLAMA_MODEL.
+    ollama_log_model: str = Field(
+        default="qwen2.5-coder:14b", alias="OLLAMA_LOG_MODEL"
+    )
     ollama_timeout_seconds: float = Field(default=60.0, alias="OLLAMA_TIMEOUT_SECONDS")
 
     # Optional OpenAI-compatible cloud suggestion provider (assist only).

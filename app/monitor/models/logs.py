@@ -79,3 +79,28 @@ class SimulateTickResult(BaseModel):
     ticks_limit: int | None = None
     execution_mode: ExecutionMode = "SIMULATED"
     live_probes: bool = False
+
+
+class LogAiCurrentFilters(BaseModel):
+    """Optional snapshot of the Logs toolbar filters (assist context only)."""
+
+    model_config = ConfigDict(extra="ignore")
+
+    q: str | None = None
+    severity: str | None = None
+    stream_id: str | None = None
+    component_id: str | None = None
+    source: str | None = None
+    attr: list[str] = Field(default_factory=list)
+
+
+class LogAiAssistRequest(BaseModel):
+    """Shared body for Log AI assist endpoints (parse / filters / narrative)."""
+
+    model_config = ConfigDict(extra="ignore")
+
+    event_ids: list[str] = Field(default_factory=list)
+    messages: list[str] = Field(default_factory=list)
+    current_filters: LogAiCurrentFilters | None = None
+    max_events: int = Field(default=25, ge=1, le=50)
+    force_fallback: bool = False

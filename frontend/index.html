@@ -4,7 +4,7 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <meta name="svrmon24-ui" content="login-enterprise-v13" />
-  <meta name="svrmon24-version" content="0.82.0" />
+  <meta name="svrmon24-version" content="0.83.0" />
   <title>SVRMON24</title>
   <link rel="icon" href="/static/img/svrmon-favicon.png" type="image/png" sizes="32x32" />
   <link rel="apple-touch-icon" href="/static/img/svrmon-apple-touch.png" sizes="180x180" />
@@ -15,11 +15,11 @@
     body.is-app .login-gate { display: none !important; }
     #authPanel, .auth-panel-legacy { display: none !important; }
   </style>
-  <link rel="stylesheet" href="/static/css/cmdb.css?v=0.82.0" />
-  <link rel="stylesheet" href="/static/css/itsm.css?v=0.82.0" />
-  <link rel="stylesheet" href="/static/css/monitor.css?v=0.82.0" />
-  <script src="/static/js/config.js?v=0.82.0"></script>
-  <script src="/static/js/brand.js?v=0.82.0"></script>
+  <link rel="stylesheet" href="/static/css/cmdb.css?v=0.83.0" />
+  <link rel="stylesheet" href="/static/css/itsm.css?v=0.83.0" />
+  <link rel="stylesheet" href="/static/css/monitor.css?v=0.83.0" />
+  <script src="/static/js/config.js?v=0.83.0"></script>
+  <script src="/static/js/brand.js?v=0.83.0"></script>
 </head>
 <body class="is-login">
   <!-- Enterprise login: showcase (left) + sign-in panel (right); stacks on small viewports -->
@@ -1196,6 +1196,18 @@
               <button type="button" id="mlRefresh" class="secondary">Refresh</button>
               <button type="button" id="mlLoadMore" class="secondary" hidden>Load more</button>
               <button type="button" id="mlSimulate" class="primary" data-monitor-perm-admin="monitor:admin" hidden>Simulate tick</button>
+            </div>
+            <div class="monitor-log-ai-strip" id="mlAiAssistStrip" data-monitor-perm="monitor:logs:read">
+              <p class="hint" id="mlAiStatus">
+                Log AI assist uses OLLAMA_LOG_MODEL (default qwen2.5-coder:14b). Disabled unless OLLAMA_ENABLED — rule fallback always available. Assist only: filters stay authoritative; never auto-writes rules or incidents.
+              </p>
+              <div class="monitor-log-ai-actions">
+                <button type="button" id="mlAiParse" class="secondary" title="Extract fields from visible log rows">Parse fields</button>
+                <button type="button" id="mlAiSuggest" class="secondary" title="Suggest search filters — apply fills the form only">Suggest filters</button>
+                <button type="button" id="mlAiNarrative" class="secondary" title="Draft prediction narrative — assist only">Draft narrative</button>
+                <button type="button" id="mlAiApplyFilters" class="secondary" hidden title="Copy suggested filters into the toolbar">Apply suggested filters</button>
+              </div>
+              <div class="monitor-log-ai-panel" id="mlAiAssistPanel" hidden aria-live="polite"></div>
             </div>
             <p class="hint" id="mlRetentionBadge" hidden></p>
             <p class="hint" id="mlMeta">Sign in to search SIMULATED log events.</p>
@@ -3771,27 +3783,27 @@
     </div>
   </div>
 
-  <script src="/static/js/cmdb.js?v=0.82.0"></script>
-  <script src="/static/js/monitor/dashboard.js?v=0.82.0"></script>
-  <script src="/static/js/monitor/targets.js?v=0.82.0"></script>
-  <script src="/static/js/monitor/logs.js?v=0.82.0"></script>
-  <script src="/static/js/monitor/alerts.js?v=0.82.0"></script>
-  <script src="/static/js/monitor/agents.js?v=0.82.0"></script>
-  <script src="/static/js/monitor/index.js?v=0.82.0"></script>
-  <script src="/static/js/itsm/api.js?v=0.82.0"></script>
-  <script src="/static/js/itsm/routing.js?v=0.82.0"></script>
-  <script src="/static/js/itsm/deeplinks.js?v=0.82.0"></script>
-  <script src="/static/js/itsm/dashboard.js?v=0.82.0"></script>
-  <script src="/static/js/itsm/reports.js?v=0.82.0"></script>
-  <script src="/static/js/itsm/incidents.js?v=0.82.0"></script>
-  <script src="/static/js/itsm/changes.js?v=0.82.0"></script>
-  <script src="/static/js/itsm/problems.js?v=0.82.0"></script>
-  <script src="/static/js/itsm/approvals.js?v=0.82.0"></script>
-  <script src="/static/js/itsm/workflows.js?v=0.82.0"></script>
-  <script src="/static/js/itsm/sla.js?v=0.82.0"></script>
-  <script src="/static/js/itsm/knowledge.js?v=0.82.0"></script>
-  <script src="/static/js/itsm/notifications.js?v=0.82.0"></script>
-  <script src="/static/js/itsm/groups.js?v=0.82.0"></script>
-  <script src="/static/js/itsm/index.js?v=0.82.0"></script>
+  <script src="/static/js/cmdb.js?v=0.83.0"></script>
+  <script src="/static/js/monitor/dashboard.js?v=0.83.0"></script>
+  <script src="/static/js/monitor/targets.js?v=0.83.0"></script>
+  <script src="/static/js/monitor/logs.js?v=0.83.0"></script>
+  <script src="/static/js/monitor/alerts.js?v=0.83.0"></script>
+  <script src="/static/js/monitor/agents.js?v=0.83.0"></script>
+  <script src="/static/js/monitor/index.js?v=0.83.0"></script>
+  <script src="/static/js/itsm/api.js?v=0.83.0"></script>
+  <script src="/static/js/itsm/routing.js?v=0.83.0"></script>
+  <script src="/static/js/itsm/deeplinks.js?v=0.83.0"></script>
+  <script src="/static/js/itsm/dashboard.js?v=0.83.0"></script>
+  <script src="/static/js/itsm/reports.js?v=0.83.0"></script>
+  <script src="/static/js/itsm/incidents.js?v=0.83.0"></script>
+  <script src="/static/js/itsm/changes.js?v=0.83.0"></script>
+  <script src="/static/js/itsm/problems.js?v=0.83.0"></script>
+  <script src="/static/js/itsm/approvals.js?v=0.83.0"></script>
+  <script src="/static/js/itsm/workflows.js?v=0.83.0"></script>
+  <script src="/static/js/itsm/sla.js?v=0.83.0"></script>
+  <script src="/static/js/itsm/knowledge.js?v=0.83.0"></script>
+  <script src="/static/js/itsm/notifications.js?v=0.83.0"></script>
+  <script src="/static/js/itsm/groups.js?v=0.83.0"></script>
+  <script src="/static/js/itsm/index.js?v=0.83.0"></script>
 </body>
 </html>
