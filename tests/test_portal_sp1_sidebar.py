@@ -1,4 +1,4 @@
-"""Service Portal SP1 — expandable sidebar + stub panels (0.94.0)."""
+"""Service Portal SP1 — expandable sidebar + stub panels (0.95.0)."""
 
 from __future__ import annotations
 
@@ -14,11 +14,11 @@ PORTAL_CSS = Path("frontend/static/css/portal.css")
 
 
 def test_version_bump_for_portal_sp1() -> None:
-    assert __version__ == "0.94.0"
+    assert __version__ == "0.95.0"
     html = FRONTEND_INDEX.read_text(encoding="utf-8")
-    assert 'content="0.94.0"' in html
-    assert "portal.css?v=0.94.0" in html
-    assert "portal/index.js?v=0.94.0" in html
+    assert 'content="0.95.0"' in html
+    assert "portal.css?v=0.95.0" in html
+    assert "portal/index.js?v=0.95.0" in html
 
 
 def test_portal_sidebar_section_and_order() -> None:
@@ -43,6 +43,7 @@ def test_portal_sidebar_section_and_order() -> None:
         "sp-my-requests",
         "sp-approvals",
         "sp-executions",
+        "sp-vuln-reports",
         "sp-catalog-admin",
     ]
     positions = [html.index(f'data-tab="{tab}"') for tab in ordered]
@@ -70,12 +71,14 @@ def test_portal_stub_panels_and_simulated_banner() -> None:
         "sp-my-requests",
         "sp-approvals",
         "sp-executions",
+        "sp-vuln-reports",
         "sp-catalog-admin",
     ):
         assert f'id="tab-{tab}"' in html
         assert 'data-portal-module="1"' in html
     assert 'data-portal-simulated="1"' in html
     assert "SIMULATED" in html[html.index('id="tab-sp-catalog"') :]
+    assert "portal/vuln.js" in html
 
 
 def test_portal_nav_js_and_css_markers() -> None:

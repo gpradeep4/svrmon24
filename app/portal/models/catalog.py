@@ -13,6 +13,7 @@ CATALOG_DOMAINS: tuple[str, ...] = (
     "networking",
     "cloud",
     "generic",
+    "vulnerability",
     "other",
 )
 COLLECT_MODES: tuple[str, ...] = ("agentless", "agent")
@@ -39,7 +40,14 @@ FIELD_TYPES: tuple[str, ...] = (
 )
 
 CatalogDomain = Literal[
-    "os", "middleware", "database", "networking", "cloud", "generic", "other"
+    "os",
+    "middleware",
+    "database",
+    "networking",
+    "cloud",
+    "generic",
+    "vulnerability",
+    "other",
 ]
 CollectMode = Literal["agentless", "agent"]
 CmdbSyncMode = Literal["none", "create", "update"]

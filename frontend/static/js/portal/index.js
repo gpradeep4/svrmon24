@@ -68,6 +68,9 @@
     if (api && global.SVRMON24PortalExecutions?.bindApi) {
       global.SVRMON24PortalExecutions.bindApi(api, { toast, showTab });
     }
+    if (api && global.SVRMON24PortalVuln?.bindApi) {
+      global.SVRMON24PortalVuln.bindApi(api, { toast, showTab });
+    }
 
     if (pageMeta) {
       pageMeta["sp-catalog"] = {
@@ -89,6 +92,10 @@
       pageMeta["sp-executions"] = {
         title: "Execution history",
         subtitle: "AGENT / AGENTLESS · LIVE when gated · Terraform cloud",
+      };
+      pageMeta["sp-vuln-reports"] = {
+        title: "Vulnerability reports",
+        subtitle: "Scan one/bulk · findings · per-vuln suggestions",
       };
       pageMeta["sp-catalog-admin"] = {
         title: "Catalog admin",
@@ -122,6 +129,11 @@
       ?.addEventListener("click", () => {
         global.SVRMON24PortalExecutions?.onShowTab?.("sp-executions");
       });
+    document
+      .querySelector('[data-tab="sp-vuln-reports"]')
+      ?.addEventListener("click", () => {
+        global.SVRMON24PortalVuln?.onShowTab?.("sp-vuln-reports");
+      });
     if (typeof onShowTab === "function") {
       onShowTab((name, ctx) => {
         if (!ctx?.authenticated) return;
@@ -132,6 +144,7 @@
         global.SVRMON24PortalRequests?.onShowTab?.(name);
         global.SVRMON24PortalApprovals?.onShowTab?.(name);
         global.SVRMON24PortalExecutions?.onShowTab?.(name);
+        global.SVRMON24PortalVuln?.onShowTab?.(name);
       });
     }
 

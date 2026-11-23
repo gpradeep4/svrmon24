@@ -12,6 +12,7 @@ REQUESTS = "sp_requests"
 EXECUTION_RUNS = "sp_execution_runs"
 AUDIT_EVENTS = "sp_audit_events"
 AGENT_JOBS = "sp_agent_jobs"
+VULN_REPORTS = "sp_vuln_reports"
 
 _ensured = False
 
@@ -96,6 +97,26 @@ def ensure_portal_indexes(db: Database | None = None) -> list[str]:
         jobs.create_index(
             [("tenant_id", ASCENDING), ("run_id", ASCENDING)],
             name="tenant_sp_agent_job_run_idx",
+        )
+    )
+    vuln = database[VULN_REPORTS]
+    names.append(
+        vuln.create_index(
+            [("tenant_id", ASCENDING), ("report_id", ASCENDING)],
+            unique=True,
+            name="tenant_sp_vuln_report_id_unique",
+        )
+    )
+    names.append(
+        vuln.create_index(
+            [("tenant_id", ASCENDING), ("request_id", ASCENDING)],
+            name="tenant_sp_vuln_report_request_idx",
+        )
+    )
+    names.append(
+        vuln.create_index(
+            [("tenant_id", ASCENDING), ("component_ids", ASCENDING)],
+            name="tenant_sp_vuln_report_component_idx",
         )
     )
     _ensured = True

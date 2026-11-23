@@ -96,6 +96,52 @@ def execute_agent(
     values = dict(req.get("form_values") or {})
     dry_run = bool(run.get("dry_run") or run.get("execution_mode") == "DRY_RUN")
 
+    if action.startswith("vuln.scan."):
+        from .. import vuln as vuln_service
+
+        scanned = vuln_service.run_scan_for_request(
+            tenant_id=tenant_id,
+            req=req,
+            run={**run, "execution_mode": "LIVE" if not dry_run else "DRY_RUN"},
+        )
+        agent = _find_agent(
+            tenant_id,
+            hostname=str((req.get("form_values") or {}).get("hostname") or "")
+            or None,
+        )
+        job = _enqueue_job(
+            tenant_id=tenant_id,
+            run=run,
+            req=req,
+            agent=agent,
+            payload={
+                "action_key": action,
+                "dry_run": dry_run,
+                "report_id": (scanned.get("provisioned_facts") or {}).get("report_id"),
+            },
+        )
+        facts = dict(scanned.get("provisioned_facts") or {})
+        facts["path"] = "agent"
+        facts["agent_job_id"] = job["job_id"]
+        facts["agent_id"] = job.get("agent_id")
+        detail = dict(scanned.get("result_detail") or {})
+        steps = list(detail.get("steps") or [])
+        steps.append(
+            {
+                "step": "agent_dispatch",
+                "ok": True,
+                "job_id": job["job_id"],
+                "agent_id": job.get("agent_id"),
+            }
+        )
+        detail["steps"] = steps
+        return {
+            "ok": True,
+            "result_summary": f"{scanned.get('result_summary')} + agent job {job['job_id']}",
+            "provisioned_facts": facts,
+            "result_detail": detail,
+        }
+
     # Cloud VM provision on agent path still uses Terraform (control plane),
     # then records an agent acknowledgment job when an agent exists.
     if action == "cloud.vm.provision":

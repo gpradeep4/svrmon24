@@ -519,6 +519,68 @@ def seed_catalog_specs() -> list[dict[str, Any]]:
                 ],
             },
         },
+        {
+            "key": "vuln.scan.one",
+            "title": "Vulnerability scan (one server)",
+            "description": "Scan one server CI and generate a report with per-vuln suggestions.",
+            "domain": "vulnerability",
+            "action_key": "vuln.scan.one",
+            "change_type_key": "sp.vuln.scan.one",
+            "itsm_change_type": "standard",
+            "risk_tier": "medium",
+            "adapter": "vulnerability",
+            "cmdb_sync": "none",
+            "supports_dry_run": True,
+            "form_schema": {
+                "version": 1,
+                "fields": [
+                    _field(
+                        "target_ci",
+                        "ci_ref",
+                        "Target server",
+                        component_types=["server"],
+                    ),
+                    _field(
+                        "notes",
+                        "text",
+                        "Scan notes",
+                        required=False,
+                        max_length=2000,
+                    ),
+                ],
+            },
+        },
+        {
+            "key": "vuln.scan.bulk",
+            "title": "Vulnerability scan (bulk)",
+            "description": "Scan multiple servers (comma-separated component ids) and generate a combined report + suggestions.",
+            "domain": "vulnerability",
+            "action_key": "vuln.scan.bulk",
+            "change_type_key": "sp.vuln.scan.bulk",
+            "itsm_change_type": "normal",
+            "risk_tier": "high",
+            "adapter": "vulnerability",
+            "cmdb_sync": "none",
+            "supports_dry_run": True,
+            "form_schema": {
+                "version": 1,
+                "fields": [
+                    _field(
+                        "component_ids",
+                        "text",
+                        "Server component ids (comma-separated)",
+                        max_length=4000,
+                    ),
+                    _field(
+                        "notes",
+                        "text",
+                        "Scan notes",
+                        required=False,
+                        max_length=2000,
+                    ),
+                ],
+            },
+        },
     ]
 
 

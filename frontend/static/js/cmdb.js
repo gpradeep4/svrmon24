@@ -37,6 +37,7 @@
     "sp-my-requests": "portal",
     "sp-approvals": "portal",
     "sp-executions": "portal",
+    "sp-vuln-reports": "portal",
     "sp-catalog-admin": "portal",
     custom: "configuration",
     "custom-tables": "configuration",
