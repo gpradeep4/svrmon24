@@ -10,7 +10,7 @@ from tests.frontend_paths import FRONTEND_INDEX
 
 
 def test_version_bump_for_change_problem_slice() -> None:
-    assert __version__ == "0.88.0"
+    assert __version__ == "0.89.0"
 
 
 def _create_component(client: TestClient, headers: dict[str, str]) -> str:
@@ -289,7 +289,7 @@ def test_dashboard_includes_change_and_problem_counts(
 
 def test_frontend_change_problem_create_markers() -> None:
     html = FRONTEND_INDEX.read_text(encoding="utf-8")
-    assert 'content="0.88.0"' in html
+    assert 'content="0.89.0"' in html
     assert 'data-tab="itsm-changes"' in html
     assert 'data-tab="itsm-problems"' in html
     assert 'id="btnNewItsmChg"' in html

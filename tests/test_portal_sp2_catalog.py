@@ -1,4 +1,4 @@
-"""Service Portal SP2 — catalog seed + form validation (0.88.0)."""
+"""Service Portal SP2 — catalog seed + form validation (0.89.0)."""
 
 from __future__ import annotations
 
@@ -14,10 +14,10 @@ from tests.frontend_paths import FRONTEND_INDEX
 
 
 def test_version_bump_for_portal_sp2() -> None:
-    assert __version__ == "0.88.0"
+    assert __version__ == "0.89.0"
     html = FRONTEND_INDEX.read_text(encoding="utf-8")
-    assert 'content="0.88.0"' in html
-    assert "portal/catalog.js?v=0.88.0" in html
+    assert 'content="0.89.0"' in html
+    assert "portal/catalog.js?v=0.89.0" in html
 
 
 def test_seed_specs_cover_all_domains() -> None:

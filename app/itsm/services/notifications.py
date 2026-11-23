@@ -96,6 +96,7 @@ def emit(
     ticket_id: str | None = None,
     approval_id: str | None = None,
     tracking_id: str | None = None,
+    portal_request_id: str | None = None,
     channel: str = CHANNEL_IN_APP,
     actor: dict[str, Any] | None = None,
     exclude_actor: bool = True,
@@ -106,6 +107,8 @@ def emit(
     Outbound email/sms/slack attempts are best-effort and never raise. When
     ``channel`` is an outbound channel (not ``in_app``), only that channel is
     attempted (no inbox row).
+
+    ``portal_request_id`` (optional) deep-links Service Portal requests ↔ Change.
     """
     tid = require_tenant_id(tenant_id)
     if event_type not in NOTIFICATION_EVENT_TYPES:
@@ -126,6 +129,7 @@ def emit(
     ticket_id_clean = (ticket_id or "").strip() or None
     approval_clean = (approval_id or "").strip() or None
     tracking_clean = (tracking_id or "").strip() or None
+    portal_clean = (portal_request_id or "").strip() or None
 
     # Direct outbound-only emit (no inbox row).
     if channel != CHANNEL_IN_APP:
@@ -168,6 +172,7 @@ def emit(
             "ticket_id": ticket_id_clean,
             "approval_id": approval_clean,
             "tracking_id": tracking_clean,
+            "portal_request_id": portal_clean,
             "status": "unread",
             "event_type": event_type,
             "created_at": now,
