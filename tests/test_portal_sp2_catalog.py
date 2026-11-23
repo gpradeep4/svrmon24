@@ -74,9 +74,11 @@ def test_catalog_seed_list_validate(
         headers=auth_headers,
         json={"form_values": {"username": "BAD USER", "groups": "users"}},
     )
-    assert bad.status_code == 400
-    err = bad.json()["detail"]
-    assert "field_errors" in err
+    assert bad.status_code == 400, bad.text
+    # App exception envelope uses {"error": {"message", "details"}} (not FastAPI detail).
+    err_body = bad.json().get("error") or {}
+    details = err_body.get("details") or bad.json().get("detail") or {}
+    assert "field_errors" in details, bad.text
 
     good = client.post(
         f"/api/portal/catalog/{item['item_id']}/validate",
@@ -112,9 +114,11 @@ def test_catalog_rejects_unknown_action_key(
         },
     )
     assert resp.status_code == 400, resp.text
-    detail = resp.json().get("detail")
-    detail_text = detail if isinstance(detail, str) else str(detail)
-    assert "allowlist" in detail_text.lower()
+    err = resp.json().get("error") or {}
+    detail_text = str(
+        err.get("message") or resp.json().get("detail") or resp.text
+    )
+    assert "allowlist" in detail_text.lower(), resp.text
 
 
 def test_portal_catalog_fe_markers() -> None:
