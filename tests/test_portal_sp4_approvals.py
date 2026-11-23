@@ -79,7 +79,8 @@ def test_change_status_sync_approves_and_rejects(
         headers=auth_headers,
     )
     assert synced.status_code == 200, synced.text
-    assert synced.json()["status"] == "approved"
+    # SP6 auto-enqueues SIMULATED runs on approve → request advances to queued.
+    assert synced.json()["status"] == "queued"
     assert synced.json()["change_status_snapshot"] == "approved"
 
     # Second request → reject path

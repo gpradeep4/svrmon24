@@ -78,7 +78,8 @@ def test_submit_and_decision_emit_portal_linked_notifications(
         headers=auth_headers,
     )
     assert synced.status_code == 200, synced.text
-    assert synced.json()["status"] == "approved"
+    # SP6 auto-enqueues on approve → request status advances to queued.
+    assert synced.json()["status"] == "queued"
 
     decided = list(
         db["itsm_notifications"].find(
