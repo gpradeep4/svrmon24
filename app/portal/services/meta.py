@@ -6,6 +6,7 @@ from typing import Any
 
 from ...config import Settings, get_settings
 from .. import PORTAL_COLLECT_MODES, PORTAL_COLLECTIONS, PORTAL_DOMAINS
+from . import live_gates as live_gates_service
 
 EXECUTION_MODE = "SIMULATED"
 DATA_SOURCE = "SYNTHETIC_DEMO"
@@ -17,19 +18,9 @@ BANNER_SIMULATED = (
 )
 
 
-def live_gates() -> dict[str, Any]:
-    """Effective live-gate snapshot (fail-closed; SP0 always reports off).
-
-    SP9 wires platform Settings + tenant opt-in; until then every live path is off.
-    """
-    return {
-        "platform_enabled": False,
-        "tenant_opt_in": False,
-        "agentless_enabled": False,
-        "agent_enabled": False,
-        "live_exec": False,
-        "fail_closed": True,
-    }
+def live_gates(*, tenant_id: str | None = None) -> dict[str, Any]:
+    """Effective live-gate snapshot (SP9)."""
+    return live_gates_service.live_gates(tenant_id=tenant_id)
 
 
 def module_meta(
@@ -39,21 +30,27 @@ def module_meta(
 ) -> dict[str, Any]:
     """Tenant-aware Service Portal meta payload."""
     cfg = settings or get_settings()
-    gates = live_gates()
+    gates = live_gates(tenant_id=tenant_id)
+    live_on = bool(gates.get("live_exec"))
     return {
         "module": "service_portal",
-        "execution_mode": EXECUTION_MODE,
-        "data_source": DATA_SOURCE,
-        "demo_only": True,
-        "live_exec": False,
+        "execution_mode": "LIVE" if live_on else EXECUTION_MODE,
+        "data_source": DATA_SOURCE if not live_on else "LIVE_GATED",
+        "demo_only": not live_on,
+        "live_exec": live_on,
         "live_gates": gates,
         "collect_modes": list(PORTAL_COLLECT_MODES),
         "domains": list(PORTAL_DOMAINS),
-        "banner": BANNER_SIMULATED,
+        "banner": (
+            "LIVE gates open — adapters still stubbed until explicit unlock."
+            if live_on
+            else BANNER_SIMULATED
+        ),
         "database": cfg.itsm_database_name,
         "itsm_database": cfg.itsm_database_name,
         "collections": list(PORTAL_COLLECTIONS),
         "cmdb_sync": True,
         "agent_channel": "monitoring",
         "tenant_id": tenant_id,
+        "live_adapters": False,
     }

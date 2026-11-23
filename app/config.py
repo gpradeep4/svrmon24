@@ -174,6 +174,20 @@ class Settings(BaseSettings):
         default="", alias="MONITOR_COLD_STORAGE_URI"
     )
 
+    # Service Portal live path (SP9 stubs). Master defaults OFF — SIMULATED ignores.
+    service_portal_live_exec_enabled: bool = Field(
+        default=False, alias="SERVICE_PORTAL_LIVE_EXEC_ENABLED"
+    )
+    service_portal_live_agentless_enabled: bool = Field(
+        default=True, alias="SERVICE_PORTAL_LIVE_AGENTLESS_ENABLED"
+    )
+    service_portal_live_agent_enabled: bool = Field(
+        default=True, alias="SERVICE_PORTAL_LIVE_AGENT_ENABLED"
+    )
+    service_portal_egress_allowlist: str = Field(
+        default="", alias="SERVICE_PORTAL_EGRESS_ALLOWLIST"
+    )
+
     def model_post_init(self, __context: Any) -> None:  # noqa: ANN401
         # Allow OLLAMA_HOST when OLLAMA_URL was left at default / unset in env loading
         import os

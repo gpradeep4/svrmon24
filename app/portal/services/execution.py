@@ -95,9 +95,19 @@ def enqueue_execution(
 
     mode = req.get("requested_execution_mode") or "SIMULATED"
     if mode == "LIVE":
-        # Fail-closed until SP9 live gates.
+        from . import live_gates as live_gates_service
+
+        try:
+            live_gates_service.assert_live_allowed(
+                tenant_id=tid, capability="live_exec"
+            )
+        except Exception as exc:  # noqa: BLE001 — FastAPI HTTPException or other
+            status = getattr(exc, "status_code", 403) or 403
+            detail = getattr(exc, "detail", None) or str(exc)
+            raise ExecutionError(str(detail), status_code=int(status)) from exc
+        # Gates may be open, but live adapters remain stubbed (SPn unlock).
         raise ExecutionError(
-            "LIVE execution is fail-closed (platform/tenant gates off)",
+            "LIVE adapters are stubbed until explicit unlock (gates may be open)",
             status_code=403,
         )
     if mode == "DRY_RUN":
