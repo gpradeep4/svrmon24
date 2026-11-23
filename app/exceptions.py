@@ -70,10 +70,19 @@ def register_exception_handlers(app: FastAPI) -> None:
         request: Request, exc: StarletteHTTPException
     ) -> JSONResponse:
         detail = exc.detail
-        message = detail if isinstance(detail, str) else "HTTP error"
+        if isinstance(detail, str):
+            message = detail
+            details: Any = detail
+        elif isinstance(detail, dict):
+            # Prefer structured payload message (e.g. form field_errors).
+            message = str(detail.get("message") or "HTTP error")
+            details = detail
+        else:
+            message = "HTTP error"
+            details = detail
         return JSONResponse(
             status_code=exc.status_code,
-            content=_error_body(code="http_error", message=message, details=detail),
+            content=_error_body(code="http_error", message=message, details=details),
             headers=getattr(exc, "headers", None),
         )
 
