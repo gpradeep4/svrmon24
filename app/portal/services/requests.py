@@ -337,6 +337,9 @@ def submit_request(
     if existing.get("linked_incident_id"):
         related_incidents.append(existing["linked_incident_id"])
 
+    requester = _actor_name(actor) or existing.get("created_by")
+    watchers = [requester] if requester else []
+
     change_payload = ChangeCreate(
         title=title[:500],
         description="\n".join(description_parts)[:20000],
@@ -348,6 +351,7 @@ def submit_request(
         category="service_portal",
         subcategory=str(item.get("change_type_key") or "")[:128] or None,
         related_incident_ids=related_incidents,
+        watcher_user_ids=watchers,
     )
     try:
         change = changes_service.create_change(
@@ -379,7 +383,14 @@ def submit_request(
     )
     if not result:
         raise RequestError("request not found after submit", status_code=404)
-    return serialize_document(result)  # type: ignore[return-value]
+    serialized = serialize_document(result)
+    assert serialized is not None
+    from . import notifications as portal_notifications
+
+    portal_notifications.notify_request_submitted(
+        tenant_id=tid, request=serialized, actor=actor
+    )
+    return serialized
 
 
 def cancel_request(

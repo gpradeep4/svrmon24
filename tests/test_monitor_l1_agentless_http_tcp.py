@@ -1,4 +1,4 @@
-"""Monitoring L1 — agentless check CRUD + HTTP/TCP poller + egress (0.88.0)."""
+"""Monitoring L1 — agentless check CRUD + HTTP/TCP poller + egress (0.89.0)."""
 
 from __future__ import annotations
 
@@ -83,10 +83,10 @@ def _create_http_check(
 
 
 def test_version_bump_for_monitor_l1() -> None:
-    assert __version__ == "0.88.0"
+    assert __version__ == "0.89.0"
     html = FRONTEND_INDEX.read_text(encoding="utf-8")
-    assert 'content="0.88.0"' in html
-    assert "monitor/index.js?v=0.88.0" in html
+    assert 'content="0.89.0"' in html
+    assert "monitor/index.js?v=0.89.0" in html
 
 
 def test_monitor_live_checks_entitlement_in_catalog() -> None:

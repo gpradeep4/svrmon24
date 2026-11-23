@@ -140,8 +140,9 @@ def sync_request_from_change(
     if who:
         updates["updated_by"] = who
 
+    before_status = str(existing.get("status") or "")
     new_status = _map_request_status(
-        current_request_status=str(existing.get("status") or ""),
+        current_request_status=before_status,
         change_status=change_status,
     )
     if new_status:
@@ -160,7 +161,22 @@ def sync_request_from_change(
     )
     if not result:
         raise ApprovalError("request not found", status_code=404)
-    return serialize_document(result)  # type: ignore[return-value]
+    serialized = serialize_document(result)
+    assert serialized is not None
+    if new_status and new_status != before_status and new_status in (
+        "approved",
+        "rejected",
+        "cancelled",
+    ):
+        from . import notifications as portal_notifications
+
+        portal_notifications.notify_request_decision(
+            tenant_id=tid,
+            request=serialized,
+            decision=new_status,
+            actor=actor,
+        )
+    return serialized
 
 
 def sync_pending_requests(

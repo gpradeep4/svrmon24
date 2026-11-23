@@ -1,4 +1,4 @@
-"""Monitoring M4 — targets sync + domain health views (0.88.0)."""
+"""Monitoring M4 — targets sync + domain health views (0.89.0)."""
 
 from __future__ import annotations
 
@@ -34,11 +34,11 @@ def _create_ci(
 
 
 def test_version_bump_for_monitor_m4() -> None:
-    assert __version__ == "0.88.0"
+    assert __version__ == "0.89.0"
     html = FRONTEND_INDEX.read_text(encoding="utf-8")
-    assert 'content="0.88.0"' in html
-    assert "monitor/targets.js?v=0.88.0" in html
-    assert "monitor/index.js?v=0.88.0" in html
+    assert 'content="0.89.0"' in html
+    assert "monitor/targets.js?v=0.89.0" in html
+    assert "monitor/index.js?v=0.89.0" in html
 
 
 def test_domain_health_ui_markers() -> None:

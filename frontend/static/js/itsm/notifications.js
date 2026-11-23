@@ -146,6 +146,23 @@
     const ticketType = doc.ticket_type;
     const ticketId = doc.ticket_id;
     const approvalId = doc.approval_id;
+    const portalRequestId = doc.portal_request_id;
+    // Portal ↔ Change deep-link: prefer Service Portal Change-status / My requests.
+    if (portalRequestId) {
+      const portalTab =
+        (doc.event_type || "").startsWith("approval") || ticketType === "change"
+          ? "sp-approvals"
+          : "sp-my-requests";
+      showTab(portalTab);
+      window.setTimeout(() => {
+        if (portalTab === "sp-approvals") {
+          global.SVRMON24PortalApprovals?.onShowTab?.("sp-approvals");
+        } else {
+          global.SVRMON24PortalRequests?.onShowTab?.("sp-my-requests");
+        }
+      }, 120);
+      return;
+    }
     if (approvalId && (doc.event_type || "").startsWith("approval")) {
       showTab("itsm-approvals");
       window.setTimeout(() => {
