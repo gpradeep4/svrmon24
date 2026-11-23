@@ -1,4 +1,4 @@
-"""Service Portal SP0 — package, meta, RBAC stubs (0.84.0)."""
+"""Service Portal SP0 — package, meta, RBAC stubs (0.85.0)."""
 
 from __future__ import annotations
 
@@ -21,7 +21,7 @@ from fastapi.testclient import TestClient
 
 
 def test_version_bump_for_portal_sp0() -> None:
-    assert __version__ == "0.84.0"
+    assert __version__ == "0.85.0"
 
 
 def test_portal_domains_include_cloud_and_generic() -> None:
@@ -82,3 +82,6 @@ def test_portal_meta_simulated_tenant_aware(
     assert body["database"] == body["itsm_database"]
     assert body["tenant_id"]
     assert "sp_catalog_items" in body["collections"]
+    assert "sp_requests" in body["collections"]
+    assert "sp_approval_steps" not in body["collections"]
+    assert "sp_approval_policies" not in body["collections"]

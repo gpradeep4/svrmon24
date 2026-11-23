@@ -7,6 +7,7 @@
     "custom-tables": true,
     monitoring: true,
     itsm: true,
+    portal: true,
     configuration: true,
     administration: true,
   };
@@ -31,6 +32,12 @@
     "monitor-agents": "monitoring",
     diagnostics: "monitoring",
     "file-monitoring": "monitoring",
+    "sp-catalog": "portal",
+    "sp-request-new": "portal",
+    "sp-my-requests": "portal",
+    "sp-approvals": "portal",
+    "sp-executions": "portal",
+    "sp-catalog-admin": "portal",
     custom: "configuration",
     "custom-tables": "configuration",
     columns: "configuration",
@@ -294,6 +301,9 @@
     }
     if (window.SVRMON24Itsm?.applyItsmNavGates) {
       window.SVRMON24Itsm.applyItsmNavGates(can);
+    }
+    if (window.SVRMON24Portal?.applyPortalNavGates) {
+      window.SVRMON24Portal.applyPortalNavGates(can);
     }
     if (window.SVRMON24ItsmIncidents?.applyWriteGates) {
       window.SVRMON24ItsmIncidents.applyWriteGates();
@@ -5970,6 +5980,15 @@
         api,
         downloadBinary,
         pageMeta: PAGE_META,
+      });
+    }
+    if (window.SVRMON24Portal?.registerPortalHooks) {
+      window.SVRMON24Portal.registerPortalHooks({
+        can,
+        toast,
+        api,
+        pageMeta: PAGE_META,
+        showTab,
       });
     }
     // Default: full-page login only — app shell stays hidden until /api/me OK.
