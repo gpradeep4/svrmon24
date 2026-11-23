@@ -14,6 +14,13 @@ from .catalog import (
     FormFieldSchema,
     FormSchema,
 )
+from .requests import (
+    CANCELABLE_STATUSES,
+    EXECUTION_MODES,
+    REQUEST_STATUSES,
+    RequestCreate,
+    RequestUpdate,
+)
 
 __all__ = [
     "CATALOG_DOMAINS",
@@ -26,4 +33,9 @@ __all__ = [
     "CatalogItemUpdate",
     "FormFieldSchema",
     "FormSchema",
+    "REQUEST_STATUSES",
+    "EXECUTION_MODES",
+    "CANCELABLE_STATUSES",
+    "RequestCreate",
+    "RequestUpdate",
 ]

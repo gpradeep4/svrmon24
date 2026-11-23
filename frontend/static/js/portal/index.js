@@ -59,6 +59,9 @@
       global.SVRMON24PortalCatalog.bindApi(api, { toast, showTab });
       global.SVRMON24PortalCatalog.initCatalogUi();
     }
+    if (api && global.SVRMON24PortalRequests?.bindApi) {
+      global.SVRMON24PortalRequests.bindApi(api, { toast, showTab });
+    }
 
     if (pageMeta) {
       pageMeta["sp-catalog"] = {
@@ -98,6 +101,11 @@
       ?.addEventListener("click", () => {
         global.SVRMON24PortalCatalog?.onShowTab?.("sp-catalog-admin");
       });
+    document
+      .querySelector('[data-tab="sp-my-requests"]')
+      ?.addEventListener("click", () => {
+        global.SVRMON24PortalRequests?.onShowTab?.("sp-my-requests");
+      });
     if (typeof onShowTab === "function") {
       onShowTab((name, ctx) => {
         if (!ctx?.authenticated) return;
@@ -105,6 +113,7 @@
           loadPortalMeta(api, toast);
         }
         global.SVRMON24PortalCatalog?.onShowTab?.(name);
+        global.SVRMON24PortalRequests?.onShowTab?.(name);
       });
     }
 
