@@ -96,13 +96,17 @@ def execute_agent(
     values = dict(req.get("form_values") or {})
     dry_run = bool(run.get("dry_run") or run.get("execution_mode") == "DRY_RUN")
 
-    if action.startswith("vuln.scan."):
+    if action.startswith("vuln."):
         from .. import vuln as vuln_service
 
-        scanned = vuln_service.run_scan_for_request(
+        result = vuln_service.dispatch_vuln_action(
             tenant_id=tenant_id,
             req=req,
-            run={**run, "execution_mode": "LIVE" if not dry_run else "DRY_RUN"},
+            run={
+                **run,
+                "execution_mode": "DRY_RUN" if dry_run else "LIVE",
+                "dry_run": dry_run,
+            },
         )
         agent = _find_agent(
             tenant_id,
@@ -117,14 +121,17 @@ def execute_agent(
             payload={
                 "action_key": action,
                 "dry_run": dry_run,
-                "report_id": (scanned.get("provisioned_facts") or {}).get("report_id"),
+                "report_id": (result.get("provisioned_facts") or {}).get("report_id"),
+                "fix_run_id": (result.get("provisioned_facts") or {}).get(
+                    "fix_run_id"
+                ),
             },
         )
-        facts = dict(scanned.get("provisioned_facts") or {})
+        facts = dict(result.get("provisioned_facts") or {})
         facts["path"] = "agent"
         facts["agent_job_id"] = job["job_id"]
         facts["agent_id"] = job.get("agent_id")
-        detail = dict(scanned.get("result_detail") or {})
+        detail = dict(result.get("result_detail") or {})
         steps = list(detail.get("steps") or [])
         steps.append(
             {
@@ -137,7 +144,7 @@ def execute_agent(
         detail["steps"] = steps
         return {
             "ok": True,
-            "result_summary": f"{scanned.get('result_summary')} + agent job {job['job_id']}",
+            "result_summary": f"{result.get('result_summary')} + agent job {job['job_id']}",
             "provisioned_facts": facts,
             "result_detail": detail,
         }

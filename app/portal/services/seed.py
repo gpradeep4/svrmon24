@@ -581,6 +581,77 @@ def seed_catalog_specs() -> list[dict[str, Any]]:
                 ],
             },
         },
+        {
+            "key": "vuln.fix.apply",
+            "title": "Fix vulnerability",
+            "description": "Apply an allowlisted remediation for a selected vulnerability on one or more servers. Requires ITSM Change approval; stores rollback facts.",
+            "domain": "vulnerability",
+            "action_key": "vuln.fix.apply",
+            "change_type_key": "sp.vuln.fix.apply",
+            "itsm_change_type": "normal",
+            "risk_tier": "high",
+            "adapter": "vulnerability",
+            "cmdb_sync": "none",
+            "supports_dry_run": True,
+            "form_schema": {
+                "version": 1,
+                "fields": [
+                    _field("report_id", "string", "Scan report id", max_length=64),
+                    _field("vuln_id", "string", "Vulnerability id (CVE)", max_length=64),
+                    _field(
+                        "component_ids",
+                        "text",
+                        "Server component ids (comma-separated)",
+                        max_length=4000,
+                    ),
+                    _field(
+                        "finding_ids",
+                        "text",
+                        "Finding ids (optional, comma-separated)",
+                        required=False,
+                        max_length=4000,
+                    ),
+                    _field(
+                        "notes",
+                        "text",
+                        "Remediation notes",
+                        required=False,
+                        max_length=2000,
+                    ),
+                ],
+            },
+        },
+        {
+            "key": "vuln.fix.rollback",
+            "title": "Rollback vulnerability fix",
+            "description": "Roll back a prior successful fix using stored rollback facts. Requires ITSM Change approval.",
+            "domain": "vulnerability",
+            "action_key": "vuln.fix.rollback",
+            "change_type_key": "sp.vuln.fix.rollback",
+            "itsm_change_type": "normal",
+            "risk_tier": "high",
+            "adapter": "vulnerability",
+            "cmdb_sync": "none",
+            "supports_dry_run": True,
+            "form_schema": {
+                "version": 1,
+                "fields": [
+                    _field(
+                        "fix_run_id",
+                        "string",
+                        "Prior fix execution run id",
+                        max_length=64,
+                    ),
+                    _field(
+                        "notes",
+                        "text",
+                        "Rollback notes",
+                        required=False,
+                        max_length=2000,
+                    ),
+                ],
+            },
+        },
     ]
 
 

@@ -1,7 +1,8 @@
-"""Vulnerability scan reports + synthetic findings (SP11 / SM-167a).
+"""Vulnerability scan + fix/rollback (SP11 / SP12, SM-167 / SM-168).
 
-Scan one or bulk servers → ``sp_vuln_reports`` with findings and per-vuln
-suggestions. Fix/rollback land in SP12.
+Scan one or bulk servers → ``sp_vuln_reports`` with findings and suggestions.
+Fix (Change-gated) applies allowlisted remediation and stores rollback facts;
+rollback restores prior package/config state from those facts.
 """
 
 from __future__ import annotations
@@ -16,7 +17,7 @@ from pymongo.collection import Collection
 from ...db import require_itsm_database
 from ...serialization import serialize_document
 from ...tenancy import merge_tenant_filter, require_tenant_id, stamp_tenant_id
-from .indexes import VULN_REPORTS, ensure_portal_indexes
+from .indexes import EXECUTION_RUNS, VULN_REPORTS, ensure_portal_indexes
 
 # Allowlisted synthetic CVE catalog (OD-16) — assist suggestions only.
 SYNTHETIC_VULNS: tuple[dict[str, str], ...] = (
@@ -364,3 +365,361 @@ def run_scan_for_request(
         },
         "report": report,
     }
+
+
+def _vuln_meta(vuln_id: str) -> dict[str, str]:
+    for item in SYNTHETIC_VULNS:
+        if item["vuln_id"] == vuln_id:
+            return dict(item)
+    return {
+        "vuln_id": vuln_id,
+        "severity": "medium",
+        "package": "unknown",
+        "title": vuln_id,
+        "suggestion": f"Apply vendor guidance for {vuln_id}.",
+    }
+
+
+def _parse_id_list(raw: Any) -> list[str]:
+    if raw is None:
+        return []
+    if isinstance(raw, list):
+        return [str(x).strip() for x in raw if str(x).strip()]
+    out: list[str] = []
+    for part in str(raw).replace("\n", ",").split(","):
+        token = part.strip()
+        if token:
+            out.append(token)
+    return out
+
+
+def _update_finding_status(
+    *,
+    tenant_id: str,
+    report_id: str,
+    vuln_id: str,
+    component_ids: list[str],
+    finding_ids: list[str] | None,
+    status: str,
+    fix_run_id: str | None = None,
+) -> int:
+    tid = require_tenant_id(tenant_id)
+    doc = _reports().find_one(merge_tenant_filter({"report_id": report_id}, tid))
+    if not doc:
+        raise VulnError("vulnerability report not found", status_code=404)
+    findings = list(doc.get("findings") or [])
+    want_findings = set(finding_ids or [])
+    want_components = set(component_ids)
+    updated = 0
+    for finding in findings:
+        match = False
+        if want_findings and finding.get("finding_id") in want_findings:
+            match = True
+        elif (
+            finding.get("vuln_id") == vuln_id
+            and finding.get("component_id") in want_components
+        ):
+            match = True
+        if not match:
+            continue
+        finding["status"] = status
+        if fix_run_id:
+            finding["fix_run_id"] = fix_run_id
+        if status == "rolled_back":
+            finding["rolled_back_at"] = _now().isoformat()
+        if status == "fixed":
+            finding["fixed_at"] = _now().isoformat()
+        updated += 1
+    _reports().update_one(
+        merge_tenant_filter({"report_id": report_id}, tid),
+        {"$set": {"findings": findings, "updated_at": _now()}},
+    )
+    return updated
+
+
+def run_fix_for_request(
+    *,
+    tenant_id: str,
+    req: dict[str, Any],
+    run: dict[str, Any],
+    actor: dict[str, Any] | None = None,
+) -> dict[str, Any]:
+    """Apply allowlisted remediation after Change approval; store rollback facts."""
+    del actor  # reserved for audit callers
+    values = dict(req.get("form_values") or {})
+    report_id = str(values.get("report_id") or "").strip()
+    vuln_id = str(values.get("vuln_id") or "").strip()
+    component_ids = _parse_id_list(values.get("component_ids"))
+    finding_ids = _parse_id_list(values.get("finding_ids"))
+    if not report_id or not vuln_id or not component_ids:
+        raise VulnError(
+            "fix requires report_id, vuln_id, and component_ids",
+            status_code=400,
+        )
+
+    report = get_report(tenant_id=tenant_id, report_id=report_id)
+    meta = _vuln_meta(vuln_id)
+    package = meta.get("package") or "package"
+    previous_version = f"{package}-prev"
+    applied_version = f"{package}-patched"
+
+    # Ensure selected findings exist on the report for those servers.
+    matched = [
+        f
+        for f in (report.get("findings") or [])
+        if f.get("vuln_id") == vuln_id
+        and f.get("component_id") in set(component_ids)
+        and (not finding_ids or f.get("finding_id") in set(finding_ids))
+    ]
+    if not matched:
+        raise VulnError(
+            "no matching open findings for vuln_id/servers on report",
+            status_code=404,
+        )
+
+    exec_mode = str(run.get("execution_mode") or "SIMULATED").upper()
+    dry_run = bool(run.get("dry_run") or exec_mode == "DRY_RUN")
+    live = exec_mode == "LIVE"
+    collect = str(run.get("collect_mode") or req.get("collect_mode") or "agentless")
+    run_id = str(run.get("run_id") or "")
+
+    rollback_facts = {
+        "rollback_token": f"rb-{uuid.uuid4().hex[:16]}",
+        "report_id": report_id,
+        "vuln_id": vuln_id,
+        "package": package,
+        "previous_version": previous_version,
+        "applied_version": applied_version,
+        "component_ids": component_ids,
+        "finding_ids": [f["finding_id"] for f in matched],
+        "suggestion": meta.get("suggestion"),
+    }
+
+    if dry_run:
+        summary = (
+            f"DRY_RUN vuln fix plan for {vuln_id} on {len(component_ids)} server(s) "
+            f"(would set {package} {previous_version} → {applied_version})"
+        )
+        return {
+            "ok": True,
+            "result_summary": summary,
+            "result_detail": {
+                "steps": [
+                    {"step": "validate_findings", "ok": True, "matched": len(matched)},
+                    {
+                        "step": "plan_remediation",
+                        "ok": True,
+                        "package": package,
+                        "from": previous_version,
+                        "to": applied_version,
+                    },
+                ],
+                "stdout": f"[vuln] dry-run fix {vuln_id}",
+                "stderr": "",
+            },
+            "provisioned_facts": {
+                "path": collect,
+                "action_key": "vuln.fix.apply",
+                "dry_run": True,
+                "live": live,
+                "simulated": not live,
+                **rollback_facts,
+            },
+        }
+
+    updated = _update_finding_status(
+        tenant_id=tenant_id,
+        report_id=report_id,
+        vuln_id=vuln_id,
+        component_ids=component_ids,
+        finding_ids=finding_ids or None,
+        status="fixed",
+        fix_run_id=run_id or None,
+    )
+    summary = (
+        f"{'LIVE' if live else 'SIMULATED'} vuln fix {vuln_id} on "
+        f"{len(component_ids)} server(s) — {updated} finding(s) marked fixed; "
+        f"rollback_token={rollback_facts['rollback_token']}"
+    )
+    return {
+        "ok": True,
+        "result_summary": summary,
+        "result_detail": {
+            "steps": [
+                {"step": "validate_findings", "ok": True, "matched": len(matched)},
+                {
+                    "step": "apply_remediation",
+                    "ok": True,
+                    "mode": "LIVE" if live else "SIMULATED",
+                    "package": package,
+                    "from": previous_version,
+                    "to": applied_version,
+                },
+                {"step": "store_rollback_facts", "ok": True},
+                {"step": "update_findings", "ok": True, "updated": updated},
+            ],
+            "stdout": f"[vuln] fixed {vuln_id} token={rollback_facts['rollback_token']}",
+            "stderr": "",
+        },
+        "provisioned_facts": {
+            "path": collect,
+            "action_key": "vuln.fix.apply",
+            "live": live,
+            "simulated": not live,
+            "rollback_available": True,
+            **rollback_facts,
+        },
+    }
+
+
+def run_rollback_for_request(
+    *,
+    tenant_id: str,
+    req: dict[str, Any],
+    run: dict[str, Any],
+    actor: dict[str, Any] | None = None,
+) -> dict[str, Any]:
+    """Roll back a prior successful fix using stored rollback facts."""
+    del actor
+    values = dict(req.get("form_values") or {})
+    fix_run_id = str(values.get("fix_run_id") or "").strip()
+    if not fix_run_id:
+        raise VulnError("rollback requires fix_run_id", status_code=400)
+
+    tid = require_tenant_id(tenant_id)
+    ensure_portal_indexes()
+    fix_run = require_itsm_database()[EXECUTION_RUNS].find_one(
+        merge_tenant_filter({"run_id": fix_run_id}, tid)
+    )
+    if not fix_run:
+        raise VulnError("prior fix run not found", status_code=404)
+    if str(fix_run.get("status") or "") != "succeeded":
+        raise VulnError("prior fix run is not succeeded", status_code=409)
+    facts = dict(fix_run.get("provisioned_facts") or {})
+    if facts.get("action_key") != "vuln.fix.apply" and not facts.get("rollback_token"):
+        raise VulnError("prior run has no rollback facts", status_code=400)
+    if not facts.get("rollback_token"):
+        raise VulnError("prior fix run missing rollback_token", status_code=400)
+
+    report_id = str(facts.get("report_id") or "")
+    vuln_id = str(facts.get("vuln_id") or "")
+    component_ids = list(facts.get("component_ids") or [])
+    finding_ids = list(facts.get("finding_ids") or [])
+    package = str(facts.get("package") or "package")
+    previous_version = str(facts.get("previous_version") or f"{package}-prev")
+    applied_version = str(facts.get("applied_version") or f"{package}-patched")
+
+    exec_mode = str(run.get("execution_mode") or "SIMULATED").upper()
+    dry_run = bool(run.get("dry_run") or exec_mode == "DRY_RUN")
+    live = exec_mode == "LIVE"
+    collect = str(run.get("collect_mode") or req.get("collect_mode") or "agentless")
+
+    if dry_run:
+        summary = (
+            f"DRY_RUN vuln rollback plan for {vuln_id} "
+            f"(would restore {package} {applied_version} → {previous_version})"
+        )
+        return {
+            "ok": True,
+            "result_summary": summary,
+            "result_detail": {
+                "steps": [
+                    {"step": "load_rollback_facts", "ok": True, "fix_run_id": fix_run_id},
+                    {
+                        "step": "plan_rollback",
+                        "ok": True,
+                        "from": applied_version,
+                        "to": previous_version,
+                    },
+                ],
+                "stdout": f"[vuln] dry-run rollback {vuln_id}",
+                "stderr": "",
+            },
+            "provisioned_facts": {
+                "path": collect,
+                "action_key": "vuln.fix.rollback",
+                "dry_run": True,
+                "live": live,
+                "simulated": not live,
+                "fix_run_id": fix_run_id,
+                "rollback_of_run_id": fix_run_id,
+                "report_id": report_id,
+                "vuln_id": vuln_id,
+                "component_ids": component_ids,
+            },
+        }
+
+    updated = 0
+    if report_id and vuln_id and component_ids:
+        updated = _update_finding_status(
+            tenant_id=tid,
+            report_id=report_id,
+            vuln_id=vuln_id,
+            component_ids=component_ids,
+            finding_ids=finding_ids or None,
+            status="rolled_back",
+            fix_run_id=fix_run_id,
+        )
+
+    summary = (
+        f"{'LIVE' if live else 'SIMULATED'} vuln rollback {vuln_id} — restored "
+        f"{package} to {previous_version}; {updated} finding(s) marked rolled_back"
+    )
+    return {
+        "ok": True,
+        "result_summary": summary,
+        "result_detail": {
+            "steps": [
+                {"step": "load_rollback_facts", "ok": True, "fix_run_id": fix_run_id},
+                {
+                    "step": "apply_rollback",
+                    "ok": True,
+                    "mode": "LIVE" if live else "SIMULATED",
+                    "from": applied_version,
+                    "to": previous_version,
+                },
+                {"step": "update_findings", "ok": True, "updated": updated},
+            ],
+            "stdout": f"[vuln] rolled back {vuln_id} from fix {fix_run_id}",
+            "stderr": "",
+        },
+        "provisioned_facts": {
+            "path": collect,
+            "action_key": "vuln.fix.rollback",
+            "live": live,
+            "simulated": not live,
+            "fix_run_id": fix_run_id,
+            "rollback_of_run_id": fix_run_id,
+            "report_id": report_id,
+            "vuln_id": vuln_id,
+            "package": package,
+            "restored_version": previous_version,
+            "component_ids": component_ids,
+            "finding_ids": finding_ids,
+            "rollback_token": facts.get("rollback_token"),
+        },
+    }
+
+
+def dispatch_vuln_action(
+    *,
+    tenant_id: str,
+    req: dict[str, Any],
+    run: dict[str, Any],
+    actor: dict[str, Any] | None = None,
+) -> dict[str, Any]:
+    """Route vuln.* action_keys to scan / fix / rollback handlers."""
+    action = str(run.get("action_key") or req.get("action_key") or "")
+    if action.startswith("vuln.scan."):
+        return run_scan_for_request(
+            tenant_id=tenant_id, req=req, run=run, actor=actor
+        )
+    if action == "vuln.fix.apply":
+        return run_fix_for_request(
+            tenant_id=tenant_id, req=req, run=run, actor=actor
+        )
+    if action == "vuln.fix.rollback":
+        return run_rollback_for_request(
+            tenant_id=tenant_id, req=req, run=run, actor=actor
+        )
+    raise VulnError(f"unsupported vulnerability action '{action}'", status_code=400)

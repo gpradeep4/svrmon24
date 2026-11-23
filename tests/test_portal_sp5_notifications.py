@@ -1,4 +1,4 @@
-"""Service Portal SP5 — Change/request notification deep-links (0.95.0)."""
+"""Service Portal SP5 — Change/request notification deep-links (0.96.0)."""
 
 from __future__ import annotations
 
@@ -14,9 +14,9 @@ from tests.frontend_paths import FRONTEND_INDEX
 
 
 def test_version_bump_for_portal_sp5() -> None:
-    assert __version__ == "0.95.0"
+    assert __version__ == "0.96.0"
     html = FRONTEND_INDEX.read_text(encoding="utf-8")
-    assert 'content="0.95.0"' in html
+    assert 'content="0.96.0"' in html
 
 
 def test_portal_notification_fe_deep_link_markers() -> None:

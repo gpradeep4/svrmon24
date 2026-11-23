@@ -185,13 +185,17 @@ def execute_agentless(
     values = dict(req.get("form_values") or {})
     dry_run = bool(run.get("dry_run") or run.get("execution_mode") == "DRY_RUN")
 
-    if action.startswith("vuln.scan."):
+    if action.startswith("vuln."):
         from .. import vuln as vuln_service
 
-        return vuln_service.run_scan_for_request(
+        return vuln_service.dispatch_vuln_action(
             tenant_id=str(req.get("tenant_id") or ""),
             req=req,
-            run={**run, "execution_mode": "LIVE" if not dry_run else "DRY_RUN"},
+            run={
+                **run,
+                "execution_mode": "DRY_RUN" if dry_run else "LIVE",
+                "dry_run": dry_run,
+            },
         )
 
     if action == "cloud.vm.provision":
