@@ -5,7 +5,7 @@ from __future__ import annotations
 from fastapi import APIRouter, Depends
 
 from ...auth import require_user
-from . import meta
+from . import catalog, meta
 
 router = APIRouter(
     prefix="/api/portal",
@@ -14,3 +14,4 @@ router = APIRouter(
 )
 
 router.include_router(meta.router)
+router.include_router(catalog.router)

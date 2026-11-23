@@ -55,6 +55,11 @@
     const { can, toast, pageMeta, api, onShowTab, onPermissionGates, showTab } =
       hooks || {};
 
+    if (api && global.SVRMON24PortalCatalog?.bindApi) {
+      global.SVRMON24PortalCatalog.bindApi(api, { toast, showTab });
+      global.SVRMON24PortalCatalog.initCatalogUi();
+    }
+
     if (pageMeta) {
       pageMeta["sp-catalog"] = {
         title: "Service Portal Catalog",
@@ -82,18 +87,25 @@
       };
     }
 
+    document
+      .querySelector('[data-tab="sp-catalog"]')
+      ?.addEventListener("click", () => {
+        loadPortalMeta(api, toast);
+        global.SVRMON24PortalCatalog?.onShowTab?.("sp-catalog");
+      });
+    document
+      .querySelector('[data-tab="sp-catalog-admin"]')
+      ?.addEventListener("click", () => {
+        global.SVRMON24PortalCatalog?.onShowTab?.("sp-catalog-admin");
+      });
     if (typeof onShowTab === "function") {
       onShowTab((name, ctx) => {
         if (!ctx?.authenticated) return;
         if (name === "sp-catalog") {
           loadPortalMeta(api, toast);
         }
+        global.SVRMON24PortalCatalog?.onShowTab?.(name);
       });
-    } else {
-      // Fallback: refresh meta when Catalog nav is clicked after hooks bind.
-      document
-        .querySelector('[data-tab="sp-catalog"]')
-        ?.addEventListener("click", () => loadPortalMeta(api, toast));
     }
 
     if (typeof onPermissionGates === "function") {
