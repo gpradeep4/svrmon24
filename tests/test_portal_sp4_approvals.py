@@ -1,4 +1,4 @@
-"""Service Portal SP4 — Change-driven approval sync (0.89.0)."""
+"""Service Portal SP4 — Change-driven approval sync (0.90.0)."""
 
 from __future__ import annotations
 
@@ -13,10 +13,10 @@ from tests.frontend_paths import FRONTEND_INDEX
 
 
 def test_version_bump_for_portal_sp4() -> None:
-    assert __version__ == "0.89.0"
+    assert __version__ == "0.90.0"
     html = FRONTEND_INDEX.read_text(encoding="utf-8")
-    assert 'content="0.89.0"' in html
-    assert "portal/approvals.js?v=0.89.0" in html
+    assert 'content="0.90.0"' in html
+    assert "portal/approvals.js?v=0.90.0" in html
 
 
 def test_portal_approvals_fe_markers() -> None:
@@ -79,7 +79,8 @@ def test_change_status_sync_approves_and_rejects(
         headers=auth_headers,
     )
     assert synced.status_code == 200, synced.text
-    assert synced.json()["status"] == "approved"
+    # SP6 auto-enqueues SIMULATED runs on approve → request advances to queued.
+    assert synced.json()["status"] == "queued"
     assert synced.json()["change_status_snapshot"] == "approved"
 
     # Second request → reject path

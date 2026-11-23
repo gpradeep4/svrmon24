@@ -1,4 +1,4 @@
-"""Service Portal SP5 — Change/request notification deep-links (0.89.0)."""
+"""Service Portal SP5 — Change/request notification deep-links (0.90.0)."""
 
 from __future__ import annotations
 
@@ -14,9 +14,9 @@ from tests.frontend_paths import FRONTEND_INDEX
 
 
 def test_version_bump_for_portal_sp5() -> None:
-    assert __version__ == "0.89.0"
+    assert __version__ == "0.90.0"
     html = FRONTEND_INDEX.read_text(encoding="utf-8")
-    assert 'content="0.89.0"' in html
+    assert 'content="0.90.0"' in html
 
 
 def test_portal_notification_fe_deep_link_markers() -> None:
@@ -78,7 +78,8 @@ def test_submit_and_decision_emit_portal_linked_notifications(
         headers=auth_headers,
     )
     assert synced.status_code == 200, synced.text
-    assert synced.json()["status"] == "approved"
+    # SP6 auto-enqueues on approve → request status advances to queued.
+    assert synced.json()["status"] == "queued"
 
     decided = list(
         db["itsm_notifications"].find(

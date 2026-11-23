@@ -176,6 +176,20 @@ def sync_request_from_change(
             decision=new_status,
             actor=actor,
         )
+    if new_status == "approved" and before_status != "approved":
+        try:
+            from . import execution as execution_service
+
+            run = execution_service.enqueue_execution(
+                request_id, tenant_id=tid, actor=actor
+            )
+            serialized = {
+                **serialized,
+                "status": "queued",
+                "latest_run_id": run.get("run_id"),
+            }
+        except Exception:  # noqa: BLE001 — sync still succeeds; enqueue is best-effort
+            pass
     return serialized
 
 
