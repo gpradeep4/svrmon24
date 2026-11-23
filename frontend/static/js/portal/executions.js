@@ -26,7 +26,7 @@
     const toolbar = `
       <div class="toolbar" style="margin-bottom:0.75rem;">
         <button type="button" id="btnSpSimulateTick">Simulate tick</button>
-        <p class="hint">Advances SIMULATED queued/running runs. LIVE stays fail-closed.</p>
+        <p class="hint">Advances queued/running runs (SIMULATED or LIVE when gates are on). DRY_RUN stays plan-only.</p>
       </div>`;
     if (!data.items?.length) {
       host.innerHTML =

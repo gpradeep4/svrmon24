@@ -174,7 +174,7 @@ class Settings(BaseSettings):
         default="", alias="MONITOR_COLD_STORAGE_URI"
     )
 
-    # Service Portal live path (SP9 stubs). Master defaults OFF — SIMULATED ignores.
+    # Service Portal live path (SP9 gates; SP10 adapters unlocked). Master defaults OFF.
     service_portal_live_exec_enabled: bool = Field(
         default=False, alias="SERVICE_PORTAL_LIVE_EXEC_ENABLED"
     )

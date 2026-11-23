@@ -66,8 +66,8 @@ def live_gates(
         "live_exec": master,
         "fail_closed": True,
         "egress_allowlist_configured": bool(allowlist),
-        # Stubs only — no live adapters until explicit unlock (SPn).
-        "live_adapters": False,
+        # SP10 / SM-166 — live adapters unlocked; still fail-closed on gates.
+        "live_adapters": True,
     }
 
 

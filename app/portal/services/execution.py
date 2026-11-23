@@ -1,7 +1,8 @@
-"""SIMULATED Service Portal execution runs + CMDB sync (SP6).
+"""Service Portal execution runs + CMDB sync (SP6) + LIVE adapters (SP10).
 
-LIVE paths are fail-closed until SP9 gates unlock. ``simulate_tick`` advances
-queued runs → running → succeeded|failed with synthetic results.
+SIMULATED remains default. LIVE / live DRY_RUN require platform + tenant gates
+(fail-closed). ``simulate_tick`` advances SIMULATED runs; ``advance_run`` also
+drives LIVE once enqueued.
 """
 
 from __future__ import annotations
@@ -94,6 +95,7 @@ def enqueue_execution(
         return serialize_document(existing)  # type: ignore[return-value]
 
     mode = req.get("requested_execution_mode") or "SIMULATED"
+    collect = str(req.get("collect_mode") or "agentless").lower()
     if mode == "LIVE":
         from . import live_gates as live_gates_service
 
@@ -101,16 +103,16 @@ def enqueue_execution(
             live_gates_service.assert_live_allowed(
                 tenant_id=tid, capability="live_exec"
             )
+            live_gates_service.assert_live_allowed(
+                tenant_id=tid,
+                capability="agent" if collect == "agent" else "agentless",
+            )
         except Exception as exc:  # noqa: BLE001 — FastAPI HTTPException or other
             status = getattr(exc, "status_code", 403) or 403
             detail = getattr(exc, "detail", None) or str(exc)
             raise ExecutionError(str(detail), status_code=int(status)) from exc
-        # Gates may be open, but live adapters remain stubbed (SPn unlock).
-        raise ExecutionError(
-            "LIVE adapters are stubbed until explicit unlock (gates may be open)",
-            status_code=403,
-        )
-    if mode == "DRY_RUN":
+        execution_mode = "LIVE"
+    elif mode == "DRY_RUN":
         execution_mode = "DRY_RUN"
     else:
         execution_mode = "SIMULATED"
@@ -126,7 +128,7 @@ def enqueue_execution(
         "action_key": req.get("action_key"),
         "adapter": (req.get("domain") or "other"),
         "execution_mode": execution_mode,
-        "collect_mode": req.get("collect_mode") or "agentless",
+        "collect_mode": collect,
         "dry_run": execution_mode == "DRY_RUN",
         "status": "queued",
         "started_at": None,
@@ -218,6 +220,18 @@ def list_runs(
         "page_size": page_size,
         "execution_mode_default": "SIMULATED",
     }
+
+
+def _live_dry_run_allowed(*, tid: str, collect: str) -> bool:
+    """True when DRY_RUN should use live adapters (gates open for collect mode)."""
+    from . import live_gates as live_gates_service
+
+    gates = live_gates_service.live_gates(tenant_id=tid)
+    if not gates.get("live_exec"):
+        return False
+    if collect == "agent":
+        return bool(gates.get("agent_enabled"))
+    return bool(gates.get("agentless_enabled"))
 
 
 def _simulate_handler(run: dict[str, Any], req: dict[str, Any]) -> dict[str, Any]:
@@ -442,21 +456,83 @@ def advance_run(
             actor=actor,
         )
 
-    simulated = _simulate_handler(run, req)
+    exec_mode = str(run.get("execution_mode") or "SIMULATED").upper()
+    use_live = exec_mode == "LIVE" or (
+        exec_mode == "DRY_RUN"
+        and _live_dry_run_allowed(tid=tid, collect=str(run.get("collect_mode") or "agentless"))
+    )
+    try:
+        if use_live:
+            from .adapters import AdapterError, execute_live
+
+            live = execute_live(run=run, req=req, tenant_id=tid)
+            handler_out = {
+                "result_summary": live.result_summary,
+                "result_detail": live.result_detail,
+                "provisioned_facts": live.provisioned_facts,
+            }
+        else:
+            handler_out = _simulate_handler(run, req)
+    except Exception as exc:  # noqa: BLE001 — AdapterError or unexpected
+        from .adapters import AdapterError
+
+        msg = getattr(exc, "message", None) or str(exc)
+        code = "live_adapter_failed"
+        if isinstance(exc, AdapterError):
+            code = "live_adapter_denied" if exc.status_code == 403 else "live_adapter_failed"
+        failed = _finish_run(
+            run_id,
+            tid=tid,
+            status="failed",
+            updates={
+                "error_code": code,
+                "result_summary": msg[:500],
+                "result_detail": {"error": msg[:500]},
+            },
+            actor=actor,
+        )
+        _requests().update_one(
+            merge_tenant_filter({"request_id": run["request_id"]}, tid),
+            {
+                "$set": {
+                    "status": "failed",
+                    "updated_at": _now(),
+                    "updated_by": who,
+                }
+            },
+        )
+        try:
+            refreshed = get_request(tenant_id=tid, request_id=run["request_id"])
+            portal_notifications.notify_request_decision(
+                tenant_id=tid,
+                request={
+                    **refreshed,
+                    "change_status_snapshot": refreshed.get("change_status_snapshot")
+                    or "failed",
+                },
+                decision="failed",
+                actor=actor,
+            )
+        except Exception:  # noqa: BLE001
+            pass
+        return failed
+
     sync_outcome = {
         "cmdb_sync_status": "none",
         "component_id": req.get("component_id"),
         "cmdb_sync_error": None,
     }
     if not run.get("dry_run"):
-        sync_outcome = _apply_cmdb_sync(tid=tid, req=req, run={**run, **simulated})
+        sync_outcome = _apply_cmdb_sync(
+            tid=tid, req=req, run={**run, **handler_out}
+        )
 
     finished = _finish_run(
         run_id,
         tid=tid,
         status="succeeded",
         updates={
-            **simulated,
+            **handler_out,
             "cmdb_sync_status": sync_outcome["cmdb_sync_status"],
             "component_id": sync_outcome.get("component_id"),
             "error_code": None,
@@ -503,7 +579,10 @@ def simulate_tick(
     actor: dict[str, Any] | None = None,
     limit: int = 10,
 ) -> dict[str, Any]:
-    """Advance up to ``limit`` queued/running SIMULATED runs (two-phase)."""
+    """Advance up to ``limit`` queued/running runs (SIMULATED + LIVE).
+
+    Name kept for SP6 compatibility; SP10 also advances LIVE / DRY_RUN runs.
+    """
     tid = require_tenant_id(tenant_id)
     lim = max(1, min(int(limit), 100))
     advanced: list[dict[str, Any]] = []
@@ -533,10 +612,17 @@ def simulate_tick(
             advance_run(doc["run_id"], tenant_id=tid, actor=actor)
         )
 
+    modes = sorted(
+        {
+            str(item.get("execution_mode") or "SIMULATED")
+            for item in advanced
+        }
+    )
     return {
         "advanced": len(advanced),
         "items": advanced,
-        "execution_mode": "SIMULATED",
+        "execution_mode": modes[0] if len(modes) == 1 else "MIXED",
+        "execution_modes": modes,
     }
 
 

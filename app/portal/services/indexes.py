@@ -11,6 +11,7 @@ CATALOG_ITEMS = "sp_catalog_items"
 REQUESTS = "sp_requests"
 EXECUTION_RUNS = "sp_execution_runs"
 AUDIT_EVENTS = "sp_audit_events"
+AGENT_JOBS = "sp_agent_jobs"
 
 _ensured = False
 
@@ -81,6 +82,20 @@ def ensure_portal_indexes(db: Database | None = None) -> list[str]:
             [("tenant_id", ASCENDING), ("event_id", ASCENDING)],
             unique=True,
             name="tenant_sp_audit_id_unique",
+        )
+    )
+    jobs = database[AGENT_JOBS]
+    names.append(
+        jobs.create_index(
+            [("tenant_id", ASCENDING), ("job_id", ASCENDING)],
+            unique=True,
+            name="tenant_sp_agent_job_id_unique",
+        )
+    )
+    names.append(
+        jobs.create_index(
+            [("tenant_id", ASCENDING), ("run_id", ASCENDING)],
+            name="tenant_sp_agent_job_run_idx",
         )
     )
     _ensured = True

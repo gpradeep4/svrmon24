@@ -15,6 +15,7 @@ PORTAL_COLLECTIONS: tuple[str, ...] = (
     "sp_requests",
     "sp_execution_runs",
     "sp_audit_events",
+    "sp_agent_jobs",
 )
 
 PORTAL_DOMAINS: tuple[str, ...] = (

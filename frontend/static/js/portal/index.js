@@ -88,7 +88,7 @@
       };
       pageMeta["sp-executions"] = {
         title: "Execution history",
-        subtitle: "AGENT / AGENTLESS · SIMULATED until live unlock",
+        subtitle: "AGENT / AGENTLESS · LIVE when gated · Terraform cloud",
       };
       pageMeta["sp-catalog-admin"] = {
         title: "Catalog admin",

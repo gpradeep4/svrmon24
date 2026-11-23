@@ -1,4 +1,4 @@
-"""Service Portal admin live-settings (SP9 stubs)."""
+"""Service Portal admin live-settings (SP9 gates; SP10 adapters unlocked)."""
 
 from __future__ import annotations
 
@@ -48,10 +48,13 @@ def _live_settings_payload(
         },
         "tenant": tenant,
         "effective": gates,
-        "live_adapters": False,
+        "live_adapters": True,
+        "cloud_provision": "terraform",
         "note": (
-            "Stubs only — flipping gates does not enable real live adapters "
-            "until an explicit SPn unlock."
+            "LIVE adapters are unlocked (SP10). Platform "
+            "SERVICE_PORTAL_LIVE_EXEC_ENABLED and tenant sp_live_opt_in must "
+            "both be on; agentless/agent sub-gates still apply. Cloud VM "
+            "provision uses Terraform. DRY_RUN remains plan-only."
         ),
     }
 

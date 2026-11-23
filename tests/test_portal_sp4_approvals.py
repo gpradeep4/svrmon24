@@ -1,4 +1,4 @@
-"""Service Portal SP4 — Change-driven approval sync (0.93.0)."""
+"""Service Portal SP4 — Change-driven approval sync (0.94.0)."""
 
 from __future__ import annotations
 
@@ -13,10 +13,10 @@ from tests.frontend_paths import FRONTEND_INDEX
 
 
 def test_version_bump_for_portal_sp4() -> None:
-    assert __version__ == "0.93.0"
+    assert __version__ == "0.94.0"
     html = FRONTEND_INDEX.read_text(encoding="utf-8")
-    assert 'content="0.93.0"' in html
-    assert "portal/approvals.js?v=0.93.0" in html
+    assert 'content="0.94.0"' in html
+    assert "portal/approvals.js?v=0.94.0" in html
 
 
 def test_portal_approvals_fe_markers() -> None:

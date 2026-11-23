@@ -14,7 +14,12 @@ BANNER_SIMULATED = (
     "SIMULATED — platform SERVICE_PORTAL_LIVE_EXEC_ENABLED and/or tenant "
     "sp_live_opt_in are off (fail-closed). Catalog requests may be approved and "
     "run as synthetic executions until both gates are on. Collect modes "
-    "AGENTLESS and AGENT are modeled; live adapters stay stubbed."
+    "AGENTLESS and AGENT are available; LIVE adapters unlock when both gates "
+    "are on (Cloud provision uses Terraform)."
+)
+BANNER_LIVE = (
+    "LIVE gates open — AGENT / AGENTLESS adapters enabled for allowlisted "
+    "actions. Cloud VM provision uses Terraform. DRY_RUN remains plan-only."
 )
 
 
@@ -41,16 +46,13 @@ def module_meta(
         "live_gates": gates,
         "collect_modes": list(PORTAL_COLLECT_MODES),
         "domains": list(PORTAL_DOMAINS),
-        "banner": (
-            "LIVE gates open — adapters still stubbed until explicit unlock."
-            if live_on
-            else BANNER_SIMULATED
-        ),
+        "banner": BANNER_LIVE if live_on else BANNER_SIMULATED,
         "database": cfg.itsm_database_name,
         "itsm_database": cfg.itsm_database_name,
         "collections": list(PORTAL_COLLECTIONS),
         "cmdb_sync": True,
         "agent_channel": "monitoring",
+        "cloud_provision": "terraform",
         "tenant_id": tenant_id,
-        "live_adapters": False,
+        "live_adapters": True,
     }
