@@ -17,7 +17,7 @@ def test_enterprise_login_structure() -> None:
     html = html_path.read_text(encoding="utf-8")
     js = js_path.read_text(encoding="utf-8")
 
-    assert 'content="login-enterprise-v13"' in html
+    assert 'content="login-enterprise-v14"' in html
     assert "svrmon-brand-lockup" in html
     assert 'src="/static/img/svrmon-logo.png"' in html
     assert "svrmon-logo-compact.png" in html
@@ -67,23 +67,23 @@ def test_enterprise_login_structure() -> None:
     assert "login-gradient-text" in html
     assert "Turn Incidents into" in html
     assert "AI Infrastructure Diagnostic" in html
-    assert "CMDB &amp; Infrastructure Inventory" in html or "CMDB & Infrastructure Inventory" in html
-    assert "Log Intelligence" in html
-    assert "Middleware &amp; Log Intelligence" not in html and "Middleware & Log Intelligence" not in html
     assert "Open Investigations" in html
     assert "login-dash-nav-item" in html
     assert "login-portal-bg" in html
     assert "login-waves.png" in (FRONTEND_STATIC / "css" / "cmdb.css").read_text(encoding="utf-8")
-    assert "/static/assets/icons/cmdb.svg" in html
-    assert "Unified view of servers, network and applications" in html
-    assert "Analyse incidents, logs and health data to find root cause" in html
-    assert "Understand application, database and system logs with AI" in html
-    assert "RBAC, audit trail and enterprise-grade access" in html
+    assert 'id="loginModuleRail"' in html
+    assert 'id="loginPreviewViewport"' in html
+    assert 'id="loginModuleTitle"' in html
+    assert 'id="loginModuleUses"' in html
+    assert 'data-module="cmdb"' in html
+    assert 'data-module="monitoring"' in html
+    assert 'data-module="portal"' in html
+    assert "login-showcase.js" in html
     assert "Sign in to your SVRMON24 workspace" in html
     assert 'id="authMethodNote"' in html
-    assert "login-feature-grid" in html
     assert "login-dashboard-tilt" in html
     assert "login-dashboard-preview" in html
+    assert "login-module-chip" in (FRONTEND_STATIC / "css" / "cmdb.css").read_text(encoding="utf-8")
     assert "Incident-Driven" in html
     assert "login-panel-brand" in html
     assert "login-input-wrap" in html
@@ -199,7 +199,7 @@ def test_enterprise_login_version_bump() -> None:
 
     html_path, _ = _static_paths()
     html = html_path.read_text(encoding="utf-8")
-    assert __version__ == "0.96.0"
+    assert __version__ == "0.97.0"
     assert f'content="{__version__}"' in html
     assert f"cmdb.css?v={__version__}" in html
     assert f"cmdb.js?v={__version__}" in html
