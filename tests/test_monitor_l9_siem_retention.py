@@ -1,4 +1,4 @@
-"""Monitoring L9 — retention tiers + SIEM search + cold hooks (0.97.0)."""
+"""Monitoring L9 — retention tiers + SIEM search + cold hooks (0.98.0)."""
 
 from __future__ import annotations
 
@@ -21,10 +21,10 @@ MONITOR_LOGS_JS = Path("frontend/static/js/monitor/logs.js")
 
 
 def test_version_bump_for_monitor_l9() -> None:
-    assert __version__ == "0.97.0"
+    assert __version__ == "0.98.0"
     html = FRONTEND_INDEX.read_text(encoding="utf-8")
-    assert 'content="0.97.0"' in html
-    assert "monitor/logs.js?v=0.97.0" in html
+    assert 'content="0.98.0"' in html
+    assert "monitor/logs.js?v=0.98.0" in html
     assert 'id="mlAttr"' in html
     assert 'id="mlLoadMore"' in html
     assert 'id="mlRetentionBadge"' in html

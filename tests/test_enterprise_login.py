@@ -17,7 +17,7 @@ def test_enterprise_login_structure() -> None:
     html = html_path.read_text(encoding="utf-8")
     js = js_path.read_text(encoding="utf-8")
 
-    assert 'content="login-enterprise-v14"' in html
+    assert 'content="login-enterprise-v15"' in html
     assert "svrmon-brand-lockup" in html
     assert 'src="/static/img/svrmon-logo.png"' in html
     assert "svrmon-logo-compact.png" in html
@@ -73,8 +73,9 @@ def test_enterprise_login_structure() -> None:
     assert "login-waves.png" in (FRONTEND_STATIC / "css" / "cmdb.css").read_text(encoding="utf-8")
     assert 'id="loginModuleRail"' in html
     assert 'id="loginPreviewViewport"' in html
-    assert 'id="loginModuleTitle"' in html
-    assert 'id="loginModuleUses"' in html
+    assert 'id="loginModuleCaption"' in html
+    assert "Explore SVRMON24 modules" not in html
+    assert "login-module-detail" not in html
     assert 'data-module="cmdb"' in html
     assert 'data-module="monitoring"' in html
     assert 'data-module="portal"' in html
@@ -84,6 +85,7 @@ def test_enterprise_login_structure() -> None:
     assert "login-dashboard-tilt" in html
     assert "login-dashboard-preview" in html
     assert "login-module-chip" in (FRONTEND_STATIC / "css" / "cmdb.css").read_text(encoding="utf-8")
+    assert ".login-preview-caption" in (FRONTEND_STATIC / "css" / "cmdb.css").read_text(encoding="utf-8")
     assert "Incident-Driven" in html
     assert "login-panel-brand" in html
     assert "login-input-wrap" in html
@@ -199,7 +201,7 @@ def test_enterprise_login_version_bump() -> None:
 
     html_path, _ = _static_paths()
     html = html_path.read_text(encoding="utf-8")
-    assert __version__ == "0.97.0"
+    assert __version__ == "0.98.0"
     assert f'content="{__version__}"' in html
     assert f"cmdb.css?v={__version__}" in html
     assert f"cmdb.js?v={__version__}" in html

@@ -1,4 +1,4 @@
-"""Service Portal SP6 — SIMULATED execution + CMDB sync (0.97.0)."""
+"""Service Portal SP6 — SIMULATED execution + CMDB sync (0.98.0)."""
 
 from __future__ import annotations
 
@@ -13,10 +13,10 @@ from tests.frontend_paths import FRONTEND_INDEX
 
 
 def test_version_bump_for_portal_sp6() -> None:
-    assert __version__ == "0.97.0"
+    assert __version__ == "0.98.0"
     html = FRONTEND_INDEX.read_text(encoding="utf-8")
-    assert 'content="0.97.0"' in html
-    assert "portal/executions.js?v=0.97.0" in html
+    assert 'content="0.98.0"' in html
+    assert "portal/executions.js?v=0.98.0" in html
 
 
 def test_portal_executions_fe_markers() -> None:

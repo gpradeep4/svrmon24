@@ -7,56 +7,32 @@
     {
       id: "dashboard",
       title: "Dashboard overview",
-      bullets: [
-        "Cross-module KPIs for investigations, health, and open work",
-        "Tenant-wide posture before you drill into CMDB or Monitoring",
-        "Fast jump-off into each module dashboard after sign-in",
-      ],
+      caption: "Cross-module KPIs and tenant posture at a glance",
     },
     {
       id: "cmdb",
       title: "CMDB",
-      bullets: [
-        "Authoritative inventory: servers, network, apps, middleware, databases",
-        "Relationships and dependencies for blast-radius analysis",
-        "Feeds Monitoring targets and Service Portal catalog from live CIs",
-      ],
+      caption: "Authoritative CI inventory, relationships, and dependency mapping",
     },
     {
       id: "monitoring",
       title: "Monitoring",
-      bullets: [
-        "Agentless and agent health checks across your estate",
-        "Logs, file monitoring, diagnostics, alerts, and middleware domains",
-        "Optional ITSM incidents from fired alerts (tenant-gated, default off)",
-      ],
+      caption: "Agentless and agent health checks, logs, alerts, and diagnostics",
     },
     {
       id: "itsm",
       title: "ITSM",
-      bullets: [
-        "Incidents, changes, problems, SLAs, and approval workflows",
-        "Knowledge base plus AI-assisted investigation (human-in-the-loop)",
-        "Deep links from Monitoring alerts and Portal requests",
-      ],
+      caption: "Incidents, changes, SLAs, and knowledge-driven workflows",
     },
     {
       id: "portal",
       title: "Service Portal",
-      bullets: [
-        "Self-service catalog: OS, middleware, database, cloud, vulnerability",
-        "Requests become ITSM Changes with approval and execution",
-        "Vulnerability scan, fix selected items, rollback on failure",
-      ],
+      caption: "Self-service catalog with approval-driven change fulfillment",
     },
     {
       id: "admin",
       title: "Configuration & Administration",
-      bullets: [
-        "Tenant settings, RBAC, plans or entitlements, and integrations",
-        "OIDC and Basic coexistence flags; accent theme; audit trail",
-        "Organization switcher with mandatory tenant isolation",
-      ],
+      caption: "RBAC, entitlements, OIDC/Basic coexistence, and audit",
     },
   ];
 
@@ -73,10 +49,9 @@
   function setActiveModule(id, { focusChip = false } = {}) {
     const mod = MODULES.find((m) => m.id === id) || MODULES[0];
     const rail = document.getElementById("loginModuleRail");
-    const titleEl = document.getElementById("loginModuleTitle");
-    const usesEl = document.getElementById("loginModuleUses");
+    const captionEl = document.getElementById("loginModuleCaption");
     const viewport = document.getElementById("loginPreviewViewport");
-    if (!rail || !titleEl || !usesEl || !viewport) return;
+    if (!rail || !captionEl || !viewport) return;
 
     rail.setAttribute("data-active", mod.id);
     viewport.setAttribute("data-active", mod.id);
@@ -94,22 +69,12 @@
       panel.hidden = !on;
     });
 
-    titleEl.textContent = mod.title;
-    usesEl.replaceChildren();
-    mod.bullets.forEach((text) => {
-      const li = document.createElement("li");
-      li.textContent = text;
-      usesEl.appendChild(li);
-    });
+    captionEl.textContent = mod.caption;
 
     if (focusChip) {
       const chip = rail.querySelector(`[data-module="${mod.id}"]`);
       chip?.focus({ preventScroll: true });
     }
-  }
-
-  function moduleFromChip(chip) {
-    return chip?.dataset?.module || DEFAULT_ID;
   }
 
   function initRail() {
