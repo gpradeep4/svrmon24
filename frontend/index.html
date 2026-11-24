@@ -3,8 +3,8 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <meta name="svrmon24-ui" content="login-enterprise-v13" />
-  <meta name="svrmon24-version" content="0.96.0" />
+  <meta name="svrmon24-ui" content="login-enterprise-v14" />
+  <meta name="svrmon24-version" content="0.97.0" />
   <title>SVRMON24</title>
   <link rel="icon" href="/static/img/svrmon-favicon.png" type="image/png" sizes="32x32" />
   <link rel="apple-touch-icon" href="/static/img/svrmon-apple-touch.png" sizes="180x180" />
@@ -15,12 +15,13 @@
     body.is-app .login-gate { display: none !important; }
     #authPanel, .auth-panel-legacy { display: none !important; }
   </style>
-  <link rel="stylesheet" href="/static/css/cmdb.css?v=0.96.0" />
-  <link rel="stylesheet" href="/static/css/itsm.css?v=0.96.0" />
-  <link rel="stylesheet" href="/static/css/monitor.css?v=0.96.0" />
-  <link rel="stylesheet" href="/static/css/portal.css?v=0.96.0" />
-  <script src="/static/js/config.js?v=0.96.0"></script>
-  <script src="/static/js/brand.js?v=0.96.0"></script>
+  <link rel="stylesheet" href="/static/css/cmdb.css?v=0.97.0" />
+  <link rel="stylesheet" href="/static/css/itsm.css?v=0.97.0" />
+  <link rel="stylesheet" href="/static/css/monitor.css?v=0.97.0" />
+  <link rel="stylesheet" href="/static/css/portal.css?v=0.97.0" />
+  <script src="/static/js/config.js?v=0.97.0"></script>
+  <script src="/static/js/brand.js?v=0.97.0"></script>
+  <script src="/static/js/login-showcase.js?v=0.97.0" defer></script>
 </head>
 <body class="is-login">
   <!-- Enterprise login: showcase (left) + sign-in panel (right); stacks on small viewports -->
@@ -34,132 +35,244 @@
           <img class="svrmon-brand-lockup svrmon-brand-lockup--showcase" src="/static/img/svrmon-logo.png" width="2010" height="497" alt="SVRMON24 — AI Infrastructure Diagnostic &amp; Automation Platform" decoding="async" />
         </div>
 
-        <div class="login-hero-stage">
-        <h2 class="login-headline">Turn Incidents into <span class="login-gradient-text">Faster Resolutions</span></h2>
-        <p class="login-portal-lede login-portal-lede-wide">AI-powered investigation, diagnostics and automation for your infrastructure, middleware and databases.</p>
+        <div class="login-hero-stage login-hero-stage--modules" id="loginShowcaseStage">
+          <div class="login-showcase-copy">
+            <h2 class="login-headline">Turn Incidents into <span class="login-gradient-text">Faster Resolutions</span></h2>
+            <p class="login-portal-lede login-portal-lede-wide">AI-powered investigation, diagnostics and automation for your infrastructure, middleware and databases.</p>
 
-        <div class="login-dashboard-tilt" aria-hidden="true">
-          <div class="login-dashboard-glow" aria-hidden="true"></div>
-          <div class="login-dashboard-shadow" aria-hidden="true"></div>
-          <div class="login-dashboard-preview">
-            <div class="login-dash-chrome login-dash-chrome--labeled">
-              <div class="login-dash-sidebar">
-                <div class="login-dash-logo-row">
-                  <img class="login-dash-logo-img" src="/static/img/svrmon-logo-mark.png" width="22" height="22" alt="" decoding="async" />
-                  <span class="login-dash-logo-text">SVRMON<span>24</span></span>
+            <div class="login-module-detail" id="loginModuleDetail">
+              <p class="login-module-kicker">Explore SVRMON24 modules</p>
+              <h3 class="login-module-title" id="loginModuleTitle">Dashboard overview</h3>
+              <ul class="login-module-uses" id="loginModuleUses" aria-label="Functions and uses"></ul>
+            </div>
+
+            <div class="login-module-rail" id="loginModuleRail" role="tablist" aria-label="Product modules" data-active="dashboard"></div>
+          </div>
+
+          <div class="login-dashboard-tilt login-preview-tilt">
+            <div class="login-dashboard-glow" aria-hidden="true"></div>
+            <div class="login-dashboard-shadow" aria-hidden="true"></div>
+            <div class="login-preview-viewport" id="loginPreviewViewport" data-active="dashboard">
+              <div class="login-module-preview login-dashboard-preview is-active" data-module="dashboard">
+                <div class="login-dash-chrome login-dash-chrome--labeled">
+                  <div class="login-dash-sidebar">
+                    <div class="login-dash-logo-row">
+                      <img class="login-dash-logo-img" src="/static/img/svrmon-logo-mark.png" width="22" height="22" alt="" decoding="async" />
+                      <span class="login-dash-logo-text">SVRMON<span>24</span></span>
+                    </div>
+                    <nav class="login-dash-navlist" aria-hidden="true">
+                      <span class="login-dash-nav-item on">Dashboard</span>
+                      <span class="login-dash-nav-item">CMDB</span>
+                      <span class="login-dash-nav-item">Monitoring</span>
+                      <span class="login-dash-nav-item">ITSM</span>
+                      <span class="login-dash-nav-item">Service Portal</span>
+                    </nav>
+                  </div>
+                  <div class="login-dash-main">
+                    <div class="login-dash-topbar">
+                      <span class="login-dash-title">Executive overview</span>
+                      <div class="login-dash-topbar-actions">
+                        <span class="login-dash-bell" aria-hidden="true"></span>
+                        <span class="login-dash-avatar" aria-hidden="true"></span>
+                      </div>
+                    </div>
+                    <div class="login-dash-kpis login-dash-kpis-inv">
+                      <div class="login-dash-kpi">
+                        <span class="login-dash-kpi-ico tone-open" aria-hidden="true"></span>
+                        <span class="k">Open Investigations</span>
+                        <strong>12</strong>
+                      </div>
+                      <div class="login-dash-kpi ok">
+                        <span class="login-dash-kpi-ico tone-done" aria-hidden="true"></span>
+                        <span class="k">Healthy targets</span>
+                        <strong>148</strong>
+                      </div>
+                      <div class="login-dash-kpi warn">
+                        <span class="login-dash-kpi-ico tone-fail" aria-hidden="true"></span>
+                        <span class="k">Firing alerts</span>
+                        <strong>3</strong>
+                      </div>
+                    </div>
+                    <div class="login-dash-analytics">
+                      <div class="login-dash-trend">
+                        <p class="login-dash-section-label">Investigations trend</p>
+                        <div class="login-dash-spark">
+                          <svg viewBox="0 0 240 72" preserveAspectRatio="none" aria-hidden="true">
+                            <defs>
+                              <linearGradient id="loginTrendFill" x1="0" y1="0" x2="0" y2="1">
+                                <stop offset="0%" stop-color="#4F46E5" stop-opacity=".28"/>
+                                <stop offset="100%" stop-color="#4F46E5" stop-opacity="0"/>
+                              </linearGradient>
+                            </defs>
+                            <path d="M4 56 L34 46 L64 49 L94 32 L124 38 L154 20 L184 28 L210 18 L236 14 L236 72 L4 72 Z" fill="url(#loginTrendFill)"/>
+                            <path d="M4 56 L34 46 L64 49 L94 32 L124 38 L154 20 L184 28 L210 18 L236 14" fill="none" stroke="#4F46E5" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+                          </svg>
+                        </div>
+                      </div>
+                      <div class="login-dash-donut">
+                        <p class="login-dash-section-label">Work outcomes</p>
+                        <div class="login-dash-donut-wrap">
+                          <span class="login-dash-donut-ring login-dash-donut-ring--ref">
+                            <span class="login-dash-donut-center"><strong>163</strong><em>Total</em></span>
+                          </span>
+                          <ul class="login-dash-legend">
+                            <li><span class="swatch g"></span>91% Resolved</li>
+                            <li><span class="swatch o"></span>6% Watch</li>
+                            <li><span class="swatch r"></span>3% Failed</li>
+                          </ul>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
                 </div>
-                <nav class="login-dash-navlist">
-                  <span class="login-dash-nav-item on">Dashboard</span>
-                  <span class="login-dash-nav-item">Investigations</span>
-                  <span class="login-dash-nav-item">CMDB</span>
-                  <span class="login-dash-nav-item">Diagnostics</span>
-                  <span class="login-dash-nav-item">Reports</span>
-                  <span class="login-dash-nav-item has-caret">Administration</span>
-                </nav>
               </div>
-              <div class="login-dash-main">
-                <div class="login-dash-topbar">
-                  <span class="login-dash-title">Dashboard</span>
-                  <div class="login-dash-topbar-actions">
-                    <span class="login-dash-bell" aria-hidden="true"></span>
-                    <span class="login-dash-avatar" aria-hidden="true"></span>
+
+              <div class="login-module-preview login-dashboard-preview" data-module="cmdb" hidden>
+                <div class="login-dash-chrome login-dash-chrome--labeled">
+                  <div class="login-dash-sidebar">
+                    <div class="login-dash-logo-row">
+                      <img class="login-dash-logo-img" src="/static/img/svrmon-logo-mark.png" width="22" height="22" alt="" decoding="async" />
+                      <span class="login-dash-logo-text">SVRMON<span>24</span></span>
+                    </div>
+                    <nav class="login-dash-navlist" aria-hidden="true">
+                      <span class="login-dash-nav-item on">CMDB</span>
+                      <span class="login-dash-nav-item">Servers</span>
+                      <span class="login-dash-nav-item">Network</span>
+                    </nav>
+                  </div>
+                  <div class="login-dash-main login-mock-fill">
+                    <div class="login-dash-topbar">
+                      <span class="login-dash-title">Configuration items</span>
+                      <span class="login-dash-pill healthy">248 CIs</span>
+                    </div>
+                    <table class="login-mock-table" aria-hidden="true">
+                      <thead><tr><th>Hostname</th><th>Type</th><th>Env</th><th>Status</th></tr></thead>
+                      <tbody>
+                        <tr><td>db-primary-01</td><td>Database</td><td>Prod</td><td><span class="login-mock-tag ok">Active</span></td></tr>
+                        <tr><td>mw-kafka-03</td><td>Middleware</td><td>Prod</td><td><span class="login-mock-tag ok">Active</span></td></tr>
+                        <tr><td>edge-fw-sin</td><td>Network</td><td>DR</td><td><span class="login-mock-tag warn">Review</span></td></tr>
+                        <tr><td>app-portal-api</td><td>Application</td><td>UAT</td><td><span class="login-mock-tag ok">Active</span></td></tr>
+                      </tbody>
+                    </table>
                   </div>
                 </div>
-                <div class="login-dash-kpis login-dash-kpis-inv">
-                  <div class="login-dash-kpi">
-                    <span class="login-dash-kpi-ico tone-open" aria-hidden="true"></span>
-                    <span class="k">Open Investigations</span>
-                    <strong>12</strong>
+              </div>
+
+              <div class="login-module-preview login-dashboard-preview" data-module="monitoring" hidden>
+                <div class="login-dash-chrome login-dash-chrome--labeled">
+                  <div class="login-dash-sidebar">
+                    <div class="login-dash-logo-row">
+                      <img class="login-dash-logo-img" src="/static/img/svrmon-logo-mark.png" width="22" height="22" alt="" decoding="async" />
+                      <span class="login-dash-logo-text">SVRMON<span>24</span></span>
+                    </div>
+                    <nav class="login-dash-navlist" aria-hidden="true">
+                      <span class="login-dash-nav-item on">Monitoring</span>
+                      <span class="login-dash-nav-item">Logs</span>
+                      <span class="login-dash-nav-item">Alerts</span>
+                    </nav>
                   </div>
-                  <div class="login-dash-kpi ok">
-                    <span class="login-dash-kpi-ico tone-done" aria-hidden="true"></span>
-                    <span class="k">Completed</span>
-                    <strong>148</strong>
-                  </div>
-                  <div class="login-dash-kpi warn">
-                    <span class="login-dash-kpi-ico tone-fail" aria-hidden="true"></span>
-                    <span class="k">Failed</span>
-                    <strong>3</strong>
-                  </div>
-                </div>
-                <div class="login-dash-analytics">
-                  <div class="login-dash-trend">
-                    <p class="login-dash-section-label">Investigations Trend</p>
-                    <div class="login-dash-spark">
-                      <svg viewBox="0 0 240 72" preserveAspectRatio="none" aria-hidden="true">
-                        <defs>
-                          <linearGradient id="loginTrendFill" x1="0" y1="0" x2="0" y2="1">
-                            <stop offset="0%" stop-color="#3B82F6" stop-opacity=".32"/>
-                            <stop offset="100%" stop-color="#3B82F6" stop-opacity="0"/>
-                          </linearGradient>
-                        </defs>
-                        <path d="M4 56 L34 46 L64 49 L94 32 L124 38 L154 20 L184 28 L210 18 L236 14 L236 72 L4 72 Z" fill="url(#loginTrendFill)"/>
-                        <path d="M4 56 L34 46 L64 49 L94 32 L124 38 L154 20 L184 28 L210 18 L236 14" fill="none" stroke="#2563EB" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
-                        <g fill="#FFFFFF" stroke="#2563EB" stroke-width="2.2">
-                          <circle cx="4" cy="56" r="3.2"/>
-                          <circle cx="34" cy="46" r="3.2"/>
-                          <circle cx="64" cy="49" r="3.2"/>
-                          <circle cx="94" cy="32" r="3.2"/>
-                          <circle cx="124" cy="38" r="3.2"/>
-                          <circle cx="154" cy="20" r="3.2"/>
-                          <circle cx="184" cy="28" r="3.2"/>
-                          <circle cx="210" cy="18" r="3.2"/>
-                          <circle cx="236" cy="14" r="3.2"/>
-                        </g>
+                  <div class="login-dash-main login-mock-fill">
+                    <div class="login-dash-topbar">
+                      <span class="login-dash-title">Target health</span>
+                      <span class="login-dash-pill healthy">Live probes</span>
+                    </div>
+                    <div class="login-mock-health-row">
+                      <span class="login-mock-health"><em>Servers</em><strong>96%</strong></span>
+                      <span class="login-mock-health"><em>Middleware</em><strong>92%</strong></span>
+                      <span class="login-mock-health warn"><em>Network</em><strong>81%</strong></span>
+                    </div>
+                    <div class="login-dash-spark login-mock-spark">
+                      <p class="login-dash-section-label">Alert volume (24h)</p>
+                      <svg viewBox="0 0 240 48" preserveAspectRatio="none" aria-hidden="true">
+                        <path d="M4 40 L40 36 L80 28 L120 32 L160 18 L200 22 L236 12" fill="none" stroke="#4F46E5" stroke-width="2.5" stroke-linecap="round"/>
                       </svg>
                     </div>
                   </div>
-                  <div class="login-dash-donut">
-                    <p class="login-dash-section-label">Incident Outcomes</p>
-                    <div class="login-dash-donut-wrap">
-                      <span class="login-dash-donut-ring login-dash-donut-ring--ref">
-                        <span class="login-dash-donut-center"><strong>163</strong><em>Total</em></span>
-                      </span>
-                      <ul class="login-dash-legend">
-                        <li><span class="swatch g"></span>91% Resolved</li>
-                        <li><span class="swatch o"></span>6% Watch</li>
-                        <li><span class="swatch r"></span>3% Failed</li>
-                      </ul>
+                </div>
+              </div>
+
+              <div class="login-module-preview login-dashboard-preview" data-module="itsm" hidden>
+                <div class="login-dash-chrome login-dash-chrome--labeled">
+                  <div class="login-dash-sidebar">
+                    <div class="login-dash-logo-row">
+                      <img class="login-dash-logo-img" src="/static/img/svrmon-logo-mark.png" width="22" height="22" alt="" decoding="async" />
+                      <span class="login-dash-logo-text">SVRMON<span>24</span></span>
                     </div>
+                    <nav class="login-dash-navlist" aria-hidden="true">
+                      <span class="login-dash-nav-item on">ITSM</span>
+                      <span class="login-dash-nav-item">Incidents</span>
+                      <span class="login-dash-nav-item">Changes</span>
+                    </nav>
+                  </div>
+                  <div class="login-dash-main login-mock-fill">
+                    <div class="login-dash-topbar">
+                      <span class="login-dash-title">Incident queue</span>
+                      <span class="login-dash-pill">SLA tracking</span>
+                    </div>
+                    <ul class="login-mock-incidents" aria-hidden="true">
+                      <li><span class="pri high">P1</span><span>Portal login failures — SSO timeout</span><span class="st open">Open</span></li>
+                      <li><span class="pri med">P2</span><span>Kafka lag on mw-kafka-03</span><span class="st prog">In progress</span></li>
+                      <li><span class="pri low">P3</span><span>Patch window CHG-1042 approval</span><span class="st wait">Pending</span></li>
+                    </ul>
+                  </div>
+                </div>
+              </div>
+
+              <div class="login-module-preview login-dashboard-preview" data-module="portal" hidden>
+                <div class="login-dash-chrome login-dash-chrome--labeled">
+                  <div class="login-dash-sidebar">
+                    <div class="login-dash-logo-row">
+                      <img class="login-dash-logo-img" src="/static/img/svrmon-logo-mark.png" width="22" height="22" alt="" decoding="async" />
+                      <span class="login-dash-logo-text">SVRMON<span>24</span></span>
+                    </div>
+                    <nav class="login-dash-navlist" aria-hidden="true">
+                      <span class="login-dash-nav-item on">Service Portal</span>
+                      <span class="login-dash-nav-item">Catalog</span>
+                      <span class="login-dash-nav-item">Requests</span>
+                    </nav>
+                  </div>
+                  <div class="login-dash-main login-mock-fill">
+                    <div class="login-dash-topbar">
+                      <span class="login-dash-title">Service catalog</span>
+                      <span class="login-dash-pill healthy">Self-service</span>
+                    </div>
+                    <div class="login-mock-catalog">
+                      <article><h4>Provision Linux VM</h4><p>OS · Agent + agentless</p></article>
+                      <article><h4>Middleware health pack</h4><p>Kafka · Diagnostics</p></article>
+                      <article><h4>Vulnerability fix</h4><p>Change + rollback</p></article>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div class="login-module-preview login-dashboard-preview" data-module="admin" hidden>
+                <div class="login-dash-chrome login-dash-chrome--labeled">
+                  <div class="login-dash-sidebar">
+                    <div class="login-dash-logo-row">
+                      <img class="login-dash-logo-img" src="/static/img/svrmon-logo-mark.png" width="22" height="22" alt="" decoding="async" />
+                      <span class="login-dash-logo-text">SVRMON<span>24</span></span>
+                    </div>
+                    <nav class="login-dash-navlist" aria-hidden="true">
+                      <span class="login-dash-nav-item on">Configuration</span>
+                      <span class="login-dash-nav-item">Administration</span>
+                    </nav>
+                  </div>
+                  <div class="login-dash-main login-mock-fill">
+                    <div class="login-dash-topbar">
+                      <span class="login-dash-title">Tenant &amp; access</span>
+                      <span class="login-dash-pill">RBAC</span>
+                    </div>
+                    <ul class="login-mock-settings" aria-hidden="true">
+                      <li><span>OIDC + Basic auth flags</span><span class="login-mock-tag ok">Dual</span></li>
+                      <li><span>Accent theme</span><span class="login-mock-swatch" style="--swatch:#4F46E5"></span></li>
+                      <li><span>Audit retention</span><span>365 days</span></li>
+                      <li><span>Platform roles</span><span>12 assigned</span></li>
+                    </ul>
                   </div>
                 </div>
               </div>
             </div>
           </div>
-        </div>
-        </div>
-
-        <div class="login-feature-grid">
-          <article class="login-feature-card">
-            <span class="login-feature-ico tone-blue" aria-hidden="true"><img src="/static/assets/icons/cmdb.svg" width="22" height="22" alt="" decoding="async" /></span>
-            <h3>CMDB &amp; Infrastructure Inventory</h3>
-            <p>Unified view of servers, network and applications</p>
-          </article>
-          <article class="login-feature-card">
-            <span class="login-feature-ico tone-violet" aria-hidden="true"><img src="/static/assets/icons/ai-investigation.svg" width="22" height="22" alt="" decoding="async" /></span>
-            <h3>AI Incident Investigation</h3>
-            <p>Analyse incidents, logs and health data to find root cause</p>
-          </article>
-          <article class="login-feature-card">
-            <span class="login-feature-ico tone-green" aria-hidden="true"><img src="/static/assets/icons/diagnostics.svg" width="22" height="22" alt="" decoding="async" /></span>
-            <h3>Automated Diagnostics</h3>
-            <p>Run secure, read-only diagnostic scripts on demand</p>
-          </article>
-          <article class="login-feature-card">
-            <span class="login-feature-ico tone-orange" aria-hidden="true"><img src="/static/assets/icons/log-intelligence.svg" width="22" height="22" alt="" decoding="async" /></span>
-            <h3>Log Intelligence</h3>
-            <p>Understand application, database and system logs with AI</p>
-          </article>
-          <article class="login-feature-card">
-            <span class="login-feature-ico tone-pink" aria-hidden="true"><img src="/static/assets/icons/workflows.svg" width="22" height="22" alt="" decoding="async" /></span>
-            <h3>Investigation Workflows</h3>
-            <p>Track, collaborate and resolve incidents end-to-end</p>
-          </article>
-          <article class="login-feature-card">
-            <span class="login-feature-ico tone-teal" aria-hidden="true"><img src="/static/assets/icons/security.svg" width="22" height="22" alt="" decoding="async" /></span>
-            <h3>Security &amp; Compliance</h3>
-            <p>RBAC, audit trail and enterprise-grade access</p>
-          </article>
         </div>
 
         <ul class="login-capabilities login-capabilities-row">
@@ -3884,33 +3997,33 @@
     </div>
   </div>
 
-  <script src="/static/js/cmdb.js?v=0.96.0"></script>
-  <script src="/static/js/monitor/dashboard.js?v=0.96.0"></script>
-  <script src="/static/js/monitor/targets.js?v=0.96.0"></script>
-  <script src="/static/js/monitor/logs.js?v=0.96.0"></script>
-  <script src="/static/js/monitor/alerts.js?v=0.96.0"></script>
-  <script src="/static/js/monitor/agents.js?v=0.96.0"></script>
-  <script src="/static/js/monitor/index.js?v=0.96.0"></script>
-  <script src="/static/js/itsm/api.js?v=0.96.0"></script>
-  <script src="/static/js/itsm/routing.js?v=0.96.0"></script>
-  <script src="/static/js/itsm/deeplinks.js?v=0.96.0"></script>
-  <script src="/static/js/itsm/dashboard.js?v=0.96.0"></script>
-  <script src="/static/js/itsm/reports.js?v=0.96.0"></script>
-  <script src="/static/js/itsm/incidents.js?v=0.96.0"></script>
-  <script src="/static/js/itsm/changes.js?v=0.96.0"></script>
-  <script src="/static/js/itsm/problems.js?v=0.96.0"></script>
-  <script src="/static/js/itsm/approvals.js?v=0.96.0"></script>
-  <script src="/static/js/itsm/workflows.js?v=0.96.0"></script>
-  <script src="/static/js/itsm/sla.js?v=0.96.0"></script>
-  <script src="/static/js/itsm/knowledge.js?v=0.96.0"></script>
-  <script src="/static/js/itsm/notifications.js?v=0.96.0"></script>
-  <script src="/static/js/itsm/groups.js?v=0.96.0"></script>
-  <script src="/static/js/itsm/index.js?v=0.96.0"></script>
-  <script src="/static/js/portal/catalog.js?v=0.96.0"></script>
-  <script src="/static/js/portal/requests.js?v=0.96.0"></script>
-  <script src="/static/js/portal/approvals.js?v=0.96.0"></script>
-  <script src="/static/js/portal/executions.js?v=0.96.0"></script>
-  <script src="/static/js/portal/vuln.js?v=0.96.0"></script>
-  <script src="/static/js/portal/index.js?v=0.96.0"></script>
+  <script src="/static/js/cmdb.js?v=0.97.0"></script>
+  <script src="/static/js/monitor/dashboard.js?v=0.97.0"></script>
+  <script src="/static/js/monitor/targets.js?v=0.97.0"></script>
+  <script src="/static/js/monitor/logs.js?v=0.97.0"></script>
+  <script src="/static/js/monitor/alerts.js?v=0.97.0"></script>
+  <script src="/static/js/monitor/agents.js?v=0.97.0"></script>
+  <script src="/static/js/monitor/index.js?v=0.97.0"></script>
+  <script src="/static/js/itsm/api.js?v=0.97.0"></script>
+  <script src="/static/js/itsm/routing.js?v=0.97.0"></script>
+  <script src="/static/js/itsm/deeplinks.js?v=0.97.0"></script>
+  <script src="/static/js/itsm/dashboard.js?v=0.97.0"></script>
+  <script src="/static/js/itsm/reports.js?v=0.97.0"></script>
+  <script src="/static/js/itsm/incidents.js?v=0.97.0"></script>
+  <script src="/static/js/itsm/changes.js?v=0.97.0"></script>
+  <script src="/static/js/itsm/problems.js?v=0.97.0"></script>
+  <script src="/static/js/itsm/approvals.js?v=0.97.0"></script>
+  <script src="/static/js/itsm/workflows.js?v=0.97.0"></script>
+  <script src="/static/js/itsm/sla.js?v=0.97.0"></script>
+  <script src="/static/js/itsm/knowledge.js?v=0.97.0"></script>
+  <script src="/static/js/itsm/notifications.js?v=0.97.0"></script>
+  <script src="/static/js/itsm/groups.js?v=0.97.0"></script>
+  <script src="/static/js/itsm/index.js?v=0.97.0"></script>
+  <script src="/static/js/portal/catalog.js?v=0.97.0"></script>
+  <script src="/static/js/portal/requests.js?v=0.97.0"></script>
+  <script src="/static/js/portal/approvals.js?v=0.97.0"></script>
+  <script src="/static/js/portal/executions.js?v=0.97.0"></script>
+  <script src="/static/js/portal/vuln.js?v=0.97.0"></script>
+  <script src="/static/js/portal/index.js?v=0.97.0"></script>
 </body>
 </html>
