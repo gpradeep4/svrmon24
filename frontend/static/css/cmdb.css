@@ -700,40 +700,15 @@ body { padding: 0; }
   min-width: 0;
 }
 
-.login-module-detail {
-  padding: 12px 14px;
-  border-radius: 14px;
-  border: 1px solid #DCE7F5;
-  background: rgba(255, 255, 255, 0.82);
-  box-shadow: 0 8px 28px rgba(15, 23, 42, 0.06);
-  transition: opacity 0.28s ease, transform 0.28s ease;
-}
-
-.login-module-kicker {
-  margin: 0 0 4px;
-  font-size: 0.72rem;
-  font-weight: 650;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
+.login-preview-caption {
+  margin: clamp(8px, 1.2cqb, 12px) 0 0;
+  padding: 0 clamp(4px, 0.6cqi, 8px);
+  font-size: clamp(0.8rem, 0.28cqi + 0.74rem, 0.9rem);
+  font-weight: 500;
+  line-height: 1.45;
   color: #64748B;
-}
-
-.login-module-title {
-  margin: 0 0 8px;
-  font-size: clamp(1rem, 0.4vw + 0.92rem, 1.12rem);
-  font-weight: 700;
-  letter-spacing: -0.02em;
-  color: #10264A;
-}
-
-.login-module-uses {
-  margin: 0;
-  padding: 0 0 0 1.1em;
-  display: grid;
-  gap: 5px;
-  font-size: clamp(0.8rem, 0.3vw + 0.74rem, 0.9rem);
-  line-height: 1.4;
-  color: #475569;
+  text-align: center;
+  transition: opacity 0.24s ease;
 }
 
 .login-module-rail {
@@ -778,7 +753,7 @@ body { padding: 0; }
 .login-preview-viewport {
   position: relative;
   width: 100%;
-  min-height: clamp(210px, 26cqb, 300px);
+  min-height: clamp(228px, 30cqb, 340px);
 }
 
 .login-module-preview.login-dashboard-preview {
@@ -973,7 +948,7 @@ body { padding: 0; }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .login-module-detail,
+  .login-preview-caption,
   .login-module-chip,
   .login-preview-viewport .login-module-preview {
     transition: none;
@@ -1041,11 +1016,16 @@ body { padding: 0; }
 
   .login-hero-stage--modules .login-headline,
   .login-hero-stage--modules .login-portal-lede-wide,
-  .login-hero-stage--modules .login-module-detail,
   .login-hero-stage--modules .login-module-rail {
     grid-column: unset;
     grid-row: unset;
     max-width: min(38ch, 100%);
+  }
+
+  .login-hero-stage--modules .login-preview-caption {
+    text-align: left;
+    max-width: min(42ch, 100%);
+    margin-inline: 0;
   }
 
   .login-hero-stage--modules .login-dashboard-tilt,
