@@ -424,13 +424,11 @@ body { padding: 0; }
 @media (min-width: 1200px) {
   .login-gate-split {
     /*
-      Showcase + form as one centered pair (not form stuck on the far-right cliff).
-      Left column caps at the composition width; wave still fills that portal pane.
-      Soft gate gradient fills leftover ultrawide margins outside the shell.
+      Full-bleed split: hero pane grows with viewport; sign-in rail stays pinned on the right.
     */
-    grid-template-columns: minmax(0, 1200px) minmax(400px, 440px);
+    grid-template-columns: minmax(0, 1fr) minmax(380px, 440px);
     grid-template-areas: "portal form";
-    justify-content: center;
+    justify-content: stretch;
     width: 100%;
     height: 100vh;
     height: 100dvh;
@@ -446,7 +444,7 @@ body { padding: 0; }
 
 @media (min-width: 1200px) {
   .login-gate-enterprise.login-gate-split {
-    background: linear-gradient(135deg, #F8FBFF 0%, #EEF6FF 42%, #E8F1FA 100%);
+    background: #EEF6FF;
   }
 }
 
@@ -455,7 +453,7 @@ body { padding: 0; }
   position: relative;
   display: flex;
   align-items: stretch;
-  justify-content: center;
+  justify-content: flex-start;
   width: 100%;
   min-width: 0;
   min-height: 100%;
@@ -469,9 +467,9 @@ body { padding: 0; }
 
 @media (min-width: 1200px) {
   .login-portal {
-    /* Wave fills the full left pane; composition is capped/centered via .login-portal-inner. */
+    /* Wave + gradient fill the full left pane edge-to-edge; copy stays flush left inside .login-portal-inner. */
     align-items: stretch;
-    justify-content: center;
+    justify-content: flex-start;
   }
 }
 
@@ -501,7 +499,8 @@ body { padding: 0; }
   position: absolute;
   inset: -12% -8% -8% -10%;
   background:
-    radial-gradient(46% 42% at 8% 92%, rgba(147, 197, 253, 0.28), transparent 70%);
+    radial-gradient(52% 48% at 4% 88%, rgba(147, 197, 253, 0.34), transparent 72%),
+    radial-gradient(38% 36% at 72% 18%, rgba(79, 70, 229, 0.08), transparent 70%);
   filter: blur(24px);
   pointer-events: none;
   z-index: 0;
@@ -512,7 +511,16 @@ body { padding: 0; }
 }
 
 .login-gate-enterprise .login-portal-bg::after {
-  content: none;
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 0;
+  opacity: 0.55;
+  background-image:
+    radial-gradient(circle at 1px 1px, rgba(37, 99, 235, 0.07) 1px, transparent 0);
+  background-size: 28px 28px;
+  mask-image: linear-gradient(105deg, black 0%, black 62%, transparent 92%);
 }
 
 .login-portal-inner {
@@ -533,22 +541,23 @@ body { padding: 0; }
 @media (min-width: 1200px) {
   .login-portal-inner {
     /*
-      Middle ground: fill reasonably on normal desktops, but cap composition width on
-      ultrawide so brand/dashboard/cards don't stretch into a sparse band. Wave still
-      covers the full left pane. Fluid scale (cqi/cqb) is relative to this capped column.
+      Flush-left composition inside the full-bleed hero pane; fluid scale (cqi/cqb) tracks the
+      growing left column — no centered card shell on ultrawide.
     */
     container-type: size;
     container-name: login-showcase;
     width: 100%;
-    max-width: min(1200px, 100%);
-    margin-inline: auto;
+    max-width: none;
+    margin-inline: 0;
     height: 100%;
     max-height: 100%;
-    justify-content: center;
+    justify-content: flex-start;
     gap: clamp(12px, 1.7cqb, 26px);
     padding:
-      clamp(16px, 2.4cqb, 36px)
-      clamp(18px, 3.2cqi, 48px);
+      clamp(20px, 2.6cqb, 40px)
+      clamp(28px, 3.6vw, 72px)
+      clamp(16px, 2cqb, 32px)
+      clamp(32px, 4.2vw, 64px);
     overflow: hidden;
     box-sizing: border-box;
   }
@@ -1011,7 +1020,9 @@ body { padding: 0; }
     grid-column: 1;
     grid-row: 1;
     height: 100%;
-    justify-content: center;
+    justify-content: flex-start;
+    align-items: flex-start;
+    text-align: left;
   }
 
   .login-hero-stage--modules .login-headline,
@@ -1039,6 +1050,22 @@ body { padding: 0; }
   .login-hero-stage--modules .login-module-preview.login-dashboard-preview.is-active {
     transform: rotateY(-12deg) rotateX(6deg) translateZ(12px);
     transform-origin: 82% 48%;
+  }
+}
+
+@media (min-width: 1600px) {
+  .login-hero-stage {
+    grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.25fr);
+    column-gap: clamp(20px, 2.8cqi, 48px);
+  }
+
+  .login-preview-viewport {
+    min-height: clamp(248px, 34cqb, 400px);
+  }
+
+  .login-hero-stage--modules .login-headline {
+    max-width: 16ch;
+    font-size: clamp(1.85rem, 0.45cqi + 1.05rem, 2.65rem);
   }
 }
 
@@ -1804,11 +1831,15 @@ body { padding: 0; }
 
 @media (min-width: 1200px) {
   .login-form-pane {
-    align-items: center;
+    align-items: stretch;
     justify-content: center;
-    padding: 40px clamp(24px, 3vw, 48px);
-    border-left: 1px solid color-mix(in srgb, var(--brand-border) 78%, white);
-    box-shadow: -16px 0 48px rgba(16, 38, 74, 0.035);
+    padding: 40px clamp(28px, 2.8vw, 44px);
+    border-left: 1px solid color-mix(in srgb, var(--brand-border) 72%, white);
+    box-shadow: -24px 0 64px rgba(16, 38, 74, 0.06);
+    background:
+      linear-gradient(165deg, rgba(255, 255, 255, 0.94) 0%, rgba(248, 251, 255, 0.92) 48%, rgba(238, 246, 255, 0.9) 100%);
+    backdrop-filter: blur(14px) saturate(1.15);
+    -webkit-backdrop-filter: blur(14px) saturate(1.15);
   }
 }
 
@@ -1872,9 +1903,11 @@ body { padding: 0; }
 
 @media (min-width: 1200px) {
   .login-gate-enterprise .login-card.login-panel {
-    width: min(420px, 100%);
-    max-width: 440px;
-    min-width: min(360px, 100%);
+    width: 100%;
+    max-width: 420px;
+    min-width: 0;
+    margin: 0;
+    align-self: center;
   }
 }
 

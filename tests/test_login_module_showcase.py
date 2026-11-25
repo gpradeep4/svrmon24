@@ -1,4 +1,4 @@
-"""Login gate — interactive module showcase (0.98.0)."""
+"""Login gate — interactive module showcase (0.99.0)."""
 
 from __future__ import annotations
 
@@ -30,7 +30,14 @@ def test_login_module_showcase_assets() -> None:
 
 
 def test_version_bump_for_login_showcase_cleanup() -> None:
-    assert __version__ == "0.98.0"
+    assert __version__ == "0.99.0"
     html = FRONTEND_INDEX.read_text(encoding="utf-8")
-    assert 'content="0.98.0"' in html
-    assert 'content="login-enterprise-v15"' in html
+    assert 'content="0.99.0"' in html
+    assert 'content="login-enterprise-v16"' in html
+
+
+def test_login_fullbleed_layout_css() -> None:
+    css = (FRONTEND_STATIC / "css" / "cmdb.css").read_text(encoding="utf-8")
+    assert "minmax(0, 1fr) minmax(380px, 440px)" in css
+    assert ".login-gate-enterprise .login-portal-bg::after" in css
+    assert "backdrop-filter: blur(14px)" in css
