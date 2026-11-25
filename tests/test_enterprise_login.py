@@ -17,7 +17,7 @@ def test_enterprise_login_structure() -> None:
     html = html_path.read_text(encoding="utf-8")
     js = js_path.read_text(encoding="utf-8")
 
-    assert 'content="login-enterprise-v17"' in html
+    assert 'content="login-enterprise-v18"' in html
     assert "svrmon-brand-lockup" in html
     assert 'src="/static/img/svrmon-logo.png"' in html
     assert "svrmon-logo-compact.png" in html
@@ -171,16 +171,16 @@ def test_enterprise_login_scale_layout_css() -> None:
     assert "3.2cqi" in css or "cqi" in css
     assert ".login-portal-inner" in css
     assert ".login-hero-stage" in css
-    assert "rotateY(-10deg)" in css
+    assert "rotateY(-13deg)" in css
     assert ".login-hero-stage .login-dashboard-tilt" in css
     assert "width: min(100%, 560px)" not in css
     assert "backdrop-filter: blur(14px)" in css
     assert "radial-gradient(circle at 1px 1px" in css
     # Desktop composition: vertical stack (logo → intro → preview → chips), not headline beside mock.
     assert ".login-showcase-intro" in css
-    hero_modules = css.split(".login-hero-stage--modules .login-dashboard-tilt", 1)[1].split("}", 1)[0]
-    assert "grid-column: 2" not in hero_modules
-    assert "width: 100%" in hero_modules
+    assert "grid-column: 2" not in css.split(".login-hero-stage--modules", 1)[0]
+    assert "margin-inline-start: clamp(20px, 5.5cqi, 96px)" in css
+    assert "perspective-origin: 22% 46%" in css
     # Post-login sidebar: transparent PNG lockup (no CSS-split wordmark / white pill).
     assert ".brand-mark--sidebar" in css
     assert ".svrmon-brand-lockup--sidebar" in css
@@ -205,7 +205,7 @@ def test_enterprise_login_version_bump() -> None:
 
     html_path, _ = _static_paths()
     html = html_path.read_text(encoding="utf-8")
-    assert __version__ == "0.99.1"
+    assert __version__ == "0.99.2"
     assert f'content="{__version__}"' in html
     assert f"cmdb.css?v={__version__}" in html
     assert f"cmdb.js?v={__version__}" in html

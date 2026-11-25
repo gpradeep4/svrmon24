@@ -1,4 +1,4 @@
-"""Monitoring L4 — agent registration + token auth + mTLS sketch (0.99.1)."""
+"""Monitoring L4 — agent registration + token auth + mTLS sketch (0.99.2)."""
 
 from __future__ import annotations
 
@@ -71,10 +71,10 @@ def _enroll(client: TestClient, auth_headers: dict[str, str], **extra) -> dict:
 
 
 def test_version_bump_for_monitor_l4() -> None:
-    assert __version__ == "0.99.1"
+    assert __version__ == "0.99.2"
     html = FRONTEND_INDEX.read_text(encoding="utf-8")
-    assert 'content="0.99.1"' in html
-    assert "monitor/agents.js?v=0.99.1" in html
+    assert 'content="0.99.2"' in html
+    assert "monitor/agents.js?v=0.99.2" in html
     assert 'data-tab="monitor-agents"' in html
     assert 'id="tab-monitor-agents"' in html
 
