@@ -178,9 +178,10 @@ def test_enterprise_login_scale_layout_css() -> None:
     assert "radial-gradient(circle at 1px 1px" in css
     # Desktop composition: vertical stack (logo → intro → preview → chips), not headline beside mock.
     assert ".login-showcase-intro" in css
-    hero_modules = css.split(".login-hero-stage--modules .login-dashboard-tilt", 1)[1].split("}", 1)[0]
+    hero_modules = css.split(".login-hero-stage--modules .login-preview-tilt", 1)[1].split("}", 1)[0]
     assert "grid-column: 2" not in hero_modules
-    assert "width: 100%" in hero_modules
+    assert "margin-inline-start" in hero_modules
+    assert "perspective:" in hero_modules
     # Post-login sidebar: transparent PNG lockup (no CSS-split wordmark / white pill).
     assert ".brand-mark--sidebar" in css
     assert ".svrmon-brand-lockup--sidebar" in css
