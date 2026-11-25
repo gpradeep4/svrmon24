@@ -17,7 +17,7 @@ def test_enterprise_login_structure() -> None:
     html = html_path.read_text(encoding="utf-8")
     js = js_path.read_text(encoding="utf-8")
 
-    assert 'content="login-enterprise-v15"' in html
+    assert 'content="login-enterprise-v16"' in html
     assert "svrmon-brand-lockup" in html
     assert 'src="/static/img/svrmon-logo.png"' in html
     assert "svrmon-logo-compact.png" in html
@@ -152,15 +152,20 @@ def test_enterprise_login_responsive_layout_css() -> None:
 
 
 def test_enterprise_login_scale_layout_css() -> None:
-    """Showcase fills normally but caps composition on ultrawide; form band stays fixed."""
+    """Full-bleed hero pane (flush left); sign-in rail pinned on the right."""
     css_path = FRONTEND_STATIC / "css" / "cmdb.css"
     css = css_path.read_text(encoding="utf-8")
-    assert "minmax(0, 1200px) minmax(400px, 440px)" in css
-    assert "justify-content: center" in css
-    assert "minmax(0, 1fr) minmax(400px, 440px)" not in css
+    assert "minmax(0, 1fr) minmax(380px, 440px)" in css
+    assert "minmax(0, 1200px) minmax(400px, 440px)" not in css
     assert "min(840px, 92%)" not in css
     assert "max-width: min(1080px, 92%)" not in css
-    assert "max-width: min(1200px, 100%)" in css
+    gate_desktop = css.split("@media (min-width: 1200px)", 1)[1].split(".login-gate-split", 1)[1].split("}", 1)[0]
+    assert "justify-content: stretch" in gate_desktop
+    portal_inner_desktop = css.split(".login-portal-inner {", 2)[2]
+    assert "max-width: none" in portal_inner_desktop
+    assert "margin-inline: 0" in portal_inner_desktop
+    assert "justify-content: flex-start" in portal_inner_desktop
+    assert "max-width: min(1200px, 100%)" not in css
     assert "container-type: size" in css
     assert "container-name: login-showcase" in css
     assert "3.2cqi" in css or "cqi" in css
@@ -169,14 +174,13 @@ def test_enterprise_login_scale_layout_css() -> None:
     assert "rotateY(-16deg)" in css
     assert ".login-hero-stage .login-dashboard-tilt" in css
     assert "width: min(100%, 560px)" not in css
+    assert "backdrop-filter: blur(14px)" in css
+    assert "radial-gradient(circle at 1px 1px" in css
     # Desktop composition: dashboard sits beside headline (col 2), not full-width stacked.
     hero_dash = css.split(".login-hero-stage .login-dashboard-tilt", 1)[1].split("}", 1)[0]
     assert "grid-column: 2" in hero_dash
     assert "1 / -1" not in hero_dash
     assert "width: 100%" in hero_dash
-    # Capped composition + container queries (fluid scale inside the cap).
-    assert "max-width: min(1200px, 100%)" in css
-    assert "margin-inline: auto" in css
     # Post-login sidebar: transparent PNG lockup (no CSS-split wordmark / white pill).
     assert ".brand-mark--sidebar" in css
     assert ".svrmon-brand-lockup--sidebar" in css
@@ -201,7 +205,7 @@ def test_enterprise_login_version_bump() -> None:
 
     html_path, _ = _static_paths()
     html = html_path.read_text(encoding="utf-8")
-    assert __version__ == "0.98.0"
+    assert __version__ == "0.99.0"
     assert f'content="{__version__}"' in html
     assert f"cmdb.css?v={__version__}" in html
     assert f"cmdb.js?v={__version__}" in html
