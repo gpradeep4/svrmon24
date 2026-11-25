@@ -180,7 +180,7 @@ def test_ui_markers_and_version(
 ) -> None:
     from app import __version__
 
-    assert __version__ == "0.99.0"
+    assert __version__ == "0.99.1"
     html = client.get("/", headers=auth_headers).text
     assert 'id="btnItsmChgRisk"' in html
     assert 'id="btnItsmIncSlaRisk"' in html

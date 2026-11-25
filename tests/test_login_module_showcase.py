@@ -1,4 +1,4 @@
-"""Login gate — interactive module showcase (0.99.0)."""
+"""Login gate — interactive module showcase (0.99.1)."""
 
 from __future__ import annotations
 
@@ -29,11 +29,23 @@ def test_login_module_showcase_assets() -> None:
     assert f"login-showcase.js?v={__version__}" in html
 
 
-def test_version_bump_for_login_showcase_cleanup() -> None:
-    assert __version__ == "0.99.0"
+def test_login_showcase_intro_stack() -> None:
     html = FRONTEND_INDEX.read_text(encoding="utf-8")
-    assert 'content="0.99.0"' in html
-    assert 'content="login-enterprise-v16"' in html
+    css = (FRONTEND_STATIC / "css" / "cmdb.css").read_text(encoding="utf-8")
+    assert 'class="login-showcase-intro"' in html
+    intro_idx = html.index("login-showcase-intro")
+    hero_idx = html.index("loginShowcaseStage")
+    rail_idx = html.index("loginModuleRail")
+    assert intro_idx < hero_idx < rail_idx
+    assert ".login-showcase-intro" in css
+    assert "login-showcase-copy" not in html
+
+
+def test_version_bump_for_login_showcase_cleanup() -> None:
+    assert __version__ == "0.99.1"
+    html = FRONTEND_INDEX.read_text(encoding="utf-8")
+    assert 'content="0.99.1"' in html
+    assert 'content="login-enterprise-v17"' in html
 
 
 def test_login_fullbleed_layout_css() -> None:

@@ -1,4 +1,4 @@
-"""Service Portal SP0 — package, meta, RBAC stubs (0.99.0)."""
+"""Service Portal SP0 — package, meta, RBAC stubs (0.99.1)."""
 
 from __future__ import annotations
 
@@ -21,7 +21,7 @@ from fastapi.testclient import TestClient
 
 
 def test_version_bump_for_portal_sp0() -> None:
-    assert __version__ == "0.99.0"
+    assert __version__ == "0.99.1"
 
 
 def test_portal_domains_include_cloud_and_generic() -> None:
