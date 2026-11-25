@@ -38,6 +38,11 @@ def test_version_bump_for_login_showcase_cleanup() -> None:
 
 def test_login_fullbleed_layout_css() -> None:
     css = (FRONTEND_STATIC / "css" / "cmdb.css").read_text(encoding="utf-8")
+    html = FRONTEND_INDEX.read_text(encoding="utf-8")
+    assert 'id="loginGate"' in html
     assert "minmax(0, 1fr) minmax(380px, 440px)" in css
+    assert "#loginGate.login-gate-split" in css
+    assert "max-width: none" in css.split("#loginGate.login-gate-split", 1)[1].split("}", 1)[0]
+    assert "body.is-login" in css
     assert ".login-gate-enterprise .login-portal-bg::after" in css
     assert "backdrop-filter: blur(14px)" in css

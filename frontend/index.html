@@ -10,6 +10,7 @@
   <link rel="apple-touch-icon" href="/static/img/svrmon-apple-touch.png" sizes="180x180" />
   <!-- Critical gate CSS: never paint login + app chrome together (before cmdb.css). -->
   <style>
+    body.is-login { background: #EEF6FF; }
     body.is-login .app-shell,
     body:not(.is-app) .app-shell { display: none !important; }
     body.is-app .login-gate { display: none !important; }

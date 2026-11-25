@@ -92,6 +92,19 @@ html, body {
 
 body { padding: 0; }
 
+/* Signed-out: gate must span the viewport (no centered max-width shell). */
+body.is-login {
+  background: #eef6ff;
+  overflow-x: hidden;
+}
+
+#loginGate.login-gate-split {
+  width: 100%;
+  max-width: none;
+  margin: 0;
+  box-sizing: border-box;
+}
+
 .app-shell {
   display: grid;
   /* minmax(0, …) prevents 2010px PNG intrinsic min-width from swallowing the main pane */
