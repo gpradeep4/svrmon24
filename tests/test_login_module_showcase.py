@@ -1,4 +1,4 @@
-"""Login gate — interactive module showcase (0.99.1)."""
+"""Login gate — interactive module showcase (0.99.2)."""
 
 from __future__ import annotations
 
@@ -41,11 +41,22 @@ def test_login_showcase_intro_stack() -> None:
     assert "login-showcase-copy" not in html
 
 
+def test_login_showcase_tilt_and_reduced_motion() -> None:
+    css = (FRONTEND_STATIC / "css" / "cmdb.css").read_text(encoding="utf-8")
+    assert "login-preview-tilt" in css
+    tilt_block = css.split(".login-hero-stage--modules .login-preview-tilt", 1)[1].split("}", 1)[0]
+    assert "perspective:" in tilt_block
+    assert "rotateY" in css
+    reduced = css.split("@media (prefers-reduced-motion: reduce)", 1)[1].split("@media", 1)[0]
+    assert "perspective: none" in reduced
+    assert "transform: none" in reduced
+
+
 def test_version_bump_for_login_showcase_cleanup() -> None:
-    assert __version__ == "0.99.1"
+    assert __version__ == "0.99.2"
     html = FRONTEND_INDEX.read_text(encoding="utf-8")
-    assert 'content="0.99.1"' in html
-    assert 'content="login-enterprise-v17"' in html
+    assert 'content="0.99.2"' in html
+    assert 'content="login-enterprise-v18"' in html
 
 
 def test_login_fullbleed_layout_css() -> None:

@@ -1,4 +1,4 @@
-"""Monitoring M3 — File Monitoring data rehome to svrmon-monitor (0.99.1)."""
+"""Monitoring M3 — File Monitoring data rehome to svrmon-monitor (0.99.2)."""
 
 from __future__ import annotations
 
@@ -11,9 +11,9 @@ from tests.frontend_paths import FRONTEND_INDEX
 
 
 def test_version_bump_for_monitor_m3() -> None:
-    assert __version__ == "0.99.1"
+    assert __version__ == "0.99.2"
     html = FRONTEND_INDEX.read_text(encoding="utf-8")
-    assert 'content="0.99.1"' in html
+    assert 'content="0.99.2"' in html
 
 
 def test_meta_reports_monitor_database(

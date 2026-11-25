@@ -773,29 +773,31 @@ body.is-login {
 .login-module-rail {
   display: flex;
   flex-wrap: wrap;
-  gap: 8px;
+  gap: 6px;
   min-width: 0;
   margin-top: clamp(10px, 1.4cqb, 18px);
-  max-width: min(52ch, 100%);
+  max-width: min(72ch, 100%);
 }
 
 .login-module-chip {
   appearance: none;
   font: inherit;
   cursor: pointer;
-  padding: 7px 12px;
+  padding: 5px 11px;
   border-radius: 999px;
-  border: 1px solid #CBD5E1;
-  background: #FFFFFF;
-  color: #334155;
-  font-size: 0.78rem;
-  font-weight: 600;
-  line-height: 1.2;
-  transition: border-color 0.2s ease, background 0.2s ease, box-shadow 0.2s ease, color 0.2s ease;
+  border: 1px solid #E2E8F0;
+  background: rgba(255, 255, 255, 0.92);
+  color: #475569;
+  font-size: 0.76rem;
+  font-weight: 550;
+  line-height: 1.25;
+  letter-spacing: 0.01em;
+  transition: border-color 0.2s ease, background 0.2s ease, color 0.2s ease;
 }
 
 .login-module-chip:hover {
-  border-color: color-mix(in srgb, var(--accent) 45%, #CBD5E1);
+  border-color: #CBD5E1;
+  background: #FFFFFF;
   color: #0F172A;
 }
 
@@ -805,16 +807,16 @@ body.is-login {
 }
 
 .login-module-chip.is-active {
-  border-color: color-mix(in srgb, var(--accent) 55%, #CBD5E1);
-  background: color-mix(in srgb, var(--accent) 10%, white);
+  border-color: color-mix(in srgb, var(--accent) 38%, #E2E8F0);
+  background: color-mix(in srgb, var(--accent) 8%, white);
   color: #0F172A;
-  box-shadow: 0 0 0 1px color-mix(in srgb, var(--accent) 22%, transparent);
+  font-weight: 600;
 }
 
 .login-preview-viewport {
   position: relative;
   width: 100%;
-  min-height: clamp(228px, 30cqb, 340px);
+  min-height: clamp(248px, 36cqb, 400px);
 }
 
 .login-module-preview.login-dashboard-preview {
@@ -1014,6 +1016,20 @@ body.is-login {
   .login-preview-viewport .login-module-preview {
     transition: none;
   }
+
+  .login-dashboard-tilt,
+  .login-hero-stage .login-dashboard-tilt,
+  .login-hero-stage--modules .login-preview-tilt {
+    perspective: none;
+  }
+
+  .login-dashboard-preview,
+  .login-hero-stage .login-dashboard-preview,
+  .login-hero-stage--modules .login-module-preview.login-dashboard-preview,
+  .login-hero-stage--modules .login-module-preview.login-dashboard-preview.is-active {
+    transform: none;
+    transform-origin: center;
+  }
 }
 
 @media (min-width: 1200px) {
@@ -1026,18 +1042,19 @@ body.is-login {
     flex: 1 1 auto;
     min-height: 0;
     width: 100%;
-    max-width: min(920px, 100%);
+    max-width: 100%;
   }
 
   .login-hero-stage .login-dashboard-tilt,
   .login-hero-stage--modules .login-dashboard-tilt,
   .login-hero-stage--modules .login-preview-tilt {
-    width: 100%;
-    max-width: 100%;
+    width: min(108%, calc(100% + clamp(24px, 5cqi, 72px)));
+    max-width: none;
     margin: 0;
-    padding: clamp(4px, 0.8cqb, 12px) 0 clamp(6px, 1cqb, 10px);
-    perspective: 1500px;
-    perspective-origin: 12% 42%;
+    margin-inline-start: clamp(20px, 5.5cqi, 96px);
+    padding: clamp(6px, 1cqb, 14px) clamp(0px, 1cqi, 12px) clamp(8px, 1.2cqb, 14px);
+    perspective: 1400px;
+    perspective-origin: 22% 46%;
   }
 
   .login-hero-stage--modules .login-preview-caption {
@@ -1053,18 +1070,18 @@ body.is-login {
   }
 
   .login-hero-stage--modules .login-module-preview.login-dashboard-preview.is-active {
-    transform: rotateY(-10deg) rotateX(5deg) translateZ(10px);
-    transform-origin: 14% 48%;
+    transform: rotateY(-13deg) rotateX(4.5deg) translateZ(18px) scale(1.02);
+    transform-origin: 18% 50%;
   }
 }
 
 @media (min-width: 1600px) {
   .login-preview-viewport {
-    min-height: clamp(248px, 34cqb, 400px);
+    min-height: clamp(300px, 44cqb, 520px);
   }
 
   .login-hero-stage {
-    max-width: min(980px, 100%);
+    max-width: 100%;
   }
 
   .login-showcase-intro .login-headline {
@@ -1122,25 +1139,26 @@ body.is-login {
 
 .login-dashboard-glow {
   position: absolute;
-  left: 12%;
-  right: 2%;
-  top: 6%;
-  bottom: 18%;
-  background: radial-gradient(ellipse at 55% 40%, rgba(147, 197, 253, 0.55), transparent 68%);
-  filter: blur(28px);
+  left: 14%;
+  right: 0;
+  top: 8%;
+  bottom: 14%;
+  background: radial-gradient(ellipse at 58% 42%, rgba(147, 197, 253, 0.28), transparent 72%);
+  filter: blur(22px);
   pointer-events: none;
   z-index: 0;
+  opacity: 0.85;
 }
 
 .login-dashboard-shadow {
   position: absolute;
-  left: 8%;
-  right: 12%;
-  bottom: 4px;
-  height: 42px;
-  background: radial-gradient(ellipse at center, rgba(37, 99, 235, 0.22), transparent 70%);
-  filter: blur(14px);
-  transform: rotateZ(-2deg) scaleY(0.75);
+  left: 10%;
+  right: 8%;
+  bottom: 2px;
+  height: 48px;
+  background: radial-gradient(ellipse at center, rgba(15, 23, 42, 0.14), transparent 72%);
+  filter: blur(18px);
+  transform: rotateZ(-2deg) scaleY(0.8);
   pointer-events: none;
   z-index: 0;
 }
@@ -1154,11 +1172,10 @@ body.is-login {
   border: 1px solid rgba(148, 163, 184, 0.28);
   background: #FFFFFF;
   box-shadow:
-    0 1px 1px rgba(15, 23, 42, 0.03),
-    0 18px 44px rgba(37, 99, 235, 0.14),
-    0 40px 80px rgba(15, 23, 42, 0.1);
+    0 2px 8px rgba(15, 23, 42, 0.06),
+    0 20px 48px rgba(15, 23, 42, 0.12);
   overflow: hidden;
-  transform: rotateY(-12deg) rotateX(7deg) translateZ(32px);
+  transform: rotateY(-12deg) rotateX(6deg) translateZ(24px);
   transform-origin: 18% center;
   backface-visibility: hidden;
 }
@@ -1167,25 +1184,24 @@ body.is-login {
   .login-hero-stage .login-dashboard-preview {
     width: 100%;
     margin: 0;
-    border-radius: 14px;
-    border-color: rgba(148, 163, 184, 0.35);
-    transform: rotateY(-10deg) rotateX(5deg) translateZ(14px);
-    transform-origin: 14% 48%;
+    border-radius: 16px;
+    border-color: rgba(148, 163, 184, 0.32);
+    transform: rotateY(-13deg) rotateX(4.5deg) translateZ(18px) scale(1.02);
+    transform-origin: 18% 50%;
     transform-style: preserve-3d;
     box-shadow:
-      0 1px 2px rgba(15, 23, 42, 0.06),
-      0 22px 48px rgba(37, 99, 235, 0.2),
-      0 48px 96px rgba(15, 23, 42, 0.16);
+      0 4px 12px rgba(15, 23, 42, 0.07),
+      0 28px 56px rgba(15, 23, 42, 0.14);
   }
 
   .login-hero-stage .login-dashboard-shadow {
     display: block;
-    left: 4%;
-    right: 22%;
-    bottom: -2px;
-    height: 52px;
+    left: 8%;
+    right: 14%;
+    bottom: -4px;
+    height: 56px;
     opacity: 1;
-    transform: rotateZ(-3deg) scaleY(0.7);
+    transform: rotateZ(-3deg) scaleY(0.75);
   }
 
 }
@@ -1222,8 +1238,8 @@ body.is-login {
 
 @media (min-width: 1200px) {
   .login-dash-chrome--labeled {
-    grid-template-columns: minmax(140px, 12cqi) 1fr;
-    min-height: clamp(220px, 28cqb, 320px);
+    grid-template-columns: minmax(148px, 13cqi) 1fr;
+    min-height: clamp(268px, 36cqb, 420px);
   }
 }
 

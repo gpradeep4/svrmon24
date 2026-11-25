@@ -1,4 +1,4 @@
-"""Service Portal SP11 — Vulnerability scan catalog + reports (0.99.1)."""
+"""Service Portal SP11 — Vulnerability scan catalog + reports (0.99.2)."""
 
 from __future__ import annotations
 
@@ -13,10 +13,10 @@ from tests.frontend_paths import FRONTEND_INDEX
 
 
 def test_version_bump_for_portal_vuln_scan() -> None:
-    assert __version__ == "0.99.1"
+    assert __version__ == "0.99.2"
     html = FRONTEND_INDEX.read_text(encoding="utf-8")
-    assert 'content="0.99.1"' in html
-    assert "portal/vuln.js?v=0.99.1" in html
+    assert 'content="0.99.2"' in html
+    assert "portal/vuln.js?v=0.99.2" in html
     assert 'data-tab="sp-vuln-reports"' in html
 
 
