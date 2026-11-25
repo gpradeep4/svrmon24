@@ -171,7 +171,7 @@ def test_enterprise_login_scale_layout_css() -> None:
     assert "3.2cqi" in css or "cqi" in css
     assert ".login-portal-inner" in css
     assert ".login-hero-stage" in css
-    assert "rotateY(-10deg)" in css
+    assert "rotateY(-13deg)" in css
     assert ".login-hero-stage .login-dashboard-tilt" in css
     assert "width: min(100%, 560px)" not in css
     assert "backdrop-filter: blur(14px)" in css
