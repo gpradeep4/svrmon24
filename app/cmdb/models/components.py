@@ -21,10 +21,104 @@ COMPONENT_TYPES: tuple[str, ...] = tuple(t.value for t in ComponentType)
 
 
 class ComponentStatus(str, Enum):
+    """Stored status values — map-only (Helix Deployed → active via UI labels later)."""
+
     ACTIVE = "active"
     INACTIVE = "inactive"
     DECOMMISSIONED = "decommissioned"
     UNKNOWN = "unknown"
+
+
+class SupportedFlag(str, Enum):
+    YES = "yes"
+    NO = "no"
+    UNKNOWN = "unknown"
+
+
+class ImpactLevel(str, Enum):
+    """ITSM-aligned impact (1 = highest)."""
+
+    ONE = "1"
+    TWO = "2"
+    THREE = "3"
+    FOUR = "4"
+    FIVE = "5"
+
+
+class UrgencyLevel(str, Enum):
+    """ITSM-aligned urgency (1 = highest)."""
+
+    ONE = "1"
+    TWO = "2"
+    THREE = "3"
+    FOUR = "4"
+    FIVE = "5"
+
+
+class PriorityLevel(str, Enum):
+    """ITSM-aligned priority (1 = highest; Helix sample PRIORITY_5 → \"5\")."""
+
+    ONE = "1"
+    TWO = "2"
+    THREE = "3"
+    FOUR = "4"
+    FIVE = "5"
+
+
+class ProductCategorization(BaseModel):
+    """Optional three-tier product categorization (General tab)."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    tier1: str | None = None
+    tier2: str | None = None
+    tier3: str | None = None
+
+    @field_validator("tier1", "tier2", "tier3")
+    @classmethod
+    def strip_tiers(cls, value: str | None) -> str | None:
+        if value is None:
+            return None
+        cleaned = value.strip()
+        return cleaned or None
+
+
+class CiLifecycle(BaseModel):
+    """Optional lifecycle dates (General tab) — nested for consistency."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    ordered_at: datetime | None = None
+    received_at: datetime | None = None
+    installed_at: datetime | None = None
+    retirement_date: datetime | None = None
+
+
+# Shared optional header + General natives on every typed CI document.
+COMMON_OPTIONAL_KEYS: frozenset[str] = frozenset(
+    {
+        # Header
+        "description",
+        "tag_number",
+        "serial_number",
+        "part_number",
+        "supported",
+        "inventory_name",
+        "company",
+        "system_role",
+        "status_reason",
+        "impact",
+        "urgency",
+        "priority",
+        "users_affected",
+        "additional_information",
+        # General
+        "manufacturer",
+        "model",
+        "product_categorization",
+        "lifecycle",
+    }
+)
 
 
 class ServerFields(BaseModel):
@@ -32,6 +126,17 @@ class ServerFields(BaseModel):
     ip_address: str | None = None
     os_family: str | None = None
     os_version: str | None = None
+    # Helix Specifications natives (Computer System)
+    system_type: str | None = None
+    virtual_system_type: str | None = None
+    is_virtual: bool | None = None
+    impact_computation_model: str | None = None
+    reset_capability: str | None = None
+    dns_hostname: str | None = None
+    domain: str | None = None
+    workgroup: str | None = None
+    total_physical_memory_mb: int | None = Field(default=None, ge=0)
+    flash_memory_mb: int | None = Field(default=None, ge=0)
 
 
 class MiddlewareFields(BaseModel):
@@ -93,6 +198,25 @@ def _empty_type_fields(component_type: ComponentType) -> dict[str, Any]:
     return {key: None for key in TYPE_SPECIFIC_KEYS[component_type]}
 
 
+def _strip_optional_str(value: str | None) -> str | None:
+    if value is None:
+        return None
+    cleaned = value.strip()
+    return cleaned or None
+
+
+def _enum_value(value: Any) -> Any:
+    if isinstance(value, Enum):
+        return value.value
+    return value
+
+
+def _dump_nested(value: Any) -> Any:
+    if isinstance(value, BaseModel):
+        return value.model_dump()
+    return value
+
+
 class ComponentCreate(BaseModel):
     """Payload to create a CMDB component."""
 
@@ -110,11 +234,43 @@ class ComponentCreate(BaseModel):
     status: ComponentStatus = ComponentStatus.ACTIVE
     custom_fields: dict[str, Any] = Field(default_factory=dict)
 
+    # Shared header (optional)
+    description: str | None = Field(default=None, max_length=512)
+    tag_number: str | None = Field(default=None, max_length=128)
+    serial_number: str | None = Field(default=None, max_length=256)
+    part_number: str | None = Field(default=None, max_length=128)
+    supported: SupportedFlag | None = None
+    inventory_name: str | None = Field(default=None, max_length=256)
+    company: str | None = Field(default=None, max_length=128)
+    system_role: str | None = Field(default=None, max_length=128)
+    status_reason: str | None = Field(default=None, max_length=256)
+    impact: ImpactLevel | None = None
+    urgency: UrgencyLevel | None = None
+    priority: PriorityLevel | None = None
+    users_affected: int | None = Field(default=None, ge=0)
+    additional_information: str | None = Field(default=None, max_length=4096)
+
+    # Shared General (optional)
+    manufacturer: str | None = Field(default=None, max_length=256)
+    model: str | None = Field(default=None, max_length=256)
+    product_categorization: ProductCategorization | None = None
+    lifecycle: CiLifecycle | None = None
+
     # Server
     hostname: str | None = None
     ip_address: str | None = None
     os_family: str | None = None
     os_version: str | None = None
+    system_type: str | None = None
+    virtual_system_type: str | None = None
+    is_virtual: bool | None = None
+    impact_computation_model: str | None = None
+    reset_capability: str | None = None
+    dns_hostname: str | None = None
+    domain: str | None = None
+    workgroup: str | None = None
+    total_physical_memory_mb: int | None = Field(default=None, ge=0)
+    flash_memory_mb: int | None = Field(default=None, ge=0)
 
     # Middleware / Database shared product fields
     product_type: str | None = None
@@ -164,6 +320,30 @@ class ComponentCreate(BaseModel):
             raise ValueError("value cannot be blank")
         return cleaned
 
+    @field_validator(
+        "description",
+        "tag_number",
+        "serial_number",
+        "part_number",
+        "inventory_name",
+        "company",
+        "system_role",
+        "status_reason",
+        "additional_information",
+        "manufacturer",
+        "model",
+        "system_type",
+        "virtual_system_type",
+        "impact_computation_model",
+        "reset_capability",
+        "dns_hostname",
+        "domain",
+        "workgroup",
+    )
+    @classmethod
+    def strip_optional_strings(cls, value: str | None) -> str | None:
+        return _strip_optional_str(value)
+
     @model_validator(mode="after")
     def validate_type_specific_fields(self) -> ComponentCreate:
         allowed = TYPE_SPECIFIC_KEYS[self.component_type]
@@ -191,10 +371,40 @@ class ComponentUpdate(BaseModel):
     status: ComponentStatus | None = None
     custom_fields: dict[str, Any] | None = None
 
+    description: str | None = Field(default=None, max_length=512)
+    tag_number: str | None = Field(default=None, max_length=128)
+    serial_number: str | None = Field(default=None, max_length=256)
+    part_number: str | None = Field(default=None, max_length=128)
+    supported: SupportedFlag | None = None
+    inventory_name: str | None = Field(default=None, max_length=256)
+    company: str | None = Field(default=None, max_length=128)
+    system_role: str | None = Field(default=None, max_length=128)
+    status_reason: str | None = Field(default=None, max_length=256)
+    impact: ImpactLevel | None = None
+    urgency: UrgencyLevel | None = None
+    priority: PriorityLevel | None = None
+    users_affected: int | None = Field(default=None, ge=0)
+    additional_information: str | None = Field(default=None, max_length=4096)
+
+    manufacturer: str | None = Field(default=None, max_length=256)
+    model: str | None = Field(default=None, max_length=256)
+    product_categorization: ProductCategorization | None = None
+    lifecycle: CiLifecycle | None = None
+
     hostname: str | None = None
     ip_address: str | None = None
     os_family: str | None = None
     os_version: str | None = None
+    system_type: str | None = None
+    virtual_system_type: str | None = None
+    is_virtual: bool | None = None
+    impact_computation_model: str | None = None
+    reset_capability: str | None = None
+    dns_hostname: str | None = None
+    domain: str | None = None
+    workgroup: str | None = None
+    total_physical_memory_mb: int | None = Field(default=None, ge=0)
+    flash_memory_mb: int | None = Field(default=None, ge=0)
     product_type: str | None = None
     product_version: str | None = None
     instance_name: str | None = None
@@ -228,6 +438,30 @@ class ComponentUpdate(BaseModel):
             raise ValueError("value cannot be blank")
         return cleaned
 
+    @field_validator(
+        "description",
+        "tag_number",
+        "serial_number",
+        "part_number",
+        "inventory_name",
+        "company",
+        "system_role",
+        "status_reason",
+        "additional_information",
+        "manufacturer",
+        "model",
+        "system_type",
+        "virtual_system_type",
+        "impact_computation_model",
+        "reset_capability",
+        "dns_hostname",
+        "domain",
+        "workgroup",
+    )
+    @classmethod
+    def strip_optional_strings(cls, value: str | None) -> str | None:
+        return _strip_optional_str(value)
+
 
 class ComponentView(BaseModel):
     """Full component document returned by the API."""
@@ -243,10 +477,39 @@ class ComponentView(BaseModel):
     updated_at: datetime
     custom_fields: dict[str, Any] = Field(default_factory=dict)
 
+    description: str | None = None
+    tag_number: str | None = None
+    serial_number: str | None = None
+    part_number: str | None = None
+    supported: SupportedFlag | None = None
+    inventory_name: str | None = None
+    company: str | None = None
+    system_role: str | None = None
+    status_reason: str | None = None
+    impact: ImpactLevel | None = None
+    urgency: UrgencyLevel | None = None
+    priority: PriorityLevel | None = None
+    users_affected: int | None = None
+    additional_information: str | None = None
+    manufacturer: str | None = None
+    model: str | None = None
+    product_categorization: ProductCategorization | None = None
+    lifecycle: CiLifecycle | None = None
+
     hostname: str | None = None
     ip_address: str | None = None
     os_family: str | None = None
     os_version: str | None = None
+    system_type: str | None = None
+    virtual_system_type: str | None = None
+    is_virtual: bool | None = None
+    impact_computation_model: str | None = None
+    reset_capability: str | None = None
+    dns_hostname: str | None = None
+    domain: str | None = None
+    workgroup: str | None = None
+    total_physical_memory_mb: int | None = None
+    flash_memory_mb: int | None = None
     product_type: str | None = None
     product_version: str | None = None
     instance_name: str | None = None
@@ -343,6 +606,15 @@ def build_component_document(
         "created_at": now,
         "updated_at": now,
     }
+    # Shared optional header / General — always present (null when unset)
+    for key in COMMON_OPTIONAL_KEYS:
+        value = getattr(payload, key)
+        if key in {"supported", "impact", "urgency", "priority"}:
+            doc[key] = _enum_value(value)
+        elif key in {"product_categorization", "lifecycle"}:
+            doc[key] = _dump_nested(value)
+        else:
+            doc[key] = value
     # Ensure all type-specific keys exist (None for N/A) for stable reads/columns
     for ctype, keys in TYPE_SPECIFIC_KEYS.items():
         for key in keys:
@@ -373,9 +645,21 @@ def apply_component_update(
     if "status" in data and data["status"] is not None:
         status = data.pop("status")
         existing["status"] = status.value if isinstance(status, ComponentStatus) else status
+    elif "status" in data:
+        data.pop("status")
+
+    for key in list(data.keys()):
+        if key not in COMMON_OPTIONAL_KEYS:
+            continue
+        value = data.pop(key)
+        if key in {"supported", "impact", "urgency", "priority"}:
+            existing[key] = _enum_value(value)
+        elif key in {"product_categorization", "lifecycle"}:
+            existing[key] = _dump_nested(value)
+        else:
+            existing[key] = value
 
     allowed = TYPE_SPECIFIC_KEYS[ctype]
-    unexpected = set(data) - set(allowed)
     # Ignore None-clears for keys not belonging to this type only if they weren't set;
     # reject explicitly setting foreign type fields
     foreign_set = {

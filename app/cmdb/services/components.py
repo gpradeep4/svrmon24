@@ -17,6 +17,7 @@ from pymongo.errors import DuplicateKeyError
 
 from ...db import require_database
 from ..models.components import (
+    COMMON_OPTIONAL_KEYS,
     COMPONENT_TYPES,
     TYPE_SPECIFIC_KEYS,
     ComponentCreate,
@@ -82,10 +83,12 @@ def generate_component_id(component_type: ComponentType) -> str:
 
 
 def ensure_type_keys(doc: dict[str, Any]) -> dict[str, Any]:
-    """Backfill missing type-specific keys as None for older documents."""
+    """Backfill missing type-specific / common optional keys as None for older docs."""
     for keys in TYPE_SPECIFIC_KEYS.values():
         for key in keys:
             doc.setdefault(key, None)
+    for key in COMMON_OPTIONAL_KEYS:
+        doc.setdefault(key, None)
     doc.setdefault("custom_fields", {})
     return doc
 

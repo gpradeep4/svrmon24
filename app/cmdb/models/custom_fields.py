@@ -208,6 +208,62 @@ def field_applies_to_type(definition: dict, component_type: ComponentType | str)
     return ctype in applies
 
 
+def example_org_custom_field_specs() -> list[dict]:
+    """Example **custom** field definitions for org-specific CI attributes.
+
+    These are **not** product schema / built-ins. Tenants create them via
+    ``/api/field-definitions`` (or seed scripts). Keys are generic — never
+    hardcode org brand prefixes (e.g. ``UOB_``) in product natives.
+    """
+    return [
+        {
+            "field_key": "app_code",
+            "label": "Application Code",
+            "field_type": CustomFieldType.STRING.value,
+            "applies_to": [ComponentType.SERVER.value],
+            "required": False,
+            "enum_values": [],
+            "description": "Short application / portfolio code on the Computer System.",
+        },
+        {
+            "field_key": "device_stage",
+            "label": "Device Stage",
+            "field_type": CustomFieldType.ENUM.value,
+            "applies_to": [ComponentType.SERVER.value],
+            "required": False,
+            "enum_values": [
+                "ordered",
+                "received",
+                "commissioned",
+                "in_service",
+                "decommissioning",
+            ],
+            "description": "Lifecycle stage beyond core status (tenant-defined enum).",
+        },
+        {
+            "field_key": "hostname_alias",
+            "label": "Hostname Alias",
+            "field_type": CustomFieldType.STRING.value,
+            "applies_to": [ComponentType.SERVER.value],
+            "required": False,
+            "enum_values": [],
+            "description": "Alternate hostname / alias for the CI.",
+        },
+        {
+            "field_key": "supported_countries",
+            "label": "Supported Countries",
+            "field_type": CustomFieldType.STRING.value,
+            "applies_to": [ComponentType.SERVER.value],
+            "required": False,
+            "enum_values": [],
+            "description": (
+                "Comma-separated country codes or names this CI supports "
+                "(string until a multi-value field type exists)."
+            ),
+        },
+    ]
+
+
 def builtin_field_specs() -> list[dict]:
     """Canonical built-in definitions — OS and product pairs stay separate."""
     return [

@@ -23,6 +23,7 @@ from ..models.custom_fields import (
     FieldOrigin,
     FieldStorage,
     builtin_field_specs,
+    example_org_custom_field_specs,
     field_applies_to_type,
 )
 from ..models.components import ComponentType
@@ -150,6 +151,45 @@ def ensure_builtin_definitions(*, tenant_id: str) -> dict[str, Any]:
         "created": created,
         "ensured": skipped + created,
         "builtin_keys": sorted(BUILTIN_FIELD_KEYS),
+    }
+
+
+def ensure_example_org_custom_fields(*, tenant_id: str) -> dict[str, Any]:
+    """Idempotently seed example org custom field definitions (not product-branded).
+
+    Safe for demo/seed scripts. Does **not** run automatically for every tenant
+    on API read — operators opt in via seed or explicit call.
+    """
+    tid = require_tenant_id(tenant_id)
+    ensure_builtin_definitions(tenant_id=tid)
+    created = 0
+    skipped = 0
+    for spec in example_org_custom_field_specs():
+        key = spec["field_key"]
+        if get_definition(key, tenant_id=tid) is not None:
+            skipped += 1
+            continue
+        try:
+            create_definition(
+                CustomFieldCreate(
+                    field_key=key,
+                    label=spec["label"],
+                    field_type=spec["field_type"],
+                    applies_to=list(spec.get("applies_to") or ["*"]),
+                    required=bool(spec.get("required", False)),
+                    enum_values=list(spec.get("enum_values") or []),
+                    description=spec.get("description"),
+                ),
+                tenant_id=tid,
+            )
+            created += 1
+        except CustomFieldError:
+            skipped += 1
+    return {
+        "tenant_id": tid,
+        "created": created,
+        "skipped": skipped,
+        "example_keys": [s["field_key"] for s in example_org_custom_field_specs()],
     }
 
 
