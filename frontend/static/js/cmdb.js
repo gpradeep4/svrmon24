@@ -1602,7 +1602,12 @@
     const headers = Object.assign({ Accept: "application/json" }, options.headers || {});
     const auth = authHeader();
     if (auth) headers.Authorization = auth;
-    if (options.body && !headers["Content-Type"]) {
+    // FormData must keep the browser multipart boundary — never force JSON.
+    if (
+      options.body &&
+      !(typeof FormData !== "undefined" && options.body instanceof FormData) &&
+      !headers["Content-Type"]
+    ) {
       headers["Content-Type"] = "application/json";
     }
     const res = await fetch(resolveApiUrl(path), { ...options, headers, credentials: "include" });

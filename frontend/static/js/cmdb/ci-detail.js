@@ -1,15 +1,16 @@
 /**
- * CMDB C1+C2 — Helix-aligned CI detail.
+ * CMDB C1–C3 — Helix-aligned CI detail.
  *
  * C1: sticky header + General + Specifications.
  * C2: Relationships (HOSTS + child/parent) + Relationship Details tree.
+ * C3: People + Work Info via registerTabHook (+ optional ITSM ticket_ref).
  *
  * Later slices hook via SVRMON24CmdbCiDetail.registerTabHook:
- *   C3 People / Work Info (+ optional ITSM ticket_ref deep link)
  *   C4 Contracts / Outage / Impacted Areas
  *
  * ITSM coupling: related INC/CHG via /api/itsm/*?component_id= for this CI and
- * HOSTS/HOSTED_ON children (no Mongo cross-DB joins).
+ * HOSTS/HOSTED_ON children (no Mongo cross-DB joins). Work Info stores optional
+ * itsm_ticket_ref only — tickets stay in ITSM DB.
  */
 (function (global) {
   "use strict";
@@ -17,13 +18,30 @@
   const HELIX_TABS = [
     { id: "general", label: "General", active: true },
     { id: "specifications", label: "Specifications", active: true },
-    { id: "work-info", label: "Work Info", active: false, slice: "C3" },
+    { id: "work-info", label: "Work Info", active: true },
     { id: "contracts", label: "Contracts", active: false, slice: "C4" },
-    { id: "people", label: "People", active: false, slice: "C3" },
+    { id: "people", label: "People", active: true },
     { id: "relationships", label: "Relationships", active: true },
     { id: "relationship-details", label: "Relationship Details", active: true },
     { id: "outage", label: "Outage", active: false, slice: "C4" },
     { id: "impacted-areas", label: "Impacted Areas", active: false, slice: "C4" },
+  ];
+
+  const PEOPLE_ROLES = [
+    { value: "managed_by", label: "Managed by" },
+    { value: "supported_by", label: "Supported by" },
+    { value: "owned_by", label: "Owned by" },
+    { value: "approved_by", label: "Approved by" },
+  ];
+
+  const WORK_INFO_TYPES = [
+    { value: "general", label: "General" },
+    { value: "customer_communication", label: "Customer Communication" },
+    { value: "incident", label: "Incident" },
+    { value: "problem", label: "Problem" },
+    { value: "change", label: "Change" },
+    { value: "note", label: "Note" },
+    { value: "other", label: "Other" },
   ];
 
   const REL_TYPE_FILTERS = [
@@ -1586,6 +1604,594 @@
     openCiDetail(cid, { ciTab: route.ci_tab || "general" });
     return true;
   }
+
+  // ---------------------------------------------------------------------------
+  // C3 — People + Work Info (registerTabHook)
+  // ---------------------------------------------------------------------------
+
+  async function openCreateRelatedItsm(componentId, kind) {
+    const tab = kind === "change" ? "itsm-changes" : "itsm-incidents";
+    let assignmentGroup = null;
+    try {
+      const primary = await deps.api(
+        `/api/components/${encodeURIComponent(componentId)}/people/primary`
+      );
+      const hint = primary?.assignment_hint;
+      if (hint?.assignment_group) assignmentGroup = hint.assignment_group;
+    } catch (_err) {
+      // Soft-fail: still open ITSM create with CI only.
+    }
+    if (global.SVRMON24ItsmDeeplinks?.openCreateRelated) {
+      global.SVRMON24ItsmDeeplinks.openCreateRelated(componentId, {
+        tab,
+        assignmentGroup,
+      });
+      return;
+    }
+    if (global.SVRMON24ItsmDeeplinks?.openTicketsForComponent) {
+      global.SVRMON24ItsmDeeplinks.openTicketsForComponent(componentId, tab);
+    } else {
+      deps.toast("ITSM deep-links unavailable", true);
+    }
+  }
+
+  function openItsmTicketRef(ref) {
+    if (!ref || !ref.ticket_id) return;
+    const module = String(ref.module || "").toLowerCase();
+    const tid = ref.ticket_id;
+    if (module === "incident") {
+      global.SVRMON24ItsmRouting?.navigateTo?.({
+        tab: "itsm-incidents",
+        incident_id: tid,
+      });
+    } else if (module === "change") {
+      global.SVRMON24ItsmRouting?.navigateTo?.({
+        tab: "itsm-changes",
+        change_id: tid,
+      });
+    } else if (module === "problem") {
+      global.SVRMON24ItsmRouting?.navigateTo?.({
+        tab: "itsm-problems",
+        problem_id: tid,
+      });
+    } else if (global.SVRMON24ItsmDeeplinks?.openTicketsForComponent) {
+      global.SVRMON24ItsmDeeplinks.openTicketsForComponent(state.componentId);
+    }
+  }
+
+  function peopleRoleOptions(selected) {
+    const known = PEOPLE_ROLES.map(
+      (r) =>
+        `<option value="${esa(r.value)}" ${
+          selected === r.value ? "selected" : ""
+        }>${esc(r.label)}</option>`
+    ).join("");
+    if (selected && !PEOPLE_ROLES.some((r) => r.value === selected)) {
+      return (
+        `<option value="${esa(selected)}" selected>${esc(selected)}</option>` +
+        known
+      );
+    }
+    return known;
+  }
+
+  function workInfoTypeOptions(selected) {
+    return WORK_INFO_TYPES.map(
+      (t) =>
+        `<option value="${esa(t.value)}" ${
+          selected === t.value ? "selected" : ""
+        }>${esc(t.label)}</option>`
+    ).join("");
+  }
+
+  function renderPeopleHook(ctx) {
+    const { container, componentId, api, toast } = ctx;
+    const canWrite = deps.can("cmdb:write");
+    container.innerHTML = `
+      <div class="ci-section-head">
+        <h3>People</h3>
+        <p class="hint">Support groups and ownership roles for this CI — not an end-user directory.</p>
+      </div>
+      <div class="ci-people-actions">
+        <button type="button" class="secondary" id="ciPeopleRefresh">Refresh</button>
+        <button type="button" class="secondary" id="ciPeopleAdd" ${
+          canWrite ? "" : "disabled"
+        }>Add</button>
+        <button type="button" class="ghost" id="ciPeopleCreateInc">Create related incident</button>
+        <button type="button" class="ghost" id="ciPeopleCreateChg">Create related change</button>
+      </div>
+      <div id="ciPeopleForm" class="ci-people-form hidden">
+        <h4>Add / modify people link</h4>
+        <input type="hidden" id="ciPeopleLinkId" value="" />
+        <div class="ci-form-grid two-col">
+          <label>Type
+            <select id="ciPeoplePartyType">
+              <option value="support_group">Support group</option>
+              <option value="person">Person</option>
+            </select>
+          </label>
+          <label>Role
+            <select id="ciPeopleRole">${peopleRoleOptions("managed_by")}</select>
+          </label>
+          <label>Display name *<input id="ciPeopleDisplay" required maxlength="300" placeholder="UOB Group→SIS…" /></label>
+          <label>Source id *<input id="ciPeoplePartyId" required maxlength="200" placeholder="group or user id" /></label>
+          <label class="check"><input type="checkbox" id="ciPeoplePrimary" /> Primary contact</label>
+          <label class="check"><input type="checkbox" id="ciPeopleNotify" /> Notify on unavailability</label>
+          <label class="check"><input type="checkbox" id="ciPeopleAssign" checked /> Assignment enabled</label>
+          <label class="check"><input type="checkbox" id="ciPeopleAccess" /> Access permission</label>
+        </div>
+        <div class="ci-people-form-actions">
+          <button type="button" class="primary" id="ciPeopleSave">${
+            canWrite ? "Save" : "Save (need cmdb:write)"
+          }</button>
+          <button type="button" class="ghost" id="ciPeopleCancel">Cancel</button>
+        </div>
+      </div>
+      <div class="table-wrap">
+        <table class="data-table ci-people-table">
+          <thead>
+            <tr>
+              <th>Full name</th>
+              <th>Role</th>
+              <th>Type</th>
+              <th>Source id</th>
+              <th>Unavail. notify</th>
+              <th>Assignment</th>
+              <th>Primary</th>
+              <th>Access</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody id="ciPeopleBody"><tr><td colspan="9" class="hint">Loading…</td></tr></tbody>
+        </table>
+      </div>
+      <p class="hint" id="ciPeopleEmpty" hidden>No people or support groups linked.</p>
+      <p class="hint ci-people-itsm-hint" id="ciPeopleItsmHint"></p>`;
+
+    const formEl = container.querySelector("#ciPeopleForm");
+    const bodyEl = container.querySelector("#ciPeopleBody");
+    const emptyEl = container.querySelector("#ciPeopleEmpty");
+    const hintEl = container.querySelector("#ciPeopleItsmHint");
+
+    function clearFormFields() {
+      container.querySelector("#ciPeopleLinkId").value = "";
+      container.querySelector("#ciPeoplePartyType").value = "support_group";
+      container.querySelector("#ciPeopleRole").innerHTML =
+        peopleRoleOptions("managed_by");
+      container.querySelector("#ciPeopleDisplay").value = "";
+      container.querySelector("#ciPeoplePartyId").value = "";
+      container.querySelector("#ciPeoplePrimary").checked = false;
+      container.querySelector("#ciPeopleNotify").checked = false;
+      container.querySelector("#ciPeopleAssign").checked = true;
+      container.querySelector("#ciPeopleAccess").checked = false;
+    }
+
+    function hideForm() {
+      clearFormFields();
+      formEl?.classList.add("hidden");
+    }
+
+    function showForm(row) {
+      if (!row) {
+        clearFormFields();
+      } else {
+        container.querySelector("#ciPeopleLinkId").value = row.link_id || "";
+        container.querySelector("#ciPeoplePartyType").value =
+          row.party_type || "support_group";
+        container.querySelector("#ciPeopleRole").innerHTML = peopleRoleOptions(
+          row.role || "managed_by"
+        );
+        container.querySelector("#ciPeopleDisplay").value = row.display_name || "";
+        container.querySelector("#ciPeoplePartyId").value = row.party_id || "";
+        container.querySelector("#ciPeoplePrimary").checked = !!row.primary_contact;
+        container.querySelector("#ciPeopleNotify").checked =
+          !!row.notify_on_unavailability;
+        container.querySelector("#ciPeopleAssign").checked =
+          !!row.assignment_enabled;
+        container.querySelector("#ciPeopleAccess").checked =
+          !!row.access_permission;
+      }
+      formEl?.classList.remove("hidden");
+    }
+
+    async function loadPeople() {
+      bodyEl.innerHTML =
+        '<tr><td colspan="9" class="hint">Loading…</td></tr>';
+      try {
+        const data = await api(
+          `/api/components/${encodeURIComponent(componentId)}/people`
+        );
+        const items = data.items || [];
+        if (!items.length) {
+          bodyEl.innerHTML = "";
+          if (emptyEl) emptyEl.hidden = false;
+        } else {
+          if (emptyEl) emptyEl.hidden = true;
+          bodyEl.innerHTML = items
+            .map((row) => {
+              const yesNo = (v) => (v ? "Yes" : "No");
+              return `<tr data-link-id="${esa(row.link_id)}">
+                <td>${esc(row.display_name)}</td>
+                <td>${esc(row.role)}</td>
+                <td>${esc(row.party_type)}</td>
+                <td class="mono">${esc(row.party_id)}</td>
+                <td>${yesNo(row.notify_on_unavailability)}</td>
+                <td>${yesNo(row.assignment_enabled)}</td>
+                <td>${yesNo(row.primary_contact)}</td>
+                <td>${yesNo(row.access_permission)}</td>
+                <td class="ci-people-row-actions">
+                  <button type="button" class="ghost" data-people-edit="${esa(
+                    row.link_id
+                  )}" ${canWrite ? "" : "disabled"}>Modify</button>
+                  <button type="button" class="ghost danger" data-people-del="${esa(
+                    row.link_id
+                  )}" ${canWrite ? "" : "disabled"}>Remove</button>
+                </td>
+              </tr>`;
+            })
+            .join("");
+        }
+        const primary = await api(
+          `/api/components/${encodeURIComponent(componentId)}/people/primary`
+        );
+        if (hintEl) {
+          const h = primary?.assignment_hint;
+          if (h?.assignment_group) {
+            hintEl.textContent = `ITSM assignment hint: support group “${h.assignment_group}” (API-only; applied when creating related tickets).`;
+          } else if (h?.assignee_hint) {
+            hintEl.textContent = `ITSM assignee hint: “${h.assignee_hint}”.`;
+          } else {
+            hintEl.textContent =
+              "No primary contact — related ITSM creates will prefill CI only.";
+          }
+        }
+        bodyEl.querySelectorAll("[data-people-edit]").forEach((btn) => {
+          btn.addEventListener("click", () => {
+            const id = btn.getAttribute("data-people-edit");
+            const row = items.find((r) => r.link_id === id);
+            if (row) showForm(row);
+          });
+        });
+        bodyEl.querySelectorAll("[data-people-del]").forEach((btn) => {
+          btn.addEventListener("click", async () => {
+            const id = btn.getAttribute("data-people-del");
+            if (!id || !canWrite) return;
+            if (!window.confirm("Remove this people link?")) return;
+            try {
+              await api(
+                `/api/components/${encodeURIComponent(
+                  componentId
+                )}/people/${encodeURIComponent(id)}`,
+                { method: "DELETE" }
+              );
+              toast("People link removed");
+              await loadPeople();
+            } catch (err) {
+              toast(err.message || "Remove failed", true);
+            }
+          });
+        });
+      } catch (err) {
+        bodyEl.innerHTML = `<tr><td colspan="9" class="hint">${esc(
+          err.message || "Failed to load"
+        )}</td></tr>`;
+      }
+    }
+
+    container.querySelector("#ciPeopleRefresh")?.addEventListener("click", () => {
+      loadPeople();
+      toast("Refreshed");
+    });
+    container.querySelector("#ciPeopleAdd")?.addEventListener("click", () => {
+      showForm(null);
+    });
+    container.querySelector("#ciPeopleCancel")?.addEventListener("click", hideForm);
+    container.querySelector("#ciPeopleSave")?.addEventListener("click", async () => {
+      if (!canWrite) {
+        toast("cmdb:write required", true);
+        return;
+      }
+      const linkId = container.querySelector("#ciPeopleLinkId")?.value?.trim();
+      const payload = {
+        party_type: container.querySelector("#ciPeoplePartyType")?.value,
+        party_id: container.querySelector("#ciPeoplePartyId")?.value?.trim(),
+        display_name: container.querySelector("#ciPeopleDisplay")?.value?.trim(),
+        role: container.querySelector("#ciPeopleRole")?.value,
+        primary_contact: !!container.querySelector("#ciPeoplePrimary")?.checked,
+        notify_on_unavailability: !!container.querySelector("#ciPeopleNotify")
+          ?.checked,
+        assignment_enabled: !!container.querySelector("#ciPeopleAssign")?.checked,
+        access_permission: !!container.querySelector("#ciPeopleAccess")?.checked,
+      };
+      if (!payload.party_id || !payload.display_name) {
+        toast("Display name and source id are required", true);
+        return;
+      }
+      try {
+        if (linkId) {
+          await api(
+            `/api/components/${encodeURIComponent(
+              componentId
+            )}/people/${encodeURIComponent(linkId)}`,
+            { method: "PATCH", body: JSON.stringify(payload) }
+          );
+          toast("People link updated");
+        } else {
+          await api(`/api/components/${encodeURIComponent(componentId)}/people`, {
+            method: "POST",
+            body: JSON.stringify(payload),
+          });
+          toast("People link added");
+        }
+        hideForm();
+        await loadPeople();
+      } catch (err) {
+        toast(err.message || "Save failed", true);
+      }
+    });
+    container
+      .querySelector("#ciPeopleCreateInc")
+      ?.addEventListener("click", () => openCreateRelatedItsm(componentId, "incident"));
+    container
+      .querySelector("#ciPeopleCreateChg")
+      ?.addEventListener("click", () => openCreateRelatedItsm(componentId, "change"));
+
+    loadPeople();
+  }
+
+  function renderWorkInfoHook(ctx) {
+    const { container, componentId, api, toast } = ctx;
+    const canWrite = deps.can("cmdb:write");
+    container.innerHTML = `
+      <div class="ci-section-head">
+        <h3>Work Info</h3>
+        <p class="hint">CMDB-local activity log. Optional ITSM ticket deep link — tickets are not stored in CMDB.</p>
+      </div>
+      <div class="ci-work-layout">
+        <div class="ci-work-add panel-inner">
+          <h4>Add Work Info</h4>
+          <div class="ci-form-grid">
+            <label>Type
+              <select id="ciWorkType">${workInfoTypeOptions("general")}</select>
+            </label>
+            <label>Source<input id="ciWorkSource" maxlength="200" placeholder="Web Client / operator" /></label>
+            <label class="full">Summary *<input id="ciWorkSummary" required maxlength="500" /></label>
+            <label class="full">Notes<textarea id="ciWorkNotes" rows="4" maxlength="10000"></textarea></label>
+            <label>View access
+              <select id="ciWorkAccess">
+                <option value="internal">Internal</option>
+                <option value="public">Public</option>
+              </select>
+            </label>
+            <label class="check"><input type="checkbox" id="ciWorkLocked" /> Locked</label>
+            <label>ITSM module
+              <select id="ciWorkItsmModule">
+                <option value="">— none —</option>
+                <option value="incident">Incident</option>
+                <option value="change">Change</option>
+                <option value="problem">Problem</option>
+              </select>
+            </label>
+            <label>ITSM ticket id<input id="ciWorkItsmId" maxlength="80" placeholder="INC-… / CHG-…" /></label>
+            <label class="full">Attachments<input type="file" id="ciWorkFiles" multiple /></label>
+          </div>
+          <div class="ci-work-add-actions">
+            <button type="button" class="primary" id="ciWorkSave" ${
+              canWrite ? "" : "disabled"
+            }>Add</button>
+            <button type="button" class="ghost" id="ciWorkCreateInc">Create related incident</button>
+            <button type="button" class="ghost" id="ciWorkCreateChg">Create related change</button>
+          </div>
+        </div>
+        <div class="ci-work-history panel-inner">
+          <div class="ci-section-head">
+            <h4>History</h4>
+            <button type="button" class="secondary" id="ciWorkRefresh">Refresh</button>
+          </div>
+          <div class="table-wrap">
+            <table class="data-table ci-work-table">
+              <thead>
+                <tr>
+                  <th>Type</th>
+                  <th>Summary</th>
+                  <th>Attachments</th>
+                  <th>Submit date</th>
+                  <th>ITSM</th>
+                  <th></th>
+                </tr>
+              </thead>
+              <tbody id="ciWorkBody"><tr><td colspan="6" class="hint">Loading…</td></tr></tbody>
+            </table>
+          </div>
+          <p class="hint" id="ciWorkEmpty" hidden>No work info yet.</p>
+        </div>
+      </div>`;
+
+    const bodyEl = container.querySelector("#ciWorkBody");
+    const emptyEl = container.querySelector("#ciWorkEmpty");
+
+    function clearAddForm() {
+      container.querySelector("#ciWorkType").value = "general";
+      container.querySelector("#ciWorkSource").value = "";
+      container.querySelector("#ciWorkSummary").value = "";
+      container.querySelector("#ciWorkNotes").value = "";
+      container.querySelector("#ciWorkAccess").value = "internal";
+      container.querySelector("#ciWorkLocked").checked = false;
+      container.querySelector("#ciWorkItsmModule").value = "";
+      container.querySelector("#ciWorkItsmId").value = "";
+      const files = container.querySelector("#ciWorkFiles");
+      if (files) files.value = "";
+    }
+
+    async function loadWorkInfo() {
+      bodyEl.innerHTML =
+        '<tr><td colspan="6" class="hint">Loading…</td></tr>';
+      try {
+        const data = await api(
+          `/api/components/${encodeURIComponent(componentId)}/work-info`
+        );
+        const items = data.items || [];
+        if (!items.length) {
+          bodyEl.innerHTML = "";
+          if (emptyEl) emptyEl.hidden = false;
+          return;
+        }
+        if (emptyEl) emptyEl.hidden = true;
+        bodyEl.innerHTML = items
+          .map((row) => {
+            const ref = row.itsm_ticket_ref;
+            const itsmCell = ref
+              ? `<button type="button" class="linkish" data-work-itsm-mod="${esa(
+                  ref.module
+                )}" data-work-itsm-id="${esa(ref.ticket_id)}">Open in ITSM (${esc(
+                  ref.ticket_id
+                )})</button>`
+              : "—";
+            const when = row.created_at
+              ? String(row.created_at).replace("T", " ").slice(0, 19)
+              : "—";
+            const locked = row.locked ? " 🔒" : "";
+            return `<tr data-wid="${esa(row.work_info_id)}">
+              <td>${esc(row.work_info_type)}${locked}</td>
+              <td>${esc(row.summary)}</td>
+              <td>${esc(row.attachment_count || 0)}</td>
+              <td>${esc(when)}</td>
+              <td>${itsmCell}</td>
+              <td class="ci-work-row-actions">
+                <button type="button" class="ghost" data-work-view="${esa(
+                  row.work_info_id
+                )}">View</button>
+                <button type="button" class="ghost danger" data-work-del="${esa(
+                  row.work_info_id
+                )}" ${canWrite && !row.locked ? "" : "disabled"}>Delete</button>
+              </td>
+            </tr>`;
+          })
+          .join("");
+
+        bodyEl.querySelectorAll("[data-work-itsm-mod]").forEach((btn) => {
+          btn.addEventListener("click", () => {
+            openItsmTicketRef({
+              module: btn.getAttribute("data-work-itsm-mod"),
+              ticket_id: btn.getAttribute("data-work-itsm-id"),
+            });
+          });
+        });
+        bodyEl.querySelectorAll("[data-work-view]").forEach((btn) => {
+          btn.addEventListener("click", async () => {
+            const wid = btn.getAttribute("data-work-view");
+            try {
+              const detail = await api(
+                `/api/components/${encodeURIComponent(
+                  componentId
+                )}/work-info/${encodeURIComponent(wid)}`
+              );
+              const atts = (detail.attachments || [])
+                .map((a) => a.filename || a.attachment_id)
+                .join(", ");
+              const notes = detail.notes || "—";
+              window.alert(
+                `Work Info ${detail.work_info_id}\n` +
+                  `Type: ${detail.work_info_type}\n` +
+                  `Summary: ${detail.summary}\n` +
+                  `Notes: ${notes}\n` +
+                  `Attachments: ${atts || "none"}\n` +
+                  `Locked: ${detail.locked ? "yes" : "no"}`
+              );
+            } catch (err) {
+              toast(err.message || "View failed", true);
+            }
+          });
+        });
+        bodyEl.querySelectorAll("[data-work-del]").forEach((btn) => {
+          btn.addEventListener("click", async () => {
+            const wid = btn.getAttribute("data-work-del");
+            if (!wid || !canWrite) return;
+            if (!window.confirm("Delete this work info entry?")) return;
+            try {
+              await api(
+                `/api/components/${encodeURIComponent(
+                  componentId
+                )}/work-info/${encodeURIComponent(wid)}`,
+                { method: "DELETE" }
+              );
+              toast("Work info deleted");
+              await loadWorkInfo();
+            } catch (err) {
+              toast(err.message || "Delete failed", true);
+            }
+          });
+        });
+      } catch (err) {
+        bodyEl.innerHTML = `<tr><td colspan="6" class="hint">${esc(
+          err.message || "Failed to load"
+        )}</td></tr>`;
+      }
+    }
+
+    container.querySelector("#ciWorkRefresh")?.addEventListener("click", () => {
+      loadWorkInfo();
+      toast("Refreshed");
+    });
+    container
+      .querySelector("#ciWorkCreateInc")
+      ?.addEventListener("click", () => openCreateRelatedItsm(componentId, "incident"));
+    container
+      .querySelector("#ciWorkCreateChg")
+      ?.addEventListener("click", () => openCreateRelatedItsm(componentId, "change"));
+    container.querySelector("#ciWorkSave")?.addEventListener("click", async () => {
+      if (!canWrite) {
+        toast("cmdb:write required", true);
+        return;
+      }
+      const summary = container.querySelector("#ciWorkSummary")?.value?.trim();
+      if (!summary) {
+        toast("Summary is required", true);
+        return;
+      }
+      const module = container.querySelector("#ciWorkItsmModule")?.value || "";
+      const ticketId = container.querySelector("#ciWorkItsmId")?.value?.trim() || "";
+      const payload = {
+        work_info_type: container.querySelector("#ciWorkType")?.value || "general",
+        source: container.querySelector("#ciWorkSource")?.value?.trim() || null,
+        summary,
+        notes: container.querySelector("#ciWorkNotes")?.value?.trim() || null,
+        locked: !!container.querySelector("#ciWorkLocked")?.checked,
+        view_access: container.querySelector("#ciWorkAccess")?.value || "internal",
+        itsm_ticket_ref:
+          module && ticketId ? { module, ticket_id: ticketId } : null,
+      };
+      try {
+        const created = await api(
+          `/api/components/${encodeURIComponent(componentId)}/work-info`,
+          { method: "POST", body: JSON.stringify(payload) }
+        );
+        const fileInput = container.querySelector("#ciWorkFiles");
+        const files = fileInput?.files ? Array.from(fileInput.files) : [];
+        for (const file of files) {
+          const form = new FormData();
+          form.append("file", file, file.name || "attachment.bin");
+          await api(
+            `/api/components/${encodeURIComponent(
+              componentId
+            )}/work-info/${encodeURIComponent(created.work_info_id)}/attachments`,
+            { method: "POST", body: form }
+          );
+        }
+        toast("Work info added");
+        clearAddForm();
+        await loadWorkInfo();
+      } catch (err) {
+        toast(err.message || "Add failed", true);
+      }
+    });
+
+    loadWorkInfo();
+  }
+
+  // Activate C3 tabs through the C1 hook surface.
+  registerTabHook("people", renderPeopleHook);
+  registerTabHook("work-info", renderWorkInfoHook);
 
   global.SVRMON24CmdbCiDetail = {
     HELIX_TABS,

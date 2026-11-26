@@ -1,4 +1,4 @@
-"""Monitoring L5 — agent metrics/logs/file-events ingest + multi-OS contract (0.99.5)."""
+"""Monitoring L5 — agent metrics/logs/file-events ingest + multi-OS contract (0.99.6)."""
 
 from __future__ import annotations
 
@@ -67,7 +67,7 @@ def _register_agent(
             "hostname": f"{name}.lab",
             "os_family": os_family,
             "os_name": os_family,
-            "version": "0.99.5-fixture",
+            "version": "0.99.6-fixture",
         },
     )
     assert registered.status_code == 201, registered.text
@@ -87,10 +87,10 @@ def _agent_headers(token: str) -> dict[str, str]:
 
 
 def test_version_bump_for_monitor_l5() -> None:
-    assert __version__ == "0.99.5"
+    assert __version__ == "0.99.6"
     html = FRONTEND_INDEX.read_text(encoding="utf-8")
-    assert 'content="0.99.5"' in html
-    assert "monitor/agents.js?v=0.99.5" in html
+    assert 'content="0.99.6"' in html
+    assert "monitor/agents.js?v=0.99.6" in html
 
 
 def test_meta_exposes_agent_ingest_contract(

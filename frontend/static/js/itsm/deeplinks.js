@@ -74,6 +74,48 @@
     }, 120);
   }
 
+  /**
+   * Prefill ITSM create form for a CI (API-only couple — no CMDB ticket store).
+   * Optional assignmentGroup comes from CMDB People primary support_group hint.
+   */
+  function openCreateRelated(componentId, options) {
+    const cid = (componentId || "").trim();
+    if (!cid) {
+      deps.toast("component_id required", true);
+      return;
+    }
+    const opts = options || {};
+    const tab = opts.tab || "itsm-incidents";
+    const assignmentGroup = (opts.assignmentGroup || "").trim() || null;
+    setAllCiFilters(cid);
+    if (global.SVRMON24ItsmRouting?.navigateTo) {
+      global.SVRMON24ItsmRouting.navigateTo(
+        { tab, component_id: cid },
+        { replace: false }
+      );
+    } else {
+      showTab(tab);
+    }
+    window.setTimeout(() => {
+      const ciField =
+        tab === "itsm-changes"
+          ? document.getElementById("itsmChgFieldCi")
+          : document.getElementById("itsmFieldCi");
+      if (ciField) ciField.value = cid;
+      if (assignmentGroup) {
+        const groupField = document.getElementById("itsmFieldAssignmentGroup");
+        if (groupField && tab === "itsm-incidents") {
+          groupField.value = assignmentGroup;
+        }
+      }
+      if (tab === "itsm-incidents") {
+        global.SVRMON24ItsmIncidents?.loadIncidents?.();
+      } else if (tab === "itsm-changes") {
+        global.SVRMON24ItsmChanges?.loadChanges?.();
+      }
+    }, 160);
+  }
+
   async function refreshCiPicker() {
     if (!deps.api) return;
     const list = document.getElementById("itsmCiPickerList");
@@ -208,6 +250,7 @@
   global.SVRMON24ItsmDeeplinks = {
     initItsmDeeplinks,
     openTicketsForComponent,
+    openCreateRelated,
     setAllCiFilters,
     renderImpactPanel,
     refreshCiPicker,

@@ -1,4 +1,4 @@
-"""Sidebar IA — CMDB / Monitoring / ITSM expandable sections (0.99.5)."""
+"""Sidebar IA — CMDB / Monitoring / ITSM expandable sections (0.99.6)."""
 
 from __future__ import annotations
 
@@ -15,12 +15,12 @@ CMDB_CSS = Path("frontend/static/css/cmdb.css")
 
 
 def test_version_bump_for_sidebar_cmdb_dashboard() -> None:
-    assert __version__ == "0.99.5"
+    assert __version__ == "0.99.6"
 
 
 def test_frontend_sidebar_section_markers() -> None:
     html = FRONTEND_INDEX.read_text(encoding="utf-8")
-    assert 'content="0.99.5"' in html
+    assert 'content="0.99.6"' in html
 
     # No thin Operations section (Dashboard moved under CMDB).
     assert 'id="navOperationsSection"' not in html

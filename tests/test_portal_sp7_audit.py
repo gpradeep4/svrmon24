@@ -1,4 +1,4 @@
-"""Service Portal SP7 — audit + entitlements + form hardening (0.99.5)."""
+"""Service Portal SP7 — audit + entitlements + form hardening (0.99.6)."""
 
 from __future__ import annotations
 
@@ -14,9 +14,9 @@ from tests.frontend_paths import FRONTEND_INDEX
 
 
 def test_version_bump_for_portal_sp7() -> None:
-    assert __version__ == "0.99.5"
+    assert __version__ == "0.99.6"
     html = FRONTEND_INDEX.read_text(encoding="utf-8")
-    assert 'content="0.99.5"' in html
+    assert 'content="0.99.6"' in html
 
 
 def test_path_and_username_hardening() -> None:

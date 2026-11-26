@@ -83,6 +83,9 @@ def clean_db(client: TestClient) -> Generator[None, None, None]:
         "cmdb_custom_table_definitions",
         "cmdb_custom_records",
         "cmdb_relationships",
+        "cmdb_ci_people",
+        "cmdb_ci_work_info",
+        "cmdb_ci_attachments",
         "diagnostic_history",
         # Pre-M3 leftovers may still exist on CMDB during dual-read window.
         "file_watch_targets",
