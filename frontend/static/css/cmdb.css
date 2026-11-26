@@ -4423,6 +4423,90 @@ button[data-rbac-disabled="true"] {
   font-size: 0.95rem;
 }
 
+/* C3 — People + Work Info */
+.ci-people-actions,
+.ci-work-add-actions,
+.ci-people-form-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 12px;
+  align-items: center;
+  margin-bottom: 12px;
+}
+
+.ci-people-form {
+  margin-bottom: 14px;
+  padding: 12px;
+  background: var(--surface-tint);
+  border: 1px solid var(--line-soft);
+  border-radius: var(--radius-sm);
+}
+
+.ci-people-form.hidden {
+  display: none;
+}
+
+.ci-people-form h4,
+.ci-work-add h4,
+.ci-work-history h4 {
+  margin: 0 0 8px;
+  font-size: 0.95rem;
+}
+
+.ci-people-form .check,
+.ci-work-add .check {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 500;
+  color: var(--ink);
+}
+
+.ci-people-table td .ghost,
+.ci-work-table td .ghost,
+.ci-people-row-actions,
+.ci-work-row-actions {
+  white-space: nowrap;
+}
+
+.ci-people-itsm-hint {
+  margin-top: 10px;
+}
+
+.ci-work-layout {
+  display: grid;
+  grid-template-columns: minmax(260px, 1fr) minmax(320px, 1.4fr);
+  gap: 16px;
+  align-items: start;
+}
+
+.ci-work-add,
+.ci-work-history {
+  padding: 12px;
+  background: var(--surface);
+  border: 1px solid var(--line-soft);
+  border-radius: var(--radius-sm);
+}
+
+.ci-work-history .ci-section-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 8px;
+}
+
+.ci-work-table td .linkish {
+  background: none;
+  border: none;
+  padding: 0;
+  color: var(--accent);
+  font: inherit;
+  cursor: pointer;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
 @media (max-width: 960px) {
   .ci-header-grid,
   .ci-specs-grid,
@@ -4433,6 +4517,9 @@ button[data-rbac-disabled="true"] {
     position: static;
   }
   .ci-rel-details {
+    grid-template-columns: 1fr;
+  }
+  .ci-work-layout {
     grid-template-columns: 1fr;
   }
 }

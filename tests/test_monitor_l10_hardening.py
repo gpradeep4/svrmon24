@@ -1,4 +1,4 @@
-"""Monitoring L10 — live hardening: indexes, fail-closed matrix, egress, isolation (0.99.5)."""
+"""Monitoring L10 — live hardening: indexes, fail-closed matrix, egress, isolation (0.99.6)."""
 
 from __future__ import annotations
 
@@ -42,10 +42,10 @@ def live_platform_on(monkeypatch: pytest.MonkeyPatch):
 
 
 def test_version_bump_for_monitor_l10() -> None:
-    assert __version__ == "0.99.5"
+    assert __version__ == "0.99.6"
     html = FRONTEND_INDEX.read_text(encoding="utf-8")
-    assert 'content="0.99.5"' in html
-    assert "monitor/dashboard.js?v=0.99.5" in html
+    assert 'content="0.99.6"' in html
+    assert "monitor/dashboard.js?v=0.99.6" in html
     assert 'id="monitorLiveGateChips"' in html
     assert 'data-monitor-live-chips="1"' in html
     assert "monitorDashEgress" in html

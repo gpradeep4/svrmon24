@@ -59,6 +59,9 @@ TENANTED_COLLECTIONS: tuple[str, ...] = (
     "cmdb_custom_table_definitions",  # Custom entity table schemas
     "cmdb_custom_records",  # Custom entity rows (table_key partitioned)
     "cmdb_relationships",
+    "cmdb_ci_people",  # C3 People / support groups
+    "cmdb_ci_work_info",  # C3 Work Info log
+    "cmdb_ci_attachments",  # C3 Work Info blobs (Mongo Binary)
     "diagnostic_history",
     "file_watch_targets",
     "file_version_events",
