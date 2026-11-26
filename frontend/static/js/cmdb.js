@@ -613,6 +613,10 @@
     middleware: { title: "Middleware", subtitle: "Middleware filtered by component_type=Middleware" },
     databases: { title: "Databases", subtitle: "Databases filtered by component_type=Database" },
     inventory: { title: "Inventory", subtitle: "CMDB components with separate OS and product columns" },
+    "ci-detail": {
+      title: "CI Detail",
+      subtitle: "Helix-aligned header · General · Specifications (C1)",
+    },
     relationships: { title: "Relationships", subtitle: "Manual links with separate protocol and ports" },
     dependencies: { title: "Dependencies", subtitle: "Tenant-scoped graph wrap · CMDB + custom edges · potentially affected apps" },
     diagnostics: {
@@ -2601,6 +2605,11 @@
       itsmBtn.hidden = true;
       delete itsmBtn.dataset.componentId;
     }
+    const detailBtn = $("#btnComponentOpenCiDetail");
+    if (detailBtn) {
+      detailBtn.hidden = true;
+      delete detailBtn.dataset.componentId;
+    }
     openModal(state.inventoryType ? `Add ${state.inventoryType}` : "Add component");
   }
 
@@ -2629,6 +2638,11 @@
         can("itsm:problem:read");
       itsmBtn.hidden = !itsmRead;
       itsmBtn.dataset.componentId = doc.component_id;
+    }
+    const detailBtn = $("#btnComponentOpenCiDetail");
+    if (detailBtn) {
+      detailBtn.hidden = false;
+      detailBtn.dataset.componentId = doc.component_id;
     }
     openModal(readOnly ? `View ${id}` : `Edit ${id}`);
   }
@@ -3062,9 +3076,14 @@
     state.activeNav = name;
     if (
       window.SVRMON24ItsmRouting?.syncTabHash &&
-      !window.SVRMON24ItsmRouting.isApplying
+      !window.SVRMON24ItsmRouting.isApplying &&
+      name !== "ci-detail"
     ) {
-      window.SVRMON24ItsmRouting.syncTabHash(name);
+      // Drop CI detail deep-link params when leaving the page.
+      window.SVRMON24ItsmRouting.syncTabHash(name, {
+        component_id: "",
+        ci_tab: null,
+      });
     }
     applyInventoryTypeLock(inventoryType);
     const customTableMeta = customTableKey
@@ -3086,6 +3105,18 @@
     if ((inventoryType || name === "inventory") && state.authenticated) {
       state.page = 1;
       loadInventory().catch((err) => toast(err.message, true));
+    }
+    if (name === "ci-detail" && state.authenticated) {
+      // Content loaded by SVRMON24CmdbCiDetail.openCiDetail / applyRoute.
+      const write = can("cmdb:write");
+      setRbacControl($("#btnCiEdit"), write, {
+        titleWhenDenied: "cmdb:write required to edit CI detail",
+      });
+      const itsmRead =
+        can("itsm:incident:read") ||
+        can("itsm:change:read") ||
+        can("itsm:problem:read");
+      if ($("#btnCiViewItsm")) $("#btnCiViewItsm").hidden = !itsmRead;
     }
     if (name === "relationships") {
       Promise.all([loadRelationships(), refreshEntityIdList(), populateRelTableSelects()])
@@ -5889,7 +5920,22 @@
           }
           return;
         }
-        if (view) await openEdit(view, true);
+        if (view) {
+          // C1: inventory View opens full-page Helix CI detail.
+          if (global.SVRMON24CmdbCiDetail?.openCiDetail) {
+            const returnTab =
+              Object.keys(INVENTORY_TABS).find(
+                (k) => INVENTORY_TABS[k] === state.inventoryType
+              ) || state.activeNav || "servers";
+            await global.SVRMON24CmdbCiDetail.openCiDetail(view, {
+              returnTab,
+              ciTab: "general",
+            });
+          } else {
+            await openEdit(view, true);
+          }
+          return;
+        }
         if (edit) await openEdit(edit, false);
         if (del) await beginDelete(del);
       } catch (err) {
@@ -5909,6 +5955,26 @@
         global.SVRMON24ItsmDeeplinks.openTicketsForComponent(cid);
       } else {
         toast("ITSM deep-links unavailable", true);
+      }
+    });
+    $("#btnComponentOpenCiDetail")?.addEventListener("click", async () => {
+      const cid =
+        $("#btnComponentOpenCiDetail")?.dataset?.componentId ||
+        $("#fieldComponentId")?.value?.trim() ||
+        state.editingId;
+      if (!cid) {
+        toast("Save the component before opening CI detail", true);
+        return;
+      }
+      closeModal();
+      const returnTab =
+        Object.keys(INVENTORY_TABS).find(
+          (k) => INVENTORY_TABS[k] === state.inventoryType
+        ) || state.activeNav || "servers";
+      if (global.SVRMON24CmdbCiDetail?.openCiDetail) {
+        await global.SVRMON24CmdbCiDetail.openCiDetail(cid, { returnTab });
+      } else {
+        toast("CI detail unavailable", true);
       }
     });
     $("#inventoryBody").addEventListener("change", (e) => {
@@ -5958,10 +6024,39 @@
     initNavAccordions();
     loadAuthIntoForm();
     wireEvents();
+    if (window.SVRMON24CmdbCiDetail?.initCiDetail) {
+      window.SVRMON24CmdbCiDetail.initCiDetail({
+        api,
+        toast,
+        escapeHtml,
+        escapeAttr,
+        can,
+        showTab,
+        getReturnTab: () => {
+          if (state.inventoryType) {
+            return (
+              Object.keys(INVENTORY_TABS).find(
+                (k) => INVENTORY_TABS[k] === state.inventoryType
+              ) || "servers"
+            );
+          }
+          return state.activeNav && state.activeNav !== "ci-detail"
+            ? state.activeNav
+            : "servers";
+        },
+        customFields: () => state.customFields || [],
+      });
+    }
     if (window.SVRMON24ItsmRouting?.bindRouting) {
       window.SVRMON24ItsmRouting.bindRouting({
         showTab,
-        onApplied: (route) => window.SVRMON24ItsmRouting.applyDeepLinkExtras(route),
+        onApplied: async (route) => {
+          if (route?.tab === "ci-detail" && route.component_id) {
+            await window.SVRMON24CmdbCiDetail?.applyRoute?.(route);
+            return;
+          }
+          await window.SVRMON24ItsmRouting.applyDeepLinkExtras(route);
+        },
       });
     }
     if (window.SVRMON24Monitor?.registerMonitorHooks) {
