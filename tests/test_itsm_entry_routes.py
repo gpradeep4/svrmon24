@@ -13,7 +13,7 @@ from tests.frontend_paths import FRONTEND_DIR, FRONTEND_INDEX
 
 
 def test_version_bump_for_entry_routes_slice() -> None:
-    assert __version__ == "0.99.2"
+    assert __version__ == "0.99.3"
 
 
 def test_monolith_serves_itsm_entry_path(client: TestClient) -> None:
@@ -60,9 +60,9 @@ def test_nginx_conf_has_itsm_locations() -> None:
 
 def test_frontend_routing_helpers_and_markers() -> None:
     html = FRONTEND_INDEX.read_text(encoding="utf-8")
-    assert 'content="0.99.2"' in html
-    assert "itsm/routing.js?v=0.99.2" in html
-    assert "itsm/deeplinks.js?v=0.99.2" in html
+    assert 'content="0.99.3"' in html
+    assert "itsm/routing.js?v=0.99.3" in html
+    assert "itsm/deeplinks.js?v=0.99.3" in html
 
     routing = Path("frontend/static/js/itsm/routing.js").read_text(encoding="utf-8")
     assert "parseAppRoute" in routing

@@ -128,6 +128,25 @@ def ensure_custom_field() -> str:
         return "skipped"
 
 
+def ensure_example_org_custom_fields() -> str:
+    """Seed Helix-style org custom field examples (app_code, device_stage, …)."""
+    result = custom_fields_service.ensure_example_org_custom_fields(
+        tenant_id=SEED_TENANT_ID
+    )
+    created = int(result.get("created") or 0)
+    if created:
+        _ok(
+            f"example org custom fields created={created} "
+            f"keys={result.get('example_keys')}"
+        )
+        return "created"
+    _skip(
+        f"example org custom fields skipped={result.get('skipped')} "
+        f"keys={result.get('example_keys')}"
+    )
+    return "skipped"
+
+
 def ensure_component(payload: dict[str, Any]) -> str:
     cid = payload["component_id"]
     if components_service.get_component(cid, tenant_id=SEED_TENANT_ID):
@@ -220,6 +239,7 @@ def seed() -> dict[str, int]:
 
     print("Seeding custom fields…")
     tally(ensure_custom_field())
+    tally(ensure_example_org_custom_fields())
 
     print("Seeding components…")
     components: list[dict[str, Any]] = [

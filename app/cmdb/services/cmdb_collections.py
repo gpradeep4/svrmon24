@@ -85,12 +85,28 @@ def ensure_typed_cmdb_indexes(db: Database) -> dict[str, list[str]]:
             name="tenant_status_idx",
         )
         coll.create_index([("name", ASCENDING)])
+        # Helix CI header filters (tenant-scoped; optional fields, sparse-friendly).
+        coll.create_index(
+            [("tenant_id", ASCENDING), ("company", ASCENDING)],
+            name="tenant_company_idx",
+        )
+        coll.create_index(
+            [("tenant_id", ASCENDING), ("serial_number", ASCENDING)],
+            name="tenant_serial_number_idx",
+        )
+        coll.create_index(
+            [("tenant_id", ASCENDING), ("priority", ASCENDING)],
+            name="tenant_priority_idx",
+        )
         names = [
             "component_id_1",
             "tenant_id_idx",
             "tenant_environment_idx",
             "tenant_status_idx",
             "name_1",
+            "tenant_company_idx",
+            "tenant_serial_number_idx",
+            "tenant_priority_idx",
         ]
         # Server-oriented hostname index (harmless on other types).
         coll.create_index([("hostname", ASCENDING)])

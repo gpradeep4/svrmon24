@@ -17,7 +17,7 @@ from tests.frontend_paths import FRONTEND_INDEX
 
 
 def test_version_bump_for_hardening_slice() -> None:
-    assert __version__ == "0.99.2"
+    assert __version__ == "0.99.3"
 
 
 def test_frontend_exposes_groups_and_hardening_hooks() -> None:
