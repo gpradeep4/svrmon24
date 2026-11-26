@@ -1,5 +1,5 @@
 /**
- * CMDB C1–C4 — Helix-aligned CI detail.
+ * CMDB C1–C4 — enterprise CI detail.
  *
  * C1: sticky header + General + Specifications.
  * C2: Relationships (HOSTS + child/parent) + Relationship Details tree.
@@ -13,7 +13,7 @@
 (function (global) {
   "use strict";
 
-  const HELIX_TABS = [
+  const CI_DETAIL_TABS = [
     { id: "general", label: "General", active: true },
     { id: "specifications", label: "Specifications", active: true },
     { id: "work-info", label: "Work Info", active: true },
@@ -186,7 +186,7 @@
   function renderTabStrip() {
     const strip = $("#ciDetailTabStrip");
     if (!strip) return;
-    strip.innerHTML = HELIX_TABS.map((t) => {
+    strip.innerHTML = CI_DETAIL_TABS.map((t) => {
       const selected = state.ciTab === t.id;
       const deferred = !t.active;
       return `<button type="button" role="tab" class="ci-tab${selected ? " is-active" : ""}${
@@ -566,12 +566,12 @@
   }
 
   function renderDeferredPanel(tabId) {
-    const meta = HELIX_TABS.find((t) => t.id === tabId);
+    const meta = CI_DETAIL_TABS.find((t) => t.id === tabId);
     return `<div class="ci-deferred panel-inner">
       <h3>${esc(meta?.label || tabId)}</h3>
       <p class="hint">Placeholder for slice <strong>${esc(
         meta?.slice || "later"
-      )}</strong>. Data model and APIs land in that slice; C1 keeps the Helix tab strip only.</p>
+      )}</strong>. Data model and APIs land in that slice; C1 keeps the CI detail tab strip only.</p>
       <p class="hint">Hooks: <code>SVRMON24CmdbCiDetail.registerTabHook("${esc(
         tabId
       )}", fn)</code></p>
@@ -1508,9 +1508,9 @@
       (typeof deps.getReturnTab === "function" ? deps.getReturnTab() : null) ||
       "servers";
     state.ciTab = options.ciTab || "general";
-    if (!HELIX_TABS.some((t) => t.id === state.ciTab && t.active)) {
+    if (!CI_DETAIL_TABS.some((t) => t.id === state.ciTab && t.active)) {
       // Allow deferred tabs for deep-link readiness; show placeholder.
-      if (!HELIX_TABS.some((t) => t.id === state.ciTab)) state.ciTab = "general";
+      if (!CI_DETAIL_TABS.some((t) => t.id === state.ciTab)) state.ciTab = "general";
     }
     state.editing = !!options.edit && deps.can("cmdb:write");
     state.componentId = cid;
@@ -1535,10 +1535,10 @@
   }
 
   function selectCiTab(tabId) {
-    const meta = HELIX_TABS.find((t) => t.id === tabId);
+    const meta = CI_DETAIL_TABS.find((t) => t.id === tabId);
     if (!meta) return;
     if (!meta.active && !tabHooks[tabId]) {
-      // Still allow selecting deferred tabs to show placeholder (Helix strip).
+      // Still allow selecting deferred tabs to show placeholder (CI detail strip).
     }
     state.ciTab = tabId;
     renderTabStrip();
@@ -2990,7 +2990,7 @@
   registerTabHook("impacted-areas", renderImpactedAreasHook);
 
   global.SVRMON24CmdbCiDetail = {
-    HELIX_TABS,
+    CI_DETAIL_TABS,
     STATUS_LABELS,
     initCiDetail,
     openCiDetail,

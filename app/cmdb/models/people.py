@@ -1,4 +1,4 @@
-"""CMDB CI People / support-group link models (Helix People tab — C3)."""
+"""CMDB CI People / support-group link models (People tab — C3)."""
 
 from __future__ import annotations
 

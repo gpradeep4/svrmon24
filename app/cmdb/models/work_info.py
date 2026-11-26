@@ -1,4 +1,4 @@
-"""CMDB CI Work Info models (Helix Work Info tab — C3).
+"""CMDB CI Work Info models (Work Info tab — C3).
 
 Attachments live in ``cmdb_ci_attachments`` as MongoDB Binary blobs in the
 CMDB database (same pattern as ITSM ticket attachments). No object-store

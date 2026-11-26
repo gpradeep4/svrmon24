@@ -1,4 +1,4 @@
-"""CMDB Contracts models (Helix Contracts tab — C4).
+"""CMDB Contracts models (Contracts tab — C4).
 
 Contracts are tenant-scoped CMDB records. CI linkage is via
 ``cmdb_ci_contract_links``. Optional ``itsm_change_ref`` is a deep link
@@ -169,7 +169,7 @@ def to_contract_link_row(
     }
     if contract is not None:
         row["contract"] = to_contract_row(contract)
-        # Flatten Helix grid columns for convenience.
+        # Flatten grid columns for convenience.
         row["relationship_type"] = link.get("relationship_name")
         row["request_type"] = contract.get("contract_type")
         row["description"] = contract.get("description")

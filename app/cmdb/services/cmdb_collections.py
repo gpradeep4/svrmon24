@@ -85,7 +85,7 @@ def ensure_typed_cmdb_indexes(db: Database) -> dict[str, list[str]]:
             name="tenant_status_idx",
         )
         coll.create_index([("name", ASCENDING)])
-        # Helix CI header filters (tenant-scoped; optional fields, sparse-friendly).
+        # CI header filters (tenant-scoped; optional fields, sparse-friendly).
         coll.create_index(
             [("tenant_id", ASCENDING), ("company", ASCENDING)],
             name="tenant_company_idx",

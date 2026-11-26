@@ -364,7 +364,7 @@ def _direction_match_clause(
     direction: str,
     relationship_type: str | None = None,
 ) -> dict[str, Any]:
-    """Build Mongo clause for Helix Show: Child / Parent.
+    """Build Mongo clause for Show: Child / Parent.
 
     - child: this CI is parent (HOSTS source; HOSTED_ON target; other types as source)
     - parent: inverse
@@ -474,7 +474,7 @@ def _enrich_edge(edge: dict[str, Any], *, focus_component_id: str, tenant_id: st
     enriched["related_component_id"] = related_id or None
     enriched["related_table"] = related_table
     enriched["related_component"] = _component_summary(related_doc)
-    # Helix-ish display helpers
+    # display helpers
     rel = enriched.get("related_component") or {}
     enriched["related_name"] = rel.get("name") or related_id
     enriched["related_category"] = rel.get("component_type") or related_table or "—"

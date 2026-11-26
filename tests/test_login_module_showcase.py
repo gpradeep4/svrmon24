@@ -1,4 +1,4 @@
-"""Login gate — interactive module showcase (0.99.7)."""
+"""Login gate — interactive module showcase (0.99.8)."""
 
 from __future__ import annotations
 
@@ -53,9 +53,9 @@ def test_login_showcase_tilt_and_reduced_motion() -> None:
 
 
 def test_version_bump_for_login_showcase_cleanup() -> None:
-    assert __version__ == "0.99.7"
+    assert __version__ == "0.99.8"
     html = FRONTEND_INDEX.read_text(encoding="utf-8")
-    assert 'content="0.99.7"' in html
+    assert 'content="0.99.8"' in html
     assert 'content="login-enterprise-v18"' in html
 
 
