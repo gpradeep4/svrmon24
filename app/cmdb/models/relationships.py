@@ -12,6 +12,8 @@ from pydantic import BaseModel, ConfigDict, Field, field_validator, model_valida
 class RelationshipType(str, Enum):
     """Relationship types with explicit direction: source → target.
 
+    - HOSTS: source hosts target (e.g. Computer System → IP / OS / agent).
+      Helix "Show: Child" for hosted access points and system components.
     - HOSTED_ON: source is hosted on target (e.g. Middleware → Server).
       One server can be the target of many HOSTED_ON edges.
     - DEPENDS_ON: source depends on target to function.
@@ -19,13 +21,28 @@ class RelationshipType(str, Enum):
     - ROUTES_TO: source routes/forwards traffic to target.
     """
 
+    HOSTS = "HOSTS"
     HOSTED_ON = "HOSTED_ON"
     DEPENDS_ON = "DEPENDS_ON"
     CONNECTS_TO = "CONNECTS_TO"
     ROUTES_TO = "ROUTES_TO"
 
 
+# Parent/child filter semantics (Helix Show: Child / Parent).
+# HOSTS: parent is source. HOSTED_ON: parent is target (legacy inverse).
+PARENT_IS_SOURCE_TYPES: frozenset[str] = frozenset({RelationshipType.HOSTS.value})
+PARENT_IS_TARGET_TYPES: frozenset[str] = frozenset({RelationshipType.HOSTED_ON.value})
+
+
 RELATIONSHIP_TYPE_DOCS: dict[str, dict[str, str]] = {
+    RelationshipType.HOSTS.value: {
+        "direction": "source → target",
+        "meaning": (
+            "Source Computer System hosts the target (IP endpoint, OS, agent, "
+            "or software child CI)."
+        ),
+        "example": "Server srv-1 HOSTS Network ip-10.1.2.3",
+    },
     RelationshipType.HOSTED_ON.value: {
         "direction": "source → target",
         "meaning": "Source component is hosted/runs on the target component.",

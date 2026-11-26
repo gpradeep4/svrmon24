@@ -312,6 +312,23 @@ def update_component(
     return doc
 
 
+@router.get("/{component_id}/relationship-details")
+def get_relationship_details(
+    component_id: str,
+    tenant: TenantContext = Depends(require_tenant),
+) -> dict[str, Any]:
+    """Helix Relationship Details projection — tree + grouped child CIs (C2)."""
+    from ..services import relationships as relationships_service
+    from ..services.relationships import RelationshipError
+
+    try:
+        return relationships_service.relationship_details(
+            component_id, tenant_id=tenant.tenant_id
+        )
+    except RelationshipError as exc:
+        raise HTTPException(status_code=exc.status_code, detail=exc.message) from exc
+
+
 @router.get("/{component_id}/delete-preview")
 def delete_preview(
     component_id: str,

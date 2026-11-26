@@ -5167,6 +5167,29 @@
     $("#relationshipModal").classList.add("open");
   }
 
+  /** Prefill relationship modal (CI detail C2 HOSTS link helper). */
+  function openRelCreatePrefill(opts = {}) {
+    openRelCreate();
+    if (opts.relationship_type && $("#relType")) {
+      $("#relType").value = opts.relationship_type;
+      updateRelTypeHint();
+    }
+    if (opts.source_component_id && $("#relSource")) {
+      $("#relSource").value = opts.source_component_id;
+    }
+    if (opts.target_component_id && $("#relTarget")) {
+      $("#relTarget").value = opts.target_component_id;
+    }
+    if (opts.source_table != null && $("#relSourceTable")) {
+      $("#relSourceTable").value = opts.source_table || "";
+    }
+    if (opts.target_table != null && $("#relTargetTable")) {
+      $("#relTargetTable").value = opts.target_table || "";
+    }
+    syncTableComboSelects();
+    syncRelEntityDatalists();
+  }
+
   async function openRelEdit(id) {
     const doc = await api(`/api/relationships/${encodeURIComponent(id)}`);
     state.editingRelId = id;
@@ -6099,4 +6122,11 @@
     // Do not call connect() again here — that would re-toast failures and fight logout.
     showLoginShell();
   });
+
+  // CI detail (C2) + other modules may prefill the relationship modal.
+  window.SVRMON24Cmdb = {
+    ...(window.SVRMON24Cmdb || {}),
+    openRelCreate,
+    openRelCreatePrefill,
+  };
 })();

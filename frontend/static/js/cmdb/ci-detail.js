@@ -1,12 +1,15 @@
 /**
- * CMDB C1 — Helix-aligned CI detail (sticky header + General + Specifications).
+ * CMDB C1+C2 — Helix-aligned CI detail.
  *
- * Later slices hook via SVRMON24CmdbCiDetail.registerTabHook / load hooks:
- *   C2 Relationships / Relationship Details
+ * C1: sticky header + General + Specifications.
+ * C2: Relationships (HOSTS + child/parent) + Relationship Details tree.
+ *
+ * Later slices hook via SVRMON24CmdbCiDetail.registerTabHook:
  *   C3 People / Work Info (+ optional ITSM ticket_ref deep link)
  *   C4 Contracts / Outage / Impacted Areas
  *
- * ITSM coupling: related INC/CHG via /api/itsm/*?component_id= only (no Mongo joins).
+ * ITSM coupling: related INC/CHG via /api/itsm/*?component_id= for this CI and
+ * HOSTS/HOSTED_ON children (no Mongo cross-DB joins).
  */
 (function (global) {
   "use strict";
@@ -17,10 +20,19 @@
     { id: "work-info", label: "Work Info", active: false, slice: "C3" },
     { id: "contracts", label: "Contracts", active: false, slice: "C4" },
     { id: "people", label: "People", active: false, slice: "C3" },
-    { id: "relationships", label: "Relationships", active: false, slice: "C2" },
-    { id: "relationship-details", label: "Relationship Details", active: false, slice: "C2" },
+    { id: "relationships", label: "Relationships", active: true },
+    { id: "relationship-details", label: "Relationship Details", active: true },
     { id: "outage", label: "Outage", active: false, slice: "C4" },
     { id: "impacted-areas", label: "Impacted Areas", active: false, slice: "C4" },
+  ];
+
+  const REL_TYPE_FILTERS = [
+    { value: "", label: "All types" },
+    { value: "HOSTS", label: "HOSTS (hosted children)" },
+    { value: "HOSTED_ON", label: "HOSTED_ON" },
+    { value: "DEPENDS_ON", label: "DEPENDS_ON" },
+    { value: "CONNECTS_TO", label: "CONNECTS_TO" },
+    { value: "ROUTES_TO", label: "ROUTES_TO" },
   ];
 
   const STATUS_LABELS = {
@@ -53,6 +65,10 @@
     editing: false,
     ciTab: "general",
     returnTab: "servers",
+    relDirection: "child",
+    relType: "HOSTS",
+    relDetailsGroup: "ip_endpoint",
+    childComponentIds: [],
   };
 
   function $(sel, root = document) {
@@ -546,6 +562,621 @@
     </div>`;
   }
 
+  function relTypeOptions(selected) {
+    return REL_TYPE_FILTERS.map(
+      (t) =>
+        `<option value="${esa(t.value)}" ${
+          String(selected) === String(t.value) ? "selected" : ""
+        }>${esc(t.label)}</option>`
+    ).join("");
+  }
+
+  function renderRelationshipsShell(doc) {
+    const primaryIp = doc.ip_address || "—";
+    return `
+      <div class="ci-section-head">
+        <h3>Relationships</h3>
+        <p class="hint">Related assets for this CI. Primary inventory IP stays on the Server
+          (<code>${esc(primaryIp)}</code>); extra IPs are Network/IP children via <strong>HOSTS</strong>.</p>
+      </div>
+      <div class="ci-rel-filters">
+        <label>Show
+          <select id="ciRelDirection">
+            <option value="child" ${state.relDirection === "child" ? "selected" : ""}>Child</option>
+            <option value="parent" ${state.relDirection === "parent" ? "selected" : ""}>Parent</option>
+            <option value="both" ${state.relDirection === "both" ? "selected" : ""}>Both</option>
+          </select>
+        </label>
+        <label>Relationship type
+          <select id="ciRelType">${relTypeOptions(state.relType)}</select>
+        </label>
+        <button type="button" class="secondary" id="ciRelRefresh">Refresh</button>
+      </div>
+      <div class="ci-rel-actions">
+        <button type="button" class="secondary" id="ciRelLinkExisting" ${
+          deps.can("relationships:write") ? "" : "disabled"
+        }>Link existing (HOSTS)</button>
+        <button type="button" class="secondary" id="ciRelCreateIp" ${
+          deps.can("cmdb:write") && deps.can("relationships:write") ? "" : "disabled"
+        }>Create IP child</button>
+        <button type="button" class="secondary" id="ciRelCreateSoft" ${
+          deps.can("cmdb:write") && deps.can("relationships:write") ? "" : "disabled"
+        }>Create software child</button>
+      </div>
+      <div id="ciRelCreatePanel" class="ci-rel-create-panel" hidden></div>
+      <div class="table-wrap">
+        <table class="inventory ci-rel-table">
+          <thead>
+            <tr>
+              <th>Relationship</th>
+              <th>Related CI</th>
+              <th>Component ID</th>
+              <th>Category</th>
+              <th>Product</th>
+              <th>Version</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody id="ciRelBody"><tr><td colspan="7" class="hint">Loading…</td></tr></tbody>
+        </table>
+      </div>
+      <p class="hint" id="ciRelEmpty" hidden>No related assets.</p>
+      <div id="ciRelItsm" class="ci-rel-itsm" aria-live="polite"></div>`;
+  }
+
+  async function loadRelationshipsGrid() {
+    const body = $("#ciRelBody");
+    const empty = $("#ciRelEmpty");
+    if (!body || !state.componentId) return;
+    body.innerHTML = `<tr><td colspan="7" class="hint">Loading…</td></tr>`;
+    try {
+      const params = new URLSearchParams();
+      params.set("component_id", state.componentId);
+      params.set("direction", state.relDirection || "child");
+      params.set("enrich", "true");
+      params.set("page_size", "100");
+      if (state.relType) params.set("relationship_type", state.relType);
+      const data = await deps.api(`/api/relationships?${params}`);
+      const items = data.items || [];
+      state.childComponentIds = [
+        ...new Set(
+          items
+            .map((e) => e.related_component_id)
+            .filter((id) => id && id !== state.componentId)
+        ),
+      ];
+      if (!items.length) {
+        body.innerHTML = "";
+        if (empty) empty.hidden = false;
+      } else {
+        if (empty) empty.hidden = true;
+        body.innerHTML = items
+          .map((edge) => {
+            const rid = edge.related_component_id || "—";
+            const canOpen = !!edge.related_component_id && !edge.related_table;
+            return `<tr>
+              <td>${esc(edge.relationship_type || "—")}</td>
+              <td>${
+                canOpen
+                  ? `<button type="button" class="linkish" data-ci-open-rel="${esa(
+                      rid
+                    )}">${esc(edge.related_name || rid)}</button>`
+                  : esc(edge.related_name || rid)
+              }</td>
+              <td class="mono">${esc(rid)}</td>
+              <td>${esc(edge.related_category || "—")}</td>
+              <td>${esc(edge.related_product || "—")}</td>
+              <td>${esc(edge.related_version || "—")}</td>
+              <td>${
+                deps.can("relationships:write")
+                  ? `<button type="button" class="ghost" data-ci-unlink-rel="${esa(
+                      edge.relationship_id || ""
+                    )}">Remove</button>`
+                  : ""
+              }</td>
+            </tr>`;
+          })
+          .join("");
+      }
+      body.querySelectorAll("[data-ci-open-rel]").forEach((btn) => {
+        btn.addEventListener("click", () => {
+          const id = btn.getAttribute("data-ci-open-rel");
+          if (id) openCiDetail(id, { returnTab: "ci-detail", ciTab: "general" });
+        });
+      });
+      body.querySelectorAll("[data-ci-unlink-rel]").forEach((btn) => {
+        btn.addEventListener("click", async () => {
+          const id = btn.getAttribute("data-ci-unlink-rel");
+          if (!id || !confirm(`Remove relationship ${id}?`)) return;
+          try {
+            await deps.api(`/api/relationships/${encodeURIComponent(id)}`, {
+              method: "DELETE",
+            });
+            deps.toast(`Removed ${id}`);
+            await loadRelationshipsGrid();
+            await loadRelatedItsm(state.componentId);
+          } catch (err) {
+            deps.toast(err.message || "Remove failed", true);
+          }
+        });
+      });
+      await loadRelationshipsItsmStrip();
+    } catch (err) {
+      body.innerHTML = `<tr><td colspan="7" class="hint">${esc(
+        err.message || "Failed to load relationships"
+      )}</td></tr>`;
+    }
+  }
+
+  async function loadRelationshipsItsmStrip() {
+    const box = $("#ciRelItsm");
+    if (!box) return;
+    const ids = [state.componentId, ...(state.childComponentIds || [])].filter(Boolean);
+    const unique = [...new Set(ids)].slice(0, 12);
+    const canInc = deps.can("itsm:incident:read");
+    const canChg = deps.can("itsm:change:read");
+    if (!canInc && !canChg) {
+      box.innerHTML = "";
+      return;
+    }
+    box.innerHTML = `<p class="hint">Related ITSM for this CI and child CIs (API filter by component_id)…</p>`;
+    const incRows = [];
+    const chgRows = [];
+    try {
+      for (const cid of unique) {
+        if (canInc) {
+          const data = await deps.api(
+            `/api/itsm/incidents?component_id=${encodeURIComponent(cid)}&limit=5`
+          );
+          (data.items || []).forEach((i) =>
+            incRows.push({ ...i, _via: cid })
+          );
+        }
+        if (canChg) {
+          const data = await deps.api(
+            `/api/itsm/changes?component_id=${encodeURIComponent(cid)}&limit=5`
+          );
+          (data.items || []).forEach((c) =>
+            chgRows.push({ ...c, _via: cid })
+          );
+        }
+      }
+      const dedupe = (rows, idKey) => {
+        const seen = new Set();
+        return rows.filter((r) => {
+          const id = r[idKey] || r.id;
+          if (!id || seen.has(id)) return false;
+          seen.add(id);
+          return true;
+        });
+      };
+      const incs = dedupe(incRows, "incident_id");
+      const chgs = dedupe(chgRows, "change_id");
+      box.innerHTML = `
+        <div class="ci-itsm-block">
+          <strong>ITSM on CI + children</strong>
+          <p class="hint">Incidents ${esc(incs.length)} · Changes ${esc(chgs.length)}
+            (queried ${esc(unique.length)} component_id value(s) via ITSM APIs)</p>
+          <ul>${
+            incs.length
+              ? incs
+                  .slice(0, 8)
+                  .map(
+                    (i) =>
+                      `<li>${esc(i.incident_id || i.id)} — ${esc(i.title || "")}
+                        <span class="hint">(via ${esc(i._via)})</span></li>`
+                  )
+                  .join("")
+              : '<li class="hint">No incidents</li>'
+          }</ul>
+          <ul>${
+            chgs.length
+              ? chgs
+                  .slice(0, 8)
+                  .map(
+                    (c) =>
+                      `<li>${esc(c.change_id || c.id)} — ${esc(c.title || "")}
+                        <span class="hint">(via ${esc(c._via)})</span></li>`
+                  )
+                  .join("")
+              : '<li class="hint">No changes</li>'
+          }</ul>
+        </div>`;
+    } catch (err) {
+      box.innerHTML = `<p class="hint">ITSM child lookup failed: ${esc(
+        err.message || "error"
+      )}</p>`;
+    }
+  }
+
+  function showRelCreatePanel(kind) {
+    const panel = $("#ciRelCreatePanel");
+    if (!panel) return;
+    if (kind === "ip") {
+      panel.hidden = false;
+      panel.innerHTML = `
+        <h4>Create IP child (Network + HOSTS)</h4>
+        <p class="hint">Primary <code>ip_address</code> on the Server is unchanged. This adds an extra IP endpoint CI.</p>
+        <div class="form-grid ci-form-grid">
+          <label>IP address *<input id="ciRelNewIp" required placeholder="10.1.2.3" /></label>
+          <label>Name<input id="ciRelNewIpName" placeholder="auto from IP" /></label>
+          <label>Environment<input id="ciRelNewIpEnv" value="${esa(
+            state.doc?.environment || ""
+          )}" /></label>
+        </div>
+        <div class="ci-rel-actions">
+          <button type="button" class="primary" id="ciRelNewIpSave">Create &amp; link HOSTS</button>
+          <button type="button" class="ghost" id="ciRelCreateCancel">Cancel</button>
+        </div>`;
+      $("#ciRelCreateCancel")?.addEventListener("click", () => {
+        panel.hidden = true;
+        panel.innerHTML = "";
+      });
+      $("#ciRelNewIpSave")?.addEventListener("click", createIpChild);
+    } else if (kind === "soft") {
+      panel.hidden = false;
+      panel.innerHTML = `
+        <h4>Create software / agent child (Application + HOSTS)</h4>
+        <div class="form-grid ci-form-grid">
+          <label>Name *<input id="ciRelNewSoftName" required placeholder="BigFix Agent" /></label>
+          <label>Application type<input id="ciRelNewSoftType" placeholder="agent / package / os" /></label>
+          <label>Version<input id="ciRelNewSoftVer" placeholder="1.0" /></label>
+          <label>Environment<input id="ciRelNewSoftEnv" value="${esa(
+            state.doc?.environment || ""
+          )}" /></label>
+        </div>
+        <div class="ci-rel-actions">
+          <button type="button" class="primary" id="ciRelNewSoftSave">Create &amp; link HOSTS</button>
+          <button type="button" class="ghost" id="ciRelCreateCancel">Cancel</button>
+        </div>`;
+      $("#ciRelCreateCancel")?.addEventListener("click", () => {
+        panel.hidden = true;
+        panel.innerHTML = "";
+      });
+      $("#ciRelNewSoftSave")?.addEventListener("click", createSoftwareChild);
+    } else if (kind === "link") {
+      panel.hidden = false;
+      panel.innerHTML = `
+        <h4>Link existing CI via HOSTS</h4>
+        <p class="hint">Source = this CI. Target = existing component_id (IP / OS / agent / software).</p>
+        <div class="form-grid ci-form-grid">
+          <label>Target component_id *<input id="ciRelLinkTarget" required class="mono" /></label>
+        </div>
+        <div class="ci-rel-actions">
+          <button type="button" class="primary" id="ciRelLinkSave">Create HOSTS edge</button>
+          <button type="button" class="ghost" id="ciRelCreateCancel">Cancel</button>
+          <button type="button" class="ghost" id="ciRelOpenModal">Open full relationship form</button>
+        </div>`;
+      $("#ciRelCreateCancel")?.addEventListener("click", () => {
+        panel.hidden = true;
+        panel.innerHTML = "";
+      });
+      $("#ciRelLinkSave")?.addEventListener("click", linkHostsExisting);
+      $("#ciRelOpenModal")?.addEventListener("click", () => {
+        if (typeof global.SVRMON24Cmdb?.openRelCreatePrefill === "function") {
+          global.SVRMON24Cmdb.openRelCreatePrefill({
+            relationship_type: "HOSTS",
+            source_component_id: state.componentId,
+          });
+        } else {
+          deps.toast("Relationship form unavailable — use Link save here", true);
+        }
+      });
+    }
+  }
+
+  async function createIpChild() {
+    const ip = ($("#ciRelNewIp")?.value || "").trim();
+    if (!ip) {
+      deps.toast("IP address required", true);
+      return;
+    }
+    const name = ($("#ciRelNewIpName")?.value || "").trim() || `IP ${ip}`;
+    const env =
+      ($("#ciRelNewIpEnv")?.value || "").trim() || state.doc?.environment || "unknown";
+    try {
+      const child = await deps.api("/api/components", {
+        method: "POST",
+        body: JSON.stringify({
+          component_type: "Network",
+          name,
+          environment: env,
+          status: "active",
+          device_type: "ip_endpoint",
+          management_ip: ip,
+        }),
+      });
+      await deps.api("/api/relationships", {
+        method: "POST",
+        body: JSON.stringify({
+          source_component_id: state.componentId,
+          target_component_id: child.component_id,
+          relationship_type: "HOSTS",
+          discovery_method: "manually_configured",
+          verification_status: "unverified",
+          confidence: "medium",
+          evidence_or_notes: "Created from CI detail Relationships tab",
+        }),
+      });
+      deps.toast(`HOSTS → ${child.component_id}`);
+      const panel = $("#ciRelCreatePanel");
+      if (panel) {
+        panel.hidden = true;
+        panel.innerHTML = "";
+      }
+      state.relType = "HOSTS";
+      state.relDirection = "child";
+      const typeSel = $("#ciRelType");
+      const dirSel = $("#ciRelDirection");
+      if (typeSel) typeSel.value = "HOSTS";
+      if (dirSel) dirSel.value = "child";
+      await loadRelationshipsGrid();
+      await loadRelatedItsm(state.componentId);
+    } catch (err) {
+      deps.toast(err.message || "Create IP child failed", true);
+    }
+  }
+
+  async function createSoftwareChild() {
+    const name = ($("#ciRelNewSoftName")?.value || "").trim();
+    if (!name) {
+      deps.toast("Name required", true);
+      return;
+    }
+    const appType = ($("#ciRelNewSoftType")?.value || "").trim() || "agent";
+    const ver = ($("#ciRelNewSoftVer")?.value || "").trim() || null;
+    const env =
+      ($("#ciRelNewSoftEnv")?.value || "").trim() || state.doc?.environment || "unknown";
+    const isOs = ["os", "operating_system", "operating system"].includes(
+      appType.toLowerCase()
+    );
+    try {
+      const payload = isOs
+        ? {
+            component_type: "Application",
+            name,
+            environment: env,
+            status: "active",
+            application_name: name,
+            application_type: "os",
+          }
+        : {
+            component_type: "Middleware",
+            name,
+            environment: env,
+            status: "active",
+            product_type: appType,
+            product_version: ver,
+            instance_name: name,
+          };
+      const child = await deps.api("/api/components", {
+        method: "POST",
+        body: JSON.stringify(payload),
+      });
+      await deps.api("/api/relationships", {
+        method: "POST",
+        body: JSON.stringify({
+          source_component_id: state.componentId,
+          target_component_id: child.component_id,
+          relationship_type: "HOSTS",
+          discovery_method: "manually_configured",
+          verification_status: "unverified",
+          confidence: "medium",
+          evidence_or_notes: "Created from CI detail Relationships tab",
+        }),
+      });
+      deps.toast(`HOSTS → ${child.component_id}`);
+      const panel = $("#ciRelCreatePanel");
+      if (panel) {
+        panel.hidden = true;
+        panel.innerHTML = "";
+      }
+      state.relType = "HOSTS";
+      state.relDirection = "child";
+      await loadRelationshipsGrid();
+      await loadRelatedItsm(state.componentId);
+    } catch (err) {
+      deps.toast(err.message || "Create software child failed", true);
+    }
+  }
+
+  async function linkHostsExisting() {
+    const target = ($("#ciRelLinkTarget")?.value || "").trim();
+    if (!target) {
+      deps.toast("Target component_id required", true);
+      return;
+    }
+    try {
+      await deps.api("/api/relationships", {
+        method: "POST",
+        body: JSON.stringify({
+          source_component_id: state.componentId,
+          target_component_id: target,
+          relationship_type: "HOSTS",
+          discovery_method: "manually_configured",
+          verification_status: "unverified",
+          confidence: "medium",
+        }),
+      });
+      deps.toast(`HOSTS → ${target}`);
+      const panel = $("#ciRelCreatePanel");
+      if (panel) {
+        panel.hidden = true;
+        panel.innerHTML = "";
+      }
+      await loadRelationshipsGrid();
+      await loadRelatedItsm(state.componentId);
+    } catch (err) {
+      deps.toast(err.message || "Link failed", true);
+    }
+  }
+
+  function wireRelationshipsTab() {
+    $("#ciRelDirection")?.addEventListener("change", (e) => {
+      state.relDirection = e.target.value || "child";
+      loadRelationshipsGrid();
+    });
+    $("#ciRelType")?.addEventListener("change", (e) => {
+      state.relType = e.target.value || "";
+      loadRelationshipsGrid();
+    });
+    $("#ciRelRefresh")?.addEventListener("click", () => loadRelationshipsGrid());
+    $("#ciRelLinkExisting")?.addEventListener("click", () => showRelCreatePanel("link"));
+    $("#ciRelCreateIp")?.addEventListener("click", () => showRelCreatePanel("ip"));
+    $("#ciRelCreateSoft")?.addEventListener("click", () => showRelCreatePanel("soft"));
+    loadRelationshipsGrid();
+  }
+
+  function renderRelationshipDetailsShell() {
+    return `
+      <div class="ci-section-head">
+        <h3>Relationship Details</h3>
+        <p class="hint">Hierarchical browse of hosted children by class (projection over relationships).</p>
+      </div>
+      <div class="ci-rel-details">
+        <aside class="ci-rel-tree" id="ciRelTree" aria-label="Related CI classes">
+          <p class="hint">Loading…</p>
+        </aside>
+        <div class="ci-rel-detail-grid">
+          <div class="ci-rel-detail-head">
+            <strong id="ciRelDetailTitle">Select a class</strong>
+            <span class="hint" id="ciRelDetailCount"></span>
+            <button type="button" class="secondary" id="ciRelDetailsRefresh">Refresh</button>
+          </div>
+          <div class="table-wrap">
+            <table class="inventory">
+              <thead>
+                <tr>
+                  <th>Name</th>
+                  <th>Component ID</th>
+                  <th>Type</th>
+                  <th>Product</th>
+                  <th>Version</th>
+                  <th>Relationship</th>
+                </tr>
+              </thead>
+              <tbody id="ciRelDetailBody">
+                <tr><td colspan="6" class="hint">Select a tree node</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>`;
+  }
+
+  async function loadRelationshipDetails() {
+    const tree = $("#ciRelTree");
+    const tbody = $("#ciRelDetailBody");
+    if (!tree || !state.componentId) return;
+    tree.innerHTML = `<p class="hint">Loading…</p>`;
+    try {
+      const data = await deps.api(
+        `/api/components/${encodeURIComponent(state.componentId)}/relationship-details`
+      );
+      state._relDetails = data;
+      state.childComponentIds = data.related_component_ids || [];
+      const groups = data.groups || {};
+      tree.innerHTML = (data.tree || [])
+        .map((node) => {
+          const selected = state.relDetailsGroup === node.key;
+          const count = node.count ?? 0;
+          if (count === 0) {
+            return `<button type="button" class="ci-rel-tree-node is-empty${
+              selected ? " is-active" : ""
+            }" data-rel-group="${esa(node.key)}" disabled>
+              ${esc(node.label)} <span class="hint">0</span>
+            </button>`;
+          }
+          return `<button type="button" class="ci-rel-tree-node${
+            selected ? " is-active" : ""
+          }" data-rel-group="${esa(node.key)}">
+            ${esc(node.label)} <span class="hint">${esc(count)}</span>
+          </button>`;
+        })
+        .join("");
+      // Prefer first non-empty group if current empty
+      const current = groups[state.relDetailsGroup];
+      if (!current || !current.total) {
+        const first = (data.tree || []).find((n) => (n.count || 0) > 0);
+        if (first) state.relDetailsGroup = first.key;
+      }
+      tree.querySelectorAll("[data-rel-group]").forEach((btn) => {
+        btn.addEventListener("click", () => {
+          state.relDetailsGroup = btn.getAttribute("data-rel-group");
+          renderRelDetailsGrid();
+          tree.querySelectorAll(".ci-rel-tree-node").forEach((n) => {
+            n.classList.toggle(
+              "is-active",
+              n.getAttribute("data-rel-group") === state.relDetailsGroup
+            );
+          });
+        });
+      });
+      renderRelDetailsGrid();
+    } catch (err) {
+      tree.innerHTML = `<p class="hint">${esc(err.message || "Failed")}</p>`;
+      if (tbody) {
+        tbody.innerHTML = `<tr><td colspan="6" class="hint">${esc(
+          err.message || "Failed"
+        )}</td></tr>`;
+      }
+    }
+  }
+
+  function renderRelDetailsGrid() {
+    const data = state._relDetails;
+    const tbody = $("#ciRelDetailBody");
+    const title = $("#ciRelDetailTitle");
+    const countEl = $("#ciRelDetailCount");
+    if (!data || !tbody) return;
+    const group = (data.groups || {})[state.relDetailsGroup] || {
+      label: state.relDetailsGroup,
+      items: [],
+      total: 0,
+    };
+    if (title) title.textContent = group.label || state.relDetailsGroup;
+    const items = group.items || [];
+    if (countEl) {
+      countEl.textContent = items.length
+        ? `Showing ${items.length} of ${group.total || items.length}`
+        : "Empty";
+    }
+    if (!items.length) {
+      tbody.innerHTML = `<tr><td colspan="6" class="hint">No items in this class.</td></tr>`;
+      return;
+    }
+    tbody.innerHTML = items
+      .map((it) => {
+        const canOpen = it.component_id && !it.synthetic;
+        return `<tr>
+          <td>${
+            canOpen
+              ? `<button type="button" class="linkish" data-ci-open-rel="${esa(
+                  it.component_id
+                )}">${esc(it.name || it.component_id)}</button>`
+              : esc(it.name || "—")
+          }${it.synthetic ? ' <span class="hint">(from Server os_*)</span>' : ""}</td>
+          <td class="mono">${esc(it.component_id || "—")}</td>
+          <td>${esc(it.component_type || it.category || "—")}</td>
+          <td>${esc(it.product || "—")}</td>
+          <td>${esc(it.version || "—")}</td>
+          <td>${esc(it.relationship_type || (it.synthetic ? "—" : "—"))}</td>
+        </tr>`;
+      })
+      .join("");
+    tbody.querySelectorAll("[data-ci-open-rel]").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        const id = btn.getAttribute("data-ci-open-rel");
+        if (id) openCiDetail(id, { returnTab: "ci-detail", ciTab: "general" });
+      });
+    });
+  }
+
+  function wireRelationshipDetailsTab() {
+    $("#ciRelDetailsRefresh")?.addEventListener("click", () => loadRelationshipDetails());
+    loadRelationshipDetails();
+  }
+
   function renderBody() {
     const doc = state.doc || {};
     const body = $("#ciDetailTabBody");
@@ -562,6 +1193,12 @@
         <div id="ciSpecsNative">${renderTypeSpecs(doc, editing)}</div>
         <div id="ciSpecsCustom"></div>`;
       renderCustomSpecs(doc, editing);
+    } else if (state.ciTab === "relationships") {
+      body.innerHTML = renderRelationshipsShell(doc);
+      wireRelationshipsTab();
+    } else if (state.ciTab === "relationship-details") {
+      body.innerHTML = renderRelationshipDetailsShell();
+      wireRelationshipDetailsTab();
     } else {
       const hook = tabHooks[state.ciTab];
       if (typeof hook === "function") {
@@ -603,6 +1240,23 @@
     });
   }
 
+  async function fetchChildComponentIds(componentId) {
+    try {
+      const data = await deps.api(
+        `/api/relationships?component_id=${encodeURIComponent(
+          componentId
+        )}&direction=child&enrich=true&page_size=50`
+      );
+      const ids = (data.items || [])
+        .map((e) => e.related_component_id)
+        .filter((id) => id && id !== componentId);
+      state.childComponentIds = [...new Set(ids)];
+      return state.childComponentIds;
+    } catch {
+      return state.childComponentIds || [];
+    }
+  }
+
   async function loadRelatedItsm(componentId) {
     const box = $("#ciItsmRelated");
     if (!box) return;
@@ -616,23 +1270,51 @@
     box.innerHTML = '<p class="hint">Loading related ITSM…</p>';
     const chunks = [];
     try {
+      const childIds = await fetchChildComponentIds(componentId);
+      const scopeIds = [componentId, ...childIds].slice(0, 12);
+
+      async function collect(kind) {
+        const rows = [];
+        for (const cid of scopeIds) {
+          const path =
+            kind === "inc"
+              ? `/api/itsm/incidents?component_id=${encodeURIComponent(cid)}&limit=5`
+              : `/api/itsm/changes?component_id=${encodeURIComponent(cid)}&limit=5`;
+          const data = await deps.api(path);
+          (data.items || []).forEach((row) => rows.push({ ...row, _via: cid }));
+        }
+        const idKey = kind === "inc" ? "incident_id" : "change_id";
+        const seen = new Set();
+        return rows.filter((r) => {
+          const id = r[idKey] || r.id;
+          if (!id || seen.has(id)) return false;
+          seen.add(id);
+          return true;
+        });
+      }
+
       if (canInc) {
-        const data = await deps.api(
-          `/api/itsm/incidents?component_id=${encodeURIComponent(componentId)}&limit=5`
-        );
-        const items = data.items || [];
+        const items = await collect("inc");
         chunks.push(`<div class="ci-itsm-block">
           <strong>Incidents</strong>
-          <span class="hint">(${esc(data.total ?? items.length)})</span>
+          <span class="hint">(${esc(items.length)}${
+            childIds.length ? ` · incl. ${esc(childIds.length)} child CI(s)` : ""
+          })</span>
           <ul>${
             items.length
               ? items
+                  .slice(0, 8)
                   .map(
                     (i) =>
                       `<li><button type="button" class="linkish" data-ci-open-inc="${esa(
                         i.incident_id || i.id
                       )}">${esc(i.incident_id || i.id)}</button>
-                      ${esc(i.title || "")} · ${esc(i.status || "")}</li>`
+                      ${esc(i.title || "")} · ${esc(i.status || "")}
+                      ${
+                        i._via && i._via !== componentId
+                          ? `<span class="hint">(child ${esc(i._via)})</span>`
+                          : ""
+                      }</li>`
                   )
                   .join("")
               : "<li class=\"hint\">None</li>"
@@ -641,22 +1323,27 @@
         </div>`);
       }
       if (canChg) {
-        const data = await deps.api(
-          `/api/itsm/changes?component_id=${encodeURIComponent(componentId)}&limit=5`
-        );
-        const items = data.items || [];
+        const items = await collect("chg");
         chunks.push(`<div class="ci-itsm-block">
           <strong>Changes</strong>
-          <span class="hint">(${esc(data.total ?? items.length)})</span>
+          <span class="hint">(${esc(items.length)}${
+            childIds.length ? ` · incl. ${esc(childIds.length)} child CI(s)` : ""
+          })</span>
           <ul>${
             items.length
               ? items
+                  .slice(0, 8)
                   .map(
                     (c) =>
                       `<li><button type="button" class="linkish" data-ci-open-chg="${esa(
                         c.change_id || c.id
                       )}">${esc(c.change_id || c.id)}</button>
-                      ${esc(c.title || "")} · ${esc(c.status || "")}</li>`
+                      ${esc(c.title || "")} · ${esc(c.status || "")}
+                      ${
+                        c._via && c._via !== componentId
+                          ? `<span class="hint">(child ${esc(c._via)})</span>`
+                          : ""
+                      }</li>`
                   )
                   .join("")
               : "<li class=\"hint\">None</li>"
