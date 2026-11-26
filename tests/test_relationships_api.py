@@ -301,7 +301,7 @@ def test_relationship_types_documented(
     response = client.get("/api/relationships/types", headers=auth_headers)
     assert response.status_code == 200
     types = {item["relationship_type"]: item for item in response.json()["types"]}
-    for key in ("HOSTED_ON", "DEPENDS_ON", "CONNECTS_TO", "ROUTES_TO"):
+    for key in ("HOSTS", "HOSTED_ON", "DEPENDS_ON", "CONNECTS_TO", "ROUTES_TO"):
         assert key in types
         assert "direction" in types[key]
         assert "meaning" in types[key]
