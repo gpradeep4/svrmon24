@@ -1,16 +1,14 @@
 /**
- * CMDB C1–C3 — Helix-aligned CI detail.
+ * CMDB C1–C4 — Helix-aligned CI detail.
  *
  * C1: sticky header + General + Specifications.
  * C2: Relationships (HOSTS + child/parent) + Relationship Details tree.
  * C3: People + Work Info via registerTabHook (+ optional ITSM ticket_ref).
- *
- * Later slices hook via SVRMON24CmdbCiDetail.registerTabHook:
- *   C4 Contracts / Outage / Impacted Areas
+ * C4: Contracts / Outage / Impacted Areas via registerTabHook.
  *
  * ITSM coupling: related INC/CHG via /api/itsm/*?component_id= for this CI and
- * HOSTS/HOSTED_ON children (no Mongo cross-DB joins). Work Info stores optional
- * itsm_ticket_ref only — tickets stay in ITSM DB.
+ * HOSTS/HOSTED_ON children (no Mongo cross-DB joins). Work Info / Outage /
+ * Contracts store optional itsm_*_ref only — tickets stay in ITSM DB.
  */
 (function (global) {
   "use strict";
@@ -19,12 +17,12 @@
     { id: "general", label: "General", active: true },
     { id: "specifications", label: "Specifications", active: true },
     { id: "work-info", label: "Work Info", active: true },
-    { id: "contracts", label: "Contracts", active: false, slice: "C4" },
+    { id: "contracts", label: "Contracts", active: true },
     { id: "people", label: "People", active: true },
     { id: "relationships", label: "Relationships", active: true },
     { id: "relationship-details", label: "Relationship Details", active: true },
-    { id: "outage", label: "Outage", active: false, slice: "C4" },
-    { id: "impacted-areas", label: "Impacted Areas", active: false, slice: "C4" },
+    { id: "outage", label: "Outage", active: true },
+    { id: "impacted-areas", label: "Impacted Areas", active: true },
   ];
 
   const PEOPLE_ROLES = [
@@ -2189,9 +2187,807 @@
     loadWorkInfo();
   }
 
-  // Activate C3 tabs through the C1 hook surface.
+  // ---------------------------------------------------------------------------
+  // C4 — Contracts + Outage + Impacted Areas (registerTabHook)
+  // ---------------------------------------------------------------------------
+
+  function dash(v) {
+    if (v === null || v === undefined || v === "") return "—";
+    return String(v);
+  }
+
+  function renderContractsHook(ctx) {
+    const { container, componentId, api, toast } = ctx;
+    const canWrite = deps.can("cmdb:write");
+    container.innerHTML = `
+      <div class="ci-section-head">
+        <h3>Contracts</h3>
+        <p class="hint">Support, maintenance, and lease contracts linked to this CI. Optional ITSM Change deep link for renewals.</p>
+      </div>
+      <div class="ci-contracts-actions">
+        <button type="button" class="secondary" id="ciCtrRefresh">Refresh</button>
+        <button type="button" class="secondary" id="ciCtrCreate" ${
+          canWrite ? "" : "disabled"
+        }>Create</button>
+        <button type="button" class="ghost" id="ciCtrSearch" ${
+          canWrite ? "" : "disabled"
+        }>Search existing</button>
+        <button type="button" class="ghost" id="ciCtrRenewChg">Create renewal change</button>
+      </div>
+      <div id="ciCtrForm" class="ci-contracts-form hidden">
+        <h4 id="ciCtrFormTitle">Create contract</h4>
+        <div class="ci-form-grid two-col">
+          <label>Relationship type
+            <select id="ciCtrRel">
+              <option value="related_to">Related to</option>
+              <option value="covered_by">Covered by</option>
+              <option value="leased_under">Leased under</option>
+            </select>
+          </label>
+          <label>Contract type
+            <select id="ciCtrType">
+              <option value="support">Support</option>
+              <option value="maintenance">Maintenance</option>
+              <option value="lease">Lease</option>
+              <option value="warranty">Warranty</option>
+              <option value="other">Other</option>
+            </select>
+          </label>
+          <label class="full">Description *<input id="ciCtrDesc" required maxlength="500" /></label>
+          <label>Start date<input type="date" id="ciCtrStart" /></label>
+          <label>End date<input type="date" id="ciCtrEnd" /></label>
+          <label>Status
+            <select id="ciCtrStatus">
+              <option value="active">Active</option>
+              <option value="expired">Expired</option>
+              <option value="pending">Pending</option>
+              <option value="cancelled">Cancelled</option>
+            </select>
+          </label>
+          <label>Vendor<input id="ciCtrVendor" maxlength="200" /></label>
+          <label>External ref<input id="ciCtrExt" maxlength="120" /></label>
+          <label>ITSM Change id<input id="ciCtrChgId" maxlength="80" placeholder="CHG-… (optional renewal)" /></label>
+        </div>
+        <div id="ciCtrSearchPanel" class="ci-contracts-search hidden">
+          <label class="full">Search contracts
+            <input id="ciCtrSearchQ" maxlength="200" placeholder="description, vendor, id…" />
+          </label>
+          <div class="table-wrap">
+            <table class="data-table">
+              <thead><tr><th>ID</th><th>Description</th><th>Status</th><th></th></tr></thead>
+              <tbody id="ciCtrSearchBody"><tr><td colspan="4" class="hint">Enter a query and press Search.</td></tr></tbody>
+            </table>
+          </div>
+          <button type="button" class="secondary" id="ciCtrSearchGo">Search</button>
+        </div>
+        <div class="ci-contracts-form-actions">
+          <button type="button" class="primary" id="ciCtrSave" ${
+            canWrite ? "" : "disabled"
+          }>Save &amp; link</button>
+          <button type="button" class="ghost" id="ciCtrCancel">Cancel</button>
+        </div>
+      </div>
+      <div class="table-wrap">
+        <table class="data-table ci-contracts-table">
+          <thead>
+            <tr>
+              <th>Relationship</th>
+              <th>Type</th>
+              <th>Description</th>
+              <th>Start</th>
+              <th>End</th>
+              <th>Status</th>
+              <th>ITSM</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody id="ciCtrBody"><tr><td colspan="8" class="hint">Loading…</td></tr></tbody>
+        </table>
+      </div>
+      <p class="hint" id="ciCtrEmpty" hidden>No contracts were found related to this CI.</p>`;
+
+    const formEl = container.querySelector("#ciCtrForm");
+    const searchPanel = container.querySelector("#ciCtrSearchPanel");
+    const bodyEl = container.querySelector("#ciCtrBody");
+    const emptyEl = container.querySelector("#ciCtrEmpty");
+    let searchMode = false;
+
+    function hideForm() {
+      searchMode = false;
+      formEl?.classList.add("hidden");
+      searchPanel?.classList.add("hidden");
+      container.querySelector("#ciCtrDesc").value = "";
+      container.querySelector("#ciCtrStart").value = "";
+      container.querySelector("#ciCtrEnd").value = "";
+      container.querySelector("#ciCtrVendor").value = "";
+      container.querySelector("#ciCtrExt").value = "";
+      container.querySelector("#ciCtrChgId").value = "";
+      container.querySelector("#ciCtrType").value = "support";
+      container.querySelector("#ciCtrStatus").value = "active";
+      container.querySelector("#ciCtrRel").value = "related_to";
+      container.querySelector("#ciCtrFormTitle").textContent = "Create contract";
+      container.querySelector("#ciCtrSave").classList.remove("hidden");
+    }
+
+    function showCreateForm() {
+      searchMode = false;
+      searchPanel?.classList.add("hidden");
+      container.querySelector("#ciCtrFormTitle").textContent = "Create contract";
+      container.querySelector("#ciCtrSave").classList.remove("hidden");
+      formEl?.classList.remove("hidden");
+    }
+
+    function showSearchForm() {
+      searchMode = true;
+      container.querySelector("#ciCtrFormTitle").textContent = "Search existing contracts";
+      container.querySelector("#ciCtrSave").classList.add("hidden");
+      searchPanel?.classList.remove("hidden");
+      formEl?.classList.remove("hidden");
+    }
+
+    async function loadContracts() {
+      bodyEl.innerHTML =
+        '<tr><td colspan="8" class="hint">Loading…</td></tr>';
+      try {
+        const data = await api(
+          `/api/components/${encodeURIComponent(componentId)}/contracts`
+        );
+        const items = data.items || [];
+        if (!items.length) {
+          bodyEl.innerHTML = "";
+          if (emptyEl) emptyEl.hidden = false;
+          return;
+        }
+        if (emptyEl) emptyEl.hidden = true;
+        bodyEl.innerHTML = items
+          .map((row) => {
+            const ref = row.itsm_change_ref;
+            const itsmCell = ref
+              ? `<button type="button" class="linkish" data-ctr-itsm-mod="${esa(
+                  ref.module
+                )}" data-ctr-itsm-id="${esa(ref.ticket_id)}">Open ${esc(
+                  ref.ticket_id
+                )}</button>`
+              : "—";
+            return `<tr data-link-id="${esa(row.link_id)}">
+              <td>${esc(row.relationship_name || row.relationship_type)}</td>
+              <td>${esc(row.request_type || row.contract?.contract_type)}</td>
+              <td>${esc(row.description || row.contract?.description)}</td>
+              <td>${esc(dash(row.start_date))}</td>
+              <td>${esc(dash(row.end_date))}</td>
+              <td>${esc(dash(row.status))}</td>
+              <td>${itsmCell}</td>
+              <td class="ci-contracts-row-actions">
+                <button type="button" class="ghost" data-ctr-view="${esa(
+                  row.contract_id
+                )}">View</button>
+                <button type="button" class="ghost danger" data-ctr-unlink="${esa(
+                  row.link_id
+                )}" ${canWrite ? "" : "disabled"}>Remove</button>
+              </td>
+            </tr>`;
+          })
+          .join("");
+
+        bodyEl.querySelectorAll("[data-ctr-itsm-mod]").forEach((btn) => {
+          btn.addEventListener("click", () => {
+            openItsmTicketRef({
+              module: btn.getAttribute("data-ctr-itsm-mod"),
+              ticket_id: btn.getAttribute("data-ctr-itsm-id"),
+            });
+          });
+        });
+        bodyEl.querySelectorAll("[data-ctr-view]").forEach((btn) => {
+          btn.addEventListener("click", async () => {
+            const cid = btn.getAttribute("data-ctr-view");
+            try {
+              const c = await api(
+                `/api/contracts/${encodeURIComponent(cid)}`
+              );
+              window.alert(
+                `Contract ${c.contract_id}\n` +
+                  `Type: ${c.contract_type}\n` +
+                  `Description: ${c.description}\n` +
+                  `Status: ${c.status}\n` +
+                  `Vendor: ${c.vendor || "—"}\n` +
+                  `Start: ${c.start_date || "—"}\n` +
+                  `End: ${c.end_date || "—"}`
+              );
+            } catch (err) {
+              toast(err.message || "View failed", true);
+            }
+          });
+        });
+        bodyEl.querySelectorAll("[data-ctr-unlink]").forEach((btn) => {
+          btn.addEventListener("click", async () => {
+            const id = btn.getAttribute("data-ctr-unlink");
+            if (!id || !canWrite) return;
+            if (!window.confirm("Remove this contract link from the CI?")) return;
+            try {
+              await api(
+                `/api/components/${encodeURIComponent(
+                  componentId
+                )}/contracts/${encodeURIComponent(id)}`,
+                { method: "DELETE" }
+              );
+              toast("Contract unlinked");
+              await loadContracts();
+            } catch (err) {
+              toast(err.message || "Remove failed", true);
+            }
+          });
+        });
+      } catch (err) {
+        bodyEl.innerHTML = `<tr><td colspan="8" class="hint">${esc(
+          err.message || "Failed to load"
+        )}</td></tr>`;
+      }
+    }
+
+    container.querySelector("#ciCtrRefresh")?.addEventListener("click", () => {
+      loadContracts();
+      toast("Refreshed");
+    });
+    container.querySelector("#ciCtrCreate")?.addEventListener("click", showCreateForm);
+    container.querySelector("#ciCtrSearch")?.addEventListener("click", showSearchForm);
+    container.querySelector("#ciCtrCancel")?.addEventListener("click", hideForm);
+    container
+      .querySelector("#ciCtrRenewChg")
+      ?.addEventListener("click", () => openCreateRelatedItsm(componentId, "change"));
+    container.querySelector("#ciCtrSearchGo")?.addEventListener("click", async () => {
+      const q = container.querySelector("#ciCtrSearchQ")?.value?.trim() || "";
+      const searchBody = container.querySelector("#ciCtrSearchBody");
+      searchBody.innerHTML =
+        '<tr><td colspan="4" class="hint">Searching…</td></tr>';
+      try {
+        const data = await api(
+          `/api/contracts?q=${encodeURIComponent(q)}&limit=25`
+        );
+        const items = data.items || [];
+        if (!items.length) {
+          searchBody.innerHTML =
+            '<tr><td colspan="4" class="hint">No contracts matched.</td></tr>';
+          return;
+        }
+        searchBody.innerHTML = items
+          .map(
+            (c) => `<tr>
+              <td class="mono">${esc(c.contract_id)}</td>
+              <td>${esc(c.description)}</td>
+              <td>${esc(c.status)}</td>
+              <td><button type="button" class="ghost" data-ctr-link="${esa(
+                c.contract_id
+              )}" ${canWrite ? "" : "disabled"}>Link</button></td>
+            </tr>`
+          )
+          .join("");
+        searchBody.querySelectorAll("[data-ctr-link]").forEach((btn) => {
+          btn.addEventListener("click", async () => {
+            const contractId = btn.getAttribute("data-ctr-link");
+            if (!contractId || !canWrite) return;
+            try {
+              await api(
+                `/api/components/${encodeURIComponent(componentId)}/contracts`,
+                {
+                  method: "POST",
+                  body: JSON.stringify({
+                    contract_id: contractId,
+                    relationship_name:
+                      container.querySelector("#ciCtrRel")?.value || "related_to",
+                  }),
+                }
+              );
+              toast("Contract linked");
+              hideForm();
+              await loadContracts();
+            } catch (err) {
+              toast(err.message || "Link failed", true);
+            }
+          });
+        });
+      } catch (err) {
+        searchBody.innerHTML = `<tr><td colspan="4" class="hint">${esc(
+          err.message || "Search failed"
+        )}</td></tr>`;
+      }
+    });
+    container.querySelector("#ciCtrSave")?.addEventListener("click", async () => {
+      if (!canWrite || searchMode) {
+        if (!canWrite) toast("cmdb:write required", true);
+        return;
+      }
+      const description = container.querySelector("#ciCtrDesc")?.value?.trim();
+      if (!description) {
+        toast("Description is required", true);
+        return;
+      }
+      const chgId = container.querySelector("#ciCtrChgId")?.value?.trim() || "";
+      const start = container.querySelector("#ciCtrStart")?.value || null;
+      const end = container.querySelector("#ciCtrEnd")?.value || null;
+      const payload = {
+        relationship_name: container.querySelector("#ciCtrRel")?.value || "related_to",
+        contract: {
+          contract_type: container.querySelector("#ciCtrType")?.value || "support",
+          description,
+          start_date: start || null,
+          end_date: end || null,
+          status: container.querySelector("#ciCtrStatus")?.value || "active",
+          vendor: container.querySelector("#ciCtrVendor")?.value?.trim() || null,
+          external_ref: container.querySelector("#ciCtrExt")?.value?.trim() || null,
+          itsm_change_ref: chgId
+            ? { module: "change", ticket_id: chgId }
+            : null,
+        },
+      };
+      try {
+        await api(
+          `/api/components/${encodeURIComponent(componentId)}/contracts`,
+          { method: "POST", body: JSON.stringify(payload) }
+        );
+        toast("Contract created and linked");
+        hideForm();
+        await loadContracts();
+      } catch (err) {
+        toast(err.message || "Save failed", true);
+      }
+    });
+
+    loadContracts();
+  }
+
+  function renderOutageHook(ctx) {
+    const { container, componentId, api, toast } = ctx;
+    const canWrite = deps.can("cmdb:write");
+    container.innerHTML = `
+      <div class="ci-section-head">
+        <h3>Outage Information</h3>
+        <p class="hint">Planned or unplanned CI unavailability. Optional ITSM Incident/Change deep link — tickets are not stored in CMDB.</p>
+      </div>
+      <div class="ci-outage-actions">
+        <button type="button" class="secondary" id="ciOutRefresh">Refresh</button>
+        <button type="button" class="secondary" id="ciOutCreate" ${
+          canWrite ? "" : "disabled"
+        }>Create</button>
+        <button type="button" class="ghost" id="ciOutCreateInc">Create related incident</button>
+        <button type="button" class="ghost" id="ciOutCreateChg">Create related change</button>
+      </div>
+      <div id="ciOutForm" class="ci-outage-form hidden">
+        <h4>Add outage</h4>
+        <div class="ci-form-grid two-col">
+          <label>Class
+            <select id="ciOutClass">
+              <option value="planned">Planned</option>
+              <option value="unplanned">Unplanned</option>
+            </select>
+          </label>
+          <label>Type
+            <select id="ciOutType">
+              <option value="maintenance">Maintenance</option>
+              <option value="incident">Incident</option>
+              <option value="degradation">Degradation</option>
+              <option value="other">Other</option>
+            </select>
+          </label>
+          <label>Status
+            <select id="ciOutStatus">
+              <option value="scheduled">Scheduled</option>
+              <option value="in_progress">In progress</option>
+              <option value="completed">Completed</option>
+              <option value="cancelled">Cancelled</option>
+            </select>
+          </label>
+          <label>Assignment status<input id="ciOutAssign" maxlength="80" placeholder="Assigned / Unassigned" /></label>
+          <label>Starts at<input type="datetime-local" id="ciOutStart" /></label>
+          <label>Ends at<input type="datetime-local" id="ciOutEnd" /></label>
+          <label class="full">Summary *<input id="ciOutSummary" required maxlength="500" /></label>
+          <label>ITSM module
+            <select id="ciOutItsmModule">
+              <option value="">— none —</option>
+              <option value="incident">Incident</option>
+              <option value="change">Change</option>
+              <option value="problem">Problem</option>
+            </select>
+          </label>
+          <label>ITSM ticket id<input id="ciOutItsmId" maxlength="80" placeholder="INC-… / CHG-…" /></label>
+        </div>
+        <div class="ci-outage-form-actions">
+          <button type="button" class="primary" id="ciOutSave" ${
+            canWrite ? "" : "disabled"
+          }>Save</button>
+          <button type="button" class="ghost" id="ciOutCancel">Cancel</button>
+        </div>
+      </div>
+      <div class="table-wrap">
+        <table class="data-table ci-outage-table">
+          <thead>
+            <tr>
+              <th>Unavailability ID</th>
+              <th>Class</th>
+              <th>Type</th>
+              <th>Status</th>
+              <th>Assignment</th>
+              <th>ITSM</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody id="ciOutBody"><tr><td colspan="7" class="hint">Loading…</td></tr></tbody>
+        </table>
+      </div>
+      <p class="hint" id="ciOutEmpty" hidden>No outage information recorded for this CI.</p>`;
+
+    const formEl = container.querySelector("#ciOutForm");
+    const bodyEl = container.querySelector("#ciOutBody");
+    const emptyEl = container.querySelector("#ciOutEmpty");
+
+    function hideForm() {
+      formEl?.classList.add("hidden");
+      container.querySelector("#ciOutSummary").value = "";
+      container.querySelector("#ciOutAssign").value = "";
+      container.querySelector("#ciOutStart").value = "";
+      container.querySelector("#ciOutEnd").value = "";
+      container.querySelector("#ciOutItsmModule").value = "";
+      container.querySelector("#ciOutItsmId").value = "";
+      container.querySelector("#ciOutClass").value = "planned";
+      container.querySelector("#ciOutType").value = "maintenance";
+      container.querySelector("#ciOutStatus").value = "scheduled";
+    }
+
+    function toIsoLocal(value) {
+      if (!value) return null;
+      // datetime-local → treat as local wall time; append Z-less ISO for API.
+      const d = new Date(value);
+      if (Number.isNaN(d.getTime())) return null;
+      return d.toISOString();
+    }
+
+    async function loadOutages() {
+      bodyEl.innerHTML =
+        '<tr><td colspan="7" class="hint">Loading…</td></tr>';
+      try {
+        const data = await api(
+          `/api/components/${encodeURIComponent(componentId)}/outages`
+        );
+        const items = data.items || [];
+        if (!items.length) {
+          bodyEl.innerHTML = "";
+          if (emptyEl) emptyEl.hidden = false;
+          return;
+        }
+        if (emptyEl) emptyEl.hidden = true;
+        bodyEl.innerHTML = items
+          .map((row) => {
+            const ref = row.itsm_ref;
+            const itsmCell = ref
+              ? `<button type="button" class="linkish" data-out-itsm-mod="${esa(
+                  ref.module
+                )}" data-out-itsm-id="${esa(ref.ticket_id)}">Open ${esc(
+                  ref.ticket_id
+                )}</button>`
+              : "—";
+            return `<tr data-outage-id="${esa(row.outage_id)}">
+              <td class="mono">${esc(row.outage_id)}</td>
+              <td>${esc(row.unavailability_class)}</td>
+              <td>${esc(row.unavailability_type)}</td>
+              <td>${esc(row.status)}</td>
+              <td>${esc(dash(row.assignment_status))}</td>
+              <td>${itsmCell}</td>
+              <td class="ci-outage-row-actions">
+                <button type="button" class="ghost" data-out-view="${esa(
+                  row.outage_id
+                )}">View</button>
+                <button type="button" class="ghost danger" data-out-del="${esa(
+                  row.outage_id
+                )}" ${canWrite ? "" : "disabled"}>Remove</button>
+              </td>
+            </tr>`;
+          })
+          .join("");
+
+        bodyEl.querySelectorAll("[data-out-itsm-mod]").forEach((btn) => {
+          btn.addEventListener("click", () => {
+            openItsmTicketRef({
+              module: btn.getAttribute("data-out-itsm-mod"),
+              ticket_id: btn.getAttribute("data-out-itsm-id"),
+            });
+          });
+        });
+        bodyEl.querySelectorAll("[data-out-view]").forEach((btn) => {
+          btn.addEventListener("click", async () => {
+            const oid = btn.getAttribute("data-out-view");
+            try {
+              const d = await api(
+                `/api/components/${encodeURIComponent(
+                  componentId
+                )}/outages/${encodeURIComponent(oid)}`
+              );
+              window.alert(
+                `Outage ${d.outage_id}\n` +
+                  `Class: ${d.unavailability_class}\n` +
+                  `Type: ${d.unavailability_type}\n` +
+                  `Status: ${d.status}\n` +
+                  `Summary: ${d.summary}\n` +
+                  `Starts: ${d.starts_at || "—"}\n` +
+                  `Ends: ${d.ends_at || "—"}`
+              );
+            } catch (err) {
+              toast(err.message || "View failed", true);
+            }
+          });
+        });
+        bodyEl.querySelectorAll("[data-out-del]").forEach((btn) => {
+          btn.addEventListener("click", async () => {
+            const id = btn.getAttribute("data-out-del");
+            if (!id || !canWrite) return;
+            if (!window.confirm("Remove this outage record?")) return;
+            try {
+              await api(
+                `/api/components/${encodeURIComponent(
+                  componentId
+                )}/outages/${encodeURIComponent(id)}`,
+                { method: "DELETE" }
+              );
+              toast("Outage removed");
+              await loadOutages();
+            } catch (err) {
+              toast(err.message || "Remove failed", true);
+            }
+          });
+        });
+      } catch (err) {
+        bodyEl.innerHTML = `<tr><td colspan="7" class="hint">${esc(
+          err.message || "Failed to load"
+        )}</td></tr>`;
+      }
+    }
+
+    container.querySelector("#ciOutRefresh")?.addEventListener("click", () => {
+      loadOutages();
+      toast("Refreshed");
+    });
+    container.querySelector("#ciOutCreate")?.addEventListener("click", () => {
+      formEl?.classList.remove("hidden");
+    });
+    container.querySelector("#ciOutCancel")?.addEventListener("click", hideForm);
+    container
+      .querySelector("#ciOutCreateInc")
+      ?.addEventListener("click", () => openCreateRelatedItsm(componentId, "incident"));
+    container
+      .querySelector("#ciOutCreateChg")
+      ?.addEventListener("click", () => openCreateRelatedItsm(componentId, "change"));
+    container.querySelector("#ciOutSave")?.addEventListener("click", async () => {
+      if (!canWrite) {
+        toast("cmdb:write required", true);
+        return;
+      }
+      const summary = container.querySelector("#ciOutSummary")?.value?.trim();
+      if (!summary) {
+        toast("Summary is required", true);
+        return;
+      }
+      const module = container.querySelector("#ciOutItsmModule")?.value || "";
+      const ticketId = container.querySelector("#ciOutItsmId")?.value?.trim() || "";
+      const payload = {
+        unavailability_class: container.querySelector("#ciOutClass")?.value,
+        unavailability_type: container.querySelector("#ciOutType")?.value,
+        status: container.querySelector("#ciOutStatus")?.value,
+        assignment_status:
+          container.querySelector("#ciOutAssign")?.value?.trim() || null,
+        starts_at: toIsoLocal(container.querySelector("#ciOutStart")?.value),
+        ends_at: toIsoLocal(container.querySelector("#ciOutEnd")?.value),
+        summary,
+        itsm_ref: module && ticketId ? { module, ticket_id: ticketId } : null,
+      };
+      try {
+        await api(
+          `/api/components/${encodeURIComponent(componentId)}/outages`,
+          { method: "POST", body: JSON.stringify(payload) }
+        );
+        toast("Outage recorded");
+        hideForm();
+        await loadOutages();
+      } catch (err) {
+        toast(err.message || "Save failed", true);
+      }
+    });
+
+    loadOutages();
+  }
+
+  function renderImpactedAreasHook(ctx) {
+    const { container, componentId, api, toast } = ctx;
+    const canWrite = deps.can("cmdb:write");
+    container.innerHTML = `
+      <div class="ci-section-head">
+        <h3>Impacted Areas</h3>
+        <p class="hint">Org and geo scope affected by this CI (Company, Region, Site, Organization, Department).</p>
+      </div>
+      <div class="ci-impact-actions">
+        <button type="button" class="secondary" id="ciImpRefresh">Refresh</button>
+        <button type="button" class="secondary" id="ciImpAdd" ${
+          canWrite ? "" : "disabled"
+        }>Add</button>
+      </div>
+      <div id="ciImpForm" class="ci-impact-form hidden">
+        <h4>Add impacted area</h4>
+        <div class="ci-form-grid two-col">
+          <label>Company<input id="ciImpCompany" maxlength="120" /></label>
+          <label>Region<input id="ciImpRegion" maxlength="120" /></label>
+          <label>Site group<input id="ciImpSiteGroup" maxlength="120" /></label>
+          <label>Site<input id="ciImpSite" maxlength="120" /></label>
+          <label>Organization<input id="ciImpOrg" maxlength="120" /></label>
+          <label>Department<input id="ciImpDept" maxlength="120" /></label>
+        </div>
+        <div class="ci-impact-form-actions">
+          <button type="button" class="primary" id="ciImpSave" ${
+            canWrite ? "" : "disabled"
+          }>Save</button>
+          <button type="button" class="ghost" id="ciImpCancel">Cancel</button>
+        </div>
+      </div>
+      <div class="table-wrap">
+        <table class="data-table ci-impact-table">
+          <thead>
+            <tr>
+              <th>Company</th>
+              <th>Region</th>
+              <th>Site group</th>
+              <th>Site</th>
+              <th>Organization</th>
+              <th>Department</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody id="ciImpBody"><tr><td colspan="7" class="hint">Loading…</td></tr></tbody>
+        </table>
+      </div>
+      <p class="hint" id="ciImpEmpty" hidden>No impacted areas linked to this CI.</p>`;
+
+    const formEl = container.querySelector("#ciImpForm");
+    const bodyEl = container.querySelector("#ciImpBody");
+    const emptyEl = container.querySelector("#ciImpEmpty");
+
+    function hideForm() {
+      formEl?.classList.add("hidden");
+      ["ciImpCompany", "ciImpRegion", "ciImpSiteGroup", "ciImpSite", "ciImpOrg", "ciImpDept"].forEach(
+        (id) => {
+          const el = container.querySelector(`#${id}`);
+          if (el) el.value = "";
+        }
+      );
+    }
+
+    async function loadAreas() {
+      bodyEl.innerHTML =
+        '<tr><td colspan="7" class="hint">Loading…</td></tr>';
+      try {
+        const data = await api(
+          `/api/components/${encodeURIComponent(componentId)}/impacted-areas`
+        );
+        const items = data.items || [];
+        if (!items.length) {
+          bodyEl.innerHTML = "";
+          if (emptyEl) emptyEl.hidden = false;
+          return;
+        }
+        if (emptyEl) emptyEl.hidden = true;
+        bodyEl.innerHTML = items
+          .map(
+            (row) => `<tr data-area-id="${esa(row.area_id)}">
+              <td>${esc(dash(row.company))}</td>
+              <td>${esc(dash(row.region))}</td>
+              <td>${esc(dash(row.site_group))}</td>
+              <td>${esc(dash(row.site))}</td>
+              <td>${esc(dash(row.organization))}</td>
+              <td>${esc(dash(row.department))}</td>
+              <td class="ci-impact-row-actions">
+                <button type="button" class="ghost" data-imp-view="${esa(
+                  row.area_id
+                )}">View</button>
+                <button type="button" class="ghost danger" data-imp-del="${esa(
+                  row.area_id
+                )}" ${canWrite ? "" : "disabled"}>Remove</button>
+              </td>
+            </tr>`
+          )
+          .join("");
+
+        bodyEl.querySelectorAll("[data-imp-view]").forEach((btn) => {
+          btn.addEventListener("click", () => {
+            const id = btn.getAttribute("data-imp-view");
+            const row = items.find((r) => r.area_id === id);
+            if (!row) return;
+            window.alert(
+              `Impacted area ${row.area_id}\n` +
+                `Company: ${row.company || "—"}\n` +
+                `Region: ${row.region || "—"}\n` +
+                `Site group: ${row.site_group || "—"}\n` +
+                `Site: ${row.site || "—"}\n` +
+                `Organization: ${row.organization || "—"}\n` +
+                `Department: ${row.department || "—"}`
+            );
+          });
+        });
+        bodyEl.querySelectorAll("[data-imp-del]").forEach((btn) => {
+          btn.addEventListener("click", async () => {
+            const id = btn.getAttribute("data-imp-del");
+            if (!id || !canWrite) return;
+            if (!window.confirm("Remove this impacted area?")) return;
+            try {
+              await api(
+                `/api/components/${encodeURIComponent(
+                  componentId
+                )}/impacted-areas/${encodeURIComponent(id)}`,
+                { method: "DELETE" }
+              );
+              toast("Impacted area removed");
+              await loadAreas();
+            } catch (err) {
+              toast(err.message || "Remove failed", true);
+            }
+          });
+        });
+      } catch (err) {
+        bodyEl.innerHTML = `<tr><td colspan="7" class="hint">${esc(
+          err.message || "Failed to load"
+        )}</td></tr>`;
+      }
+    }
+
+    container.querySelector("#ciImpRefresh")?.addEventListener("click", () => {
+      loadAreas();
+      toast("Refreshed");
+    });
+    container.querySelector("#ciImpAdd")?.addEventListener("click", () => {
+      formEl?.classList.remove("hidden");
+    });
+    container.querySelector("#ciImpCancel")?.addEventListener("click", hideForm);
+    container.querySelector("#ciImpSave")?.addEventListener("click", async () => {
+      if (!canWrite) {
+        toast("cmdb:write required", true);
+        return;
+      }
+      const payload = {
+        company: container.querySelector("#ciImpCompany")?.value?.trim() || null,
+        region: container.querySelector("#ciImpRegion")?.value?.trim() || null,
+        site_group:
+          container.querySelector("#ciImpSiteGroup")?.value?.trim() || null,
+        site: container.querySelector("#ciImpSite")?.value?.trim() || null,
+        organization: container.querySelector("#ciImpOrg")?.value?.trim() || null,
+        department: container.querySelector("#ciImpDept")?.value?.trim() || null,
+      };
+      if (
+        !payload.company &&
+        !payload.region &&
+        !payload.site_group &&
+        !payload.site &&
+        !payload.organization &&
+        !payload.department
+      ) {
+        toast("Enter at least one location field", true);
+        return;
+      }
+      try {
+        await api(
+          `/api/components/${encodeURIComponent(componentId)}/impacted-areas`,
+          { method: "POST", body: JSON.stringify(payload) }
+        );
+        toast("Impacted area added");
+        hideForm();
+        await loadAreas();
+      } catch (err) {
+        toast(err.message || "Save failed", true);
+      }
+    });
+
+    loadAreas();
+  }
+
+  // Activate C3 + C4 tabs through the C1 hook surface.
   registerTabHook("people", renderPeopleHook);
   registerTabHook("work-info", renderWorkInfoHook);
+  registerTabHook("contracts", renderContractsHook);
+  registerTabHook("outage", renderOutageHook);
+  registerTabHook("impacted-areas", renderImpactedAreasHook);
 
   global.SVRMON24CmdbCiDetail = {
     HELIX_TABS,

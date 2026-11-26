@@ -22,7 +22,7 @@ from tests.frontend_paths import FRONTEND_INDEX
 
 
 def test_version_bump_for_report_schedules_slice() -> None:
-    assert __version__ == "0.99.6"
+    assert __version__ == "0.99.7"
 
 
 @dataclass
@@ -242,7 +242,7 @@ def test_schedule_tenant_isolation(
 
 def test_frontend_schedule_markers() -> None:
     html = FRONTEND_INDEX.read_text(encoding="utf-8")
-    assert 'content="0.99.6"' in html
+    assert 'content="0.99.7"' in html
     assert 'id="itsmReportSchedulesSection"' in html
     assert 'id="itsmReportScheduleTable"' in html
-    assert "itsm/reports.js?v=0.99.6" in html
+    assert "itsm/reports.js?v=0.99.7" in html

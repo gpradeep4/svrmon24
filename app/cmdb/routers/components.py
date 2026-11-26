@@ -12,6 +12,9 @@ from pydantic import BaseModel, Field
 from ...auth import require_user
 from ..models.component_io import ComponentBulkUpdate
 from ..models.components import COMPONENT_TYPES, ComponentCreate, ComponentUpdate
+from ..models.contracts import ContractLinkCreate
+from ..models.impacted_areas import ImpactedAreaCreate, ImpactedAreaUpdate
+from ..models.outages import OutageCreate, OutageUpdate
 from ..models.people import PeopleLinkCreate, PeopleLinkUpdate
 from ..models.work_info import WorkInfoCreate
 from ...permissions import PERM_CMDB_WRITE, require_permission
@@ -19,9 +22,15 @@ from ...services import audit as audit_service
 from ..services import ai_cmdb_assist as ai_cmdb_assist_service
 from ..services import component_io as component_io_service
 from ..services import components as components_service
+from ..services import contracts as contracts_service
+from ..services import impacted_areas as impacted_areas_service
+from ..services import outages as outages_service
 from ..services import people as people_service
 from ..services import work_info as work_info_service
 from ..services.components import ComponentError
+from ..services.contracts import ContractError
+from ..services.impacted_areas import ImpactedAreaError
+from ..services.outages import OutageError
 from ..services.people import PeopleError
 from ..services.work_info import WorkInfoError
 from ...tenant_context import TenantContext, require_tenant
@@ -692,3 +701,282 @@ def delete_work_info_attachment(
     except WorkInfoError as exc:
         _raise_work_info(exc)
         raise  # pragma: no cover
+
+
+# ---------------------------------------------------------------------------
+# C4 — Contracts + Outage + Impacted Areas (Helix CI detail tabs)
+# ---------------------------------------------------------------------------
+
+
+def _raise_contract(exc: ContractError) -> None:
+    raise HTTPException(status_code=exc.status_code, detail=exc.message) from exc
+
+
+def _raise_outage(exc: OutageError) -> None:
+    raise HTTPException(status_code=exc.status_code, detail=exc.message) from exc
+
+
+def _raise_impacted(exc: ImpactedAreaError) -> None:
+    raise HTTPException(status_code=exc.status_code, detail=exc.message) from exc
+
+
+@router.get("/{component_id}/contracts")
+def list_ci_contracts(
+    component_id: str,
+    tenant: TenantContext = Depends(require_tenant),
+) -> dict[str, Any]:
+    try:
+        return contracts_service.list_ci_contracts(
+            component_id, tenant_id=tenant.tenant_id
+        )
+    except ContractError as exc:
+        _raise_contract(exc)
+        raise  # pragma: no cover
+
+
+@router.post("/{component_id}/contracts", status_code=201)
+def link_ci_contract(
+    component_id: str,
+    payload: ContractLinkCreate,
+    tenant: TenantContext = Depends(require_permission(PERM_CMDB_WRITE)),
+) -> dict[str, Any]:
+    try:
+        doc = contracts_service.link_contract_to_ci(
+            component_id, payload, tenant_id=tenant.tenant_id
+        )
+    except ContractError as exc:
+        _raise_contract(exc)
+        raise  # pragma: no cover
+    audit_service.record_from_tenant(
+        tenant,
+        action="component.contracts.link",
+        resource_type="cmdb_ci_contract_links",
+        resource_id=doc.get("link_id"),
+        details={
+            "component_id": component_id,
+            "contract_id": doc.get("contract_id"),
+        },
+        request_method="POST",
+        request_path=f"/api/components/{component_id}/contracts",
+    )
+    return doc
+
+
+@router.delete("/{component_id}/contracts/{link_id}")
+def unlink_ci_contract(
+    component_id: str,
+    link_id: str,
+    tenant: TenantContext = Depends(require_permission(PERM_CMDB_WRITE)),
+) -> dict[str, Any]:
+    try:
+        result = contracts_service.unlink_contract_from_ci(
+            component_id, link_id, tenant_id=tenant.tenant_id
+        )
+    except ContractError as exc:
+        _raise_contract(exc)
+        raise  # pragma: no cover
+    audit_service.record_from_tenant(
+        tenant,
+        action="component.contracts.unlink",
+        resource_type="cmdb_ci_contract_links",
+        resource_id=link_id,
+        details={"component_id": component_id},
+        request_method="DELETE",
+        request_path=f"/api/components/{component_id}/contracts/{link_id}",
+    )
+    return result
+
+
+@router.get("/{component_id}/outages")
+def list_outages(
+    component_id: str,
+    tenant: TenantContext = Depends(require_tenant),
+) -> dict[str, Any]:
+    try:
+        return outages_service.list_outages(
+            component_id, tenant_id=tenant.tenant_id
+        )
+    except OutageError as exc:
+        _raise_outage(exc)
+        raise  # pragma: no cover
+
+
+@router.post("/{component_id}/outages", status_code=201)
+def create_outage(
+    component_id: str,
+    payload: OutageCreate,
+    tenant: TenantContext = Depends(require_permission(PERM_CMDB_WRITE)),
+) -> dict[str, Any]:
+    try:
+        doc = outages_service.create_outage(
+            component_id, payload, tenant_id=tenant.tenant_id
+        )
+    except OutageError as exc:
+        _raise_outage(exc)
+        raise  # pragma: no cover
+    audit_service.record_from_tenant(
+        tenant,
+        action="component.outages.create",
+        resource_type="cmdb_ci_outages",
+        resource_id=doc.get("outage_id"),
+        details={"component_id": component_id},
+        request_method="POST",
+        request_path=f"/api/components/{component_id}/outages",
+    )
+    return doc
+
+
+@router.get("/{component_id}/outages/{outage_id}")
+def get_outage(
+    component_id: str,
+    outage_id: str,
+    tenant: TenantContext = Depends(require_tenant),
+) -> dict[str, Any]:
+    try:
+        return outages_service.get_outage(
+            component_id, outage_id, tenant_id=tenant.tenant_id
+        )
+    except OutageError as exc:
+        _raise_outage(exc)
+        raise  # pragma: no cover
+
+
+@router.patch("/{component_id}/outages/{outage_id}")
+def update_outage(
+    component_id: str,
+    outage_id: str,
+    payload: OutageUpdate,
+    tenant: TenantContext = Depends(require_permission(PERM_CMDB_WRITE)),
+) -> dict[str, Any]:
+    try:
+        doc = outages_service.update_outage(
+            component_id, outage_id, payload, tenant_id=tenant.tenant_id
+        )
+    except OutageError as exc:
+        _raise_outage(exc)
+        raise  # pragma: no cover
+    audit_service.record_from_tenant(
+        tenant,
+        action="component.outages.update",
+        resource_type="cmdb_ci_outages",
+        resource_id=outage_id,
+        details={"component_id": component_id},
+        request_method="PATCH",
+        request_path=f"/api/components/{component_id}/outages/{outage_id}",
+    )
+    return doc
+
+
+@router.delete("/{component_id}/outages/{outage_id}")
+def delete_outage(
+    component_id: str,
+    outage_id: str,
+    tenant: TenantContext = Depends(require_permission(PERM_CMDB_WRITE)),
+) -> dict[str, Any]:
+    try:
+        result = outages_service.delete_outage(
+            component_id, outage_id, tenant_id=tenant.tenant_id
+        )
+    except OutageError as exc:
+        _raise_outage(exc)
+        raise  # pragma: no cover
+    audit_service.record_from_tenant(
+        tenant,
+        action="component.outages.delete",
+        resource_type="cmdb_ci_outages",
+        resource_id=outage_id,
+        details={"component_id": component_id},
+        request_method="DELETE",
+        request_path=f"/api/components/{component_id}/outages/{outage_id}",
+    )
+    return result
+
+
+@router.get("/{component_id}/impacted-areas")
+def list_impacted_areas(
+    component_id: str,
+    tenant: TenantContext = Depends(require_tenant),
+) -> dict[str, Any]:
+    try:
+        return impacted_areas_service.list_impacted_areas(
+            component_id, tenant_id=tenant.tenant_id
+        )
+    except ImpactedAreaError as exc:
+        _raise_impacted(exc)
+        raise  # pragma: no cover
+
+
+@router.post("/{component_id}/impacted-areas", status_code=201)
+def create_impacted_area(
+    component_id: str,
+    payload: ImpactedAreaCreate,
+    tenant: TenantContext = Depends(require_permission(PERM_CMDB_WRITE)),
+) -> dict[str, Any]:
+    try:
+        doc = impacted_areas_service.create_impacted_area(
+            component_id, payload, tenant_id=tenant.tenant_id
+        )
+    except ImpactedAreaError as exc:
+        _raise_impacted(exc)
+        raise  # pragma: no cover
+    audit_service.record_from_tenant(
+        tenant,
+        action="component.impacted_areas.create",
+        resource_type="cmdb_impacted_areas",
+        resource_id=doc.get("area_id"),
+        details={"component_id": component_id},
+        request_method="POST",
+        request_path=f"/api/components/{component_id}/impacted-areas",
+    )
+    return doc
+
+
+@router.patch("/{component_id}/impacted-areas/{area_id}")
+def update_impacted_area(
+    component_id: str,
+    area_id: str,
+    payload: ImpactedAreaUpdate,
+    tenant: TenantContext = Depends(require_permission(PERM_CMDB_WRITE)),
+) -> dict[str, Any]:
+    try:
+        doc = impacted_areas_service.update_impacted_area(
+            component_id, area_id, payload, tenant_id=tenant.tenant_id
+        )
+    except ImpactedAreaError as exc:
+        _raise_impacted(exc)
+        raise  # pragma: no cover
+    audit_service.record_from_tenant(
+        tenant,
+        action="component.impacted_areas.update",
+        resource_type="cmdb_impacted_areas",
+        resource_id=area_id,
+        details={"component_id": component_id},
+        request_method="PATCH",
+        request_path=f"/api/components/{component_id}/impacted-areas/{area_id}",
+    )
+    return doc
+
+
+@router.delete("/{component_id}/impacted-areas/{area_id}")
+def delete_impacted_area(
+    component_id: str,
+    area_id: str,
+    tenant: TenantContext = Depends(require_permission(PERM_CMDB_WRITE)),
+) -> dict[str, Any]:
+    try:
+        result = impacted_areas_service.delete_impacted_area(
+            component_id, area_id, tenant_id=tenant.tenant_id
+        )
+    except ImpactedAreaError as exc:
+        _raise_impacted(exc)
+        raise  # pragma: no cover
+    audit_service.record_from_tenant(
+        tenant,
+        action="component.impacted_areas.delete",
+        resource_type="cmdb_impacted_areas",
+        resource_id=area_id,
+        details={"component_id": component_id},
+        request_method="DELETE",
+        request_path=f"/api/components/{component_id}/impacted-areas/{area_id}",
+    )
+    return result
