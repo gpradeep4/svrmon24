@@ -4312,6 +4312,117 @@ button[data-rbac-disabled="true"] {
   padding: 8px 0;
 }
 
+/* C2 — Relationships + Relationship Details */
+.ci-rel-filters,
+.ci-rel-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px 14px;
+  align-items: flex-end;
+  margin-bottom: 12px;
+}
+
+.ci-rel-filters label,
+.ci-rel-create-panel label {
+  display: grid;
+  gap: 4px;
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: var(--muted);
+}
+
+.ci-rel-filters select,
+.ci-rel-create-panel input {
+  min-width: 140px;
+}
+
+.ci-rel-create-panel {
+  margin-bottom: 14px;
+  padding: 12px;
+  background: var(--surface-tint);
+  border: 1px solid var(--line-soft);
+  border-radius: var(--radius-sm);
+}
+
+.ci-rel-create-panel h4 {
+  margin: 0 0 6px;
+  font-size: 0.95rem;
+}
+
+.ci-rel-table td .linkish,
+.ci-rel-detail-grid .linkish {
+  background: none;
+  border: none;
+  padding: 0;
+  color: var(--accent);
+  font: inherit;
+  cursor: pointer;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.ci-rel-itsm {
+  margin-top: 14px;
+}
+
+.ci-rel-details {
+  display: grid;
+  grid-template-columns: minmax(180px, 240px) 1fr;
+  gap: 16px;
+  align-items: start;
+}
+
+.ci-rel-tree {
+  display: grid;
+  gap: 4px;
+  padding: 10px;
+  background: var(--surface-tint);
+  border: 1px solid var(--line-soft);
+  border-radius: var(--radius-sm);
+}
+
+.ci-rel-tree-node {
+  appearance: none;
+  text-align: left;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: var(--radius-sm);
+  color: var(--ink);
+  font: inherit;
+  font-size: 0.88rem;
+  font-weight: 600;
+  padding: 8px 10px;
+  cursor: pointer;
+}
+
+.ci-rel-tree-node:hover:not(:disabled) {
+  background: var(--surface-2);
+}
+
+.ci-rel-tree-node.is-active {
+  border-color: var(--accent);
+  color: var(--accent);
+  background: var(--surface-2);
+}
+
+.ci-rel-tree-node.is-empty,
+.ci-rel-tree-node:disabled {
+  opacity: 0.55;
+  cursor: default;
+}
+
+.ci-rel-detail-head {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: baseline;
+  margin-bottom: 10px;
+}
+
+.ci-rel-detail-head strong {
+  font-size: 0.95rem;
+}
+
 @media (max-width: 960px) {
   .ci-header-grid,
   .ci-specs-grid,
@@ -4320,5 +4431,8 @@ button[data-rbac-disabled="true"] {
   }
   .ci-detail-sticky {
     position: static;
+  }
+  .ci-rel-details {
+    grid-template-columns: 1fr;
   }
 }

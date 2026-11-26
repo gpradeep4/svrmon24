@@ -288,7 +288,7 @@ def test_types_catalog_and_validation_rules(
     types = client.get("/api/relationships/types", headers=auth_headers)
     assert types.status_code == 200
     keys = {t["relationship_type"] for t in types.json()["types"]}
-    assert keys == {"HOSTED_ON", "DEPENDS_ON", "CONNECTS_TO", "ROUTES_TO"}
+    assert keys == {"HOSTS", "HOSTED_ON", "DEPENDS_ON", "CONNECTS_TO", "ROUTES_TO"}
 
     self_ref = client.post(
         "/api/relationships",

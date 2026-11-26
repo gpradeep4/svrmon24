@@ -1,4 +1,4 @@
-"""CMDB C0 — Helix-aligned CI header / Specs / General schema (0.99.4).
+"""CMDB C0 — Helix-aligned CI header / Specs / General schema (0.99.5).
 
 Schema-only: native optional fields, Server Specs, enums, indexes, example
 org custom field defs. No CI detail UI.
@@ -32,7 +32,7 @@ from app.cmdb.services import custom_fields as custom_fields_service
 
 
 def test_c0_version_bump() -> None:
-    assert __version__ == "0.99.4"
+    assert __version__ == "0.99.5"
 
 
 def test_status_enum_map_only_unchanged() -> None:

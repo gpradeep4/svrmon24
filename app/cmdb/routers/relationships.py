@@ -72,6 +72,14 @@ def list_relationships(
         default=None, description="Match as source or target"
     ),
     relationship_type: str | None = Query(default=None),
+    direction: str | None = Query(
+        default=None,
+        description="With component_id: child | parent | both (Helix Show filter)",
+    ),
+    enrich: bool = Query(
+        default=False,
+        description="When component_id set, attach related_component summary",
+    ),
     page: int = Query(default=1, ge=1),
     page_size: int = Query(default=25, ge=1, le=200),
     tenant: TenantContext = Depends(require_tenant),
@@ -84,6 +92,8 @@ def list_relationships(
             target_component_id=target_component_id,
             component_id=component_id,
             relationship_type=relationship_type,
+            direction=direction,
+            enrich=enrich,
             page=page,
             page_size=page_size,
         )
