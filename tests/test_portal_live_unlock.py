@@ -1,4 +1,4 @@
-"""Service Portal SP10 — LIVE execute unlock + Terraform cloud (0.99.8)."""
+"""Service Portal SP10 — LIVE execute unlock + Terraform cloud (0.99.9)."""
 
 from __future__ import annotations
 
@@ -17,10 +17,10 @@ from tests.frontend_paths import FRONTEND_INDEX
 
 
 def test_version_bump_for_portal_live_unlock() -> None:
-    assert __version__ == "0.99.8"
+    assert __version__ == "0.99.9"
     html = FRONTEND_INDEX.read_text(encoding="utf-8")
-    assert 'content="0.99.8"' in html
-    assert "portal/executions.js?v=0.99.8" in html
+    assert 'content="0.99.9"' in html
+    assert "portal/executions.js?v=0.99.9" in html
 
 
 def test_terraform_lab_plan_and_apply_without_binary() -> None:

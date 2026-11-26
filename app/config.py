@@ -188,6 +188,17 @@ class Settings(BaseSettings):
         default="", alias="SERVICE_PORTAL_EGRESS_ALLOWLIST"
     )
 
+    # Diagnostics LIVE path — fail-closed. SIMULATED always available when off.
+    diagnostics_live_enabled: bool = Field(
+        default=False, alias="DIAGNOSTICS_LIVE_ENABLED"
+    )
+
+    # ITSM automation (workflow auto-triggers / schedule fire) — fail-closed.
+    # Manual workflow start and ticket CRUD stay available when off.
+    itsm_automation_enabled: bool = Field(
+        default=False, alias="ITSM_AUTOMATION_ENABLED"
+    )
+
     def model_post_init(self, __context: Any) -> None:  # noqa: ANN401
         # Allow OLLAMA_HOST when OLLAMA_URL was left at default / unset in env loading
         import os

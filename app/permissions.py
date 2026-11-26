@@ -96,6 +96,9 @@ PERM_SP_EXECUTION_READ = "sp:execution:read"
 PERM_SP_EXECUTION_RUN = "sp:execution:run"
 PERM_SP_ADMIN = "sp:admin"
 
+# Unified live / runtime toggles (Configuration → Live / Runtime).
+PERM_LIVE_ADMIN = "live:admin"
+
 ALL_PERMISSIONS: tuple[str, ...] = (
     PERM_CMDB_READ,
     PERM_CMDB_WRITE,
@@ -154,6 +157,7 @@ ALL_PERMISSIONS: tuple[str, ...] = (
     PERM_SP_EXECUTION_READ,
     PERM_SP_EXECUTION_RUN,
     PERM_SP_ADMIN,
+    PERM_LIVE_ADMIN,
 )
 
 PERMISSION_LABELS: dict[str, str] = {
@@ -162,8 +166,8 @@ PERMISSION_LABELS: dict[str, str] = {
     PERM_RELATIONSHIPS_READ: "Read relationships + dependency graphs",
     PERM_RELATIONSHIPS_WRITE: "Create / update / delete relationships",
     PERM_DIAGNOSTICS_READ: "Read diagnostic history",
-    PERM_DIAGNOSTICS_RUN: "Run SIMULATED diagnostics + AI analysis",
-    PERM_FILE_MONITORING_READ: "Read SIMULATED file monitoring targets + version history",
+    PERM_DIAGNOSTICS_RUN: "Run diagnostics (SIMULATED; LIVE when gates on)",
+    PERM_FILE_MONITORING_READ: "Read file monitoring targets + version history",
     PERM_CONFIG_READ: "Read field defs / column configs / custom table schemas",
     PERM_CONFIG_WRITE: "Write field defs / column configs / custom table schemas",
     PERM_USERS_READ: "List organization members",
@@ -214,6 +218,10 @@ PERMISSION_LABELS: dict[str, str] = {
     PERM_SP_EXECUTION_READ: "View Service Portal execution runs",
     PERM_SP_EXECUTION_RUN: "Re-queue / admin-run Service Portal executions",
     PERM_SP_ADMIN: "Administer Service Portal live settings + entitlements",
+    PERM_LIVE_ADMIN: (
+        "Enable / disable live runtime toggles across Monitoring, Portal, "
+        "Diagnostics, File watchers, and ITSM automation"
+    ),
 }
 
 _ITSM_VIEWER_PERMS: frozenset[str] = frozenset(
@@ -353,6 +361,7 @@ _ROLE_PERMISSIONS: dict[str, frozenset[str]] = {
             *_SP_VIEWER_PERMS,
             *_SP_MEMBER_WRITE_PERMS,
             *_SP_ADMIN_PERMS,
+            PERM_LIVE_ADMIN,
         }
     ),
     MEMBERSHIP_ROLE_OWNER: frozenset(
@@ -380,6 +389,7 @@ _ROLE_PERMISSIONS: dict[str, frozenset[str]] = {
             *_SP_VIEWER_PERMS,
             *_SP_MEMBER_WRITE_PERMS,
             *_SP_ADMIN_PERMS,
+            PERM_LIVE_ADMIN,
         }
     ),
 }

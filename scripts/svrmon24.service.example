@@ -1,0 +1,33 @@
+# Example systemd unit for a self-hosted / local-server monolith deploy.
+# Copy to /etc/systemd/system/svrmon24.service and edit paths + User=.
+#
+# Prerequisites:
+#   - Python venv at /opt/svrmon24/.venv with requirements installed
+#   - .env at /opt/svrmon24/.env (secrets; never commit)
+#   - MongoDB with databases svrmon-cmdb / svrmon-itsm / svrmon-monitor
+#   - Live masters fail-closed until set in .env + Configuration → Live / Runtime
+#
+#   sudo systemctl daemon-reload
+#   sudo systemctl enable --now svrmon24
+#   curl -sf http://127.0.0.1:8200/health
+
+[Unit]
+Description=SVRMON24 API (monolith)
+After=network-online.target mongod.service
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=svrmon
+Group=svrmon
+WorkingDirectory=/opt/svrmon24
+EnvironmentFile=/opt/svrmon24/.env
+ExecStart=/opt/svrmon24/.venv/bin/python -m uvicorn app.main:app --host 0.0.0.0 --port 8200
+Restart=on-failure
+RestartSec=5
+# Harden lightly; adjust for your host.
+NoNewPrivileges=true
+PrivateTmp=true
+
+[Install]
+WantedBy=multi-user.target

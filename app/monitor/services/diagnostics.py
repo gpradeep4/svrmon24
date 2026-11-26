@@ -107,14 +107,28 @@ def generate_diagnostic_id() -> str:
     return f"diag-{uuid.uuid4().hex[:12]}"
 
 
-def list_diagnostic_profiles() -> dict[str, Any]:
+def list_diagnostic_profiles(*, tenant_id: str | None = None) -> dict[str, Any]:
+    from ...services import live_settings as live_settings_service
+
+    live_on = False
+    if tenant_id:
+        live_on = live_settings_service.diagnostics_live_allowed(tenant_id=tenant_id)
     return {
-        "execution_mode": EXECUTION_MODE,
-        "demo_only": True,
+        "execution_mode": "LIVE" if live_on else EXECUTION_MODE,
+        "demo_only": not live_on,
+        "live_available": live_on,
         "profiles": list_profiles(),
         "notice": (
-            "All diagnostics run in SIMULATED mode. Synthetic values are not real "
-            "telemetry. Remote execution, shell, SQL, and network scanning are disabled."
+            "LIVE diagnostics are available for this tenant (platform + tenant "
+            "gates on). Pass prefer_live=true to run the LIVE path. Shell/SQL/"
+            "remote command payloads remain blocked."
+            if live_on
+            else (
+                "Diagnostics default to SIMULATED mode. Synthetic values are not "
+                "real telemetry. Enable DIAGNOSTICS_LIVE_ENABLED plus tenant "
+                "diagnostics_live_opt_in (Configuration → Live / Runtime) for LIVE. "
+                "Remote shell, SQL, and network scanning stay disabled."
+            )
         ),
         "database": _monitor_db_name(),
     }
@@ -221,15 +235,71 @@ def enforce_diagnostics_retention(*, tenant_id: str) -> int:
     return int(result.deleted_count)
 
 
+def _live_connectivity_check(component: dict[str, Any]) -> dict[str, Any]:
+    """Best-effort TCP reachability when LIVE gates are open (no shell/SQL)."""
+    import socket
+
+    host = str(component.get("hostname") or component.get("name") or "").strip()
+    if not host:
+        return {
+            "check_id": "live_connectivity",
+            "label": "LIVE connectivity",
+            "metric_kind": "connectivity",
+            "unit": "status",
+            "value": "skipped",
+            "status": "warning",
+            "synthetic": False,
+            "data_source": "LIVE",
+            "note": "No hostname on CI — LIVE connectivity skipped.",
+        }
+    port = 22
+    try:
+        with socket.create_connection((host, port), timeout=2.0):
+            reachable = True
+    except OSError as exc:
+        return {
+            "check_id": "live_connectivity",
+            "label": "LIVE connectivity",
+            "metric_kind": "connectivity",
+            "unit": "status",
+            "value": "unreachable",
+            "status": "warning",
+            "synthetic": False,
+            "data_source": "LIVE",
+            "note": f"TCP {host}:{port} failed ({exc}). Shell/SQL still disabled.",
+        }
+    return {
+        "check_id": "live_connectivity",
+        "label": "LIVE connectivity",
+        "metric_kind": "connectivity",
+        "unit": "status",
+        "value": "reachable" if reachable else "unreachable",
+        "status": "ok" if reachable else "warning",
+        "synthetic": False,
+        "data_source": "LIVE",
+        "note": f"TCP connect to {host}:{port} succeeded. Shell/SQL still disabled.",
+    }
+
+
 def start_diagnostic(
     payload: DiagnosticStartRequest, *, tenant_id: str
 ) -> dict[str, Any]:
-    """Validate and run an approved profile in SIMULATED mode; persist history."""
+    """Validate and run an approved profile; SIMULATED by default, LIVE when gated."""
     tid = require_tenant_id(tenant_id)
     _ensure_monitor_data(tenant_id=tid)
 
     from ...services import entitlements as entitlements_service
+    from ...services import live_settings as live_settings_service
     from ...services.entitlements import EntitlementError
+
+    prefer_live = bool(getattr(payload, "prefer_live", False))
+    if prefer_live and not live_settings_service.diagnostics_live_allowed(
+        tenant_id=tid
+    ):
+        raise DiagnosticError(
+            live_settings_service.DIAGNOSTICS_LIVE_DISABLED,
+            status_code=403,
+        )
 
     try:
         entitlements_service.assert_can_run_diagnostic(tid)
@@ -261,9 +331,10 @@ def start_diagnostic(
             status_code=422,
         )
 
-    if profile.get("execution_mode") != EXECUTION_MODE:
+    # Profiles remain SIMULATED templates; LIVE adds a gated connectivity check.
+    if profile.get("execution_mode") not in {EXECUTION_MODE, "SIMULATED", "LIVE"}:
         raise DiagnosticError(
-            "Only SIMULATED diagnostic profiles are permitted in this release",
+            "Only approved diagnostic profiles are permitted",
             status_code=403,
         )
 
@@ -273,12 +344,17 @@ def start_diagnostic(
         component_id=payload.component_id,
         profile=profile,
     )
+    execution_mode = EXECUTION_MODE
+    if prefer_live:
+        execution_mode = "LIVE"
+        checks = list(checks) + [_live_connectivity_check(component)]
     ok_count = sum(1 for c in checks if c.get("status") == "ok")
+    live = execution_mode == "LIVE"
     record: dict[str, Any] = {
         "diagnostic_id": diagnostic_id,
         "timestamp": now,
         "created_at": now,
-        "execution_mode": EXECUTION_MODE,
+        "execution_mode": execution_mode,
         "profile_name": payload.profile_name,
         "component_id": payload.component_id,
         "component": _component_snapshot(component),
@@ -291,10 +367,14 @@ def start_diagnostic(
             "synthetic_check_count": sum(1 for c in checks if c.get("synthetic")),
         },
         "labels": {
-            "demo": True,
-            "simulated": True,
-            "real_telemetry": False,
-            "banner": "SIMULATED / SYNTHETIC DEMO OUTPUT — NOT REAL TELEMETRY",
+            "demo": not live,
+            "simulated": not live,
+            "real_telemetry": live,
+            "banner": (
+                "LIVE DIAGNOSTIC — limited connectivity probe; shell/SQL still disabled"
+                if live
+                else "SIMULATED / SYNTHETIC DEMO OUTPUT — NOT REAL TELEMETRY"
+            ),
         },
         "notes": payload.notes,
         "safety": {
@@ -302,6 +382,7 @@ def start_diagnostic(
             "shell": False,
             "sql": False,
             "network_scan": False,
+            "live_connectivity": live,
         },
     }
     stamp_tenant_id(record, tenant_id=tid)

@@ -146,6 +146,13 @@ def _start_one(
         return None
 
 
+def _automation_allowed(tenant_id: str) -> bool:
+    """Fail-closed: platform ITSM_AUTOMATION_ENABLED + tenant opt-in."""
+    from ...services import live_settings as live_settings_service
+
+    return live_settings_service.itsm_automation_allowed(tenant_id=tenant_id)
+
+
 def fire_on_create(
     *,
     ticket_type: str,
@@ -154,6 +161,8 @@ def fire_on_create(
     actor: dict[str, Any] | None = None,
 ) -> list[dict[str, Any]]:
     if auto_triggers_suppressed():
+        return []
+    if not _automation_allowed(tenant_id):
         return []
     started: list[dict[str, Any]] = []
     try:
@@ -185,6 +194,8 @@ def fire_on_status(
     actor: dict[str, Any] | None = None,
 ) -> list[dict[str, Any]]:
     if auto_triggers_suppressed():
+        return []
+    if not _automation_allowed(tenant_id):
         return []
     started: list[dict[str, Any]] = []
     try:
@@ -306,6 +317,9 @@ def run_due_workflow_schedules(
     for wf in due:
         workflows_due += 1
         tid = str(wf.get("tenant_id") or "")
+        if tid and not _automation_allowed(tid):
+            skipped += 1
+            continue
         workflow_id = str(wf.get("workflow_id") or "")
         if not tid or not workflow_id:
             errors += 1

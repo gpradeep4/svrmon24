@@ -1,12 +1,17 @@
 # Local dual deploy: API-only backend + nginx frontend (same-origin session/OIDC).
 # Usage: docker compose up --build
 # Open http://localhost:8080/ (set OIDC_REDIRECT_URI to http://localhost:8080/auth/callback when using OIDC).
+# Live masters stay fail-closed (MONITOR_LIVE_*/SERVICE_PORTAL_LIVE_*/DIAGNOSTICS_LIVE_*/
+# ITSM_AUTOMATION_ENABLED default false). Enable via Configuration → Live / Runtime after boot.
+# Health: curl -sf http://localhost:8200/health  and  http://localhost:8080/health
 
 services:
   mongodb:
     image: mongo:7
     ports:
       - "27017:27017"
+    volumes:
+      - svrmon24-mongo:/data/db
     healthcheck:
       test: ["CMD", "mongosh", "--quiet", "--eval", "db.runCommand({ ping: 1 }).ok"]
       interval: 10s
@@ -26,7 +31,7 @@ services:
         pip install -q -r requirements.txt &&
         exec python -m uvicorn app.main:app --host 0.0.0.0 --port 8200
     environment:
-      APP_ENV: development
+      APP_ENV: "${APP_ENV:-development}"
       SERVE_STATIC: "false"
       BASIC_AUTH_ENABLED: "${BASIC_AUTH_ENABLED:-true}"
       BASIC_AUTH_USERNAME: "${BASIC_AUTH_USERNAME:-demo}"
@@ -39,8 +44,25 @@ services:
       # MONGODB_CMDB_DB: svrmon-cmdb
       MONGODB_ITSM_DB: svrmon-itsm
       MONGODB_MONITOR_DB: svrmon-monitor
+      # Live masters — keep off for production-ready local until admin enables in UI.
+      MONITOR_LIVE_PROBES_ENABLED: "${MONITOR_LIVE_PROBES_ENABLED:-false}"
+      SERVICE_PORTAL_LIVE_EXEC_ENABLED: "${SERVICE_PORTAL_LIVE_EXEC_ENABLED:-false}"
+      DIAGNOSTICS_LIVE_ENABLED: "${DIAGNOSTICS_LIVE_ENABLED:-false}"
+      ITSM_AUTOMATION_ENABLED: "${ITSM_AUTOMATION_ENABLED:-false}"
     ports:
       - "8200:8200"
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "python",
+          "-c",
+          "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8200/health', timeout=3)",
+        ]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 45s
     depends_on:
       mongodb:
         condition: service_healthy
@@ -54,4 +76,8 @@ services:
     ports:
       - "8080:8080"
     depends_on:
-      - api
+      api:
+        condition: service_healthy
+
+volumes:
+  svrmon24-mongo:

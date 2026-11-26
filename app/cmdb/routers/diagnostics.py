@@ -36,8 +36,10 @@ def _raise(exc: DiagnosticError | AnalysisError) -> None:
 
 
 @router.get("/profiles")
-def get_profiles() -> dict[str, Any]:
-    return diagnostics_service.list_diagnostic_profiles()
+def get_profiles(
+    tenant: TenantContext = Depends(require_tenant),
+) -> dict[str, Any]:
+    return diagnostics_service.list_diagnostic_profiles(tenant_id=tenant.tenant_id)
 
 
 @router.get("/ollama/status")
