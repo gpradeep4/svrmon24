@@ -1,4 +1,4 @@
-"""CMDB C0 — Helix-aligned CI header / Specs / General schema (0.99.7).
+"""CMDB C0 — asset console–style CI header / Specs / General schema (0.99.8).
 
 Schema-only: native optional fields, Server Specs, enums, indexes, example
 org custom field defs. No CI detail UI.
@@ -32,7 +32,7 @@ from app.cmdb.services import custom_fields as custom_fields_service
 
 
 def test_c0_version_bump() -> None:
-    assert __version__ == "0.99.7"
+    assert __version__ == "0.99.8"
 
 
 def test_status_enum_map_only_unchanged() -> None:
@@ -57,7 +57,7 @@ def test_example_org_custom_field_specs_are_generic() -> None:
         assert "uob" not in key.lower()
 
 
-def test_server_create_model_accepts_helix_header_and_specs() -> None:
+def test_server_create_model_accepts_ci_header_and_specs() -> None:
     payload = ComponentCreate(
         component_type=ComponentType.SERVER,
         name="lxiretsgv98.sg.example.com",
@@ -97,7 +97,7 @@ def test_server_create_model_accepts_helix_header_and_specs() -> None:
         total_physical_memory_mb=65536,
         flash_memory_mb=0,
     )
-    doc = build_component_document(payload, component_id="srv-helix-1", now=datetime.now(timezone.utc))
+    doc = build_component_document(payload, component_id="srv-c0-1", now=datetime.now(timezone.utc))
     assert doc["description"] == "lxiretsgv98"
     assert doc["company"] == "ORGA"
     assert doc["priority"] == "5"
@@ -135,7 +135,7 @@ def test_application_accepts_shared_header_fields() -> None:
         manufacturer="Vendor",
     )
     doc = build_component_document(
-        payload, component_id="app-helix-1", now=datetime.now(timezone.utc)
+        payload, component_id="app-c0-1", now=datetime.now(timezone.utc)
     )
     assert doc["description"] == "Portal app"
     assert doc["company"] == "ORGA"
@@ -174,12 +174,12 @@ def test_apply_update_round_trips_common_and_server_fields() -> None:
 
 def _server_payload(**overrides):
     base = {
-        "component_id": "srv-c0-helix",
+        "component_id": "srv-c0-ci",
         "component_type": "Server",
-        "name": "c0-helix.example.com",
+        "name": "c0-ci.example.com",
         "environment": "Development",
         "status": "active",
-        "description": "c0-helix",
+        "description": "c0-ci",
         "serial_number": "SN-C0-001",
         "company": "ORGA",
         "supported": "yes",
@@ -195,14 +195,14 @@ def _server_payload(**overrides):
             "tier3": "Blade",
         },
         "lifecycle": {"installed_at": "2024-06-01T00:00:00Z"},
-        "hostname": "c0-helix.example.com",
+        "hostname": "c0-ci.example.com",
         "ip_address": "10.9.8.7",
         "os_family": "RHEL",
         "os_version": "9.4",
         "system_type": "X86-based PC",
         "virtual_system_type": "KVM",
         "is_virtual": True,
-        "dns_hostname": "c0-helix.example.com",
+        "dns_hostname": "c0-ci.example.com",
         "domain": "example.com",
         "total_physical_memory_mb": 32768,
         "flash_memory_mb": 0,
@@ -212,7 +212,7 @@ def _server_payload(**overrides):
     return base
 
 
-def test_api_server_create_get_update_helix_fields(
+def test_api_server_create_get_update_ci_fields(
     client: TestClient, auth_headers: dict[str, str], clean_db
 ) -> None:
     # Seed example org customs so values are documented/available
@@ -225,8 +225,8 @@ def test_api_server_create_get_update_helix_fields(
     )
     assert created.status_code == 201, created.text
     body = created.json()
-    assert body["component_id"] == "srv-c0-helix"
-    assert body["description"] == "c0-helix"
+    assert body["component_id"] == "srv-c0-ci"
+    assert body["description"] == "c0-ci"
     assert body["serial_number"] == "SN-C0-001"
     assert body["company"] == "ORGA"
     assert body["priority"] == "5"
@@ -237,13 +237,13 @@ def test_api_server_create_get_update_helix_fields(
     assert body["product_categorization"]["tier2"] == "Server"
     assert body["custom_fields"]["app_code"] == "IRE"
 
-    fetched = client.get("/api/components/srv-c0-helix", headers=auth_headers)
+    fetched = client.get("/api/components/srv-c0-ci", headers=auth_headers)
     assert fetched.status_code == 200
-    assert fetched.json()["dns_hostname"] == "c0-helix.example.com"
+    assert fetched.json()["dns_hostname"] == "c0-ci.example.com"
     assert fetched.json()["lifecycle"]["installed_at"] is not None
 
     updated = client.put(
-        "/api/components/srv-c0-helix",
+        "/api/components/srv-c0-ci",
         headers=auth_headers,
         json={
             "status_reason": "Deployed",

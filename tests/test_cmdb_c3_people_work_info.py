@@ -1,4 +1,4 @@
-"""CMDB C3 — People + Work Info (+ attachments) (0.99.7)."""
+"""CMDB C3 — People + Work Info (+ attachments) (0.99.8)."""
 
 from __future__ import annotations
 
@@ -20,13 +20,13 @@ WORK_SVC = REPO / "app" / "cmdb" / "services" / "work_info.py"
 
 
 def test_c3_version_bump() -> None:
-    assert __version__ == "0.99.7"
+    assert __version__ == "0.99.8"
 
 
 def test_frontend_c3_markers() -> None:
     html = FRONTEND_INDEX.read_text(encoding="utf-8")
-    assert 'content="0.99.7"' in html
-    assert "cmdb/ci-detail.js?v=0.99.7" in html
+    assert 'content="0.99.8"' in html
+    assert "cmdb/ci-detail.js?v=0.99.8" in html
 
     js = CI_DETAIL_JS.read_text(encoding="utf-8")
     assert 'id: "people", label: "People", active: true' in js
@@ -275,7 +275,7 @@ def test_c3_tabs_remain_active_alongside_c4() -> None:
     js = CI_DETAIL_JS.read_text(encoding="utf-8")
     assert 'id: "people", label: "People", active: true' in js
     assert 'id: "work-info", label: "Work Info", active: true' in js
-    # C4 activates the remaining Helix tabs (asserted in test_cmdb_c4_*).
+    # C4 activates the remaining CI detail tabs (asserted in test_cmdb_c4_*).
     assert 'id: "contracts", label: "Contracts", active: true' in js
     assert 'id: "outage", label: "Outage", active: true' in js
     assert 'id: "impacted-areas", label: "Impacted Areas", active: true' in js

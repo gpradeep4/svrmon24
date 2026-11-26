@@ -1,4 +1,4 @@
-"""Monitoring M7 — Dashboard aggregates + ITSM suggest-incident (0.99.7)."""
+"""Monitoring M7 — Dashboard aggregates + ITSM suggest-incident (0.99.8)."""
 
 from __future__ import annotations
 
@@ -35,12 +35,12 @@ def _create_ci(
 
 
 def test_version_bump_for_monitor_m7() -> None:
-    assert __version__ == "0.99.7"
+    assert __version__ == "0.99.8"
     html = FRONTEND_INDEX.read_text(encoding="utf-8")
-    assert 'content="0.99.7"' in html
-    assert "monitor/dashboard.js?v=0.99.7" in html
-    assert "monitor/alerts.js?v=0.99.7" in html
-    assert "monitor/index.js?v=0.99.7" in html
+    assert 'content="0.99.8"' in html
+    assert "monitor/dashboard.js?v=0.99.8" in html
+    assert "monitor/alerts.js?v=0.99.8" in html
+    assert "monitor/index.js?v=0.99.8" in html
 
 
 def test_dashboard_and_suggest_ui_markers() -> None:

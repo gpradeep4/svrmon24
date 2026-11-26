@@ -615,7 +615,7 @@
     inventory: { title: "Inventory", subtitle: "CMDB components with separate OS and product columns" },
     "ci-detail": {
       title: "CI Detail",
-      subtitle: "Helix-aligned header · General · Specifications (C1)",
+      subtitle: "Enterprise CI detail · General · Specifications (C1)",
     },
     relationships: { title: "Relationships", subtitle: "Manual links with separate protocol and ports" },
     dependencies: { title: "Dependencies", subtitle: "Tenant-scoped graph wrap · CMDB + custom edges · potentially affected apps" },
@@ -5949,7 +5949,7 @@
           return;
         }
         if (view) {
-          // C1: inventory View opens full-page Helix CI detail.
+          // C1: inventory View opens full-page enterprise CI detail.
           if (global.SVRMON24CmdbCiDetail?.openCiDetail) {
             const returnTab =
               Object.keys(INVENTORY_TABS).find(

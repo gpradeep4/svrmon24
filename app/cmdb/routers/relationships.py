@@ -74,7 +74,7 @@ def list_relationships(
     relationship_type: str | None = Query(default=None),
     direction: str | None = Query(
         default=None,
-        description="With component_id: child | parent | both (Helix Show filter)",
+        description="With component_id: child | parent | both (Show filter)",
     ),
     enrich: bool = Query(
         default=False,

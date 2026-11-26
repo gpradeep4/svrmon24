@@ -332,7 +332,7 @@ def get_relationship_details(
     component_id: str,
     tenant: TenantContext = Depends(require_tenant),
 ) -> dict[str, Any]:
-    """Helix Relationship Details projection — tree + grouped child CIs (C2)."""
+    """CI Relationship Details projection — tree + grouped child CIs (C2)."""
     from ..services import relationships as relationships_service
     from ..services.relationships import RelationshipError
 
@@ -384,7 +384,7 @@ def delete_component(
 
 
 # ---------------------------------------------------------------------------
-# C3 — People + Work Info (Helix CI detail tabs)
+# C3 — People + Work Info (enterprise CI detail tabs)
 # ---------------------------------------------------------------------------
 
 
@@ -704,7 +704,7 @@ def delete_work_info_attachment(
 
 
 # ---------------------------------------------------------------------------
-# C4 — Contracts + Outage + Impacted Areas (Helix CI detail tabs)
+# C4 — Contracts + Outage + Impacted Areas (enterprise CI detail tabs)
 # ---------------------------------------------------------------------------
 
 

@@ -13,7 +13,7 @@ class RelationshipType(str, Enum):
     """Relationship types with explicit direction: source → target.
 
     - HOSTS: source hosts target (e.g. Computer System → IP / OS / agent).
-      Helix "Show: Child" for hosted access points and system components.
+      Enterprise "Show: Child" for hosted access points and system components.
     - HOSTED_ON: source is hosted on target (e.g. Middleware → Server).
       One server can be the target of many HOSTED_ON edges.
     - DEPENDS_ON: source depends on target to function.
@@ -28,7 +28,7 @@ class RelationshipType(str, Enum):
     ROUTES_TO = "ROUTES_TO"
 
 
-# Parent/child filter semantics (Helix Show: Child / Parent).
+# Parent/child filter semantics (Show: Child / Parent).
 # HOSTS: parent is source. HOSTED_ON: parent is target (legacy inverse).
 PARENT_IS_SOURCE_TYPES: frozenset[str] = frozenset({RelationshipType.HOSTS.value})
 PARENT_IS_TARGET_TYPES: frozenset[str] = frozenset({RelationshipType.HOSTED_ON.value})

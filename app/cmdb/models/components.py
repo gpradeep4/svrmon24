@@ -21,7 +21,7 @@ COMPONENT_TYPES: tuple[str, ...] = tuple(t.value for t in ComponentType)
 
 
 class ComponentStatus(str, Enum):
-    """Stored status values — map-only (Helix Deployed → active via UI labels later)."""
+    """Stored status values — map-only (Deployed → active via UI labels later)."""
 
     ACTIVE = "active"
     INACTIVE = "inactive"
@@ -56,7 +56,7 @@ class UrgencyLevel(str, Enum):
 
 
 class PriorityLevel(str, Enum):
-    """ITSM-aligned priority (1 = highest; Helix sample PRIORITY_5 → \"5\")."""
+    """ITSM-aligned priority (1 = highest; sample PRIORITY_5 → \"5\")."""
 
     ONE = "1"
     TWO = "2"
@@ -126,7 +126,7 @@ class ServerFields(BaseModel):
     ip_address: str | None = None
     os_family: str | None = None
     os_version: str | None = None
-    # Helix Specifications natives (Computer System)
+    # Specifications natives (Computer System)
     system_type: str | None = None
     virtual_system_type: str | None = None
     is_virtual: bool | None = None

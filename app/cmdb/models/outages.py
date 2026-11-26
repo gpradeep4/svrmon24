@@ -1,4 +1,4 @@
-"""CMDB CI Outage models (Helix Outage Information tab — C4).
+"""CMDB CI Outage models (Outage Information tab — C4).
 
 ``itsm_ref`` is an optional deep link to related Incident/Change — tickets
 remain in ITSM; CMDB never joins across databases.

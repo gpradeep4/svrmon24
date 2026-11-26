@@ -129,7 +129,7 @@ def ensure_custom_field() -> str:
 
 
 def ensure_example_org_custom_fields() -> str:
-    """Seed Helix-style org custom field examples (app_code, device_stage, …)."""
+    """Seed example org custom field examples (app_code, device_stage, …)."""
     result = custom_fields_service.ensure_example_org_custom_fields(
         tenant_id=SEED_TENANT_ID
     )

@@ -1,4 +1,4 @@
-"""CMDB Impacted Areas models (Helix Impacted Areas tab — C4).
+"""CMDB Impacted Areas models (Impacted Areas tab — C4).
 
 Org/geo scope rows linked to a CI. Company codes are free-text in C4
 (tenant dictionaries deferred).

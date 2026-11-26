@@ -4065,7 +4065,7 @@ button[data-rbac-disabled="true"] {
   }
 }
 
-/* —— CMDB C1 Helix CI detail —— */
+/* —— CMDB C1 enterprise CI detail —— */
 .ci-detail {
   display: flex;
   flex-direction: column;
