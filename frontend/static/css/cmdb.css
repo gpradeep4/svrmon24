@@ -4423,10 +4423,16 @@ button[data-rbac-disabled="true"] {
   font-size: 0.95rem;
 }
 
-/* C3 — People + Work Info */
+/* C3 — People + Work Info · C4 — Contracts / Outage / Impacted Areas */
 .ci-people-actions,
 .ci-work-add-actions,
-.ci-people-form-actions {
+.ci-people-form-actions,
+.ci-contracts-actions,
+.ci-contracts-form-actions,
+.ci-outage-actions,
+.ci-outage-form-actions,
+.ci-impact-actions,
+.ci-impact-form-actions {
   display: flex;
   flex-wrap: wrap;
   gap: 8px 12px;
@@ -4434,7 +4440,10 @@ button[data-rbac-disabled="true"] {
   margin-bottom: 12px;
 }
 
-.ci-people-form {
+.ci-people-form,
+.ci-contracts-form,
+.ci-outage-form,
+.ci-impact-form {
   margin-bottom: 14px;
   padding: 12px;
   background: var(--surface-tint);
@@ -4442,13 +4451,20 @@ button[data-rbac-disabled="true"] {
   border-radius: var(--radius-sm);
 }
 
-.ci-people-form.hidden {
+.ci-people-form.hidden,
+.ci-contracts-form.hidden,
+.ci-contracts-search.hidden,
+.ci-outage-form.hidden,
+.ci-impact-form.hidden {
   display: none;
 }
 
 .ci-people-form h4,
 .ci-work-add h4,
-.ci-work-history h4 {
+.ci-work-history h4,
+.ci-contracts-form h4,
+.ci-outage-form h4,
+.ci-impact-form h4 {
   margin: 0 0 8px;
   font-size: 0.95rem;
 }
@@ -4464,13 +4480,23 @@ button[data-rbac-disabled="true"] {
 
 .ci-people-table td .ghost,
 .ci-work-table td .ghost,
+.ci-contracts-table td .ghost,
+.ci-outage-table td .ghost,
+.ci-impact-table td .ghost,
 .ci-people-row-actions,
-.ci-work-row-actions {
+.ci-work-row-actions,
+.ci-contracts-row-actions,
+.ci-outage-row-actions,
+.ci-impact-row-actions {
   white-space: nowrap;
 }
 
 .ci-people-itsm-hint {
   margin-top: 10px;
+}
+
+.ci-contracts-search {
+  margin: 10px 0;
 }
 
 .ci-work-layout {
@@ -4496,7 +4522,9 @@ button[data-rbac-disabled="true"] {
   margin-bottom: 8px;
 }
 
-.ci-work-table td .linkish {
+.ci-work-table td .linkish,
+.ci-contracts-table td .linkish,
+.ci-outage-table td .linkish {
   background: none;
   border: none;
   padding: 0;

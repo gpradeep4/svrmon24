@@ -1,4 +1,4 @@
-"""CMDB C1 — Helix CI detail UI (header + General + Specs) + GET/PATCH paths (0.99.6)."""
+"""CMDB C1 — Helix CI detail UI (header + General + Specs) + GET/PATCH paths (0.99.7)."""
 
 from __future__ import annotations
 
@@ -19,12 +19,12 @@ CMDB_CSS = REPO / "frontend" / "static" / "css" / "cmdb.css"
 
 
 def test_c1_version_bump() -> None:
-    assert __version__ == "0.99.6"
+    assert __version__ == "0.99.7"
 
 
 def test_frontend_ci_detail_markers() -> None:
     html = FRONTEND_INDEX.read_text(encoding="utf-8")
-    assert 'content="0.99.6"' in html
+    assert 'content="0.99.7"' in html
     assert 'id="tab-ci-detail"' in html
     assert 'id="ciDetailForm"' in html
     assert 'id="ciDetailSticky"' in html
@@ -33,7 +33,7 @@ def test_frontend_ci_detail_markers() -> None:
     assert 'id="btnCiViewItsm"' in html
     assert 'id="btnComponentOpenCiDetail"' in html
     assert 'data-tab="ci-detail"' in html
-    assert "cmdb/ci-detail.js?v=0.99.6" in html
+    assert "cmdb/ci-detail.js?v=0.99.7" in html
 
     js = CI_DETAIL_JS.read_text(encoding="utf-8")
     assert "SVRMON24CmdbCiDetail" in js

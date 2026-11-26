@@ -21,6 +21,7 @@ from .exceptions import register_exception_handlers
 from .logging_config import configure_logging
 from .cmdb.routers import column_configs as column_configs_router
 from .cmdb.routers import components as components_router
+from .cmdb.routers import contracts as contracts_router
 from .cmdb.routers import custom_fields as custom_fields_router
 from .cmdb.routers import custom_tables as custom_tables_router
 from .cmdb.routers import dashboard as dashboard_router
@@ -164,6 +165,7 @@ def create_app() -> FastAPI:
     app.include_router(platform_router.router)
     app.include_router(audit_router.router)
     app.include_router(components_router.router)
+    app.include_router(contracts_router.router)
     app.include_router(custom_fields_router.router)
     app.include_router(custom_fields_router.facade_router)
     app.include_router(column_configs_router.router)

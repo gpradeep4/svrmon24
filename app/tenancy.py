@@ -62,6 +62,10 @@ TENANTED_COLLECTIONS: tuple[str, ...] = (
     "cmdb_ci_people",  # C3 People / support groups
     "cmdb_ci_work_info",  # C3 Work Info log
     "cmdb_ci_attachments",  # C3 Work Info blobs (Mongo Binary)
+    "cmdb_contracts",  # C4 Contracts
+    "cmdb_ci_contract_links",  # C4 CI ↔ contract joins
+    "cmdb_ci_outages",  # C4 Outage Information
+    "cmdb_impacted_areas",  # C4 Impacted Areas
     "diagnostic_history",
     "file_watch_targets",
     "file_version_events",
