@@ -4,7 +4,7 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <meta name="svrmon24-ui" content="login-enterprise-v18" />
-  <meta name="svrmon24-version" content="0.99.3" />
+  <meta name="svrmon24-version" content="0.99.4" />
   <title>SVRMON24</title>
   <link rel="icon" href="/static/img/svrmon-favicon.png" type="image/png" sizes="32x32" />
   <link rel="apple-touch-icon" href="/static/img/svrmon-apple-touch.png" sizes="180x180" />
@@ -16,13 +16,13 @@
     body.is-app .login-gate { display: none !important; }
     #authPanel, .auth-panel-legacy { display: none !important; }
   </style>
-  <link rel="stylesheet" href="/static/css/cmdb.css?v=0.99.3" />
-  <link rel="stylesheet" href="/static/css/itsm.css?v=0.99.3" />
-  <link rel="stylesheet" href="/static/css/monitor.css?v=0.99.3" />
-  <link rel="stylesheet" href="/static/css/portal.css?v=0.99.3" />
-  <script src="/static/js/config.js?v=0.99.3"></script>
-  <script src="/static/js/brand.js?v=0.99.3"></script>
-  <script src="/static/js/login-showcase.js?v=0.99.3" defer></script>
+  <link rel="stylesheet" href="/static/css/cmdb.css?v=0.99.4" />
+  <link rel="stylesheet" href="/static/css/itsm.css?v=0.99.4" />
+  <link rel="stylesheet" href="/static/css/monitor.css?v=0.99.4" />
+  <link rel="stylesheet" href="/static/css/portal.css?v=0.99.4" />
+  <script src="/static/js/config.js?v=0.99.4"></script>
+  <script src="/static/js/brand.js?v=0.99.4"></script>
+  <script src="/static/js/login-showcase.js?v=0.99.4" defer></script>
 </head>
 <body class="is-login">
   <!-- Enterprise login: showcase (left) + sign-in panel (right); stacks on small viewports -->
@@ -396,6 +396,8 @@
             <span class="nav-ico" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M5 6h6v6H5zM13 12h6v6h-6z"/><path d="M11 9h4v4"/></svg></span>
             Dependencies
           </button>
+          <!-- Hidden route target for Helix CI detail (C1); opened from inventory View -->
+          <button type="button" class="nav-item" data-tab="ci-detail" id="navCiDetail" hidden aria-hidden="true">CI Detail</button>
         </div>
 
         <button type="button" class="nav-section nav-section-toggle" id="navCustomTablesSection" data-nav-collapse="custom-tables" hidden aria-expanded="true" aria-controls="navCustomTables">
@@ -798,6 +800,35 @@
               </div>
             </div>
           </section>
+        </section>
+
+        <section id="tab-ci-detail" class="tab-panel hidden" data-cmdb-ci-detail="1">
+          <form id="ciDetailForm" class="ci-detail">
+            <header class="ci-detail-sticky" id="ciDetailSticky">
+              <div class="ci-detail-topbar">
+                <div class="ci-detail-topbar-left">
+                  <button type="button" id="btnCiBack" class="ghost">← Inventory</button>
+                  <div class="ci-detail-titles">
+                    <p class="hint" id="ciDetailKicker">Computer System</p>
+                    <h2 id="ciDetailTitle">CI detail</h2>
+                  </div>
+                </div>
+                <div class="ci-detail-actions">
+                  <button type="button" id="btnCiRefresh" class="secondary">Refresh</button>
+                  <button type="button" id="btnCiViewItsm" class="secondary">View ITSM tickets</button>
+                  <button type="button" id="btnCiEdit" class="secondary">Edit</button>
+                  <button type="button" id="btnCiCancelEdit" class="ghost" hidden>Cancel</button>
+                  <button type="submit" id="btnCiSave" hidden>Save</button>
+                </div>
+              </div>
+              <div id="ciDetailHeaderFields" class="ci-detail-header-fields"></div>
+              <div class="ci-itsm-related" id="ciItsmRelated" aria-live="polite">
+                <p class="hint">Related ITSM tickets load for this component_id via ITSM APIs.</p>
+              </div>
+              <div class="ci-tab-strip" id="ciDetailTabStrip" role="tablist" aria-label="CI detail tabs"></div>
+            </header>
+            <div class="ci-detail-body panel" id="ciDetailTabBody" role="tabpanel"></div>
+          </form>
         </section>
 
         <section id="tab-relationships" class="tab-panel hidden">
@@ -3796,6 +3827,7 @@
         <div style="margin-top:14px;display:flex;gap:8px;justify-content:flex-end;flex-wrap:wrap">
           <button type="button" id="btnSuggestClassification" class="secondary" title="AI assist — fills type/fields; you still Save">Suggest type</button>
           <button type="button" id="btnComponentViewItsm" class="secondary" hidden>View ITSM tickets</button>
+          <button type="button" id="btnComponentOpenCiDetail" class="secondary" hidden>Open CI detail</button>
           <button type="submit" id="btnSaveComponent">Save</button>
         </div>
       </form>
@@ -3993,33 +4025,34 @@
     </div>
   </div>
 
-  <script src="/static/js/cmdb.js?v=0.99.3"></script>
-  <script src="/static/js/monitor/dashboard.js?v=0.99.3"></script>
-  <script src="/static/js/monitor/targets.js?v=0.99.3"></script>
-  <script src="/static/js/monitor/logs.js?v=0.99.3"></script>
-  <script src="/static/js/monitor/alerts.js?v=0.99.3"></script>
-  <script src="/static/js/monitor/agents.js?v=0.99.3"></script>
-  <script src="/static/js/monitor/index.js?v=0.99.3"></script>
-  <script src="/static/js/itsm/api.js?v=0.99.3"></script>
-  <script src="/static/js/itsm/routing.js?v=0.99.3"></script>
-  <script src="/static/js/itsm/deeplinks.js?v=0.99.3"></script>
-  <script src="/static/js/itsm/dashboard.js?v=0.99.3"></script>
-  <script src="/static/js/itsm/reports.js?v=0.99.3"></script>
-  <script src="/static/js/itsm/incidents.js?v=0.99.3"></script>
-  <script src="/static/js/itsm/changes.js?v=0.99.3"></script>
-  <script src="/static/js/itsm/problems.js?v=0.99.3"></script>
-  <script src="/static/js/itsm/approvals.js?v=0.99.3"></script>
-  <script src="/static/js/itsm/workflows.js?v=0.99.3"></script>
-  <script src="/static/js/itsm/sla.js?v=0.99.3"></script>
-  <script src="/static/js/itsm/knowledge.js?v=0.99.3"></script>
-  <script src="/static/js/itsm/notifications.js?v=0.99.3"></script>
-  <script src="/static/js/itsm/groups.js?v=0.99.3"></script>
-  <script src="/static/js/itsm/index.js?v=0.99.3"></script>
-  <script src="/static/js/portal/catalog.js?v=0.99.3"></script>
-  <script src="/static/js/portal/requests.js?v=0.99.3"></script>
-  <script src="/static/js/portal/approvals.js?v=0.99.3"></script>
-  <script src="/static/js/portal/executions.js?v=0.99.3"></script>
-  <script src="/static/js/portal/vuln.js?v=0.99.3"></script>
-  <script src="/static/js/portal/index.js?v=0.99.3"></script>
+  <script src="/static/js/cmdb/ci-detail.js?v=0.99.4"></script>
+  <script src="/static/js/cmdb.js?v=0.99.4"></script>
+  <script src="/static/js/monitor/dashboard.js?v=0.99.4"></script>
+  <script src="/static/js/monitor/targets.js?v=0.99.4"></script>
+  <script src="/static/js/monitor/logs.js?v=0.99.4"></script>
+  <script src="/static/js/monitor/alerts.js?v=0.99.4"></script>
+  <script src="/static/js/monitor/agents.js?v=0.99.4"></script>
+  <script src="/static/js/monitor/index.js?v=0.99.4"></script>
+  <script src="/static/js/itsm/api.js?v=0.99.4"></script>
+  <script src="/static/js/itsm/routing.js?v=0.99.4"></script>
+  <script src="/static/js/itsm/deeplinks.js?v=0.99.4"></script>
+  <script src="/static/js/itsm/dashboard.js?v=0.99.4"></script>
+  <script src="/static/js/itsm/reports.js?v=0.99.4"></script>
+  <script src="/static/js/itsm/incidents.js?v=0.99.4"></script>
+  <script src="/static/js/itsm/changes.js?v=0.99.4"></script>
+  <script src="/static/js/itsm/problems.js?v=0.99.4"></script>
+  <script src="/static/js/itsm/approvals.js?v=0.99.4"></script>
+  <script src="/static/js/itsm/workflows.js?v=0.99.4"></script>
+  <script src="/static/js/itsm/sla.js?v=0.99.4"></script>
+  <script src="/static/js/itsm/knowledge.js?v=0.99.4"></script>
+  <script src="/static/js/itsm/notifications.js?v=0.99.4"></script>
+  <script src="/static/js/itsm/groups.js?v=0.99.4"></script>
+  <script src="/static/js/itsm/index.js?v=0.99.4"></script>
+  <script src="/static/js/portal/catalog.js?v=0.99.4"></script>
+  <script src="/static/js/portal/requests.js?v=0.99.4"></script>
+  <script src="/static/js/portal/approvals.js?v=0.99.4"></script>
+  <script src="/static/js/portal/executions.js?v=0.99.4"></script>
+  <script src="/static/js/portal/vuln.js?v=0.99.4"></script>
+  <script src="/static/js/portal/index.js?v=0.99.4"></script>
 </body>
 </html>

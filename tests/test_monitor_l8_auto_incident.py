@@ -1,4 +1,4 @@
-"""Monitoring L8 — optional auto-create ITSM incidents from alerts (0.99.3)."""
+"""Monitoring L8 — optional auto-create ITSM incidents from alerts (0.99.4)."""
 
 from __future__ import annotations
 
@@ -105,10 +105,10 @@ def _fire_threshold_alert(
 
 
 def test_version_bump_for_monitor_l8() -> None:
-    assert __version__ == "0.99.3"
+    assert __version__ == "0.99.4"
     html = FRONTEND_INDEX.read_text(encoding="utf-8")
-    assert 'content="0.99.3"' in html
-    assert "monitor/alerts.js?v=0.99.3" in html
+    assert 'content="0.99.4"' in html
+    assert "monitor/alerts.js?v=0.99.4" in html
     assert "maRuleAutoIncident" in html
     assert "Auto-create ITSM incident" in html
 

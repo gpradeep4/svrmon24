@@ -180,6 +180,14 @@
     container.querySelectorAll(".itsm-open-cmdb-ci").forEach((btn) => {
       btn.addEventListener("click", () => {
         const id = btn.getAttribute("data-id");
+        // Prefer Helix CI detail (C1); fall back to inventory View click.
+        if (global.SVRMON24CmdbCiDetail?.openCiDetail) {
+          global.SVRMON24CmdbCiDetail.openCiDetail(id, {
+            returnTab: "servers",
+            ciTab: "general",
+          });
+          return;
+        }
         showTab("inventory");
         window.setTimeout(() => {
           const viewBtn = document.querySelector(

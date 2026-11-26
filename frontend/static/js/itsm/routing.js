@@ -4,6 +4,7 @@
  * Supported hashes:
  *   #tab=itsm-incidents&component_id=srv-1
  *   #tab-itsm-incidents&component_id=srv-1   (backlog-style alias)
+ *   #tab=ci-detail&component_id=srv-1&ci_tab=general
  *
  * Optional path entries:
  *   /itsm or /itsm/ → ITSM dashboard when no hash
@@ -73,6 +74,7 @@
         incident_id: null,
         change_id: null,
         problem_id: null,
+        ci_tab: null,
       };
     }
     const params = new URLSearchParams(raw);
@@ -83,6 +85,7 @@
       incident_id: (params.get("incident_id") || "").trim() || null,
       change_id: (params.get("change_id") || "").trim() || null,
       problem_id: (params.get("problem_id") || "").trim() || null,
+      ci_tab: (params.get("ci_tab") || "").trim() || null,
     };
   }
 
@@ -94,6 +97,7 @@
     if (parts?.incident_id) p.set("incident_id", parts.incident_id);
     if (parts?.change_id) p.set("change_id", parts.change_id);
     if (parts?.problem_id) p.set("problem_id", parts.problem_id);
+    if (parts?.ci_tab) p.set("ci_tab", parts.ci_tab);
     const qs = p.toString();
     return qs ? `#${qs}` : "";
   }
@@ -119,6 +123,10 @@
         incident_id: extra?.incident_id ?? null,
         change_id: extra?.change_id ?? null,
         problem_id: extra?.problem_id ?? null,
+        ci_tab:
+          tabName === "ci-detail"
+            ? extra?.ci_tab ?? current.ci_tab ?? "general"
+            : null,
       },
       { replace: true }
     );

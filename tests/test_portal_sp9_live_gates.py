@@ -1,4 +1,4 @@
-"""Service Portal SP9 — live gate stubs (fail-closed; SP10 unlocks adapters) (0.99.3)."""
+"""Service Portal SP9 — live gate stubs (fail-closed; SP10 unlocks adapters) (0.99.4)."""
 
 from __future__ import annotations
 
@@ -15,9 +15,9 @@ from tests.frontend_paths import FRONTEND_INDEX
 
 
 def test_version_bump_for_portal_sp9() -> None:
-    assert __version__ == "0.99.3"
+    assert __version__ == "0.99.4"
     html = FRONTEND_INDEX.read_text(encoding="utf-8")
-    assert 'content="0.99.3"' in html
+    assert 'content="0.99.4"' in html
 
 
 def test_platform_live_flags_default_off() -> None:
