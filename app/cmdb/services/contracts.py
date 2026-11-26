@@ -96,8 +96,16 @@ def _serialize_ref(ref: Any) -> dict[str, str] | None:
     return None
 
 
-def _date_value(value: date | None) -> date | None:
-    return value
+def _date_for_mongo(value: date | datetime | None) -> datetime | None:
+    """BSON cannot encode bare ``datetime.date`` — store UTC midnight datetimes."""
+    if value is None:
+        return None
+    if isinstance(value, datetime):
+        if value.tzinfo is None:
+            return value.replace(tzinfo=timezone.utc)
+        return value.astimezone(timezone.utc)
+    # Plain date → UTC midnight
+    return datetime(value.year, value.month, value.day, tzinfo=timezone.utc)
 
 
 def create_contract(payload: ContractCreate, *, tenant_id: str) -> dict[str, Any]:
@@ -108,8 +116,8 @@ def create_contract(payload: ContractCreate, *, tenant_id: str) -> dict[str, Any
         "contract_id": contract_id,
         "contract_type": payload.contract_type,
         "description": payload.description,
-        "start_date": _date_value(payload.start_date),
-        "end_date": _date_value(payload.end_date),
+        "start_date": _date_for_mongo(payload.start_date),
+        "end_date": _date_for_mongo(payload.end_date),
         "status": payload.status,
         "vendor": payload.vendor,
         "external_ref": payload.external_ref,
@@ -177,6 +185,9 @@ def update_contract(
     updates = payload.model_dump(exclude_unset=True)
     if "itsm_change_ref" in updates:
         updates["itsm_change_ref"] = _serialize_ref(updates.get("itsm_change_ref"))
+    for key in ("start_date", "end_date"):
+        if key in updates:
+            updates[key] = _date_for_mongo(updates[key])
     if not updates:
         return to_contract_row(serialize_document(existing) or existing)
 
