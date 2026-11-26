@@ -4,17 +4,33 @@ from __future__ import annotations
 
 from datetime import datetime, timedelta, timezone
 
+import pytest
 from app import __version__
+from app.config import get_settings
 from app.db import get_itsm_database
 from app.itsm.services import jobs as jobs_service
 from app.itsm.services.jobs import JOB_WORKFLOW_SCHEDULES
 from app.itsm.services import workflow_triggers as triggers
+from app.services import tenants as tenants_service
 from app.tenancy import MIGRATION_TENANT_ID
 from fastapi.testclient import TestClient
 
 
 def test_version_bump_for_workflow_triggers_slice() -> None:
-    assert __version__ == "0.99.8"
+    assert __version__ == "0.99.9"
+
+
+@pytest.fixture()
+def enable_itsm_automation(monkeypatch: pytest.MonkeyPatch, clean_db) -> None:
+    """Automation is fail-closed; open both gates for N7 behavioral tests."""
+    monkeypatch.setenv("ITSM_AUTOMATION_ENABLED", "true")
+    get_settings.cache_clear()
+    tenants_service.ensure_migration_tenant()
+    tenants_service.set_module_live_settings(
+        MIGRATION_TENANT_ID, {"itsm_automation_opt_in": True}
+    )
+    yield
+    get_settings.cache_clear()
 
 
 def _simple_graph(*, target_status: str = "submitted") -> dict:
@@ -37,7 +53,10 @@ def _simple_graph(*, target_status: str = "submitted") -> dict:
 
 
 def test_on_create_starts_active_change_workflow(
-    client: TestClient, auth_headers: dict[str, str], clean_db
+    client: TestClient,
+    auth_headers: dict[str, str],
+    clean_db,
+    enable_itsm_automation,
 ) -> None:
     wf = client.post(
         "/api/itsm/workflows",
@@ -85,7 +104,10 @@ def test_on_create_starts_active_change_workflow(
 
 
 def test_on_create_inactive_and_duplicate_guard(
-    client: TestClient, auth_headers: dict[str, str], clean_db
+    client: TestClient,
+    auth_headers: dict[str, str],
+    clean_db,
+    enable_itsm_automation,
 ) -> None:
     wf = client.post(
         "/api/itsm/workflows",
@@ -145,7 +167,10 @@ def test_on_create_inactive_and_duplicate_guard(
 
 
 def test_on_status_filter_and_engine_loop_guard(
-    client: TestClient, auth_headers: dict[str, str], clean_db
+    client: TestClient,
+    auth_headers: dict[str, str],
+    clean_db,
+    enable_itsm_automation,
 ) -> None:
     # on_status only for "approved"
     wf = client.post(
@@ -209,7 +234,10 @@ def test_on_status_filter_and_engine_loop_guard(
 
 
 def test_schedule_trigger_fires_once_per_window(
-    client: TestClient, auth_headers: dict[str, str], clean_db
+    client: TestClient,
+    auth_headers: dict[str, str],
+    clean_db,
+    enable_itsm_automation,
 ) -> None:
     created = client.post(
         "/api/itsm/changes",

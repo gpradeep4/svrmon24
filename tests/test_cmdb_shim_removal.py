@@ -37,7 +37,7 @@ _REMOVED_SHIM_MODULES = (
 
 
 def test_version_bump_for_cmdb_shim_removal() -> None:
-    assert __version__ == "0.99.8"
+    assert __version__ == "0.99.9"
 
 
 def test_canonical_cmdb_imports_work() -> None:
@@ -57,7 +57,7 @@ def test_cmdb_compatibility_shims_removed(module_name: str) -> None:
 
 def test_cmdb_routes_remain_mounted() -> None:
     app = create_app()
-    assert app.version == "0.99.8"
+    assert app.version == "0.99.9"
     paths = set(app.openapi()["paths"])
     for prefix in (
         "/api/components",

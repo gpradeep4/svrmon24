@@ -116,6 +116,35 @@ docker compose up frontend api mongodb
 
 Cross-origin UI/API is possible via `CORS_ORIGINS` and `frontend/static/js/config.js` (`window.SVRMON24.apiBase`); same-origin nginx proxy is preferred so session cookies and `/auth/*` stay on one browser origin.
 
+### Production-ready local server (today)
+
+Same artifacts for **SaaS** and **self-host**. Secrets stay in `.env` (never Mongo).
+
+| Path | How |
+| --- | --- |
+| Docker Compose (split) | `cp .env.example .env` → edit secrets → `docker compose up --build` → UI `http://localhost:8080/` · API `http://localhost:8200/health` |
+| Monolith scripts | `scripts/run_api.sh` (Linux) or `scripts/run_api.ps1` (Windows) with `SERVE_STATIC=true` |
+| systemd | Example unit: `scripts/svrmon24.service.example` |
+| nginx | Example reverse proxy: `scripts/nginx-svrmon24.conf.example` |
+
+**Mongo databases:** `svrmon-cmdb` / `svrmon-itsm` / `svrmon-monitor` (compose volume `svrmon24-mongo`).  
+**Health:** `GET /health` (public) and `GET /api/status` (auth).
+
+### Live / Runtime gates (0.99.9+)
+
+Live execution is **fail-closed** until both platform env masters and tenant admin toggles are on.
+
+| Module | Platform env (default off) | Tenant toggle |
+| --- | --- | --- |
+| Monitoring probes / agents / file watchers | `MONITOR_LIVE_PROBES_ENABLED` (+ agentless/agent subflags) | `monitor_live_opt_in` (+ agentless/agent / auto-incident) |
+| Service Portal LIVE execute | `SERVICE_PORTAL_LIVE_EXEC_ENABLED` | `sp_live_opt_in` (+ agentless/agent) |
+| Diagnostics LIVE | `DIAGNOSTICS_LIVE_ENABLED` | `diagnostics_live_opt_in` |
+| ITSM automation (workflow auto-triggers) | `ITSM_AUTOMATION_ENABLED` | `itsm_automation_opt_in` |
+
+- **UI:** Configuration → **Live / Runtime** (requires `live:admin` — tenant admin / owner / platform admin). Non-admins do not see write controls.
+- **API:** `GET/PATCH /api/admin/live-settings` (unified). Legacy ` /api/monitor/admin/live-settings` and `/api/portal/admin/live-settings` still work.
+- SIMULATED paths stay available when live is off.
+
 ## Configuration
 
 Copy `.env.example` → `.env` (never commit `.env`). Placeholders only in the example file:

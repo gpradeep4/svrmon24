@@ -1,0 +1,49 @@
+# Example nginx reverse proxy for split deploy (API + static UI, same origin).
+# Pair with SERVE_STATIC=false on the API. TLS termination is operator-owned.
+#
+# Upstream API: 127.0.0.1:8200
+# UI root: /opt/svrmon24/frontend (or the compose nginx frontend image)
+
+upstream svrmon24_api {
+    server 127.0.0.1:8200;
+    keepalive 16;
+}
+
+server {
+    listen 8080;
+    server_name _;
+
+    root /opt/svrmon24/frontend;
+    index index.html;
+
+    location /static/ {
+        alias /opt/svrmon24/frontend/static/;
+        expires 1h;
+        add_header Cache-Control "public";
+    }
+
+    location /api/ {
+        proxy_pass http://svrmon24_api;
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_set_header Connection "";
+    }
+
+    location /auth/ {
+        proxy_pass http://svrmon24_api;
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+    }
+
+    location = /health {
+        proxy_pass http://svrmon24_api/health;
+    }
+
+    location / {
+        try_files $uri /index.html;
+    }
+}

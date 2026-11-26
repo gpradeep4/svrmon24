@@ -7,9 +7,10 @@ from typing import Any, Literal
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
-ExecutionMode = Literal["SIMULATED"]
+ExecutionMode = Literal["SIMULATED", "LIVE"]
 
 # Keys that must never appear on diagnostic start requests (no remote exec path).
+# ``prefer_live`` is the only supported live opt-in; raw exec payloads stay banned.
 FORBIDDEN_EXECUTION_KEYS = frozenset(
     {
         "command",
@@ -31,19 +32,30 @@ FORBIDDEN_EXECUTION_KEYS = frozenset(
         "scan",
         "probe",
         "live",
-        "execution_mode",  # clients cannot override; always SIMULATED
+        "execution_mode",  # clients cannot override; use prefer_live
     }
 )
 
 
 class DiagnosticStartRequest(BaseModel):
-    """Start a simulated diagnostic. Extra/forbidden execution fields are rejected."""
+    """Start a diagnostic. Extra/forbidden execution fields are rejected.
+
+    Default is SIMULATED. Set ``prefer_live=true`` to request LIVE (fail-closed
+    behind platform + tenant diagnostics gates).
+    """
 
     model_config = ConfigDict(extra="forbid")
 
     component_id: str = Field(min_length=1, max_length=128)
     profile_name: str = Field(min_length=1, max_length=64)
     notes: str | None = Field(default=None, max_length=2000)
+    prefer_live: bool = Field(
+        default=False,
+        description=(
+            "When true, run LIVE path if diagnostics gates are open; "
+            "otherwise 403. Default false keeps SIMULATED."
+        ),
+    )
 
     @field_validator("component_id", "profile_name")
     @classmethod

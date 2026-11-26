@@ -42,6 +42,7 @@
     custom: "configuration",
     "custom-tables": "configuration",
     columns: "configuration",
+    "live-runtime": "configuration",
     users: "administration",
     roles: "administration",
     organizations: "administration",
@@ -291,6 +292,16 @@
       auditNav.title = showAudit
         ? ""
         : "Requires audit:read (admin / owner / platform admin)";
+    }
+    const liveNav = $(`.nav-item[data-tab="live-runtime"]`);
+    if (liveNav) {
+      const showLive = can("live:admin") || state.isPlatformAdmin;
+      liveNav.hidden = !showLive;
+      liveNav.classList.toggle("rbac-nav-denied", !showLive);
+      liveNav.setAttribute("aria-disabled", showLive ? "false" : "true");
+      liveNav.title = showLive
+        ? "Admin-only live / runtime toggles"
+        : "Requires live:admin (tenant admin / owner / platform admin)";
     }
     const usersNav = $(`.nav-item[data-tab="users"]`);
     if (usersNav && !readUsers && !state.isPlatformAdmin) {
@@ -673,6 +684,10 @@
       subtitle: "Browse and edit rows for a custom entity table",
     },
     columns: { title: "Column Settings", subtitle: "Tenant-scoped grid visibility, order, width, and pin" },
+    "live-runtime": {
+      title: "Live / Runtime",
+      subtitle: "Admin-only enable/disable for live probes, Portal execute, Diagnostics, File watchers, ITSM automation",
+    },
     users: { title: "Users", subtitle: "Memberships, invites, and org members" },
     roles: {
       title: "Roles and Permissions",
@@ -1096,6 +1111,155 @@
       }
     } catch (err) {
       if (status) status.textContent = err.message || "Could not load OIDC settings";
+    }
+  }
+
+  function _liveEffectiveOn(moduleKey, effective) {
+    if (!effective || typeof effective !== "object") return false;
+    if (moduleKey === "monitoring") {
+      return !!(effective.platform_enabled && effective.tenant_opt_in);
+    }
+    if (moduleKey === "file_watchers") return !!effective.file_watch_live;
+    if (moduleKey === "portal") return !!effective.live_exec;
+    if (moduleKey === "diagnostics") return !!effective.live_exec;
+    if (moduleKey === "itsm_automation") return !!effective.automation;
+    return false;
+  }
+
+  function renderLiveRuntimeModules(data) {
+    const root = $("#liveRuntimeModules");
+    if (!root) return;
+    const modules = (data && data.modules) || {};
+    const canWrite = !!(data && data.can_write);
+    const order = [
+      "monitoring",
+      "file_watchers",
+      "portal",
+      "diagnostics",
+      "itsm_automation",
+    ];
+    const seen = new Set();
+    const keys = [
+      ...order.filter((k) => modules[k]),
+      ...Object.keys(modules).filter((k) => !order.includes(k)),
+    ];
+    root.innerHTML = keys
+      .map((key) => {
+        if (seen.has(key)) return "";
+        seen.add(key);
+        const mod = modules[key] || {};
+        const effectiveOn = _liveEffectiveOn(key, mod.effective);
+        const platformEntries = Object.entries(mod.platform || {});
+        const toggles = mod.toggles || [];
+        const toggleHtml = toggles
+          .map((t) => {
+            const id = `liveToggle_${key}_${t.key}`;
+            const disabled = canWrite ? "" : "disabled";
+            return `<label class="live-toggle-row" for="${escapeHtml(id)}">
+              <input type="checkbox" id="${escapeHtml(id)}" data-live-key="${escapeHtml(
+              t.key
+            )}" ${t.value ? "checked" : ""} ${disabled} />
+              <span>${escapeHtml(t.label || t.key)}</span>
+            </label>`;
+          })
+          .join("");
+        const platformHtml = platformEntries
+          .map(
+            ([k, v]) =>
+              `<span class="live-chip ${v ? "on" : "off"}" title="${escapeHtml(
+                k
+              )}">${escapeHtml(k)}: ${v ? "on" : "off"}</span>`
+          )
+          .join("");
+        return `<article class="live-module-card" data-live-module="${escapeHtml(key)}">
+          <header class="live-module-head">
+            <h3>${escapeHtml(mod.label || key)}</h3>
+            <span class="live-effective ${effectiveOn ? "on" : "off"}">${
+              effectiveOn ? "Effective ON" : "Effective OFF"
+            }</span>
+          </header>
+          <p class="hint">${escapeHtml(mod.description || "")}</p>
+          <div class="live-platform-row">${platformHtml || '<span class="hint">No platform flags</span>'}</div>
+          <div class="live-toggles">${toggleHtml || '<p class="hint">No tenant toggles</p>'}</div>
+        </article>`;
+      })
+      .join("");
+
+    root.querySelectorAll("input[data-live-key]").forEach((input) => {
+      input.addEventListener("change", () => {
+        patchLiveRuntimeToggle(input.getAttribute("data-live-key"), input.checked).catch(
+          (err) => {
+            input.checked = !input.checked;
+            toast(err.message || "Toggle failed", true);
+          }
+        );
+      });
+    });
+  }
+
+  async function patchLiveRuntimeToggle(key, value) {
+    if (!key) return;
+    if (!can("live:admin") && !state.isPlatformAdmin) {
+      throw new Error("Requires live:admin");
+    }
+    const body = { [key]: !!value };
+    const data = await api("/api/admin/live-settings", {
+      method: "PATCH",
+      body: JSON.stringify(body),
+    });
+    renderLiveRuntimeModules(data);
+    const status = $("#liveRuntimeStatus");
+    if (status) {
+      status.hidden = false;
+      status.textContent = `Updated ${key}=${!!value} · fail_closed=${!!data.fail_closed}`;
+    }
+    toast(`Live setting ${key} ${value ? "enabled" : "disabled"}`);
+  }
+
+  async function loadLiveRuntimePanel() {
+    const banner = $("#liveRuntimeBanner");
+    const status = $("#liveRuntimeStatus");
+    const foot = $("#liveRuntimeFootnote");
+    const root = $("#liveRuntimeModules");
+    if (!state.authenticated) {
+      if (banner) {
+        banner.hidden = false;
+        banner.textContent = "Sign in as a tenant admin to manage live toggles.";
+      }
+      if (root) root.innerHTML = "";
+      if (foot) foot.hidden = true;
+      return;
+    }
+    if (!can("live:admin") && !state.isPlatformAdmin) {
+      if (banner) {
+        banner.hidden = false;
+        banner.textContent =
+          "Live / Runtime requires live:admin (tenant admin, owner, or platform admin). Write controls are hidden.";
+      }
+      if (root) root.innerHTML = "";
+      if (foot) foot.hidden = true;
+      return;
+    }
+    try {
+      const data = await api("/api/admin/live-settings");
+      if (banner) {
+        banner.hidden = false;
+        banner.textContent =
+          data.note ||
+          "Live paths are fail-closed until platform env and tenant toggles are both on.";
+      }
+      if (status) {
+        status.hidden = false;
+        status.textContent = `Tenant ${data.tenant_id || state.tenantId} · fail_closed=${!!data.fail_closed}`;
+      }
+      if (foot) foot.hidden = false;
+      renderLiveRuntimeModules(data);
+    } catch (err) {
+      if (banner) {
+        banner.hidden = false;
+        banner.textContent = err.message || "Could not load live settings";
+      }
+      if (root) root.innerHTML = "";
     }
   }
 
@@ -3262,6 +3426,9 @@
       loadTenancyContext()
         .then(() => loadOidcSettingsPanel())
         .catch((err) => toast(err.message, true));
+    }
+    if (name === "live-runtime") {
+      loadLiveRuntimePanel().catch((err) => toast(err.message || "Live settings failed", true));
     }
     if (name === "audit") {
       loadAuditEvents()

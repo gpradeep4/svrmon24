@@ -33,6 +33,7 @@ from .routers import ai as ai_router
 from .routers import audit as audit_router
 from .routers import auth_routes
 from .routers import entitlements as entitlements_router
+from .routers import live_settings as live_settings_router
 from .routers import org_admin as org_admin_router
 from .routers import platform as platform_router
 from .routers import tenants as tenants_router
@@ -163,6 +164,7 @@ def create_app() -> FastAPI:
     app.include_router(tenants_router.router)
     app.include_router(org_admin_router.router)
     app.include_router(platform_router.router)
+    app.include_router(live_settings_router.router)
     app.include_router(audit_router.router)
     app.include_router(components_router.router)
     app.include_router(contracts_router.router)

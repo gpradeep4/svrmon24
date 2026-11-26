@@ -1,4 +1,4 @@
-"""Monitoring L6 — live file watching (watch_mode + agentless poll) (0.99.8)."""
+"""Monitoring L6 — live file watching (watch_mode + agentless poll) (0.99.9)."""
 
 from __future__ import annotations
 
@@ -70,7 +70,7 @@ def _register_agent(
             "hostname": "l6-edge.lab",
             "os_family": os_family,
             "os_name": os_family,
-            "version": "0.99.8-fixture",
+            "version": "0.99.9-fixture",
         },
     )
     assert registered.status_code == 201, registered.text
@@ -78,11 +78,11 @@ def _register_agent(
 
 
 def test_version_bump_for_monitor_l6() -> None:
-    assert __version__ == "0.99.8"
+    assert __version__ == "0.99.9"
     html = FRONTEND_INDEX.read_text(encoding="utf-8")
-    assert 'content="0.99.8"' in html
+    assert 'content="0.99.9"' in html
     assert 'data-fm-watch-mode="1"' in html
-    assert "monitor/index.js?v=0.99.8" in html
+    assert "monitor/index.js?v=0.99.9" in html
 
 
 def test_meta_exposes_watch_modes_and_files_api(
