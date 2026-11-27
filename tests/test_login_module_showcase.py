@@ -39,11 +39,15 @@ def test_login_module_showcase_assets() -> None:
     assert ".login-hub" in css
     assert ".login-hub-node" in css
     assert ".login-hub-core" in css
+    assert ".login-hub-node-plate" in css
+    assert "loginHubHex" in html
+    assert "loginHubNodeNeo" in html
     assert ".login-module-detail" in css
     assert ".login-modules-visual" in css
     assert ".login-watch-overview" in css
     assert ".login-overview-modal" in css
     assert "prefers-reduced-motion" in css
+    assert "#F3F0FF" in css or "#F0EEFF" in css
     assert f"login-showcase.js?v={__version__}" in html
     assert (FRONTEND_STATIC / "assets" / "brand" / "modules-overview-loop.mp4").is_file()
     assert (FRONTEND_STATIC / "assets" / "brand" / "modules-overview-poster.png").is_file()
