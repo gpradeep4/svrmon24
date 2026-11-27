@@ -133,6 +133,7 @@
   let activeId = DEFAULT_MODULE;
   let swapTimer = null;
   let renderedNodes = [];
+  let hubResizeObserver = null;
 
   function prefersReducedMotion() {
     try {
@@ -165,6 +166,7 @@
   /**
    * Compute polar placements for N enabled modules.
    * 5 → one ring; 6 → even ring; 7–10 → inner+outer; >10 → adaptive rings.
+   * Coordinates are percentages of the hub box (0–100).
    */
   function computePositions(count) {
     const pts = [];
@@ -213,15 +215,123 @@
     return pts;
   }
 
-  function curvePath(x, y) {
-    const mx = (CX + x) / 2;
-    const my = (CY + y) / 2;
-    const dx = x - CX;
-    const dy = y - CY;
+  /** Flat-top hexagon vertices relative to centre (half-width hw, half-height hh). */
+  function hexVertices(cx, cy, hw, hh) {
+    return [
+      [cx + hw / 2, cy - hh],
+      [cx + hw, cy],
+      [cx + hw / 2, cy + hh],
+      [cx - hw / 2, cy + hh],
+      [cx - hw, cy],
+      [cx - hw / 2, cy - hh],
+    ];
+  }
+
+  /** Ray–segment intersection. Ray: origin + t*dir (t ≥ 0). Segment s ∈ [0,1]. */
+  function raySegmentIntersection(ox, oy, dx, dy, x1, y1, x2, y2) {
+    const ex = x2 - x1;
+    const ey = y2 - y1;
+    const det = dx * ey - dy * ex;
+    if (Math.abs(det) < 1e-9) return null;
+    const tx = x1 - ox;
+    const ty = y1 - oy;
+    const t = (tx * ey - ty * ex) / det;
+    const s = (tx * dy - ty * dx) / det;
+    if (t >= -1e-6 && s >= -1e-6 && s <= 1 + 1e-6) {
+      return { t: Math.max(0, t), x: ox + Math.max(0, t) * dx, y: oy + Math.max(0, t) * dy };
+    }
+    return null;
+  }
+
+  /**
+   * Intersection of a ray from hex centre along (dx,dy) with the flat-top hex boundary.
+   * Returns {x,y,t} in the same coordinate space as the centre / half-extents.
+   */
+  function hexBoundaryIntersection(cx, cy, hw, hh, dx, dy) {
+    const len = Math.hypot(dx, dy);
+    if (len < 1e-9 || hw <= 0 || hh <= 0) return { x: cx, y: cy, t: 0 };
+    const ux = dx / len;
+    const uy = dy / len;
+    const verts = hexVertices(cx, cy, hw, hh);
+    let best = null;
+    for (let i = 0; i < 6; i++) {
+      const a = verts[i];
+      const b = verts[(i + 1) % 6];
+      const hit = raySegmentIntersection(cx, cy, ux, uy, a[0], a[1], b[0], b[1]);
+      if (hit && (best === null || hit.t < best.t)) best = hit;
+    }
+    return best || { x: cx + ux * Math.min(hw, hh), y: cy + uy * Math.min(hw, hh), t: Math.min(hw, hh) };
+  }
+
+  /**
+   * Slight cubic between two hex-edge points (not centres). Bend is perpendicular
+   * to the chord; magnitude scales with chord length — no CSS offset hacks.
+   */
+  function edgeCurvePath(x1, y1, x2, y2) {
+    const dx = x2 - x1;
+    const dy = y2 - y1;
     const len = Math.hypot(dx, dy) || 1;
-    const ox = (-dy / len) * 6;
-    const oy = (dx / len) * 6;
-    return `M ${CX} ${CY} Q ${mx + ox} ${my + oy} ${x} ${y}`;
+    const bend = Math.min(len * 0.16, 8);
+    const ox = (-dy / len) * bend;
+    const oy = (dx / len) * bend;
+    const c1x = x1 + dx / 3 + ox;
+    const c1y = y1 + dy / 3 + oy;
+    const c2x = x1 + (2 * dx) / 3 + ox;
+    const c2y = y1 + (2 * dy) / 3 + oy;
+    return `M ${x1} ${y1} C ${c1x} ${c1y} ${c2x} ${c2y} ${x2} ${y2}`;
+  }
+
+  /**
+   * Build an edge-clipped connection path from hub centre → module centre.
+   * direction vector → hex boundary intersections → cubic between edges only.
+   */
+  function connectionPath(hub, node) {
+    const dx = node.cx - hub.cx;
+    const dy = node.cy - hub.cy;
+    const from = hexBoundaryIntersection(hub.cx, hub.cy, hub.hw, hub.hh, dx, dy);
+    const to = hexBoundaryIntersection(node.cx, node.cy, node.hw, node.hh, -dx, -dy);
+    return edgeCurvePath(from.x, from.y, to.x, to.y);
+  }
+
+  /** Measure an element’s centre + unscaled half-size in hub-local % (0–100). */
+  function measureHexInView(el, hubRect) {
+    if (!el || !hubRect || hubRect.width < 1 || hubRect.height < 1) {
+      return { cx: CX, cy: CY, hw: 8, hh: 7 };
+    }
+    const r = el.getBoundingClientRect();
+    const cx = (((r.left + r.right) / 2 - hubRect.left) / hubRect.width) * VIEW;
+    const cy = (((r.top + r.bottom) / 2 - hubRect.top) / hubRect.height) * VIEW;
+    // offsetWidth/Height ignore hover scale so endpoints stay stable
+    const hw = ((el.offsetWidth || r.width) / hubRect.width) * (VIEW / 2);
+    const hh = ((el.offsetHeight || r.height) / hubRect.height) * (VIEW / 2);
+    return { cx, cy, hw, hh };
+  }
+
+  /**
+   * Recalculate spoke paths from live hub/node geometry.
+   * SVG uses the same 0–100 percentage space as node --hx/--hy (preserveAspectRatio none).
+   */
+  function updateConnections() {
+    const hub = document.getElementById("loginHubHotspots");
+    const spokes = document.getElementById("loginHubSpokes");
+    const core = hub?.querySelector(".login-hub-core");
+    if (!hub || !spokes || !core) return;
+
+    const hubRect = hub.getBoundingClientRect();
+    if (hubRect.width < 1 || hubRect.height < 1) return;
+
+    spokes.setAttribute("viewBox", `0 0 ${VIEW} ${VIEW}`);
+    spokes.setAttribute("preserveAspectRatio", "none");
+
+    const hubGeom = measureHexInView(core, hubRect);
+    const paths = spokes.querySelectorAll("path[data-module]");
+    paths.forEach((path) => {
+      const id = path.getAttribute("data-module");
+      const node = hub.querySelector(`.login-hub-node[data-module="${id}"]`);
+      if (!node) return;
+      const nodeGeom = measureHexInView(node, hubRect);
+      path.setAttribute("d", connectionPath(hubGeom, nodeGeom));
+    });
   }
 
   function renderHub() {
@@ -235,7 +345,7 @@
     hub.dataset.count = String(mods.length);
 
     spokes.setAttribute("viewBox", `0 0 ${VIEW} ${VIEW}`);
-    spokes.setAttribute("preserveAspectRatio", "xMidYMid meet");
+    spokes.setAttribute("preserveAspectRatio", "none");
     spokes.innerHTML = "";
     nodesLayer.innerHTML = "";
 
@@ -245,9 +355,10 @@
       const hx = pos.x;
       const hy = pos.y;
 
+      // Placeholder path — replaced by updateConnections after layout
       const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
       path.setAttribute("data-module", mod.id);
-      path.setAttribute("d", curvePath(hx, hy));
+      path.setAttribute("d", "");
       path.setAttribute("fill", "none");
       path.setAttribute("stroke", "url(#loginHubSpokeGrad)");
       path.setAttribute("stroke-width", "1.15");
@@ -275,7 +386,20 @@
     });
 
     renderedNodes = nodes;
+    // Layout pass — measure real hex boxes then clip spokes to edges
+    requestAnimationFrame(() => updateConnections());
     return nodes;
+  }
+
+  function observeHubResize() {
+    const hub = document.getElementById("loginHubHotspots");
+    if (!hub || typeof ResizeObserver === "undefined") {
+      window.addEventListener("resize", updateConnections);
+      return;
+    }
+    if (hubResizeObserver) hubResizeObserver.disconnect();
+    hubResizeObserver = new ResizeObserver(() => updateConnections());
+    hubResizeObserver.observe(hub);
   }
 
   function setActiveModule(moduleId, { focusNode = false, force = false } = {}) {
@@ -491,6 +615,7 @@
     const nodes = renderHub();
     wireHotspots(nodes);
     wireModal();
+    observeHubResize();
     setActiveModule(DEFAULT_MODULE, { force: true });
   }
 
@@ -503,6 +628,11 @@
     computePositions,
     enabledModules,
     renderHub,
+    updateConnections,
+    hexBoundaryIntersection,
+    connectionPath,
+    edgeCurvePath,
+    measureHexInView,
     MODULES,
     DEFAULT_MODULE,
   };

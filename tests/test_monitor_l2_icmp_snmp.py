@@ -1,4 +1,4 @@
-"""Monitoring L2 — agentless ICMP + SNMP executors + secret_ref + rollup (0.99.11)."""
+"""Monitoring L2 — agentless ICMP + SNMP executors + secret_ref + rollup (0.99.12)."""
 
 from __future__ import annotations
 
@@ -83,10 +83,10 @@ def _ensure_target(client: TestClient, auth_headers: dict[str, str], *, target_i
 
 
 def test_version_bump_for_monitor_l2() -> None:
-    assert __version__ == "0.99.11"
+    assert __version__ == "0.99.12"
     html = FRONTEND_INDEX.read_text(encoding="utf-8")
-    assert 'content="0.99.11"' in html
-    assert "monitor/targets.js?v=0.99.11" in html
+    assert 'content="0.99.12"' in html
+    assert "monitor/targets.js?v=0.99.12" in html
     assert 'id="mtSrvBanner"' in html
     assert 'id="mtNetBanner"' in html
     assert ">Mode</th>" in html

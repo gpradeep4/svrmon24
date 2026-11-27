@@ -1,4 +1,4 @@
-"""Service Portal SP8 — incident link + ITSM deep-link UX (0.99.11)."""
+"""Service Portal SP8 — incident link + ITSM deep-link UX (0.99.12)."""
 
 from __future__ import annotations
 
@@ -13,9 +13,9 @@ from tests.frontend_paths import FRONTEND_INDEX
 
 
 def test_version_bump_for_portal_sp8() -> None:
-    assert __version__ == "0.99.11"
+    assert __version__ == "0.99.12"
     html = FRONTEND_INDEX.read_text(encoding="utf-8")
-    assert 'content="0.99.11"' in html
+    assert 'content="0.99.12"' in html
 
 
 def test_portal_sp8_fe_markers() -> None:
