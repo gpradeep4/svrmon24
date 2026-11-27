@@ -15,37 +15,38 @@ def test_login_module_showcase_assets() -> None:
     assert "login-hero-stage--modules" in html
     assert "login-hero-stage--best" in html
     assert 'id="loginModulesVisual"' in html
-    assert 'id="loginModulesComposite"' in html
     assert 'id="loginHubHotspots"' in html
     assert 'id="loginModuleDetail"' in html
     assert 'id="loginOverviewModal"' in html
     assert 'id="btnLoginWatchOverview"' in html
-    assert "login-modules-composite.jpg" in html
+    assert "login-hub" in html
+    assert "login-hub-spokes" in html
+    assert "login-hub-core" in html
     assert 'id="loginCapabilityGrid"' not in html
     assert "login-cap-card" not in html
     assert "login-panels/panel-" not in html
     assert "login-preview-tilt" not in html
+    assert "login-modules-composite.jpg" not in html
+    assert 'id="loginModulesComposite"' not in html
     assert "setActiveModule" in js
     assert "openOverviewModal" in js
-    assert "login-hub-node" in js or "login-hub-node" in html
     assert "login-cap-play" not in js
     assert "buildCards" not in js
     assert "prefers-reduced-motion" in js or "prefersReducedMotion" in js
     for mod in ("cmdb", "monitoring", "itsm", "portal", "secureops", "config"):
         assert f'data-module="{mod}"' in html
         assert f'id: "{mod}"' in js
-    assert ".login-hub-hotspots" in css
+    assert ".login-hub" in css
     assert ".login-hub-node" in css
+    assert ".login-hub-core" in css
     assert ".login-module-detail" in css
     assert ".login-modules-visual" in css
-    assert ".login-modules-composite" in css
     assert ".login-watch-overview" in css
     assert ".login-overview-modal" in css
     assert "prefers-reduced-motion" in css
     assert f"login-showcase.js?v={__version__}" in html
     assert (FRONTEND_STATIC / "assets" / "brand" / "modules-overview-loop.mp4").is_file()
     assert (FRONTEND_STATIC / "assets" / "brand" / "modules-overview-poster.png").is_file()
-    assert (FRONTEND_STATIC / "assets" / "brand" / "login-modules-composite.jpg").is_file()
     assert not (FRONTEND_STATIC / "assets" / "login-panels").exists()
 
 
@@ -64,20 +65,21 @@ def test_login_showcase_intro_stack() -> None:
 
 
 def test_login_showcase_hub_no_card_chrome() -> None:
-    """Hub image is the stage — no tilted shots, no capability cards, no nested panel chrome."""
+    """Hub sits on page wash — no image plate, no capability cards, no nested panel."""
     css = (FRONTEND_STATIC / "css" / "cmdb.css").read_text(encoding="utf-8")
     html = FRONTEND_INDEX.read_text(encoding="utf-8")
     assert "login-modules-visual" in html
     assert "login-hub-node" in html
+    assert "login-hub-core" in html
     assert "login-preview-tilt" not in html
     assert "login-dashboard-tilt" not in html
     assert 'id="loginCapabilityGrid"' not in html
-    assert "object-fit: cover" in css
-    assert "box-shadow: none" in css
-    assert "mask-image: radial-gradient" in css or "-webkit-mask-image: radial-gradient" in css
+    assert "login-modules-composite.jpg" not in html
+    assert "background: transparent" in css.split("Hub graphic", 1)[-1].split(".login-capability-grid", 1)[0]
     hub_css = css.split("Hub graphic", 1)[-1].split(".login-capability-grid", 1)[0]
-    assert "0 16px 36px rgba(79, 70, 229" not in hub_css
-    assert "border: 1px solid rgba(226, 232, 240" not in hub_css.split(".login-modules-composite", 1)[1].split("}", 1)[0]
+    assert "box-shadow: none" in hub_css
+    assert ".login-module-detail" in hub_css
+    assert "backdrop-filter: blur(10px)" not in hub_css
     gate = html.split('id="loginGate"', 1)[1].split('id="appShell"', 1)[0]
     assert "rotateY" not in gate
     assert "login-preview-viewport--shots" not in gate

@@ -41,7 +41,6 @@ def test_enterprise_login_structure() -> None:
         "brand/login-waves.svg",
         "brand/modules-overview-loop.mp4",
         "brand/modules-overview-poster.png",
-        "brand/login-modules-composite.jpg",
         "icons/cmdb.svg",
         "icons/ai-investigation.svg",
         "icons/diagnostics.svg",
@@ -64,7 +63,6 @@ def test_enterprise_login_structure() -> None:
     assert "symbolSvg" in brand_js
     assert "loginWavesPng" in brand_js
     assert "loginWavesSvg" in brand_js
-    assert "loginModulesComposite" in brand_js
     assert 'id="svrmon-brand-s"' not in html
     assert "brand-s-logo" not in html
     assert "login-gate-enterprise" in html
@@ -80,7 +78,7 @@ def test_enterprise_login_structure() -> None:
     assert 'id="loginOverviewModal"' in html
     assert 'id="btnLoginWatchOverview"' in html
     assert 'id="loginModulesVisual"' in html
-    assert 'id="loginModulesComposite"' in html
+    assert 'id="loginModulesComposite"' not in html
     assert 'id="loginHubHotspots"' in html
     assert 'id="loginModuleDetail"' in html
     assert "Explore SVRMON24 modules" not in html
@@ -91,11 +89,13 @@ def test_enterprise_login_structure() -> None:
     assert 'id="authMethodNote"' in html
     assert "login-dashboard-tilt" not in html
     assert "login-preview-tilt" not in html
-    assert "login-modules-composite" in html
+    assert "login-modules-composite.jpg" not in html
     assert "login-hub-node" in html
+    assert "login-hub-core" in html
     css = (FRONTEND_STATIC / "css" / "cmdb.css").read_text(encoding="utf-8")
     assert ".login-modules-visual" in css
     assert ".login-hub-node" in css
+    assert ".login-hub-core" in css
     assert ".login-module-detail" in css
     assert ".login-cap-play" not in html
     assert "login-panel-brand" in html
@@ -183,15 +183,15 @@ def test_enterprise_login_scale_layout_css() -> None:
     assert ".login-portal-inner" in css
     assert ".login-hero-stage" in css
     assert ".login-modules-visual" in css
-    assert ".login-modules-composite" in css
+    assert ".login-hub-core" in css
     assert "width: min(100%, 560px)" not in css
     assert "backdrop-filter: blur(14px)" in css
     assert "radial-gradient(circle at 1px 1px" in css
     # Desktop composition: vertical stack (logo → intro → modules visual → cards).
     assert ".login-showcase-intro" in css
     assert "grid-column: 2" not in css.split(".login-hero-stage--modules", 1)[0]
-    assert "margin-inline-start: clamp(12px, 2.5cqi, 48px)" in css
-    assert ".login-hub-hotspots" in css
+    assert "margin-inline-start: clamp(8px, 2cqi, 36px)" in css
+    assert ".login-hub" in css
     assert ".login-overview-modal" in css
     # Post-login sidebar: transparent PNG lockup (no CSS-split wordmark / white pill).
     assert ".brand-mark--sidebar" in css

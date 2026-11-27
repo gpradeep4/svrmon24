@@ -1038,7 +1038,7 @@ body.is-login {
   }
 
   .login-modules-visual,
-  .login-modules-composite {
+  .login-hub-node {
     transform: none;
   }
 }
@@ -1875,49 +1875,67 @@ body.is-login {
   flex-shrink: 0;
 }
 
-/* Hub graphic — image IS the stage (no nested white card); nodes are interactive */
+/* Hub graphic — vector nodes sit directly on page wash (no image plate / box) */
 .login-modules-visual {
   position: relative;
-  display: block;
-  width: min(100%, 1080px);
-  aspect-ratio: 16 / 9;
-  min-height: clamp(220px, 34cqb, 420px);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  width: min(100%, 980px);
+  min-height: clamp(260px, 40cqb, 460px);
   margin: 0;
-  padding: 0;
+  padding: clamp(8px, 1.5cqb, 18px) 0 clamp(36px, 5cqb, 52px);
   overflow: visible;
+  border: 0;
   border-radius: 0;
   background: transparent;
+  box-shadow: none;
 }
 
 .login-modules-visual.is-swapping .login-module-detail {
   opacity: 0.55;
 }
 
-.login-modules-composite {
-  position: absolute;
-  inset: 0;
-  display: block;
-  width: 100%;
-  height: 100%;
-  margin: 0;
-  padding: 0;
-  object-fit: cover;
-  object-position: center center;
-  border: 0;
-  border-radius: 0;
+.login-hub {
+  position: relative;
+  width: min(100%, 720px);
+  aspect-ratio: 1.35 / 1;
+  max-height: clamp(240px, 38cqb, 420px);
+  margin: 0 auto;
   background: transparent;
+  border: 0;
   box-shadow: none;
-  pointer-events: none;
-  user-select: none;
-  /* Soft-edge vignette on the art only — not a card frame */
-  -webkit-mask-image: radial-gradient(125% 100% at 50% 48%, #000 58%, transparent 100%);
-  mask-image: radial-gradient(125% 100% at 50% 48%, #000 58%, transparent 100%);
 }
 
-.login-hub-hotspots {
+.login-hub-spokes {
   position: absolute;
   inset: 0;
-  z-index: 2;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  z-index: 0;
+}
+
+.login-hub-spokes line {
+  stroke: rgba(79, 70, 229, 0.45);
+  stroke-width: 0.45;
+  stroke-dasharray: 1.2 1.4;
+  stroke-linecap: round;
+}
+
+.login-hub-core {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  z-index: 1;
+  width: clamp(22px, 3.4cqi, 34px);
+  height: clamp(22px, 3.4cqi, 34px);
+  translate: -50% -50%;
+  border-radius: 50%;
+  background: #4F46E5;
+  box-shadow: 0 0 0 8px rgba(79, 70, 229, 0.12);
+  pointer-events: none;
 }
 
 .login-hub-node {
@@ -1925,28 +1943,57 @@ body.is-login {
   position: absolute;
   left: var(--hx);
   top: var(--hy);
+  z-index: 2;
   translate: -50% -50%;
-  width: clamp(108px, 16cqi, 168px);
-  height: clamp(40px, 6.2cqi, 56px);
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-width: clamp(118px, 18cqi, 158px);
   margin: 0;
-  padding: 0;
-  border: 2px solid transparent;
+  padding: 9px 14px;
+  border: 1px solid rgba(79, 70, 229, 0.28);
   border-radius: 999px;
   background: transparent;
-  color: transparent;
-  font: 650 0.01px/1 var(--font);
+  color: #4338CA;
+  font: 650 0.82rem/1.1 "Plus Jakarta Sans", var(--font);
   cursor: pointer;
-  overflow: hidden;
   white-space: nowrap;
-  transition: border-color 160ms ease, box-shadow 160ms ease, background 160ms ease;
+  box-shadow: none;
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+  transition: border-color 160ms ease, background 160ms ease, box-shadow 160ms ease, transform 160ms ease;
+}
+
+.login-hub-node-ico {
+  display: grid;
+  place-items: center;
+  width: 18px;
+  height: 18px;
+  flex-shrink: 0;
+}
+
+.login-hub-node-ico svg {
+  width: 18px;
+  height: 18px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.7;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.login-hub-node-label {
+  font: inherit;
+  color: inherit;
 }
 
 .login-hub-node:hover,
 .login-hub-node:focus-visible,
 .login-hub-node.is-active {
-  border-color: rgba(79, 70, 229, 0.55);
+  border-color: rgba(79, 70, 229, 0.7);
   background: rgba(79, 70, 229, 0.08);
-  box-shadow: 0 0 0 4px rgba(79, 70, 229, 0.12);
+  box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.12);
+  transform: translateY(-1px);
 }
 
 .login-hub-node:focus-visible {
@@ -1955,22 +2002,17 @@ body.is-login {
 }
 
 .login-module-detail {
-  position: absolute;
-  left: 50%;
-  bottom: clamp(8px, 2.2cqb, 22px);
+  position: relative;
   z-index: 3;
-  translate: -50% 0;
   display: grid;
-  gap: 4px;
-  width: min(42ch, 88%);
-  margin: 0;
-  padding: 12px 16px;
-  border-radius: 12px;
-  background: rgba(255, 255, 255, 0.82);
-  border: 1px solid rgba(226, 232, 240, 0.7);
-  box-shadow: 0 8px 24px rgba(15, 23, 42, 0.06);
-  backdrop-filter: blur(10px);
-  -webkit-backdrop-filter: blur(10px);
+  gap: 2px;
+  width: min(46ch, 92%);
+  margin: clamp(10px, 1.8cqb, 18px) auto 0;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
   text-align: center;
   transition: opacity 160ms ease;
   pointer-events: none;
@@ -1990,9 +2032,9 @@ body.is-login {
 
 @media (min-width: 1200px) {
   .login-hero-stage--best.login-hero-stage--modules .login-modules-visual {
-    width: min(100%, calc(100% + clamp(8px, 2cqi, 40px)));
-    margin-inline-start: clamp(12px, 2.5cqi, 48px);
-    min-height: clamp(280px, 42cqb, 460px);
+    width: min(100%, 1040px);
+    margin-inline-start: clamp(8px, 2cqi, 36px);
+    min-height: clamp(300px, 44cqb, 480px);
   }
 }
 
