@@ -1,100 +1,138 @@
 /**
- * Login gate — interactive hub showcase (vanilla).
- * Config-driven modules; hover/focus details; Option B Watch overview.
- * No auth/API changes.
+ * Login gate — data-driven hexagonal module showcase (vanilla).
+ * Positions computed from enabled MODULES count. No auth/API changes.
  */
 (function () {
+  const ICONS = {
+    cmdb:
+      '<svg viewBox="0 0 24 24"><rect x="3" y="2.5" width="18" height="5.2" rx="1.4"/><rect x="3" y="9.4" width="18" height="5.2" rx="1.4"/><rect x="3" y="16.3" width="18" height="5.2" rx="1.4"/><circle cx="6.4" cy="5.1" r="0.85" fill="currentColor" stroke="none"/><circle cx="6.4" cy="12" r="0.85" fill="currentColor" stroke="none"/><circle cx="6.4" cy="18.9" r="0.85" fill="currentColor" stroke="none"/></svg>',
+    monitoring:
+      '<svg viewBox="0 0 24 24"><path d="M3.5 12h3l2-5 3 10 2.5-5H20.5"/></svg>',
+    itsm:
+      '<svg viewBox="0 0 24 24"><path d="M7 4.5h10a2 2 0 0 1 2 2v13l-3-1.6-3 1.6-3-1.6-3 1.6v-13a2 2 0 0 1 2-2z"/><path d="m11.2 11.2 1.3 1.3 2.8-2.8"/></svg>',
+    portal:
+      '<svg viewBox="0 0 24 24"><path d="M4 4h9v16H4z"/><path d="M13 7h7v13h-7"/><rect x="15.2" y="10" width="2.2" height="2.2" rx="0.3"/><rect x="18" y="10" width="2.2" height="2.2" rx="0.3"/><rect x="15.2" y="13.2" width="2.2" height="2.2" rx="0.3"/><rect x="18" y="13.2" width="2.2" height="2.2" rx="0.3"/></svg>',
+    secureops:
+      '<svg viewBox="0 0 24 24"><path d="M12 3l8 4v5c0 4.5-3.2 7.8-8 9-4.8-1.2-8-4.5-8-9V7l8-4z"/><rect x="9.2" y="10.2" width="5.6" height="4.8" rx="1"/><path d="M10.4 10.2V8.8a1.6 1.6 0 0 1 3.2 0v1.4"/></svg>',
+    config:
+      '<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3.2"/><path d="M12 3.2v2.2M12 18.6v2.2M4.8 4.8l1.6 1.6M17.6 17.6l1.6 1.6M3.2 12h2.2M18.6 12h2.2M4.8 19.2l1.6-1.6M17.6 6.4l1.6-1.6"/><path d="M7.5 9.2h4.2M12.5 14.8h4"/></svg>',
+  };
+
   /** Central module config — source of truth for hub interactions. */
   const MODULES = [
     {
       id: "cmdb",
-      label: "CMDB",
-      title: "CMDB & Inventory",
-      blurb: "Unified view of servers, networks and applications",
-      tone: "indigo",
-      seek: 0,
-      bullets: [
+      name: "CMDB",
+      icon: "cmdb",
+      short_description: "Unified view of servers, networks and applications",
+      capabilities: [
         "Centralised infrastructure inventory",
         "Manage servers, operating systems, middleware, databases and applications",
         "Visualise infrastructure relationships and dependencies",
         "Maintain configuration item information",
       ],
-    },
-    {
-      id: "monitoring",
-      label: "Monitoring",
-      title: "Infrastructure Monitoring",
-      blurb: "Health, alerts and performance across infrastructure",
-      tone: "violet",
-      seek: 2,
-      bullets: [
-        "Monitor server and infrastructure health",
-        "CPU, memory, disk and network utilisation",
-        "Infrastructure availability and performance",
-        "Alert and event visibility",
-      ],
+      route: "#cmdb",
+      display_order: 1,
+      enabled: true,
+      ariaLabel: "CMDB — Configuration Management Database",
+      seek: 0,
     },
     {
       id: "itsm",
-      label: "ITSM",
-      title: "IT Service Management",
-      blurb: "Incidents, changes and ticket lifecycle end-to-end",
-      tone: "blue",
-      seek: 4,
-      bullets: [
+      name: "ITSM",
+      icon: "itsm",
+      short_description: "Incidents, changes and ticket lifecycle end-to-end",
+      capabilities: [
         "Incident Management",
         "Change Management",
         "Problem Management",
         "Service requests and ticket lifecycle management",
       ],
+      route: "#itsm",
+      display_order: 2,
+      enabled: true,
+      ariaLabel: "ITSM — IT Service Management",
+      seek: 4,
+    },
+    {
+      id: "monitoring",
+      name: "Monitoring",
+      icon: "monitoring",
+      short_description: "Health, alerts and performance across infrastructure",
+      capabilities: [
+        "Monitor server and infrastructure health",
+        "CPU, memory, disk and network utilisation",
+        "Infrastructure availability and performance",
+        "Alert and event visibility",
+      ],
+      route: "#monitoring",
+      display_order: 3,
+      enabled: true,
+      ariaLabel: "Monitoring — Infrastructure Monitoring",
+      seek: 2,
     },
     {
       id: "portal",
-      label: "Service Portal",
-      title: "Self-Service Portal",
-      blurb: "Request catalog services and track fulfilment",
-      tone: "sky",
-      seek: 6,
-      bullets: [
+      name: "Service Portal",
+      icon: "portal",
+      short_description: "Request catalog services and track fulfilment",
+      capabilities: [
         "Centralised service request portal",
         "Submit and track service requests",
         "View incidents and request status",
         "Access service catalogue and knowledge resources",
       ],
+      route: "#portal",
+      display_order: 4,
+      enabled: true,
+      ariaLabel: "Service Portal — Self-Service Portal",
+      seek: 6,
     },
     {
       id: "secureops",
-      label: "SecureOps",
-      title: "Security and Compliance",
-      blurb: "RBAC, audit trail and enterprise-grade access",
-      tone: "purple",
-      seek: 10,
-      bullets: [
+      name: "SecureOps",
+      icon: "secureops",
+      short_description: "RBAC, audit trail and enterprise-grade access",
+      capabilities: [
         "Role-based access control",
         "Audit trail and activity tracking",
         "Security visibility and compliance",
         "Secure infrastructure access",
       ],
+      route: "#secureops",
+      display_order: 5,
+      enabled: true,
+      ariaLabel: "SecureOps — Security and Compliance",
+      seek: 10,
     },
+    // Kept disabled — Configuration remains in the real app nav, not the login showcase.
     {
       id: "config",
-      label: "Configuration",
-      title: "Platform Configuration",
-      blurb: "Tenant settings, live gates and platform controls",
-      tone: "lilac",
-      seek: 8,
-      bullets: [
+      name: "Configuration",
+      icon: "config",
+      short_description: "Tenant settings, live gates and platform controls",
+      capabilities: [
         "Configure integrations and platform settings",
         "Manage users, groups and roles",
         "Configure diagnostic scripts and workflows",
         "Manage tenant-level settings",
       ],
+      route: "#configuration",
+      display_order: 6,
+      enabled: false,
+      ariaLabel: "Configuration — Platform Configuration",
+      seek: 8,
     },
   ];
 
   const DEFAULT_MODULE = "cmdb";
+  const VIEW = 100;
+  const CX = 50;
+  const CY = 50;
+
   let activeId = DEFAULT_MODULE;
   let swapTimer = null;
+  let renderedNodes = [];
 
   function prefersReducedMotion() {
     try {
@@ -104,16 +142,145 @@
     }
   }
 
+  function enabledModules() {
+    return MODULES.filter((m) => m.enabled)
+      .slice()
+      .sort((a, b) => a.display_order - b.display_order);
+  }
+
   function findModule(id) {
-    return MODULES.find((m) => m.id === id) || MODULES.find((m) => m.id === DEFAULT_MODULE);
+    const enabled = enabledModules();
+    return enabled.find((m) => m.id === id) || enabled.find((m) => m.id === DEFAULT_MODULE) || enabled[0];
+  }
+
+  function iconSvg(mod) {
+    return ICONS[mod.icon] || ICONS.cmdb;
+  }
+
+  function labelHtml(name) {
+    if (name === "Service Portal") return "Service<br>Portal";
+    return name;
+  }
+
+  /**
+   * Compute polar placements for N enabled modules.
+   * 5 → one ring; 6 → even ring; 7–10 → inner+outer; >10 → adaptive rings.
+   */
+  function computePositions(count) {
+    const pts = [];
+    if (count <= 0) return pts;
+
+    const placeRing = (n, radius, startDeg, out) => {
+      const step = 360 / n;
+      for (let i = 0; i < n; i++) {
+        const deg = startDeg + i * step;
+        const rad = (deg * Math.PI) / 180;
+        out.push({
+          x: CX + radius * Math.cos(rad),
+          y: CY + radius * Math.sin(rad),
+          angle: deg,
+          ring: radius,
+        });
+      }
+    };
+
+    if (count <= 6) {
+      // Single symmetric ring (5 or 6); start at top (−90°)
+      placeRing(count, count === 5 ? 34 : 33, -90, pts);
+      return pts;
+    }
+
+    if (count <= 10) {
+      // Inner ring of 5 + outer ring of remainder
+      const inner = 5;
+      const outer = count - inner;
+      placeRing(inner, 28, -90, pts);
+      placeRing(outer, 40, -90 + 180 / outer, pts);
+      return pts;
+    }
+
+    // Adaptive multi-ring for >10
+    let remaining = count;
+    let ringIdx = 0;
+    while (remaining > 0) {
+      const capacity = ringIdx === 0 ? 6 : Math.min(8, remaining);
+      const take = Math.min(capacity, remaining);
+      const radius = 22 + ringIdx * 12;
+      placeRing(take, radius, -90, pts);
+      remaining -= take;
+      ringIdx += 1;
+    }
+    return pts;
+  }
+
+  function curvePath(x, y) {
+    const mx = (CX + x) / 2;
+    const my = (CY + y) / 2;
+    const dx = x - CX;
+    const dy = y - CY;
+    const len = Math.hypot(dx, dy) || 1;
+    const ox = (-dy / len) * 6;
+    const oy = (dx / len) * 6;
+    return `M ${CX} ${CY} Q ${mx + ox} ${my + oy} ${x} ${y}`;
+  }
+
+  function renderHub() {
+    const hub = document.getElementById("loginHubHotspots");
+    const spokes = document.getElementById("loginHubSpokes");
+    const nodesLayer = document.getElementById("loginHubNodes");
+    if (!hub || !spokes || !nodesLayer) return [];
+
+    const mods = enabledModules();
+    const positions = computePositions(mods.length);
+    hub.dataset.count = String(mods.length);
+
+    spokes.setAttribute("viewBox", `0 0 ${VIEW} ${VIEW}`);
+    spokes.setAttribute("preserveAspectRatio", "xMidYMid meet");
+    spokes.innerHTML = "";
+    nodesLayer.innerHTML = "";
+
+    const nodes = [];
+    mods.forEach((mod, i) => {
+      const pos = positions[i] || { x: CX, y: CY };
+      const hx = pos.x;
+      const hy = pos.y;
+
+      const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
+      path.setAttribute("data-module", mod.id);
+      path.setAttribute("d", curvePath(hx, hy));
+      path.setAttribute("fill", "none");
+      path.setAttribute("stroke", "url(#loginHubSpokeGrad)");
+      path.setAttribute("stroke-width", "1.15");
+      path.setAttribute("stroke-linecap", "round");
+      spokes.appendChild(path);
+
+      const btn = document.createElement("button");
+      btn.type = "button";
+      btn.className = "login-hub-node";
+      btn.dataset.module = mod.id;
+      btn.dataset.route = mod.route;
+      btn.style.setProperty("--hx", `${hx}%`);
+      btn.style.setProperty("--hy", `${hy}%`);
+      btn.setAttribute("aria-describedby", "loginModuleDetail");
+      btn.setAttribute("aria-label", mod.ariaLabel || mod.name);
+      btn.innerHTML =
+        `<svg class="login-hub-node-plate" viewBox="0 0 100 86.6" aria-hidden="true">` +
+        `<use href="#loginHubHex" filter="url(#loginHubNodeNeo)" fill="url(#loginHubNodeFill)" stroke="rgba(91,33,182,0.28)" stroke-width="1.5"/></svg>` +
+        `<span class="login-hub-node-content">` +
+        `<span class="login-hub-node-ico" aria-hidden="true">${iconSvg(mod)}</span>` +
+        `<span class="login-hub-node-label">${labelHtml(mod.name)}</span>` +
+        `</span>`;
+      nodesLayer.appendChild(btn);
+      nodes.push(btn);
+    });
+
+    renderedNodes = nodes;
+    return nodes;
   }
 
   function setActiveModule(moduleId, { focusNode = false, force = false } = {}) {
     const mod = findModule(moduleId);
     if (!mod) return;
-    if (!force && mod.id === activeId && !focusNode) {
-      // still refresh aria/pressed state
-    }
     activeId = mod.id;
 
     const visual = document.getElementById("loginModulesVisual");
@@ -139,20 +306,16 @@
         el.tabIndex = on ? 0 : -1;
       });
       spokes.forEach((curve) => {
-        const on = curve.dataset.module === mod.id;
-        curve.classList.toggle("is-active", on);
+        curve.classList.toggle("is-active", curve.dataset.module === mod.id);
       });
-      titleEl.textContent = mod.title;
-      bodyEl.textContent = mod.blurb;
-      listEl.innerHTML = mod.bullets.map((b) => `<li>${b}</li>`).join("");
+      titleEl.textContent = mod.name;
+      bodyEl.textContent = mod.short_description;
+      listEl.innerHTML = (mod.capabilities || []).map((b) => `<li>${b}</li>`).join("");
       if (iconEl) {
-        const src = document.querySelector(`.login-hub-node[data-module="${mod.id}"] .login-hub-node-ico`);
-        iconEl.innerHTML = src ? src.innerHTML : "";
-        iconEl.dataset.tone = mod.tone;
+        iconEl.innerHTML = iconSvg(mod);
       }
       if (panel) {
         panel.dataset.module = mod.id;
-        panel.dataset.tone = mod.tone;
         panel.classList.remove("is-swapping");
       }
       if (visual) visual.classList.remove("is-swapping");
@@ -180,12 +343,10 @@
     return !!(showcase && node && showcase.contains(node));
   }
 
-  function wireHotspots() {
-    const nodes = Array.from(document.querySelectorAll(".login-hub-node"));
+  function wireHotspots(nodes) {
     const showcase = document.getElementById("loginModulesVisual");
     if (!nodes.length || !showcase) return;
 
-    // Map spokes to modules by data-module on lines (set in HTML)
     nodes.forEach((btn, index) => {
       btn.setAttribute("aria-pressed", btn.dataset.module === DEFAULT_MODULE ? "true" : "false");
       btn.tabIndex = btn.dataset.module === DEFAULT_MODULE ? 0 : -1;
@@ -218,14 +379,12 @@
       });
     });
 
-    // Sticky into description; reset only when leaving entire showcase
     showcase.addEventListener("mouseleave", (e) => {
       if (isInsideShowcase(e.relatedTarget)) return;
       resetToDefault();
     });
     showcase.addEventListener("focusout", (e) => {
       if (isInsideShowcase(e.relatedTarget)) return;
-      // Defer so click/focus within panel can settle
       setTimeout(() => {
         if (!isInsideShowcase(document.activeElement)) resetToDefault();
       }, 0);
@@ -276,13 +435,10 @@
     const blurb = document.getElementById("loginModuleIntroBlurb");
     const list = document.getElementById("loginModuleIntroBullets");
     const icon = document.getElementById("loginModuleIntroIcon");
-    if (title) title.textContent = mod.title;
-    if (blurb) blurb.textContent = mod.blurb;
-    if (list) list.innerHTML = mod.bullets.map((b) => `<li>${b}</li>`).join("");
-    if (icon) {
-      const src = document.querySelector(`.login-hub-node[data-module="${mod.id}"] .login-hub-node-ico`);
-      icon.innerHTML = src ? src.innerHTML : "";
-    }
+    if (title) title.textContent = mod.name;
+    if (blurb) blurb.textContent = mod.short_description;
+    if (list) list.innerHTML = (mod.capabilities || []).map((b) => `<li>${b}</li>`).join("");
+    if (icon) icon.innerHTML = iconSvg(mod);
     dialog.hidden = false;
     dialog.classList.add("is-open");
     dialog.dataset.module = mod.id;
@@ -332,7 +488,8 @@
 
   function initLoginShowcase() {
     if (!document.getElementById("loginGate")) return;
-    wireHotspots();
+    const nodes = renderHub();
+    wireHotspots(nodes);
     wireModal();
     setActiveModule(DEFAULT_MODULE, { force: true });
   }
@@ -343,6 +500,9 @@
     closeOverviewModal,
     openModuleIntro,
     closeModuleIntro,
+    computePositions,
+    enabledModules,
+    renderHub,
     MODULES,
     DEFAULT_MODULE,
   };

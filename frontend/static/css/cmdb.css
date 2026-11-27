@@ -2035,6 +2035,17 @@ body.is-login {
   overflow: hidden;
 }
 
+.login-hub-nodes {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  pointer-events: none;
+}
+
+.login-hub-nodes .login-hub-node {
+  pointer-events: auto;
+}
+
 .login-hub-node {
   appearance: none;
   position: absolute;

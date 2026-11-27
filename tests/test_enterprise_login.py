@@ -91,13 +91,16 @@ def test_enterprise_login_structure() -> None:
     assert "login-dashboard-tilt" not in html
     assert "login-preview-tilt" not in html
     assert "login-modules-composite.jpg" not in html
-    assert "login-hub-node" in html
+    assert 'id="loginHubNodes"' in html
     assert "login-hub-core" in html
     css = (FRONTEND_STATIC / "css" / "cmdb.css").read_text(encoding="utf-8")
     assert ".login-modules-visual" in css
     assert ".login-hub-node" in css
     assert ".login-hub-core" in css
     assert ".login-module-detail" in css
+    showcase_js = (FRONTEND_STATIC / "js" / "login-showcase.js").read_text(encoding="utf-8")
+    assert "renderHub" in showcase_js
+    assert "enabled: false" in showcase_js  # Configuration disabled on showcase only
     assert ".login-cap-play" not in html
     assert "login-panel-brand" in html
     assert "login-input-wrap" in html
