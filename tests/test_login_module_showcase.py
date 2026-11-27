@@ -41,7 +41,7 @@ def test_login_module_showcase_assets() -> None:
     assert ".login-hub-node" in css
     assert "login-hub-pulse" in css
     assert "login-curve-glow" in css
-    assert "scale(1.1)" in css or "scale(1.06)" in css
+    assert "scale(1.06)" in css or "scale(1.04)" in css
     assert ".login-module-detail-bullets" in css
     assert ".login-module-intro" in css
     assert f"login-showcase.js?v={__version__}" in html

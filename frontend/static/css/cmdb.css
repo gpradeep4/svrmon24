@@ -574,8 +574,18 @@ body.is-login {
       clamp(28px, 3.6vw, 72px)
       clamp(16px, 2cqb, 32px)
       clamp(32px, 4.2vw, 64px);
-    overflow: hidden;
+    /* visible so enlarged hex nodes / glow are not clipped */
+    overflow: visible;
     box-sizing: border-box;
+  }
+
+  .login-gate-enterprise .login-portal {
+    overflow: visible;
+  }
+
+  .login-hero-stage--modules {
+    overflow: visible;
+    min-width: 0;
   }
 }
 
@@ -1889,7 +1899,7 @@ body.is-login {
   flex-shrink: 0;
 }
 
-/* Hub graphic — large hexagonal architecture (~40% larger; no outer plate) */
+/* Hub graphic — large hexagonal architecture (refined equal-visibility hexes) */
 .login-modules-visual {
   position: relative;
   display: flex;
@@ -1897,9 +1907,9 @@ body.is-login {
   align-items: center;
   justify-content: center;
   width: min(100%, 1120px);
-  min-height: clamp(340px, 52cqb, 620px);
+  min-height: clamp(360px, 54cqb, 660px);
   margin: 0;
-  padding: clamp(4px, 1cqb, 12px) 0 clamp(28px, 4cqb, 44px);
+  padding: clamp(8px, 1.4cqb, 16px) clamp(8px, 1.5cqi, 20px) clamp(24px, 3.5cqb, 40px);
   overflow: visible;
   border: 0;
   border-radius: 0;
@@ -1908,19 +1918,22 @@ body.is-login {
 }
 
 .login-modules-visual.is-swapping .login-module-detail {
-  opacity: 0.35;
+  opacity: 0.45;
 }
 
 .login-hub {
   position: relative;
-  width: min(100%, 980px);
-  aspect-ratio: 1.08 / 1;
-  max-height: clamp(360px, 56cqb, 640px);
+  width: min(100%, 1040px);
+  aspect-ratio: 1.05 / 1;
+  max-height: clamp(380px, 58cqb, 680px);
   margin: 0 auto;
+  padding: clamp(12px, 2.5cqi, 28px);
+  box-sizing: border-box;
   background: transparent;
   border: 0;
   box-shadow: none;
   flex-shrink: 0;
+  overflow: visible;
   container-type: size;
   container-name: login-hub;
 }
@@ -1929,11 +1942,11 @@ body.is-login {
 .login-hub::before {
   content: "";
   position: absolute;
-  inset: 6% 2%;
+  inset: 8% 4%;
   background:
-    radial-gradient(ellipse 55% 50% at 50% 48%, rgba(165, 180, 252, 0.32), transparent 70%),
-    radial-gradient(ellipse 45% 40% at 28% 68%, rgba(196, 181, 253, 0.2), transparent 68%),
-    radial-gradient(ellipse 40% 36% at 74% 30%, rgba(147, 197, 253, 0.18), transparent 65%);
+    radial-gradient(ellipse 55% 50% at 50% 48%, rgba(165, 180, 252, 0.3), transparent 70%),
+    radial-gradient(ellipse 45% 40% at 28% 68%, rgba(196, 181, 253, 0.18), transparent 68%),
+    radial-gradient(ellipse 40% 36% at 74% 30%, rgba(147, 197, 253, 0.16), transparent 65%);
   filter: blur(26px);
   pointer-events: none;
   z-index: 0;
@@ -1950,25 +1963,26 @@ body.is-login {
 }
 
 .login-hub-spokes path {
-  stroke-opacity: 0.55;
+  stroke-opacity: 0.38;
   transition: stroke-opacity 240ms ease, stroke-width 240ms ease, filter 240ms ease;
 }
 
 .login-hub-spokes path.is-active {
   stroke: url(#loginHubSpokeActive);
-  stroke-opacity: 1;
-  stroke-width: 2.8;
-  filter: drop-shadow(0 0 6px rgba(99, 102, 241, 0.55));
-  animation: login-curve-glow 2.2s ease-in-out infinite;
+  stroke-opacity: 0.95;
+  stroke-width: 1.85;
+  filter: drop-shadow(0 0 4px rgba(99, 102, 241, 0.35));
+  animation: login-curve-glow 2.4s ease-in-out infinite;
 }
 
 @keyframes login-curve-glow {
-  0%, 100% { stroke-opacity: 0.85; filter: drop-shadow(0 0 4px rgba(99, 102, 241, 0.4)); }
-  50% { stroke-opacity: 1; filter: drop-shadow(0 0 10px rgba(99, 102, 241, 0.7)); }
+  0%, 100% { stroke-opacity: 0.82; filter: drop-shadow(0 0 3px rgba(99, 102, 241, 0.28)); }
+  50% { stroke-opacity: 1; filter: drop-shadow(0 0 7px rgba(99, 102, 241, 0.45)); }
 }
 
+/* Soft curves stay visible — only selected line strengthens */
 .login-modules-visual.has-selection .login-hub-spokes path:not(.is-active) {
-  stroke-opacity: 0.22;
+  stroke-opacity: 0.3;
 }
 
 .login-hub-core {
@@ -1976,8 +1990,8 @@ body.is-login {
   left: 50%;
   top: 50%;
   z-index: 1;
-  width: clamp(92px, 16cqi, 132px);
-  height: clamp(80px, 14cqi, 114px);
+  width: clamp(112px, 19cqi, 158px);
+  height: clamp(97px, 16.5cqi, 137px);
   margin: 0;
   padding: 0;
   border: 0;
@@ -2000,7 +2014,7 @@ body.is-login {
   position: absolute;
   left: 50%;
   top: 50%;
-  width: 48%;
+  width: 50%;
   height: auto;
   max-height: 58%;
   object-fit: contain;
@@ -2011,7 +2025,7 @@ body.is-login {
 
 @keyframes login-hub-pulse {
   0%, 100% { transform: translate(-50%, -50%) scale(1); }
-  50% { transform: translate(-50%, -50%) scale(1.05); }
+  50% { transform: translate(-50%, -50%) scale(1.04); }
 }
 
 .login-hub-defs {
@@ -2030,17 +2044,18 @@ body.is-login {
   translate: -50% -50%;
   display: grid;
   place-items: center;
-  width: clamp(108px, 18cqi, 148px);
-  height: clamp(94px, 15.6cqi, 128px);
+  width: clamp(128px, 21.5cqi, 176px);
+  height: clamp(111px, 18.6cqi, 152px);
   margin: 0;
   padding: 0;
   border: 0;
   background: transparent;
-  color: #4338CA;
+  color: #5B21B6;
   cursor: pointer;
   box-shadow: none;
+  opacity: 1;
   transform-origin: center;
-  transition: transform 260ms ease, filter 260ms ease, opacity 260ms ease;
+  transition: transform 240ms ease, filter 240ms ease, opacity 240ms ease;
 }
 
 .login-hub-node-plate {
@@ -2060,8 +2075,8 @@ body.is-login {
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 6px;
-  width: 72%;
+  gap: 7px;
+  width: 74%;
   text-align: center;
   pointer-events: none;
 }
@@ -2069,10 +2084,10 @@ body.is-login {
 .login-hub-node-ico {
   display: grid;
   place-items: center;
-  width: clamp(22px, 3.6cqi, 28px);
-  height: clamp(22px, 3.6cqi, 28px);
+  width: clamp(24px, 4cqi, 30px);
+  height: clamp(24px, 4cqi, 30px);
   flex-shrink: 0;
-  color: #4F46E5;
+  color: #5B21B6;
 }
 
 .login-hub-node-ico svg {
@@ -2086,75 +2101,88 @@ body.is-login {
 }
 
 .login-hub-node-label {
-  font: 650 clamp(0.68rem, 1.7cqi, 0.86rem)/1.15 "Plus Jakarta Sans", var(--font);
-  color: #312E81;
+  font: 650 clamp(0.72rem, 1.85cqi, 0.92rem)/1.15 "Plus Jakarta Sans", var(--font);
+  color: #4C1D95;
   letter-spacing: 0.01em;
   max-width: 100%;
 }
 
+/* Keep peers fully readable — no heavy fade */
 .login-modules-visual.has-selection .login-hub-node:not(.is-active) {
-  opacity: 0.42;
-  filter: saturate(0.7);
+  opacity: 1;
+  filter: none;
 }
 
 .login-hub-node:hover,
 .login-hub-node:focus-visible,
 .login-hub-node.is-active {
-  transform: scale(1.1);
+  transform: scale(1.06);
   opacity: 1;
-  filter:
-    drop-shadow(0 0 16px rgba(99, 102, 241, 0.4))
-    drop-shadow(0 8px 18px rgba(79, 70, 229, 0.22));
+  filter: drop-shadow(0 0 12px rgba(109, 40, 217, 0.28));
   z-index: 3;
 }
 
 .login-hub-node:hover .login-hub-node-plate use,
 .login-hub-node:focus-visible .login-hub-node-plate use,
 .login-hub-node.is-active .login-hub-node-plate use {
-  stroke: rgba(79, 70, 229, 0.75);
-  stroke-width: 2.2;
+  stroke: rgba(91, 33, 182, 0.7);
+  stroke-width: 2;
 }
 
 .login-hub-node:focus-visible {
-  outline: 2px solid #6366F1;
+  outline: 2px solid #7C3AED;
   outline-offset: 6px;
 }
 
 @media (max-width: 1199px) {
   .login-modules-visual {
-    width: min(100%, 720px);
-    min-height: clamp(280px, 48cqb, 480px);
+    width: min(100%, 760px);
+    min-height: clamp(300px, 50cqb, 520px);
+    padding-inline: clamp(10px, 2cqi, 18px);
   }
 
   .login-hub {
-    width: min(100%, 640px);
-    max-height: clamp(300px, 48cqb, 480px);
+    width: min(100%, 680px);
+    max-height: clamp(320px, 50cqb, 520px);
+    padding: clamp(10px, 2cqi, 20px);
+  }
+
+  .login-hub-core {
+    width: clamp(96px, 18cqi, 128px);
+    height: clamp(84px, 15.5cqi, 111px);
   }
 
   .login-hub-node {
-    width: clamp(88px, 16cqi, 118px);
-    height: clamp(76px, 14cqi, 102px);
+    width: clamp(108px, 19cqi, 140px);
+    height: clamp(94px, 16.5cqi, 121px);
   }
 }
 
 @media (max-width: 720px) {
+  .login-modules-visual {
+    overflow: visible;
+    min-height: 0;
+  }
+
   .login-hub {
-    width: min(100%, 420px);
-    max-height: 360px;
+    width: min(100%, 460px);
+    max-height: none;
+    aspect-ratio: 1 / 1.02;
+    padding: 16px 12px 20px;
   }
 
   .login-hub-core {
-    width: 72px;
-    height: 62px;
+    width: 88px;
+    height: 76px;
   }
 
   .login-hub-node {
-    width: 76px;
-    height: 66px;
+    width: 92px;
+    height: 80px;
   }
 
   .login-hub-node-label {
-    font-size: 0.62rem;
+    font-size: 0.66rem;
   }
 }
 
@@ -2162,10 +2190,10 @@ body.is-login {
   position: relative;
   z-index: 3;
   display: grid;
-  gap: 10px;
-  width: min(52ch, 94%);
-  margin: clamp(12px, 2cqb, 20px) auto 0;
-  padding: 0;
+  gap: 12px;
+  width: min(62ch, 96%);
+  margin: clamp(16px, 2.4cqb, 28px) auto 0;
+  padding: clamp(4px, 0.8cqb, 8px) 2px 0;
   border: 0;
   border-radius: 0;
   background: transparent;
@@ -2176,29 +2204,29 @@ body.is-login {
 }
 
 .login-module-detail.is-swapping {
-  opacity: 0.35;
+  opacity: 0.45;
 }
 
 .login-module-detail-head {
   display: flex;
   align-items: flex-start;
-  gap: 12px;
+  gap: 14px;
 }
 
 .login-module-detail-ico {
   display: grid;
   place-items: center;
-  width: 36px;
-  height: 36px;
+  width: 44px;
+  height: 44px;
   flex-shrink: 0;
-  border-radius: 11px;
+  border-radius: 12px;
   background: rgba(109, 40, 217, 0.1);
-  color: #6D28D9;
+  color: #5B21B6;
 }
 
 .login-module-detail-ico svg {
-  width: 18px;
-  height: 18px;
+  width: 22px;
+  height: 22px;
   fill: none;
   stroke: currentColor;
   stroke-width: 1.75;
@@ -2213,26 +2241,26 @@ body.is-login {
 .login-module-detail strong,
 #loginModuleDetailTitle {
   display: block;
-  font: 650 0.98rem/1.25 "Sora", var(--font);
+  font: 650 clamp(1.05rem, 0.4cqi + 0.9rem, 1.22rem)/1.25 "Sora", var(--font);
   color: #312E81;
 }
 
 .login-module-detail #loginModuleDetailBody,
 .login-module-detail-copy span {
   display: block;
-  margin-top: 2px;
-  font: 500 0.84rem/1.4 "Plus Jakarta Sans", var(--font);
-  color: #5B6478;
+  margin-top: 4px;
+  font: 500 clamp(0.9rem, 0.2cqi + 0.82rem, 1rem)/1.45 "Plus Jakarta Sans", var(--font);
+  color: #475569;
 }
 
 .login-module-detail-bullets {
   margin: 0;
-  padding: 0 0 0 1.15rem;
+  padding: 0 0 0 1.25rem;
   display: grid;
-  gap: 4px;
+  gap: 6px;
   list-style: disc;
-  color: #475569;
-  font: 500 0.8rem/1.45 "Plus Jakarta Sans", var(--font);
+  color: #334155;
+  font: 500 clamp(0.86rem, 0.15cqi + 0.8rem, 0.95rem)/1.5 "Plus Jakarta Sans", var(--font);
 }
 
 .login-module-detail-bullets li::marker {
@@ -2354,7 +2382,7 @@ body.is-login {
   .login-hub-node:hover,
   .login-hub-node:focus-visible,
   .login-hub-node.is-active {
-    transform: scale(1.06);
+    transform: scale(1.04);
   }
 }
 
