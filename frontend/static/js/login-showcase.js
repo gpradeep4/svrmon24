@@ -1,6 +1,7 @@
 /**
- * Login gate — capability cards drive preview; Option B overview modal;
+ * Login gate — capability cards drive caption; Option B overview modal;
  * play icon on each card seeks into the overview. Vanilla only.
+ * Hero uses one composed all-modules illustration (not app screenshots).
  */
 (function () {
   const CARDS = [
@@ -75,20 +76,14 @@
     const card = CARDS.find((c) => c.id === cardId) || CARDS.find((c) => c.id === DEFAULT_CARD);
     const grid = document.getElementById("loginCapabilityGrid");
     const captionEl = document.getElementById("loginModuleCaption");
-    const viewport = document.getElementById("loginPreviewViewport");
-    const shell = document.querySelector(".login-preview-tilt");
-    if (!grid || !captionEl || !viewport) return;
+    const visual = document.getElementById("loginModulesVisual");
+    if (!grid || !captionEl) return;
 
     const reduce = prefersReducedMotion();
-    if (!reduce && shell) shell.classList.add("is-swapping");
+    if (!reduce && visual) visual.classList.add("is-swapping");
 
     const apply = () => {
-      viewport.setAttribute("data-active", card.module);
-      viewport.querySelectorAll(".login-module-preview").forEach((panel) => {
-        const on = panel.dataset.module === card.module;
-        panel.classList.toggle("is-active", on);
-        panel.hidden = !on;
-      });
+      if (visual) visual.setAttribute("data-active", card.module);
       grid.querySelectorAll(".login-cap-card").forEach((el) => {
         const on = el.dataset.card === card.id;
         el.classList.toggle("is-active", on);
@@ -96,7 +91,7 @@
         el.tabIndex = on ? 0 : -1;
       });
       captionEl.textContent = card.caption;
-      if (shell) shell.classList.remove("is-swapping");
+      if (visual) visual.classList.remove("is-swapping");
       if (focusCard) {
         grid.querySelector(`[data-card="${card.id}"]`)?.focus({ preventScroll: true });
       }
@@ -119,7 +114,7 @@
       btn.dataset.module = card.module;
       btn.id = `loginCapTab-${card.id}`;
       btn.setAttribute("role", "tab");
-      btn.setAttribute("aria-controls", `loginModulePanel-${card.module}`);
+      btn.setAttribute("aria-controls", "loginModulesVisual");
       btn.setAttribute("aria-selected", card.id === DEFAULT_CARD ? "true" : "false");
       btn.tabIndex = card.id === DEFAULT_CARD ? 0 : -1;
 
@@ -173,15 +168,6 @@
     });
   }
 
-  function wirePreviewPanels() {
-    const viewport = document.getElementById("loginPreviewViewport");
-    if (!viewport) return;
-    viewport.querySelectorAll(".login-module-preview").forEach((panel) => {
-      panel.id = `loginModulePanel-${panel.dataset.module}`;
-      panel.setAttribute("role", "tabpanel");
-    });
-  }
-
   let lastFocus = null;
 
   function openOverviewModal(seekSeconds) {
@@ -232,7 +218,6 @@
 
   function initLoginShowcase() {
     if (!document.getElementById("loginGate")) return;
-    wirePreviewPanels();
     buildCards();
     wireModal();
     setActiveCard(DEFAULT_CARD);

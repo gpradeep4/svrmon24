@@ -28,6 +28,7 @@
       symbolSvg: "/static/assets/brand/svrmon24-symbol.svg",
       loginWavesPng: "/static/assets/brand/login-waves.png",
       loginWavesSvg: "/static/assets/brand/login-waves.svg",
+      loginModulesComposite: "/static/assets/brand/login-modules-composite.jpg",
       icons: {
         cmdb: "/static/assets/icons/cmdb.svg",
         aiInvestigation: "/static/assets/icons/ai-investigation.svg",

@@ -1036,6 +1036,11 @@ body.is-login {
   .login-hero-stage--best .login-preview-tilt {
     perspective: none;
   }
+
+  .login-modules-visual,
+  .login-modules-composite {
+    transform: none;
+  }
 }
 
 @media (min-width: 1200px) {
@@ -1870,45 +1875,61 @@ body.is-login {
   flex-shrink: 0;
 }
 
-.login-hero-stage--best .login-preview-viewport--shots {
-  min-height: clamp(220px, 32cqb, 360px);
-  border-radius: 14px;
-  overflow: hidden;
-  background: #fff;
-  border: 1px solid #E2E8F0;
+/* Composed all-modules illustration (flat; not a tilted app screenshot) */
+.login-modules-visual {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 10px;
+  width: min(100%, 920px);
+  margin: 0;
+  padding: 0;
+  transition: opacity 180ms ease;
+}
+
+.login-modules-visual.is-swapping {
+  opacity: 0.72;
+}
+
+.login-modules-composite {
+  display: block;
+  width: 100%;
+  height: auto;
+  max-height: clamp(220px, 34cqb, 380px);
+  object-fit: contain;
+  object-position: center center;
+  border-radius: 16px;
+  background:
+    radial-gradient(120% 80% at 50% 40%, #ffffff 0%, #F5F8FF 55%, #EEF4FF 100%);
+  border: 1px solid rgba(226, 232, 240, 0.95);
   box-shadow:
     0 1px 2px rgba(15, 23, 42, 0.04),
-    0 18px 40px rgba(15, 23, 42, 0.1);
+    0 16px 36px rgba(79, 70, 229, 0.08);
 }
 
-.login-module-preview--shot {
-  width: 100%;
-  min-height: inherit;
-  background-color: #F8FAFC;
-  background-size: cover;
-  background-position: left top;
-  background-repeat: no-repeat;
-  border-radius: 14px;
-}
-
-.login-hero-stage--best .login-preview-tilt.is-swapping .login-module-preview--shot {
-  opacity: 0.55;
+.login-hero-stage--best .login-preview-caption {
+  margin: 0;
+  max-width: min(52ch, 100%);
 }
 
 @media (min-width: 1200px) {
-  .login-hero-stage--best.login-hero-stage--modules .login-preview-tilt {
-    width: min(96%, calc(100% + clamp(8px, 2cqi, 40px)));
-    margin-inline-start: clamp(72px, 12cqi, 168px);
-    perspective-origin: 18% 46%;
-  }
-
-  .login-hero-stage--best .login-module-preview--shot.is-active {
-    transform: rotateY(-11deg) rotateX(3.5deg) translateZ(14px) scale(1.01);
-    transform-origin: 16% 50%;
+  .login-hero-stage--best.login-hero-stage--modules .login-modules-visual {
+    width: min(94%, 960px);
+    margin-inline-start: clamp(48px, 8cqi, 120px);
   }
 
   .login-hero-stage--best .login-preview-caption {
-    margin-inline-start: clamp(8px, 1cqi, 16px);
+    margin-inline-start: clamp(4px, 0.8cqi, 12px);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .login-modules-visual {
+    transition: none;
+  }
+
+  .login-modules-visual.is-swapping {
+    opacity: 1;
   }
 }
 

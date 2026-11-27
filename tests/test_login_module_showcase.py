@@ -1,4 +1,4 @@
-"""Login gate — capability-card showcase + Option B overview (0.99.10)."""
+"""Login gate — capability-card showcase + Option B overview (0.99.11)."""
 
 from __future__ import annotations
 
@@ -18,31 +18,38 @@ def test_login_module_showcase_assets() -> None:
     assert 'id="loginCapabilityGrid"' in html
     assert 'id="loginOverviewModal"' in html
     assert 'id="btnLoginWatchOverview"' in html
+    assert 'id="loginModulesVisual"' in html
+    assert 'id="loginModulesComposite"' in html
+    assert "login-modules-composite.jpg" in html
     assert "Explore SVRMON24 modules" not in html
     assert "login-module-detail" not in html
     assert 'id="loginModuleRail"' not in html
-    for mod in ("dashboard", "cmdb", "monitoring", "itsm", "portal", "admin"):
-        assert f'data-module="{mod}"' in html
-        assert f"panel-{mod}.png" in html
+    assert 'id="loginPreviewViewport"' not in html
+    assert "login-panels/panel-" not in html
+    assert "login-preview-tilt" not in html
     assert "setActiveCard" in js
     assert "openOverviewModal" in js
     assert "login-cap-play" in js
+    assert "loginModulesVisual" in js
     assert "loginModuleUses" not in js
     assert "setActiveModule" not in js
     assert "prefers-reduced-motion" in js or "prefersReducedMotion" in js
+    for mod in ("cmdb", "dashboard", "monitoring", "itsm", "admin"):
+        assert f'module: "{mod}"' in js
     assert ".login-capability-grid" in css
     assert ".login-cap-play" in css
     assert ".login-watch-overview" in css
     assert ".login-overview-modal" in css
-    assert ".login-module-preview--shot" in css
+    assert ".login-modules-visual" in css
+    assert ".login-modules-composite" in css
     assert ".login-preview-caption" in css
     assert "login-module-detail" not in css
     assert "prefers-reduced-motion" in css
     assert f"login-showcase.js?v={__version__}" in html
     assert (FRONTEND_STATIC / "assets" / "brand" / "modules-overview-loop.mp4").is_file()
     assert (FRONTEND_STATIC / "assets" / "brand" / "modules-overview-poster.png").is_file()
-    for mod in ("dashboard", "cmdb", "monitoring", "itsm", "portal", "admin"):
-        assert (FRONTEND_STATIC / "assets" / "login-panels" / f"panel-{mod}.png").is_file()
+    assert (FRONTEND_STATIC / "assets" / "brand" / "login-modules-composite.jpg").is_file()
+    assert not (FRONTEND_STATIC / "assets" / "login-panels").exists()
 
 
 def test_login_showcase_intro_stack() -> None:
@@ -59,16 +66,25 @@ def test_login_showcase_intro_stack() -> None:
     assert "login-module-chip" not in html.split('id="loginGate"', 1)[1].split('id="appShell"', 1)[0]
 
 
-def test_login_showcase_tilt_and_reduced_motion() -> None:
+def test_login_showcase_flat_modules_visual() -> None:
+    """Hero uses a flat composed illustration — no tilted product screenshot."""
     css = (FRONTEND_STATIC / "css" / "cmdb.css").read_text(encoding="utf-8")
-    assert "login-preview-tilt" in css
-    tilt_block = css.split(".login-hero-stage--modules .login-preview-tilt", 1)[1].split("}", 1)[0]
-    assert "perspective:" in tilt_block
-    assert "rotateY" in css
-    reduced = css.split("@media (prefers-reduced-motion: reduce)", 1)[1].split("@media", 1)[0]
-    assert "perspective: none" in reduced
-    assert "transform: none" in reduced
-    assert "login-hero-stage--best" in reduced or ".login-module-preview--shot" in css
+    html = FRONTEND_INDEX.read_text(encoding="utf-8")
+    assert "login-modules-visual" in html
+    assert "login-modules-composite" in html
+    assert "login-preview-tilt" not in html
+    assert "login-dashboard-tilt" not in html
+    assert "object-fit: contain" in css
+    assert ".login-modules-composite" in css
+    assert "login-modules-composite.jpg" in html
+    # Active hero markup must not use the old tilted shot chrome.
+    gate = html.split('id="loginGate"', 1)[1].split('id="appShell"', 1)[0]
+    assert "rotateY" not in gate
+    assert "login-preview-viewport--shots" not in gate
+    reduced = css.split("@media (prefers-reduced-motion: reduce)", 1)[1]
+    assert ".login-modules-visual" in reduced
+    for label in ("CMDB", "Monitoring", "ITSM", "Service Portal", "SecureOps", "Configuration"):
+        assert label in html
 
 
 def test_login_card_play_opens_overview_without_autoplay() -> None:
@@ -87,11 +103,11 @@ def test_login_card_play_opens_overview_without_autoplay() -> None:
     assert "openOverviewModal" not in init
 
 
-def test_version_bump_for_login_best_view() -> None:
-    assert __version__ == "0.99.10"
+def test_version_bump_for_login_generic_modules() -> None:
+    assert __version__ == "0.99.11"
     html = FRONTEND_INDEX.read_text(encoding="utf-8")
-    assert 'content="0.99.10"' in html
-    assert 'content="login-enterprise-v19"' in html
+    assert 'content="0.99.11"' in html
+    assert 'content="login-enterprise-v20"' in html
 
 
 def test_login_fullbleed_layout_css() -> None:
