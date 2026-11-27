@@ -1026,9 +1026,15 @@ body.is-login {
   .login-dashboard-preview,
   .login-hero-stage .login-dashboard-preview,
   .login-hero-stage--modules .login-module-preview.login-dashboard-preview,
-  .login-hero-stage--modules .login-module-preview.login-dashboard-preview.is-active {
+  .login-hero-stage--modules .login-module-preview.login-dashboard-preview.is-active,
+  .login-hero-stage--best .login-module-preview--shot,
+  .login-hero-stage--best .login-module-preview--shot.is-active {
     transform: none;
     transform-origin: center;
+  }
+
+  .login-hero-stage--best .login-preview-tilt {
+    perspective: none;
   }
 }
 
@@ -1817,6 +1823,342 @@ body.is-login {
   stroke-linecap: round;
   stroke-linejoin: round;
 }
+
+
+/* SVRMON24 login best-view v19 — capability cards, shot panels, Option B modal */
+.login-gate-enterprise {
+  --font: "Plus Jakarta Sans", "Segoe UI", "Candara", "Trebuchet MS", sans-serif;
+  --display: "Sora", "Plus Jakarta Sans", "Segoe UI Semibold", "Candara", "Trebuchet MS", sans-serif;
+  font-family: var(--font);
+}
+
+.login-gate-enterprise .login-headline {
+  font-family: var(--display);
+}
+
+.login-watch-overview {
+  appearance: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 4px;
+  padding: 9px 14px;
+  border-radius: 999px;
+  border: 1px solid rgba(79, 70, 229, 0.28);
+  background: #fff;
+  color: #3730A3;
+  font: 650 0.85rem/1 var(--font);
+  cursor: pointer;
+  box-shadow: 0 4px 14px rgba(79, 70, 229, 0.08);
+  transition: background 160ms ease, border-color 160ms ease, transform 160ms ease;
+}
+
+.login-watch-overview:hover {
+  background: #F8F7FF;
+  border-color: rgba(79, 70, 229, 0.45);
+  transform: translateY(-1px);
+}
+
+.login-watch-overview:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.login-watch-overview svg {
+  width: 16px;
+  height: 16px;
+  flex-shrink: 0;
+}
+
+.login-hero-stage--best .login-preview-viewport--shots {
+  min-height: clamp(220px, 32cqb, 360px);
+  border-radius: 14px;
+  overflow: hidden;
+  background: #fff;
+  border: 1px solid #E2E8F0;
+  box-shadow:
+    0 1px 2px rgba(15, 23, 42, 0.04),
+    0 18px 40px rgba(15, 23, 42, 0.1);
+}
+
+.login-module-preview--shot {
+  width: 100%;
+  min-height: inherit;
+  background-color: #F8FAFC;
+  background-size: cover;
+  background-position: left top;
+  background-repeat: no-repeat;
+  border-radius: 14px;
+}
+
+.login-hero-stage--best .login-preview-tilt.is-swapping .login-module-preview--shot {
+  opacity: 0.55;
+}
+
+@media (min-width: 1200px) {
+  .login-hero-stage--best.login-hero-stage--modules .login-preview-tilt {
+    width: min(96%, calc(100% + clamp(8px, 2cqi, 40px)));
+    margin-inline-start: clamp(72px, 12cqi, 168px);
+    perspective-origin: 18% 46%;
+  }
+
+  .login-hero-stage--best .login-module-preview--shot.is-active {
+    transform: rotateY(-11deg) rotateX(3.5deg) translateZ(14px) scale(1.01);
+    transform-origin: 16% 50%;
+  }
+
+  .login-hero-stage--best .login-preview-caption {
+    margin-inline-start: clamp(8px, 1cqi, 16px);
+  }
+}
+
+.login-capability-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+  width: min(100%, 920px);
+  margin-top: clamp(10px, 1.6cqb, 18px);
+  flex-shrink: 0;
+}
+
+.login-cap-card {
+  appearance: none;
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 10px;
+  width: 100%;
+  text-align: left;
+  font: inherit;
+  color: inherit;
+  cursor: pointer;
+  background: #fff;
+  border-radius: 14px;
+  padding: 16px 44px 14px 16px;
+  box-shadow: 0 8px 24px rgba(15, 35, 52, 0.06), 0 1px 2px rgba(15, 35, 52, 0.04);
+  border: 1px solid rgba(226, 232, 240, 0.9);
+  min-width: 0;
+  transition: border-color 180ms ease, box-shadow 180ms ease, transform 180ms ease, background 180ms ease;
+}
+
+.login-cap-card:hover {
+  border-color: rgba(79, 70, 229, 0.28);
+  box-shadow: 0 12px 28px rgba(15, 35, 52, 0.08), 0 1px 2px rgba(15, 35, 52, 0.04);
+}
+
+.login-cap-card:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.login-cap-card.is-active {
+  border-color: rgba(79, 70, 229, 0.55);
+  background: #F8F7FF;
+  box-shadow:
+    0 0 0 1px rgba(79, 70, 229, 0.2),
+    0 12px 28px rgba(79, 70, 229, 0.1);
+  transform: translateY(-1px);
+}
+
+.login-cap-ico {
+  width: 40px;
+  height: 40px;
+  border-radius: 11px;
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+}
+
+.login-cap-ico img {
+  width: 20px;
+  height: 20px;
+  display: block;
+}
+
+.login-cap-ico--blue { background: #E8F1FE; }
+.login-cap-ico--violet { background: #EEE9FE; }
+.login-cap-ico--green { background: #E7F8EF; }
+.login-cap-ico--orange { background: #FFF1E6; }
+.login-cap-ico--indigo { background: #EEF0FF; }
+.login-cap-ico--teal { background: #E6F7F5; }
+
+.login-cap-copy {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+}
+
+.login-cap-copy strong {
+  font-family: var(--display);
+  font-size: 0.92rem;
+  font-weight: 650;
+  letter-spacing: -0.02em;
+  color: #0F172A;
+  line-height: 1.25;
+}
+
+.login-cap-copy span {
+  font-size: 0.78rem;
+  line-height: 1.45;
+  color: #64748B;
+  font-weight: 450;
+}
+
+.login-cap-play {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  width: 32px;
+  height: 32px;
+  border-radius: 999px;
+  border: 1px solid rgba(79, 70, 229, 0.28);
+  background: #fff;
+  color: #4F46E5;
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+  z-index: 2;
+  box-shadow: 0 4px 12px rgba(79, 70, 229, 0.12);
+  transition: transform 160ms ease, background 160ms ease;
+}
+
+.login-cap-play:hover {
+  background: #F8F7FF;
+  transform: scale(1.06);
+}
+
+.login-cap-play:focus-visible {
+  outline: 2px solid #4F46E5;
+  outline-offset: 2px;
+}
+
+.login-cap-play svg {
+  width: 14px;
+  height: 14px;
+  display: block;
+}
+
+.login-overview-modal {
+  position: fixed;
+  inset: 0;
+  z-index: 1200;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+}
+
+.login-overview-modal.is-open,
+.login-overview-modal:not([hidden]) {
+  display: flex;
+}
+
+.login-overview-modal[hidden] {
+  display: none !important;
+}
+
+.login-overview-backdrop {
+  position: absolute;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.55);
+  backdrop-filter: blur(6px);
+}
+
+.login-overview-dialog {
+  position: relative;
+  z-index: 1;
+  width: min(920px, 100%);
+  background: #fff;
+  border-radius: 16px;
+  border: 1px solid #E2E8F0;
+  box-shadow: 0 24px 64px rgba(15, 23, 42, 0.28);
+  overflow: hidden;
+}
+
+.login-overview-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 14px 16px;
+  border-bottom: 1px solid #E2E8F0;
+}
+
+.login-overview-head h2 {
+  margin: 0;
+  font-family: var(--display);
+  font-size: 1.05rem;
+  font-weight: 650;
+  letter-spacing: -0.02em;
+  color: #0F172A;
+}
+
+.login-overview-close {
+  appearance: none;
+  width: 36px;
+  height: 36px;
+  border-radius: 10px;
+  border: 1px solid #E2E8F0;
+  background: #F8FAFC;
+  color: #334155;
+  font-size: 1.35rem;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.login-overview-close:hover {
+  background: #EEF2FF;
+  color: #312E81;
+}
+
+.login-overview-body {
+  background: #0F172A;
+}
+
+.login-overview-body video {
+  display: block;
+  width: 100%;
+  max-height: min(70vh, 520px);
+  background: #0F172A;
+}
+
+.login-overview-foot {
+  margin: 0;
+  padding: 12px 16px 16px;
+  font-size: 0.82rem;
+  color: #64748B;
+}
+
+@media (max-width: 1199px) {
+  .login-capability-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .login-hero-stage--best .login-module-preview--shot.is-active {
+    transform: none;
+  }
+}
+
+@media (max-width: 719px) {
+  .login-capability-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .login-watch-overview,
+  .login-cap-card,
+  .login-cap-play,
+  .login-module-preview--shot {
+    transition: none;
+  }
+
+  .login-hero-stage--best .login-module-preview--shot.is-active {
+    transform: none;
+  }
+}
+
 
 .login-form-pane {
   grid-area: form;
