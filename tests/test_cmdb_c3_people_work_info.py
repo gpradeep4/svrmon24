@@ -1,4 +1,4 @@
-"""CMDB C3 — People + Work Info (+ attachments) (0.99.10)."""
+"""CMDB C3 — People + Work Info (+ attachments) (0.99.11)."""
 
 from __future__ import annotations
 
@@ -20,13 +20,13 @@ WORK_SVC = REPO / "app" / "cmdb" / "services" / "work_info.py"
 
 
 def test_c3_version_bump() -> None:
-    assert __version__ == "0.99.10"
+    assert __version__ == "0.99.11"
 
 
 def test_frontend_c3_markers() -> None:
     html = FRONTEND_INDEX.read_text(encoding="utf-8")
-    assert 'content="0.99.10"' in html
-    assert "cmdb/ci-detail.js?v=0.99.10" in html
+    assert 'content="0.99.11"' in html
+    assert "cmdb/ci-detail.js?v=0.99.11" in html
 
     js = CI_DETAIL_JS.read_text(encoding="utf-8")
     assert 'id: "people", label: "People", active: true' in js

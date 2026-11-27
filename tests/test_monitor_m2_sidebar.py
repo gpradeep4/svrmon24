@@ -1,4 +1,4 @@
-"""Monitoring M2 — expandable Monitoring sidebar + dashboard shell (0.99.10)."""
+"""Monitoring M2 — expandable Monitoring sidebar + dashboard shell (0.99.11)."""
 
 from __future__ import annotations
 
@@ -15,12 +15,12 @@ MONITOR_CSS = Path("frontend/static/css/monitor.css")
 
 
 def test_version_bump_for_monitor_m2() -> None:
-    assert __version__ == "0.99.10"
+    assert __version__ == "0.99.11"
     html = FRONTEND_INDEX.read_text(encoding="utf-8")
-    assert 'content="0.99.10"' in html
-    assert "monitor.css?v=0.99.10" in html
-    assert "monitor/index.js?v=0.99.10" in html
-    assert "monitor/dashboard.js?v=0.99.10" in html
+    assert 'content="0.99.11"' in html
+    assert "monitor.css?v=0.99.11" in html
+    assert "monitor/index.js?v=0.99.11" in html
+    assert "monitor/dashboard.js?v=0.99.11" in html
 
 
 def test_monitoring_sidebar_section_and_order() -> None:

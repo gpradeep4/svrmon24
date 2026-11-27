@@ -17,7 +17,7 @@ def test_enterprise_login_structure() -> None:
     html = html_path.read_text(encoding="utf-8")
     js = js_path.read_text(encoding="utf-8")
 
-    assert 'content="login-enterprise-v19"' in html
+    assert 'content="login-enterprise-v20"' in html
     assert "svrmon-brand-lockup" in html
     assert 'src="/static/img/svrmon-logo.png"' in html
     assert "svrmon-logo-compact.png" in html
@@ -47,14 +47,9 @@ def test_enterprise_login_structure() -> None:
         "icons/log-intelligence.svg",
         "icons/workflows.svg",
         "icons/security.svg",
-        "login-panels/panel-dashboard.png",
-        "login-panels/panel-cmdb.png",
-        "login-panels/panel-monitoring.png",
-        "login-panels/panel-itsm.png",
-        "login-panels/panel-portal.png",
-        "login-panels/panel-admin.png",
     ):
         assert (FRONTEND_STATIC / "assets" / name).is_file()
+    assert not (FRONTEND_STATIC / "assets" / "login-panels").exists()
     assert "svrmon-favicon.png" in html
     assert "brand.js" in html
     assert "config.js" in html
@@ -73,31 +68,40 @@ def test_enterprise_login_structure() -> None:
     assert "login-gate-enterprise" in html
     assert 'id="loginGate"' in html
     assert "login-gradient-text" in html
-    assert "Turn incidents into" in html
-    assert "faster resolutions" in html
+    assert "One Platform." in html
+    assert "Smarter IT Operations." in html
+    assert "unified in one intelligent platform" in html
     assert "AI Infrastructure Diagnostic" in html
     assert "login-portal-bg" in html
     assert "login-waves.png" in (FRONTEND_STATIC / "css" / "cmdb.css").read_text(encoding="utf-8")
     assert 'id="loginModuleRail"' not in html
-    assert 'id="loginCapabilityGrid"' in html
+    assert 'id="loginCapabilityGrid"' not in html
     assert 'id="loginOverviewModal"' in html
     assert 'id="btnLoginWatchOverview"' in html
-    assert 'id="loginPreviewViewport"' in html
-    assert 'id="loginModuleCaption"' in html
+    assert 'id="loginModulesVisual"' in html
+    assert 'id="loginModulesComposite"' not in html
+    assert 'id="loginHubHotspots"' in html
+    assert 'id="loginModuleDetail"' in html
     assert "Explore SVRMON24 modules" not in html
-    assert "login-module-detail" not in html
-    assert 'data-module="cmdb"' in html
-    assert 'data-module="monitoring"' in html
-    assert 'data-module="portal"' in html
-    assert "login-module-preview--shot" in html
+    assert "login-panels/panel-" not in html
+    assert "login-module-preview--shot" not in html
     assert "login-showcase.js" in html
     assert "Sign in to your SVRMON24 workspace" in html
     assert 'id="authMethodNote"' in html
-    assert "login-dashboard-tilt" in html
-    assert "login-preview-tilt" in html
-    assert ".login-capability-grid" in (FRONTEND_STATIC / "css" / "cmdb.css").read_text(encoding="utf-8")
-    assert ".login-cap-play" in (FRONTEND_STATIC / "css" / "cmdb.css").read_text(encoding="utf-8")
-    assert ".login-preview-caption" in (FRONTEND_STATIC / "css" / "cmdb.css").read_text(encoding="utf-8")
+    assert "login-dashboard-tilt" not in html
+    assert "login-preview-tilt" not in html
+    assert "login-modules-composite.jpg" not in html
+    assert 'id="loginHubNodes"' in html
+    assert "login-hub-core" in html
+    css = (FRONTEND_STATIC / "css" / "cmdb.css").read_text(encoding="utf-8")
+    assert ".login-modules-visual" in css
+    assert ".login-hub-node" in css
+    assert ".login-hub-core" in css
+    assert ".login-module-detail" in css
+    showcase_js = (FRONTEND_STATIC / "js" / "login-showcase.js").read_text(encoding="utf-8")
+    assert "renderHub" in showcase_js
+    assert "enabled: false" in showcase_js  # Configuration disabled on showcase only
+    assert ".login-cap-play" not in html
     assert "login-panel-brand" in html
     assert "login-input-wrap" in html
     assert "login-keycloak-ico" in html
@@ -182,17 +186,16 @@ def test_enterprise_login_scale_layout_css() -> None:
     assert "3.2cqi" in css or "cqi" in css
     assert ".login-portal-inner" in css
     assert ".login-hero-stage" in css
-    assert "rotateY(-13deg)" in css
-    assert ".login-hero-stage .login-dashboard-tilt" in css
+    assert ".login-modules-visual" in css
+    assert ".login-hub-core" in css
     assert "width: min(100%, 560px)" not in css
     assert "backdrop-filter: blur(14px)" in css
     assert "radial-gradient(circle at 1px 1px" in css
-    # Desktop composition: vertical stack (logo → intro → preview → cards), not headline beside mock.
+    # Desktop composition: vertical stack (logo → intro → modules visual → cards).
     assert ".login-showcase-intro" in css
     assert "grid-column: 2" not in css.split(".login-hero-stage--modules", 1)[0]
-    assert "margin-inline-start: clamp(20px, 5.5cqi, 96px)" in css or "margin-inline-start: clamp(72px, 12cqi, 168px)" in css
-    assert "perspective-origin: 22% 46%" in css or "perspective-origin: 18% 46%" in css
-    assert ".login-capability-grid" in css
+    assert "margin-inline-start: clamp(" in css
+    assert ".login-hub" in css
     assert ".login-overview-modal" in css
     # Post-login sidebar: transparent PNG lockup (no CSS-split wordmark / white pill).
     assert ".brand-mark--sidebar" in css
@@ -218,7 +221,7 @@ def test_enterprise_login_version_bump() -> None:
 
     html_path, _ = _static_paths()
     html = html_path.read_text(encoding="utf-8")
-    assert __version__ == "0.99.10"
+    assert __version__ == "0.99.11"
     assert f'content="{__version__}"' in html
     assert f"cmdb.css?v={__version__}" in html
     assert f"cmdb.js?v={__version__}" in html
