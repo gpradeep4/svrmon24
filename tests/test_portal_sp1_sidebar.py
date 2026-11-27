@@ -1,4 +1,4 @@
-"""Service Portal SP1 — expandable sidebar + stub panels (0.99.9)."""
+"""Service Portal SP1 — expandable sidebar + stub panels (0.99.10)."""
 
 from __future__ import annotations
 
@@ -14,11 +14,11 @@ PORTAL_CSS = Path("frontend/static/css/portal.css")
 
 
 def test_version_bump_for_portal_sp1() -> None:
-    assert __version__ == "0.99.9"
+    assert __version__ == "0.99.10"
     html = FRONTEND_INDEX.read_text(encoding="utf-8")
-    assert 'content="0.99.9"' in html
-    assert "portal.css?v=0.99.9" in html
-    assert "portal/index.js?v=0.99.9" in html
+    assert 'content="0.99.10"' in html
+    assert "portal.css?v=0.99.10" in html
+    assert "portal/index.js?v=0.99.10" in html
 
 
 def test_portal_sidebar_section_and_order() -> None:

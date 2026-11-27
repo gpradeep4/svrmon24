@@ -138,7 +138,10 @@ def test_ui_contains_dashboard_and_required_columns() -> None:
     assert "sidebarBg" in js and "--sidebar-bg" in js
     assert "#EEF1F4" in css and "#F5F7FB" in css and "#FFFFFF" in css
     assert "color-mix(in srgb, var(--accent) 8%, transparent)" not in css
-    assert "fonts.googleapis.com" not in html
+    # Login best-view loads Sora + Plus Jakarta Sans for the gate only.
+    assert "fonts.googleapis.com" in html
+    assert "family=Sora" in html
+    assert "Plus+Jakarta+Sans" in html
     assert 'data-tab="servers"' in html
     assert 'data-tab="network"' in html
     assert 'data-tab="applications"' in html
@@ -152,7 +155,7 @@ def test_ui_contains_dashboard_and_required_columns() -> None:
     assert 'id="loginGate"' in html
     assert 'id="appShell"' in html
     assert 'id="authPanel"' not in html
-    assert "login-enterprise-v18" in html
+    assert "login-enterprise-v19" in html
     assert 'class="login-portal"' in html or "login-portal" in html
     assert "login-gate-split" in html
     assert 'id="settingsOrgBlock"' in html or 'id="settingsAccentBlock"' in html

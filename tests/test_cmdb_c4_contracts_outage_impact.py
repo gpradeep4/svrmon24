@@ -1,4 +1,4 @@
-"""CMDB C4 — Contracts + Outage + Impacted Areas (0.99.9)."""
+"""CMDB C4 — Contracts + Outage + Impacted Areas (0.99.10)."""
 
 from __future__ import annotations
 
@@ -19,13 +19,13 @@ TENANCY = REPO / "app" / "tenancy.py"
 
 
 def test_c4_version_bump() -> None:
-    assert __version__ == "0.99.9"
+    assert __version__ == "0.99.10"
 
 
 def test_frontend_c4_markers() -> None:
     html = FRONTEND_INDEX.read_text(encoding="utf-8")
-    assert 'content="0.99.9"' in html
-    assert "cmdb/ci-detail.js?v=0.99.9" in html
+    assert 'content="0.99.10"' in html
+    assert "cmdb/ci-detail.js?v=0.99.10" in html
 
     js = CI_DETAIL_JS.read_text(encoding="utf-8")
     assert 'id: "contracts", label: "Contracts", active: true' in js

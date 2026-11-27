@@ -17,7 +17,7 @@ from fastapi.testclient import TestClient
 
 
 def test_version_bump_for_workflow_triggers_slice() -> None:
-    assert __version__ == "0.99.9"
+    assert __version__ == "0.99.10"
 
 
 @pytest.fixture()
