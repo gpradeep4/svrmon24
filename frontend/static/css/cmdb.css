@@ -1875,71 +1875,142 @@ body.is-login {
   flex-shrink: 0;
 }
 
-/* Composed all-modules illustration (flat; not a tilted app screenshot) */
+/* Hub graphic — image IS the stage (no nested white card); nodes are interactive */
 .login-modules-visual {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  gap: 10px;
-  width: min(100%, 920px);
+  position: relative;
+  display: block;
+  width: min(100%, 1080px);
+  aspect-ratio: 16 / 9;
+  min-height: clamp(220px, 34cqb, 420px);
   margin: 0;
   padding: 0;
-  transition: opacity 180ms ease;
+  overflow: visible;
+  border-radius: 0;
+  background: transparent;
 }
 
-.login-modules-visual.is-swapping {
-  opacity: 0.72;
+.login-modules-visual.is-swapping .login-module-detail {
+  opacity: 0.55;
 }
 
 .login-modules-composite {
+  position: absolute;
+  inset: 0;
   display: block;
   width: 100%;
-  height: auto;
-  max-height: clamp(220px, 34cqb, 380px);
-  object-fit: contain;
+  height: 100%;
+  margin: 0;
+  padding: 0;
+  object-fit: cover;
   object-position: center center;
-  border-radius: 16px;
-  background:
-    radial-gradient(120% 80% at 50% 40%, #ffffff 0%, #F5F8FF 55%, #EEF4FF 100%);
-  border: 1px solid rgba(226, 232, 240, 0.95);
-  box-shadow:
-    0 1px 2px rgba(15, 23, 42, 0.04),
-    0 16px 36px rgba(79, 70, 229, 0.08);
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+  pointer-events: none;
+  user-select: none;
+  /* Soft-edge vignette on the art only — not a card frame */
+  -webkit-mask-image: radial-gradient(125% 100% at 50% 48%, #000 58%, transparent 100%);
+  mask-image: radial-gradient(125% 100% at 50% 48%, #000 58%, transparent 100%);
 }
 
-.login-hero-stage--best .login-preview-caption {
+.login-hub-hotspots {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+}
+
+.login-hub-node {
+  appearance: none;
+  position: absolute;
+  left: var(--hx);
+  top: var(--hy);
+  translate: -50% -50%;
+  width: clamp(108px, 16cqi, 168px);
+  height: clamp(40px, 6.2cqi, 56px);
   margin: 0;
-  max-width: min(52ch, 100%);
+  padding: 0;
+  border: 2px solid transparent;
+  border-radius: 999px;
+  background: transparent;
+  color: transparent;
+  font: 650 0.01px/1 var(--font);
+  cursor: pointer;
+  overflow: hidden;
+  white-space: nowrap;
+  transition: border-color 160ms ease, box-shadow 160ms ease, background 160ms ease;
+}
+
+.login-hub-node:hover,
+.login-hub-node:focus-visible,
+.login-hub-node.is-active {
+  border-color: rgba(79, 70, 229, 0.55);
+  background: rgba(79, 70, 229, 0.08);
+  box-shadow: 0 0 0 4px rgba(79, 70, 229, 0.12);
+}
+
+.login-hub-node:focus-visible {
+  outline: 2px solid var(--accent, #4F46E5);
+  outline-offset: 3px;
+}
+
+.login-module-detail {
+  position: absolute;
+  left: 50%;
+  bottom: clamp(8px, 2.2cqb, 22px);
+  z-index: 3;
+  translate: -50% 0;
+  display: grid;
+  gap: 4px;
+  width: min(42ch, 88%);
+  margin: 0;
+  padding: 12px 16px;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.82);
+  border: 1px solid rgba(226, 232, 240, 0.7);
+  box-shadow: 0 8px 24px rgba(15, 23, 42, 0.06);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  text-align: center;
+  transition: opacity 160ms ease;
+  pointer-events: none;
+}
+
+.login-module-detail strong {
+  display: block;
+  font: 650 0.95rem/1.25 "Sora", var(--font);
+  color: #0F172A;
+}
+
+.login-module-detail span {
+  display: block;
+  font: 500 0.82rem/1.4 "Plus Jakarta Sans", var(--font);
+  color: #475569;
 }
 
 @media (min-width: 1200px) {
   .login-hero-stage--best.login-hero-stage--modules .login-modules-visual {
-    width: min(94%, 960px);
-    margin-inline-start: clamp(48px, 8cqi, 120px);
-  }
-
-  .login-hero-stage--best .login-preview-caption {
-    margin-inline-start: clamp(4px, 0.8cqi, 12px);
+    width: min(100%, calc(100% + clamp(8px, 2cqi, 40px)));
+    margin-inline-start: clamp(12px, 2.5cqi, 48px);
+    min-height: clamp(280px, 42cqb, 460px);
   }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .login-modules-visual {
+  .login-modules-visual,
+  .login-hub-node,
+  .login-module-detail {
     transition: none;
   }
 
-  .login-modules-visual.is-swapping {
+  .login-modules-visual.is-swapping .login-module-detail {
     opacity: 1;
   }
 }
 
+/* Capability card grid retired — hub nodes carry module discovery */
 .login-capability-grid {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 12px;
-  width: min(100%, 920px);
-  margin-top: clamp(10px, 1.6cqb, 18px);
-  flex-shrink: 0;
+  display: none !important;
 }
 
 .login-cap-card {

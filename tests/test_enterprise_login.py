@@ -76,14 +76,14 @@ def test_enterprise_login_structure() -> None:
     assert "login-portal-bg" in html
     assert "login-waves.png" in (FRONTEND_STATIC / "css" / "cmdb.css").read_text(encoding="utf-8")
     assert 'id="loginModuleRail"' not in html
-    assert 'id="loginCapabilityGrid"' in html
+    assert 'id="loginCapabilityGrid"' not in html
     assert 'id="loginOverviewModal"' in html
     assert 'id="btnLoginWatchOverview"' in html
     assert 'id="loginModulesVisual"' in html
     assert 'id="loginModulesComposite"' in html
-    assert 'id="loginModuleCaption"' in html
+    assert 'id="loginHubHotspots"' in html
+    assert 'id="loginModuleDetail"' in html
     assert "Explore SVRMON24 modules" not in html
-    assert "login-module-detail" not in html
     assert "login-panels/panel-" not in html
     assert "login-module-preview--shot" not in html
     assert "login-showcase.js" in html
@@ -92,10 +92,12 @@ def test_enterprise_login_structure() -> None:
     assert "login-dashboard-tilt" not in html
     assert "login-preview-tilt" not in html
     assert "login-modules-composite" in html
-    assert ".login-capability-grid" in (FRONTEND_STATIC / "css" / "cmdb.css").read_text(encoding="utf-8")
-    assert ".login-cap-play" in (FRONTEND_STATIC / "css" / "cmdb.css").read_text(encoding="utf-8")
-    assert ".login-preview-caption" in (FRONTEND_STATIC / "css" / "cmdb.css").read_text(encoding="utf-8")
-    assert ".login-modules-visual" in (FRONTEND_STATIC / "css" / "cmdb.css").read_text(encoding="utf-8")
+    assert "login-hub-node" in html
+    css = (FRONTEND_STATIC / "css" / "cmdb.css").read_text(encoding="utf-8")
+    assert ".login-modules-visual" in css
+    assert ".login-hub-node" in css
+    assert ".login-module-detail" in css
+    assert ".login-cap-play" not in html
     assert "login-panel-brand" in html
     assert "login-input-wrap" in html
     assert "login-keycloak-ico" in html
@@ -188,8 +190,8 @@ def test_enterprise_login_scale_layout_css() -> None:
     # Desktop composition: vertical stack (logo → intro → modules visual → cards).
     assert ".login-showcase-intro" in css
     assert "grid-column: 2" not in css.split(".login-hero-stage--modules", 1)[0]
-    assert "margin-inline-start: clamp(48px, 8cqi, 120px)" in css
-    assert ".login-capability-grid" in css
+    assert "margin-inline-start: clamp(12px, 2.5cqi, 48px)" in css
+    assert ".login-hub-hotspots" in css
     assert ".login-overview-modal" in css
     # Post-login sidebar: transparent PNG lockup (no CSS-split wordmark / white pill).
     assert ".brand-mark--sidebar" in css

@@ -1,4 +1,4 @@
-"""Login gate — capability-card showcase + Option B overview (0.99.11)."""
+"""Login gate — hub modules graphic + Option B overview (0.99.11)."""
 
 from __future__ import annotations
 
@@ -14,36 +14,33 @@ def test_login_module_showcase_assets() -> None:
     assert 'id="loginShowcaseStage"' in html
     assert "login-hero-stage--modules" in html
     assert "login-hero-stage--best" in html
-    assert 'id="loginModuleCaption"' in html
-    assert 'id="loginCapabilityGrid"' in html
-    assert 'id="loginOverviewModal"' in html
-    assert 'id="btnLoginWatchOverview"' in html
     assert 'id="loginModulesVisual"' in html
     assert 'id="loginModulesComposite"' in html
+    assert 'id="loginHubHotspots"' in html
+    assert 'id="loginModuleDetail"' in html
+    assert 'id="loginOverviewModal"' in html
+    assert 'id="btnLoginWatchOverview"' in html
     assert "login-modules-composite.jpg" in html
-    assert "Explore SVRMON24 modules" not in html
-    assert "login-module-detail" not in html
-    assert 'id="loginModuleRail"' not in html
-    assert 'id="loginPreviewViewport"' not in html
+    assert 'id="loginCapabilityGrid"' not in html
+    assert "login-cap-card" not in html
     assert "login-panels/panel-" not in html
     assert "login-preview-tilt" not in html
-    assert "setActiveCard" in js
+    assert "setActiveModule" in js
     assert "openOverviewModal" in js
-    assert "login-cap-play" in js
-    assert "loginModulesVisual" in js
-    assert "loginModuleUses" not in js
-    assert "setActiveModule" not in js
+    assert "login-hub-node" in js or "login-hub-node" in html
+    assert "login-cap-play" not in js
+    assert "buildCards" not in js
     assert "prefers-reduced-motion" in js or "prefersReducedMotion" in js
-    for mod in ("cmdb", "dashboard", "monitoring", "itsm", "admin"):
-        assert f'module: "{mod}"' in js
-    assert ".login-capability-grid" in css
-    assert ".login-cap-play" in css
-    assert ".login-watch-overview" in css
-    assert ".login-overview-modal" in css
+    for mod in ("cmdb", "monitoring", "itsm", "portal", "secureops", "config"):
+        assert f'data-module="{mod}"' in html
+        assert f'id: "{mod}"' in js
+    assert ".login-hub-hotspots" in css
+    assert ".login-hub-node" in css
+    assert ".login-module-detail" in css
     assert ".login-modules-visual" in css
     assert ".login-modules-composite" in css
-    assert ".login-preview-caption" in css
-    assert "login-module-detail" not in css
+    assert ".login-watch-overview" in css
+    assert ".login-overview-modal" in css
     assert "prefers-reduced-motion" in css
     assert f"login-showcase.js?v={__version__}" in html
     assert (FRONTEND_STATIC / "assets" / "brand" / "modules-overview-loop.mp4").is_file()
@@ -58,33 +55,47 @@ def test_login_showcase_intro_stack() -> None:
     assert 'class="login-showcase-intro"' in html
     intro_idx = html.index("login-showcase-intro")
     hero_idx = html.index("loginShowcaseStage")
-    grid_idx = html.index("loginCapabilityGrid")
-    assert intro_idx < hero_idx < grid_idx
+    assert intro_idx < hero_idx
     assert "Watch overview" in html
     assert ".login-showcase-intro" in css
     assert "login-showcase-copy" not in html
     assert "login-module-chip" not in html.split('id="loginGate"', 1)[1].split('id="appShell"', 1)[0]
+    assert 'id="loginCapabilityGrid"' not in html
 
 
-def test_login_showcase_flat_modules_visual() -> None:
-    """Hero uses a flat composed illustration — no tilted product screenshot."""
+def test_login_showcase_hub_no_card_chrome() -> None:
+    """Hub image is the stage — no tilted shots, no capability cards, no nested panel chrome."""
     css = (FRONTEND_STATIC / "css" / "cmdb.css").read_text(encoding="utf-8")
     html = FRONTEND_INDEX.read_text(encoding="utf-8")
     assert "login-modules-visual" in html
-    assert "login-modules-composite" in html
+    assert "login-hub-node" in html
     assert "login-preview-tilt" not in html
     assert "login-dashboard-tilt" not in html
-    assert "object-fit: contain" in css
-    assert ".login-modules-composite" in css
-    assert "login-modules-composite.jpg" in html
-    # Active hero markup must not use the old tilted shot chrome.
+    assert 'id="loginCapabilityGrid"' not in html
+    assert "object-fit: cover" in css
+    assert "box-shadow: none" in css
+    assert "mask-image: radial-gradient" in css or "-webkit-mask-image: radial-gradient" in css
+    hub_css = css.split("Hub graphic", 1)[-1].split(".login-capability-grid", 1)[0]
+    assert "0 16px 36px rgba(79, 70, 229" not in hub_css
+    assert "border: 1px solid rgba(226, 232, 240" not in hub_css.split(".login-modules-composite", 1)[1].split("}", 1)[0]
     gate = html.split('id="loginGate"', 1)[1].split('id="appShell"', 1)[0]
     assert "rotateY" not in gate
     assert "login-preview-viewport--shots" not in gate
-    reduced = css.split("@media (prefers-reduced-motion: reduce)", 1)[1]
-    assert ".login-modules-visual" in reduced
     for label in ("CMDB", "Monitoring", "ITSM", "Service Portal", "SecureOps", "Configuration"):
         assert label in html
+
+
+def test_login_hub_nodes_accessible_details() -> None:
+    html = FRONTEND_INDEX.read_text(encoding="utf-8")
+    js = (FRONTEND_STATIC / "js" / "login-showcase.js").read_text(encoding="utf-8")
+    css = (FRONTEND_STATIC / "css" / "cmdb.css").read_text(encoding="utf-8")
+    assert 'aria-describedby="loginModuleDetail"' in html
+    assert 'id="loginModuleDetailTitle"' in html
+    assert 'id="loginModuleDetailBody"' in html
+    assert "mouseenter" in js
+    assert 'addEventListener("focus"' in js
+    assert "ArrowRight" in js
+    assert ".login-hub-node:focus-visible" in css or "login-hub-node:focus-visible" in css
 
 
 def test_login_card_play_opens_overview_without_autoplay() -> None:
@@ -94,10 +105,8 @@ def test_login_card_play_opens_overview_without_autoplay() -> None:
     video_snip = html.split('id="loginOverviewVideo"', 1)[1].split("</video>", 1)[0].lower()
     assert "autoplay" not in video_snip
     assert 'preload="metadata"' in html
-    assert "openOverviewModal(card.seek)" in js
     assert "btnLoginWatchOverview" in js
     assert "video.play" in js
-    # No page-load autoplay: play only inside openOverviewModal
     init = js.split("function initLoginShowcase", 1)[1].split("window.svrmonLoginShowcase", 1)[0]
     assert ".play(" not in init
     assert "openOverviewModal" not in init

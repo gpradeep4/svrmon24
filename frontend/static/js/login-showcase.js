@@ -1,68 +1,51 @@
 /**
- * Login gate — capability cards drive caption; Option B overview modal;
- * play icon on each card seeks into the overview. Vanilla only.
- * Hero uses one composed all-modules illustration (not app screenshots).
+ * Login gate — hub graphic carries all modules; hover/focus nodes for details;
+ * Option B Watch overview modal (no page-load autoplay). Vanilla only.
  */
 (function () {
-  const CARDS = [
+  const MODULES = [
     {
       id: "cmdb",
-      module: "cmdb",
       title: "CMDB & Inventory",
       caption: "Unified view of servers, network and applications",
-      icon: "/static/assets/icons/cmdb.svg",
-      tone: "blue",
       seek: 0,
     },
     {
-      id: "ai",
-      module: "dashboard",
-      title: "AI Investigation",
-      caption: "Analyse incidents, logs and health data to find root cause",
-      icon: "/static/assets/icons/ai-investigation.svg",
-      tone: "violet",
-      seek: 0,
-    },
-    {
-      id: "diagnostics",
-      module: "monitoring",
-      title: "Automated Diagnostics",
-      caption: "Run secure, read-only diagnostic scripts on demand",
-      icon: "/static/assets/icons/diagnostics.svg",
-      tone: "green",
-      seek: 8,
-    },
-    {
-      id: "logs",
-      module: "monitoring",
-      title: "Log Intelligence",
-      caption: "Understand middleware and system logs with AI",
-      icon: "/static/assets/icons/log-intelligence.svg",
-      tone: "orange",
+      id: "monitoring",
+      title: "Monitoring",
+      caption: "Health, alerts, logs and diagnostics across infrastructure",
       seek: 2,
     },
     {
-      id: "workflows",
-      module: "itsm",
-      title: "Investigation Workflows",
+      id: "itsm",
+      title: "ITSM",
       caption: "Track, collaborate and resolve incidents end-to-end",
-      icon: "/static/assets/icons/workflows.svg",
-      tone: "indigo",
       seek: 4,
     },
     {
-      id: "secure",
-      module: "admin",
-      title: "Secure & Compliant",
+      id: "portal",
+      title: "Service Portal",
+      caption: "Request catalog services and track fulfilment",
+      seek: 6,
+    },
+    {
+      id: "secureops",
+      title: "SecureOps",
       caption: "RBAC, audit trail and enterprise-grade access",
-      icon: "/static/assets/icons/security.svg",
-      tone: "teal",
       seek: 10,
+    },
+    {
+      id: "config",
+      title: "Configuration",
+      caption: "Tenant settings, live gates and platform controls",
+      seek: 8,
     },
   ];
 
-  const DEFAULT_CARD = "ai";
-  const COLS = 3;
+  const DEFAULT_DETAIL = {
+    title: "Explore the platform",
+    caption: "Hover or focus a module on the hub to see what it covers.",
+  };
 
   function prefersReducedMotion() {
     try {
@@ -72,100 +55,71 @@
     }
   }
 
-  function setActiveCard(cardId, { focusCard = false } = {}) {
-    const card = CARDS.find((c) => c.id === cardId) || CARDS.find((c) => c.id === DEFAULT_CARD);
-    const grid = document.getElementById("loginCapabilityGrid");
-    const captionEl = document.getElementById("loginModuleCaption");
+  function setActiveModule(moduleId, { focusNode = false } = {}) {
+    const mod = MODULES.find((m) => m.id === moduleId);
     const visual = document.getElementById("loginModulesVisual");
-    if (!grid || !captionEl) return;
+    const titleEl = document.getElementById("loginModuleDetailTitle");
+    const bodyEl = document.getElementById("loginModuleDetailBody");
+    const nodes = document.querySelectorAll(".login-hub-node");
+    if (!titleEl || !bodyEl) return;
 
     const reduce = prefersReducedMotion();
     if (!reduce && visual) visual.classList.add("is-swapping");
 
     const apply = () => {
-      if (visual) visual.setAttribute("data-active", card.module);
-      grid.querySelectorAll(".login-cap-card").forEach((el) => {
-        const on = el.dataset.card === card.id;
+      if (visual) visual.setAttribute("data-active", mod ? mod.id : "");
+      nodes.forEach((el) => {
+        const on = !!mod && el.dataset.module === mod.id;
         el.classList.toggle("is-active", on);
-        el.setAttribute("aria-selected", on ? "true" : "false");
-        el.tabIndex = on ? 0 : -1;
+        el.setAttribute("aria-pressed", on ? "true" : "false");
       });
-      captionEl.textContent = card.caption;
+      titleEl.textContent = mod ? mod.title : DEFAULT_DETAIL.title;
+      bodyEl.textContent = mod ? mod.caption : DEFAULT_DETAIL.caption;
       if (visual) visual.classList.remove("is-swapping");
-      if (focusCard) {
-        grid.querySelector(`[data-card="${card.id}"]`)?.focus({ preventScroll: true });
+      if (focusNode && mod) {
+        document.querySelector(`.login-hub-node[data-module="${mod.id}"]`)?.focus({ preventScroll: true });
       }
     };
 
     if (reduce) apply();
-    else setTimeout(apply, 120);
+    else setTimeout(apply, 90);
   }
 
-  function buildCards() {
-    const grid = document.getElementById("loginCapabilityGrid");
-    if (!grid) return;
-    grid.innerHTML = "";
+  function clearActiveModule() {
+    const active = document.activeElement;
+    if (active && active.classList && active.classList.contains("login-hub-node")) return;
+    setActiveModule(null);
+  }
 
-    CARDS.forEach((card, index) => {
-      const btn = document.createElement("button");
-      btn.type = "button";
-      btn.className = "login-cap-card" + (card.id === DEFAULT_CARD ? " is-active" : "");
-      btn.dataset.card = card.id;
-      btn.dataset.module = card.module;
-      btn.id = `loginCapTab-${card.id}`;
-      btn.setAttribute("role", "tab");
-      btn.setAttribute("aria-controls", "loginModulesVisual");
-      btn.setAttribute("aria-selected", card.id === DEFAULT_CARD ? "true" : "false");
-      btn.tabIndex = card.id === DEFAULT_CARD ? 0 : -1;
+  function wireHotspots() {
+    const nodes = Array.from(document.querySelectorAll(".login-hub-node"));
+    if (!nodes.length) return;
 
-      btn.innerHTML =
-        `<span class="login-cap-ico login-cap-ico--${card.tone}" aria-hidden="true">` +
-        `<img src="${card.icon}" alt="" width="20" height="20" decoding="async" />` +
-        `</span>` +
-        `<span class="login-cap-copy"><strong>${card.title}</strong><span>${card.caption}</span></span>` +
-        `<span class="login-cap-play" data-play-card="${card.id}" role="button" tabindex="0" ` +
-        `aria-label="Watch overview for ${card.title}">` +
-        `<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="10" fill="none" stroke="currentColor" stroke-width="1.6"/>` +
-        `<path d="M10 8.5v7l6-3.5z" fill="currentColor" stroke="none"/></svg></span>`;
-
-      btn.addEventListener("mouseenter", () => setActiveCard(card.id));
-      btn.addEventListener("focus", () => setActiveCard(card.id));
+    nodes.forEach((btn, index) => {
+      btn.setAttribute("aria-pressed", "false");
+      btn.addEventListener("mouseenter", () => setActiveModule(btn.dataset.module));
+      btn.addEventListener("focus", () => setActiveModule(btn.dataset.module));
+      btn.addEventListener("mouseleave", clearActiveModule);
+      btn.addEventListener("blur", () => {
+        setTimeout(clearActiveModule, 0);
+      });
       btn.addEventListener("click", (e) => {
-        if (e.target.closest("[data-play-card]")) return;
-        setActiveCard(card.id, { focusCard: true });
+        e.preventDefault();
+        setActiveModule(btn.dataset.module, { focusNode: true });
       });
       btn.addEventListener("keydown", (e) => {
-        if (e.target.closest("[data-play-card]") && (e.key === "Enter" || e.key === " ")) {
-          return;
-        }
         let next = index;
-        if (e.key === "ArrowRight") next = (index + 1) % CARDS.length;
-        else if (e.key === "ArrowLeft") next = (index - 1 + CARDS.length) % CARDS.length;
-        else if (e.key === "ArrowDown") next = (index + COLS) % CARDS.length;
-        else if (e.key === "ArrowUp") next = (index - COLS + CARDS.length) % CARDS.length;
+        if (e.key === "ArrowRight" || e.key === "ArrowDown") next = (index + 1) % nodes.length;
+        else if (e.key === "ArrowLeft" || e.key === "ArrowUp") next = (index - 1 + nodes.length) % nodes.length;
         else if (e.key === "Home") next = 0;
-        else if (e.key === "End") next = CARDS.length - 1;
+        else if (e.key === "End") next = nodes.length - 1;
         else return;
         e.preventDefault();
-        setActiveCard(CARDS[next].id, { focusCard: true });
+        setActiveModule(nodes[next].dataset.module, { focusNode: true });
       });
-
-      const play = btn.querySelector("[data-play-card]");
-      play?.addEventListener("click", (e) => {
-        e.preventDefault();
-        e.stopPropagation();
-        openOverviewModal(card.seek);
-      });
-      play?.addEventListener("keydown", (e) => {
-        if (e.key === "Enter" || e.key === " ") {
-          e.preventDefault();
-          e.stopPropagation();
-          openOverviewModal(card.seek);
-        }
-      });
-
-      grid.appendChild(btn);
     });
+
+    document.getElementById("loginModulesVisual")?.addEventListener("mouseleave", clearActiveModule);
   }
 
   let lastFocus = null;
@@ -218,16 +172,16 @@
 
   function initLoginShowcase() {
     if (!document.getElementById("loginGate")) return;
-    buildCards();
+    wireHotspots();
     wireModal();
-    setActiveCard(DEFAULT_CARD);
+    setActiveModule(null);
   }
 
   window.svrmonLoginShowcase = {
-    setActiveCard,
+    setActiveModule,
     openOverviewModal,
     closeOverviewModal,
-    CARDS,
+    MODULES,
   };
 
   if (document.readyState === "loading") {

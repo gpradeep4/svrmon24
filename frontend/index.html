@@ -68,21 +68,32 @@
         </div>
 
         <div class="login-hero-stage login-hero-stage--modules login-hero-stage--best" id="loginShowcaseStage">
-          <figure class="login-modules-visual" id="loginModulesVisual">
+          <figure class="login-modules-visual" id="loginModulesVisual" data-active="">
             <img
               class="login-modules-composite"
               id="loginModulesComposite"
               src="/static/assets/brand/login-modules-composite.jpg"
               width="1280"
               height="720"
-              alt="SVRMON24 platform modules — CMDB, Monitoring, ITSM, Service Portal, SecureOps, and Configuration"
+              alt=""
               decoding="async"
+              aria-hidden="true"
             />
-            <figcaption class="login-preview-caption" id="loginModuleCaption" aria-live="polite">Analyse incidents, logs and health data to find root cause</figcaption>
+            <div class="login-hub-hotspots" id="loginHubHotspots" role="group" aria-label="SVRMON24 platform modules">
+              <!-- Hotspot positions match radial hub layout in login-modules-composite.jpg -->
+              <button type="button" class="login-hub-node" data-module="cmdb" style="--hx:22%;--hy:22%" aria-describedby="loginModuleDetail">CMDB</button>
+              <button type="button" class="login-hub-node" data-module="monitoring" style="--hx:78%;--hy:22%" aria-describedby="loginModuleDetail">Monitoring</button>
+              <button type="button" class="login-hub-node" data-module="itsm" style="--hx:14%;--hy:52%" aria-describedby="loginModuleDetail">ITSM</button>
+              <button type="button" class="login-hub-node" data-module="portal" style="--hx:86%;--hy:52%" aria-describedby="loginModuleDetail">Service Portal</button>
+              <button type="button" class="login-hub-node" data-module="secureops" style="--hx:24%;--hy:80%" aria-describedby="loginModuleDetail">SecureOps</button>
+              <button type="button" class="login-hub-node" data-module="config" style="--hx:76%;--hy:80%" aria-describedby="loginModuleDetail">Configuration</button>
+            </div>
+            <figcaption class="login-module-detail" id="loginModuleDetail" aria-live="polite">
+              <strong id="loginModuleDetailTitle">Explore the platform</strong>
+              <span id="loginModuleDetailBody">Hover or focus a module on the hub to see what it covers.</span>
+            </figcaption>
           </figure>
         </div>
-
-        <div class="login-capability-grid" id="loginCapabilityGrid" role="tablist" aria-label="Platform capabilities"></div>
 
       </div>
     </aside>
