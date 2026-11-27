@@ -243,7 +243,7 @@ def test_ui_exposes_oidc_login_controls() -> None:
     assert "login-gate-split" in html
     assert "login-gate-enterprise" in html
     assert "Welcome Back" in html
-    assert "faster resolutions" in html
+    assert "Smarter IT Operations." in html
     assert 'id="btnAuthPassToggle"' in html
     assert 'id="authOrDivider"' in html
     assert 'id="btnLoginPortalToggle"' in html

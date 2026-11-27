@@ -68,8 +68,9 @@ def test_enterprise_login_structure() -> None:
     assert "login-gate-enterprise" in html
     assert 'id="loginGate"' in html
     assert "login-gradient-text" in html
-    assert "Turn incidents into" in html
-    assert "faster resolutions" in html
+    assert "One Platform." in html
+    assert "Smarter IT Operations." in html
+    assert "unified in one intelligent platform" in html
     assert "AI Infrastructure Diagnostic" in html
     assert "login-portal-bg" in html
     assert "login-waves.png" in (FRONTEND_STATIC / "css" / "cmdb.css").read_text(encoding="utf-8")
