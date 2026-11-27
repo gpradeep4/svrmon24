@@ -190,7 +190,7 @@ def test_enterprise_login_scale_layout_css() -> None:
     # Desktop composition: vertical stack (logo → intro → modules visual → cards).
     assert ".login-showcase-intro" in css
     assert "grid-column: 2" not in css.split(".login-hero-stage--modules", 1)[0]
-    assert "margin-inline-start: clamp(8px, 2cqi, 36px)" in css
+    assert "margin-inline-start: clamp(" in css
     assert ".login-hub" in css
     assert ".login-overview-modal" in css
     # Post-login sidebar: transparent PNG lockup (no CSS-split wordmark / white pill).

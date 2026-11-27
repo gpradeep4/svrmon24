@@ -123,21 +123,24 @@
     const listEl = document.getElementById("loginModuleDetailBullets");
     const iconEl = document.getElementById("loginModuleDetailIcon");
     const nodes = document.querySelectorAll(".login-hub-node");
-    const spokes = document.querySelectorAll(".login-hub-spokes line");
+    const spokes = document.querySelectorAll(".login-hub-spokes path");
     if (!titleEl || !bodyEl || !listEl) return;
 
     const reduce = prefersReducedMotion();
     const apply = () => {
-      if (visual) visual.setAttribute("data-active", mod.id);
+      if (visual) {
+        visual.setAttribute("data-active", mod.id);
+        visual.classList.add("has-selection");
+      }
       nodes.forEach((el) => {
         const on = el.dataset.module === mod.id;
         el.classList.toggle("is-active", on);
         el.setAttribute("aria-pressed", on ? "true" : "false");
         el.tabIndex = on ? 0 : -1;
       });
-      spokes.forEach((line) => {
-        const on = line.dataset.module === mod.id;
-        line.classList.toggle("is-active", on);
+      spokes.forEach((curve) => {
+        const on = curve.dataset.module === mod.id;
+        curve.classList.toggle("is-active", on);
       });
       titleEl.textContent = mod.title;
       bodyEl.textContent = mod.blurb;
