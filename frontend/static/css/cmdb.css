@@ -1961,7 +1961,7 @@ body.is-login {
   position: relative;
   width: min(100%, 980px);
   aspect-ratio: 1.08 / 1;
-  max-height: min(62cqb, 600px);
+  max-height: min(64cqb, 620px);
   margin: 0 auto;
   padding: clamp(8px, 1.6cqi, 20px);
   box-sizing: border-box;
@@ -2065,8 +2065,8 @@ body.is-login {
   left: 50%;
   top: 50%;
   z-index: 1;
-  width: clamp(100px, 16.5cqi, 140px);
-  height: clamp(86px, 14.4cqi, 122px);
+  width: clamp(96px, 15.8cqi, 134px);
+  height: clamp(84px, 13.8cqi, 116px);
   margin: 0;
   padding: 0;
   border: 0;
@@ -2157,8 +2157,8 @@ body.is-login {
   translate: -50% -50%;
   display: grid;
   place-items: center;
-  width: clamp(112px, 18.2cqi, 150px);
-  height: clamp(97px, 15.8cqi, 130px);
+  width: clamp(108px, 17.4cqi, 144px);
+  height: clamp(94px, 15.1cqi, 124px);
   margin: 0;
   padding: 0;
   border: 0;

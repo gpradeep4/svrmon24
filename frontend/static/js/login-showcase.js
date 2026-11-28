@@ -130,15 +130,24 @@
   const VIEW = 100;
   const CX = 50;
   const CY = 50;
-  /** Desktop target: visible CMDB↔hub gap ~25–35px (pick mid). */
-  const TARGET_GAP_PX = 30;
-  const BASE_RING_5 = 39;
-  const BASE_RING_6 = 36;
-  const MAX_RING = 46;
-  const MIN_RING = 32;
+  /**
+   * Visible empty air between hexagon outer edges on desktop (~25–35px).
+   * Stroke + soft glow sit inside the edge-to-edge span, so the fit target is
+   * air + stroke (+ glow pad) — not centre distance alone.
+   */
+  const TARGET_AIR_GAP_PX = 30;
+  /** @deprecated alias — tests / exports; equals TARGET_AIR_GAP_PX */
+  const TARGET_GAP_PX = TARGET_AIR_GAP_PX;
+  const GLOW_PAD_PX = 4;
+  const BASE_RING_5 = 42;
+  const BASE_RING_6 = 38;
+  const MAX_RING = 48;
+  const MIN_RING = 34;
   /** Desktop selected stroke target in CSS pixels. */
   const STROKE_PX_DESKTOP = 8.5;
   const STROKE_PX_COMPACT = 6.5;
+  /** Matches .login-hub-node.is-active scale — edges grow when selected. */
+  const SELECTED_NODE_SCALE = 1.07;
 
   let activeId = DEFAULT_MODULE;
   let swapTimer = null;
@@ -319,10 +328,10 @@
   /**
    * Measure an element’s centre + half-size in hub-local % (0–100).
    * Uses offsetWidth/Height so hover/active CSS scale does not move endpoints.
-   * visual:true multiplies by --hub-hex-scale (fitRingClearance) without the
-   * selected-state 1.07 boost from getBoundingClientRect.
+   * visual:true applies --hub-hex-scale; assumeSelected grows nodes by the
+   * active 1.07 scale so clearance accounts for the selected plate.
    */
-  function measureHexInView(el, hubRect, { visual = false } = {}) {
+  function measureHexInView(el, hubRect, { visual = false, assumeSelected = false } = {}) {
     if (!el || !hubRect || hubRect.width < 1 || hubRect.height < 1) {
       return { cx: CX, cy: CY, hw: 8, hh: 7 };
     }
@@ -334,6 +343,9 @@
       const hubEl = document.getElementById("loginHubHotspots");
       const raw = hubEl ? getComputedStyle(hubEl).getPropertyValue("--hub-hex-scale") : "1";
       scale = parseFloat(raw) || 1;
+      if (assumeSelected || el.classList.contains("is-active")) {
+        scale *= SELECTED_NODE_SCALE;
+      }
     }
     const w = (el.offsetWidth || r.width) * scale;
     const h = (el.offsetHeight || r.height) * scale;
@@ -359,25 +371,48 @@
     return (ex * dirx + ey * diry) / len;
   }
 
+  /** Map hub size → CSS-pixel stroke so desktop lands ~7–9px. */
+  function strokePxForHub(hubRect) {
+    return hubRect.width >= 720 ? STROKE_PX_DESKTOP : STROKE_PX_COMPACT;
+  }
+
+  /**
+   * Edge-to-edge fit target: visible air after the stroke still reads ~25–35px.
+   * required = air + stroke + glow pad (stroke occupies the corridor between edges).
+   */
+  function requiredEdgeGapPx(hubRect) {
+    const air = hubRect.height >= 360 ? TARGET_AIR_GAP_PX : Math.min(TARGET_AIR_GAP_PX, 18);
+    return air + strokePxForHub(hubRect) + GLOW_PAD_PX;
+  }
+
   /** Keep module centres inside the hub pad so cards aren’t clipped. */
   function maxRingForInset(nodeGeomApproxHw, nodeGeomApproxHh) {
-    const insetX = VIEW / 2 - nodeGeomApproxHw - 2.5;
-    const insetY = VIEW / 2 - nodeGeomApproxHh - 2.5;
+    const insetX = VIEW / 2 - nodeGeomApproxHw - 2;
+    const insetY = VIEW / 2 - nodeGeomApproxHh - 2;
     return Math.max(MIN_RING, Math.min(MAX_RING, Math.min(insetX, insetY)));
   }
 
   function measureMinGap(core, nodes, hubRect) {
+    // assumeSelected: clearance must hold when a node is popped to 1.07
     const hg = measureHexInView(core, hubRect, { visual: true });
     let minGap = Infinity;
     nodes.forEach((btn) => {
-      minGap = Math.min(minGap, radialGapPx(hg, measureHexInView(btn, hubRect, { visual: true }), hubRect));
+      minGap = Math.min(
+        minGap,
+        radialGapPx(hg, measureHexInView(btn, hubRect, { visual: true, assumeSelected: true }), hubRect)
+      );
     });
     return minGap;
   }
 
+  /** Clear air remaining after stroke sits between hex edges. */
+  function airGapAfterStroke(edgeGapPx, hubRect) {
+    return edgeGapPx - strokePxForHub(hubRect);
+  }
+
   /**
-   * Expand ring (and if needed shrink --hub-hex-scale) so modules clear the hub
-   * by ~TARGET_GAP_PX. Repositions via computePositions — never CSS line offsets.
+   * Expand ring (and if needed shrink --hub-hex-scale) so outer-edge air after
+   * the selected stroke is ~TARGET_AIR_GAP_PX. Repositions via computePositions.
    */
   function fitRingClearance() {
     const hub = document.getElementById("loginHubHotspots");
@@ -392,8 +427,8 @@
     if (!nodes.length) return fittedRing;
 
     const base = mods.length === 5 ? BASE_RING_5 : BASE_RING_6;
-    // Prefer mid-range desktop gap; on very short hubs accept ≥12px over overlap.
-    const targetGap = hubRect.height >= 360 ? TARGET_GAP_PX : Math.min(TARGET_GAP_PX, 18);
+    const targetGap = requiredEdgeGapPx(hubRect);
+    const targetAir = hubRect.height >= 360 ? TARGET_AIR_GAP_PX : Math.min(TARGET_AIR_GAP_PX, 18);
 
     const applyRing = (r) => {
       const positions = computePositions(mods.length, r);
@@ -409,53 +444,55 @@
     hub.style.setProperty("--hub-hex-scale", "1");
 
     const fitAtScale = () => {
-      const sample = measureHexInView(nodes[0], hubRect, { visual: true });
+      const sample = measureHexInView(nodes[0], hubRect, { visual: true, assumeSelected: true });
       const cap = maxRingForInset(sample.hw, sample.hh);
       let ring = Math.min(Math.max(base, fittedRing > MIN_RING ? fittedRing : base), cap);
       applyRing(ring);
-      for (let iter = 0; iter < 12; iter++) {
+      for (let iter = 0; iter < 14; iter++) {
         const minGap = measureMinGap(core, nodes, hubRect);
         if (minGap >= targetGap || ring >= cap - 0.05) return { ring, minGap, cap };
         const deficit = targetGap - minGap;
         const pctPerPx = VIEW / Math.min(hubRect.width, hubRect.height);
-        ring = Math.min(cap, ring + Math.max(0.5, deficit * pctPerPx * 0.5));
+        ring = Math.min(cap, ring + Math.max(0.55, deficit * pctPerPx * 0.55));
         applyRing(ring);
       }
       return { ring, minGap: measureMinGap(core, nodes, hubRect), cap };
     };
 
     let result = fitAtScale();
-    // Short hubs: shrink hexes so a real gap fits without clipping modules.
-    const scaleFloor = hubRect.height < 320 ? 0.64 : 0.72;
+    // Short / tight hubs: shrink hexes so air + stroke still fit.
+    const scaleFloor = hubRect.height < 340 ? 0.6 : 0.68;
     while (result.minGap < targetGap && scale > scaleFloor) {
       scale = Math.round((scale - 0.04) * 100) / 100;
       hub.style.setProperty("--hub-hex-scale", String(scale));
-      // Force layout before remeasure
       void nodes[0].offsetWidth;
       result = fitAtScale();
       if (result.minGap >= targetGap) break;
     }
 
-    // Nudge ring down if gap overshoots far above the 35px desktop band.
-    if (hubRect.height >= 400 && result.minGap > 42 && result.ring > base) {
+    // Only trim when air after stroke overshoots the 35px band by a lot.
+    const air = airGapAfterStroke(result.minGap, hubRect);
+    if (hubRect.height >= 400 && air > 48 && result.ring > base) {
       const pctPerPx = VIEW / Math.min(hubRect.width, hubRect.height);
-      const trim = Math.min(result.ring - base, (result.minGap - TARGET_GAP_PX) * pctPerPx * 0.45);
+      const trim = Math.min(result.ring - base, (air - targetAir) * pctPerPx * 0.35);
       result.ring = Math.max(base, result.ring - trim);
       applyRing(result.ring);
       result.minGap = measureMinGap(core, nodes, hubRect);
     }
 
     fittedRing = result.ring;
+    const finalAir = airGapAfterStroke(result.minGap, hubRect);
     hub.dataset.ring = String(Math.round(result.ring * 100) / 100);
     hub.dataset.hexScale = String(scale);
     hub.dataset.minGap = String(Math.round(result.minGap * 10) / 10);
+    hub.dataset.airGap = String(Math.round(finalAir * 10) / 10);
     return result.ring;
   }
 
   /** Map hub size → SVG user-unit stroke so desktop lands ~7–9px. */
   function strokeWidthForHub(hubRect, { selected = true } = {}) {
     const mean = (hubRect.width + hubRect.height) / 2 || 1;
-    const targetPx = hubRect.width >= 720 ? STROKE_PX_DESKTOP : STROKE_PX_COMPACT;
+    const targetPx = strokePxForHub(hubRect);
     const base = (targetPx / mean) * VIEW;
     return selected ? base : base * 0.72;
   }
@@ -921,7 +958,10 @@
     MODULES,
     DEFAULT_MODULE,
     TARGET_GAP_PX,
+    TARGET_AIR_GAP_PX,
     BASE_RING_5,
+    requiredEdgeGapPx,
+    airGapAfterStroke,
   };
 
   if (document.readyState === "loading") {

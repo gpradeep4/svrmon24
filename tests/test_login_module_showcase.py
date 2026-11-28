@@ -209,16 +209,21 @@ def test_login_cmdb_gap_and_connection_strokes() -> None:
     html = FRONTEND_INDEX.read_text(encoding="utf-8")
     assert "fitRingClearance" in js
     assert "radialGapPx" in js
+    assert "TARGET_AIR_GAP_PX" in js
     assert "TARGET_GAP_PX" in js
+    assert "requiredEdgeGapPx" in js
+    assert "airGapAfterStroke" in js
     assert "BASE_RING_5" in js
     assert "strokeWidthForHub" in js
     assert "STROKE_PX_DESKTOP" in js
+    assert "SELECTED_NODE_SCALE" in js
     assert "loginHubTempTravel" in js
     assert "loginHubSpokeTravel" in html
     assert ".login-hub-temp-travel" in css
     assert "login-travel-light" in css
     assert "--hub-hex-scale" in css
     assert "stroke-linejoin" in css.split(".login-hub-temp-connection", 1)[1].split(".login-hub-core", 1)[0]
+    assert "air + stroke" in js or "TARGET_AIR_GAP_PX" in js
     # Still temporary selected-only — no permanent multi-spoke loop in renderHub
     render = js.split("function renderHub", 1)[1].split("function observeHubResize", 1)[0]
     assert "One temporary connection" in render or "loginHubTempConnection" in render
