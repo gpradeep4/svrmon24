@@ -1,4 +1,4 @@
-"""Login gate — five-module data-driven hex showcase + Option B overview (0.99.11)."""
+"""Login gate — five-module data-driven hex showcase + Option B overview (0.99.12)."""
 
 from __future__ import annotations
 
@@ -98,6 +98,47 @@ def test_login_hub_hex_architecture() -> None:
     assert "count <= 6" in js or "count <= 10" in js
     assert "min(100%, 980px)" in css or "min(100%, 1120px)" in css or "min(100%, 1040px)" in css
     assert "login-curve-glow" in css
+    # Spokes stretch with hub box so % coords match node --hx/--hy
+    assert 'id="loginHubSpokes"' in html
+    assert 'preserveAspectRatio="none"' in html.split('id="loginHubSpokes"', 1)[1].split(">", 1)[0]
+    # Layering: spokes behind core + nodes
+    hub_block = html.split('id="loginHubHotspots"', 1)[1].split("login-module-detail", 1)[0]
+    assert hub_block.index("loginHubSpokes") < hub_block.index("login-hub-core")
+    assert hub_block.index("login-hub-core") < hub_block.index("loginHubNodes")
+    assert "z-index: 0" in css.split(".login-hub-spokes", 1)[1].split("}", 1)[0]
+    assert "z-index: 1" in css.split(".login-hub-core", 1)[1].split("}", 1)[0]
+    assert "z-index: 2" in css.split(".login-hub-nodes", 1)[1].split("}", 1)[0]
+
+
+def test_login_hub_connection_geometry() -> None:
+    """Edge-clipped SVG connections: direction → hex boundary → cubic (no CSS offsets)."""
+    js = (FRONTEND_STATIC / "js" / "login-showcase.js").read_text(encoding="utf-8")
+    css = (FRONTEND_STATIC / "css" / "cmdb.css").read_text(encoding="utf-8")
+    assert "hexBoundaryIntersection" in js
+    assert "connectionPath" in js
+    assert "edgeCurvePath" in js
+    assert "updateConnections" in js
+    assert "measureHexInView" in js
+    assert "observeHubResize" in js
+    assert "ResizeObserver" in js
+    assert "hexVertices" in js
+    assert "raySegmentIntersection" in js
+    # Must clip to boundaries — not centre-to-centre placeholders
+    assert "hexBoundaryIntersection(hub.cx, hub.cy, hub.hw, hub.hh, dx, dy)" in js
+    assert "hexBoundaryIntersection(node.cx, node.cy, node.hw, node.hh, -dx, -dy)" in js
+    assert "edgeCurvePath(from.x, from.y, to.x, to.y)" in js
+    # No CSS translate/margin offset hacks on spokes
+    spokes_css = css.split(".login-hub-spokes", 1)[1].split(".login-hub-core", 1)[0]
+    assert "translate(" not in spokes_css
+    assert "margin-left" not in spokes_css
+    assert "top:" not in spokes_css or "inset: 0" in spokes_css
+    # Hover still highlights one connection
+    assert "curve.classList.toggle(\"is-active\"" in js or 'curve.classList.toggle("is-active"' in js
+    assert ".login-hub-spokes path.is-active" in css
+    # Exported for future modules / diagnostics
+    assert "updateConnections," in js
+    assert "hexBoundaryIntersection," in js
+    assert "connectionPath," in js
 
 
 def test_login_hub_interactive_behaviour() -> None:
@@ -160,11 +201,11 @@ def test_login_five_modules_enabled_only() -> None:
     assert "navConfigurationGroup" in html  # real app Config nav kept
 
 
-def test_version_bump_for_login_generic_modules() -> None:
-    assert __version__ == "0.99.11"
+def test_version_bump_for_login_hub_connection_align() -> None:
+    assert __version__ == "0.99.12"
     html = FRONTEND_INDEX.read_text(encoding="utf-8")
-    assert 'content="0.99.11"' in html
-    assert 'content="login-enterprise-v20"' in html
+    assert 'content="0.99.12"' in html
+    assert 'content="login-enterprise-v21"' in html
 
 
 def test_login_fullbleed_layout_css() -> None:
