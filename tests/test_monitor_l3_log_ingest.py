@@ -1,4 +1,4 @@
-"""Monitoring L3 — LIVE HTTP log ingest + optional syslog (0.99.13)."""
+"""Monitoring L3 — LIVE HTTP log ingest + optional syslog (0.99.14)."""
 
 from __future__ import annotations
 
@@ -71,10 +71,10 @@ def _ensure_stream(client: TestClient, auth_headers: dict[str, str]) -> str:
 
 
 def test_version_bump_for_monitor_l3() -> None:
-    assert __version__ == "0.99.13"
+    assert __version__ == "0.99.14"
     html = FRONTEND_INDEX.read_text(encoding="utf-8")
-    assert 'content="0.99.13"' in html
-    assert "monitor/logs.js?v=0.99.13" in html
+    assert 'content="0.99.14"' in html
+    assert "monitor/logs.js?v=0.99.14" in html
 
 
 def test_monitor_log_ingest_entitlement_in_catalog() -> None:

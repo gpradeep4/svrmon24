@@ -25,7 +25,7 @@
       id: "cmdb",
       name: "CMDB",
       icon: "cmdb",
-      short_description: "Unified view of servers, networks and applications",
+      short_description: "Unified view of servers, networks and applications.",
       capabilities: [
         "Centralised infrastructure inventory",
         "Manage servers, operating systems, middleware, databases and applications",
@@ -191,7 +191,8 @@
 
     if (count <= 6) {
       // Single symmetric ring (5 or 6); start at top (−90°)
-      placeRing(count, count === 5 ? 34 : 33, -90, pts);
+      // CMDB top → ITSM UR → Monitoring LR → Service Portal LL → SecureOps UL
+      placeRing(count, count === 5 ? 36 : 34, -90, pts);
       return pts;
     }
 
@@ -450,7 +451,7 @@
       btn.setAttribute("aria-label", mod.ariaLabel || mod.name);
       btn.innerHTML =
         `<svg class="login-hub-node-plate" viewBox="0 0 100 86.6" aria-hidden="true">` +
-        `<use href="#loginHubHex" filter="url(#loginHubNodeNeo)" fill="url(#loginHubNodeFill)" stroke="rgba(49,95,234,0.32)" stroke-width="1.5"/></svg>` +
+        `<use href="#loginHubHex" filter="url(#loginHubNodeNeo)" fill="url(#loginHubNodeFill)" stroke="rgba(117,69,232,0.34)" stroke-width="1.55"/></svg>` +
         `<span class="login-hub-node-content">` +
         `<span class="login-hub-node-ico" aria-hidden="true">${iconSvg(mod)}</span>` +
         `<span class="login-hub-node-label">${labelHtml(mod.name)}</span>` +
