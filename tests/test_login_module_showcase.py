@@ -1,4 +1,4 @@
-"""Login gate — premium interactive central hub + Option B overview (0.99.13)."""
+"""Login gate — premium interactive central hub + Option B overview (0.99.14)."""
 
 from __future__ import annotations
 
@@ -53,7 +53,12 @@ def test_login_module_showcase_assets() -> None:
     assert ".login-hub-node" in css
     assert "login-hub-pulse" in css
     assert "login-curve-glow" in css
-    assert "scale(1.06)" in css or "scale(1.04)" in css
+    assert (
+        "scale(1.06)" in css
+        or "scale(1.05)" in css
+        or "scale(1.07)" in css
+        or "scale(1.04)" in css
+    )
     assert ".login-module-detail-bullets" in css
     assert ".login-module-intro" in css
     assert 'preserveAspectRatio="xMidYMid meet"' in html
@@ -239,11 +244,27 @@ def test_login_five_modules_enabled_only() -> None:
     assert "navConfigurationGroup" in html  # real app Config nav kept
 
 
-def test_version_bump_for_login_premium_hub() -> None:
-    assert __version__ == "0.99.13"
+def test_version_bump_for_login_premium_enterprise_ui() -> None:
+    assert __version__ == "0.99.14"
     html = FRONTEND_INDEX.read_text(encoding="utf-8")
-    assert 'content="0.99.13"' in html
-    assert 'content="login-enterprise-v22"' in html
+    assert 'content="0.99.14"' in html
+    assert 'content="login-enterprise-v23"' in html
+
+
+def test_login_premium_enterprise_detail_panel_not_clipped() -> None:
+    """Description panel is a frosted card and stays visible (flex-shrink: 0)."""
+    css = (FRONTEND_STATIC / "css" / "cmdb.css").read_text(encoding="utf-8")
+    js = (FRONTEND_STATIC / "js" / "login-showcase.js").read_text(encoding="utf-8")
+    detail = css.split(".login-module-detail {", 1)[1].split(".login-module-detail.is-swapping", 1)[0]
+    assert "flex-shrink: 0" in detail
+    assert "backdrop-filter" in detail
+    assert "rgba(255, 255, 255" in detail or "rgba(255,255,255" in detail
+    assert "align-self: flex-start" in detail
+    # Desktop showcase column must allow hub shrink so the panel is never clipped
+    assert "flex: 1 1 auto" in css
+    assert "min-height: 0" in css
+    assert "count === 5 ? 36" in js
+    assert "Unified view of servers, networks and applications." in js
 
 
 def test_login_fullbleed_layout_css() -> None:

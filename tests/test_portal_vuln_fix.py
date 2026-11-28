@@ -1,4 +1,4 @@
-"""Service Portal SP12 — Vulnerability fix + Change approval + rollback (0.99.13)."""
+"""Service Portal SP12 — Vulnerability fix + Change approval + rollback (0.99.14)."""
 
 from __future__ import annotations
 
@@ -13,10 +13,10 @@ from tests.frontend_paths import FRONTEND_INDEX
 
 
 def test_version_bump_for_portal_vuln_fix() -> None:
-    assert __version__ == "0.99.13"
+    assert __version__ == "0.99.14"
     html = FRONTEND_INDEX.read_text(encoding="utf-8")
-    assert 'content="0.99.13"' in html
-    assert "portal/vuln.js?v=0.99.13" in html
+    assert 'content="0.99.14"' in html
+    assert "portal/vuln.js?v=0.99.14" in html
 
 
 def test_fix_and_rollback_in_seed() -> None:
