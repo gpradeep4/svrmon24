@@ -3,8 +3,8 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <meta name="svrmon24-ui" content="login-enterprise-v23" />
-  <meta name="svrmon24-version" content="0.99.14" />
+  <meta name="svrmon24-ui" content="login-enterprise-v24" />
+  <meta name="svrmon24-version" content="0.99.15" />
   <title>SVRMON24</title>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -19,13 +19,13 @@
     body.is-app .login-gate { display: none !important; }
     #authPanel, .auth-panel-legacy { display: none !important; }
   </style>
-  <link rel="stylesheet" href="/static/css/cmdb.css?v=0.99.14" />
-  <link rel="stylesheet" href="/static/css/itsm.css?v=0.99.14" />
-  <link rel="stylesheet" href="/static/css/monitor.css?v=0.99.14" />
-  <link rel="stylesheet" href="/static/css/portal.css?v=0.99.14" />
-  <script src="/static/js/config.js?v=0.99.14"></script>
-  <script src="/static/js/brand.js?v=0.99.14"></script>
-  <script src="/static/js/login-showcase.js?v=0.99.14" defer></script>
+  <link rel="stylesheet" href="/static/css/cmdb.css?v=0.99.15" />
+  <link rel="stylesheet" href="/static/css/itsm.css?v=0.99.15" />
+  <link rel="stylesheet" href="/static/css/monitor.css?v=0.99.15" />
+  <link rel="stylesheet" href="/static/css/portal.css?v=0.99.15" />
+  <script src="/static/js/config.js?v=0.99.15"></script>
+  <script src="/static/js/brand.js?v=0.99.15"></script>
+  <script src="/static/js/login-showcase.js?v=0.99.15" defer></script>
 </head>
 <body class="is-login">
   <!-- Enterprise login: showcase (left) + sign-in panel (right); stacks on small viewports -->
@@ -112,9 +112,15 @@
                     <stop offset="100%" stop-color="#16B8E8"/>
                   </linearGradient>
                   <linearGradient id="loginHubSpokeActive" x1="0%" y1="0%" x2="100%" y2="0%">
-                    <stop offset="0%" stop-color="#16B8E8"/>
-                    <stop offset="42%" stop-color="#315FEA"/>
+                    <stop offset="0%" stop-color="#315FEA"/>
+                    <stop offset="48%" stop-color="#5B4AE8"/>
                     <stop offset="100%" stop-color="#7545E8"/>
+                  </linearGradient>
+                  <linearGradient id="loginHubSpokeTravel" x1="0%" y1="0%" x2="100%" y2="0%">
+                    <stop offset="0%" stop-color="#FFFFFF" stop-opacity="0"/>
+                    <stop offset="35%" stop-color="#B8C7FF" stop-opacity="0.95"/>
+                    <stop offset="70%" stop-color="#16B8E8" stop-opacity="0.9"/>
+                    <stop offset="100%" stop-color="#FFFFFF" stop-opacity="0"/>
                   </linearGradient>
                   <filter id="loginHubNodeNeo" x="-30%" y="-30%" width="160%" height="160%">
                     <feDropShadow dx="0" dy="6" stdDeviation="6" flood-color="#172554" flood-opacity="0.1"/>
@@ -3927,34 +3933,34 @@
     </div>
   </div>
 
-  <script src="/static/js/cmdb/ci-detail.js?v=0.99.14"></script>
-  <script src="/static/js/cmdb.js?v=0.99.14"></script>
-  <script src="/static/js/monitor/dashboard.js?v=0.99.14"></script>
-  <script src="/static/js/monitor/targets.js?v=0.99.14"></script>
-  <script src="/static/js/monitor/logs.js?v=0.99.14"></script>
-  <script src="/static/js/monitor/alerts.js?v=0.99.14"></script>
-  <script src="/static/js/monitor/agents.js?v=0.99.14"></script>
-  <script src="/static/js/monitor/index.js?v=0.99.14"></script>
-  <script src="/static/js/itsm/api.js?v=0.99.14"></script>
-  <script src="/static/js/itsm/routing.js?v=0.99.14"></script>
-  <script src="/static/js/itsm/deeplinks.js?v=0.99.14"></script>
-  <script src="/static/js/itsm/dashboard.js?v=0.99.14"></script>
-  <script src="/static/js/itsm/reports.js?v=0.99.14"></script>
-  <script src="/static/js/itsm/incidents.js?v=0.99.14"></script>
-  <script src="/static/js/itsm/changes.js?v=0.99.14"></script>
-  <script src="/static/js/itsm/problems.js?v=0.99.14"></script>
-  <script src="/static/js/itsm/approvals.js?v=0.99.14"></script>
-  <script src="/static/js/itsm/workflows.js?v=0.99.14"></script>
-  <script src="/static/js/itsm/sla.js?v=0.99.14"></script>
-  <script src="/static/js/itsm/knowledge.js?v=0.99.14"></script>
-  <script src="/static/js/itsm/notifications.js?v=0.99.14"></script>
-  <script src="/static/js/itsm/groups.js?v=0.99.14"></script>
-  <script src="/static/js/itsm/index.js?v=0.99.14"></script>
-  <script src="/static/js/portal/catalog.js?v=0.99.14"></script>
-  <script src="/static/js/portal/requests.js?v=0.99.14"></script>
-  <script src="/static/js/portal/approvals.js?v=0.99.14"></script>
-  <script src="/static/js/portal/executions.js?v=0.99.14"></script>
-  <script src="/static/js/portal/vuln.js?v=0.99.14"></script>
-  <script src="/static/js/portal/index.js?v=0.99.14"></script>
+  <script src="/static/js/cmdb/ci-detail.js?v=0.99.15"></script>
+  <script src="/static/js/cmdb.js?v=0.99.15"></script>
+  <script src="/static/js/monitor/dashboard.js?v=0.99.15"></script>
+  <script src="/static/js/monitor/targets.js?v=0.99.15"></script>
+  <script src="/static/js/monitor/logs.js?v=0.99.15"></script>
+  <script src="/static/js/monitor/alerts.js?v=0.99.15"></script>
+  <script src="/static/js/monitor/agents.js?v=0.99.15"></script>
+  <script src="/static/js/monitor/index.js?v=0.99.15"></script>
+  <script src="/static/js/itsm/api.js?v=0.99.15"></script>
+  <script src="/static/js/itsm/routing.js?v=0.99.15"></script>
+  <script src="/static/js/itsm/deeplinks.js?v=0.99.15"></script>
+  <script src="/static/js/itsm/dashboard.js?v=0.99.15"></script>
+  <script src="/static/js/itsm/reports.js?v=0.99.15"></script>
+  <script src="/static/js/itsm/incidents.js?v=0.99.15"></script>
+  <script src="/static/js/itsm/changes.js?v=0.99.15"></script>
+  <script src="/static/js/itsm/problems.js?v=0.99.15"></script>
+  <script src="/static/js/itsm/approvals.js?v=0.99.15"></script>
+  <script src="/static/js/itsm/workflows.js?v=0.99.15"></script>
+  <script src="/static/js/itsm/sla.js?v=0.99.15"></script>
+  <script src="/static/js/itsm/knowledge.js?v=0.99.15"></script>
+  <script src="/static/js/itsm/notifications.js?v=0.99.15"></script>
+  <script src="/static/js/itsm/groups.js?v=0.99.15"></script>
+  <script src="/static/js/itsm/index.js?v=0.99.15"></script>
+  <script src="/static/js/portal/catalog.js?v=0.99.15"></script>
+  <script src="/static/js/portal/requests.js?v=0.99.15"></script>
+  <script src="/static/js/portal/approvals.js?v=0.99.15"></script>
+  <script src="/static/js/portal/executions.js?v=0.99.15"></script>
+  <script src="/static/js/portal/vuln.js?v=0.99.15"></script>
+  <script src="/static/js/portal/index.js?v=0.99.15"></script>
 </body>
 </html>

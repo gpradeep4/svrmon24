@@ -1,4 +1,4 @@
-"""Monitoring L7 — Middleware nav + CMDB sync + suggest-check (0.99.14)."""
+"""Monitoring L7 — Middleware nav + CMDB sync + suggest-check (0.99.15)."""
 
 from __future__ import annotations
 
@@ -36,11 +36,11 @@ def _create_ci(
 
 
 def test_version_bump_for_monitor_l7() -> None:
-    assert __version__ == "0.99.14"
+    assert __version__ == "0.99.15"
     html = FRONTEND_INDEX.read_text(encoding="utf-8")
-    assert 'content="0.99.14"' in html
-    assert "monitor/targets.js?v=0.99.14" in html
-    assert "monitor/index.js?v=0.99.14" in html
+    assert 'content="0.99.15"' in html
+    assert "monitor/targets.js?v=0.99.15" in html
+    assert "monitor/index.js?v=0.99.15" in html
 
 
 def test_middleware_nav_and_tab_markers() -> None:

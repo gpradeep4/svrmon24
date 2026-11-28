@@ -1,4 +1,4 @@
-"""Unified admin live / runtime settings — RBAC, persistence, fail-closed (0.99.14)."""
+"""Unified admin live / runtime settings — RBAC, persistence, fail-closed (0.99.15)."""
 
 from __future__ import annotations
 
@@ -15,9 +15,9 @@ from tests.frontend_paths import FRONTEND_INDEX
 
 
 def test_version_bump_for_unified_live_settings() -> None:
-    assert __version__ == "0.99.14"
+    assert __version__ == "0.99.15"
     html = FRONTEND_INDEX.read_text(encoding="utf-8")
-    assert 'content="0.99.14"' in html
+    assert 'content="0.99.15"' in html
     assert 'data-tab="live-runtime"' in html
     assert "Live / Runtime" in html
 

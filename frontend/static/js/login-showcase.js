@@ -130,6 +130,25 @@
   const VIEW = 100;
   const CX = 50;
   const CY = 50;
+  /**
+   * Visible empty air between hexagon outer edges on desktop (~25–35px).
+   * Stroke + soft glow sit inside the edge-to-edge span, so the fit target is
+   * air + stroke (+ glow pad) — not centre distance alone.
+   */
+  const TARGET_AIR_GAP_PX = 42;
+  /** @deprecated alias — tests / exports; equals TARGET_AIR_GAP_PX */
+  const TARGET_GAP_PX = TARGET_AIR_GAP_PX;
+  /** Extra edge clearance for hex border + drop-shadow bloom beyond the box. */
+  const GLOW_PAD_PX = 14;
+  const BASE_RING_5 = 45;
+  const BASE_RING_6 = 41;
+  const MAX_RING = 52;
+  const MIN_RING = 34;
+  /** Desktop selected stroke target in CSS pixels. */
+  const STROKE_PX_DESKTOP = 8.5;
+  const STROKE_PX_COMPACT = 6.5;
+  /** Matches .login-hub-node.is-active scale — edges grow when selected. */
+  const SELECTED_NODE_SCALE = 1.07;
 
   let activeId = DEFAULT_MODULE;
   let swapTimer = null;
@@ -137,6 +156,7 @@
   let renderedNodes = [];
   let hubResizeObserver = null;
   let connectionAnimToken = 0;
+  let fittedRing = BASE_RING_5;
 
   function prefersReducedMotion() {
     try {
@@ -170,8 +190,9 @@
    * Compute polar placements for N enabled modules.
    * 5 → one ring; 6 → even ring; 7–10 → inner+outer; >10 → adaptive rings.
    * Coordinates are percentages of the hub box (0–100).
+   * Optional ringOverride (5/6) lets fitRingClearance re-place after measure.
    */
-  function computePositions(count) {
+  function computePositions(count, ringOverride) {
     const pts = [];
     if (count <= 0) return pts;
 
@@ -192,7 +213,14 @@
     if (count <= 6) {
       // Single symmetric ring (5 or 6); start at top (−90°)
       // CMDB top → ITSM UR → Monitoring LR → Service Portal LL → SecureOps UL
-      placeRing(count, count === 5 ? 36 : 34, -90, pts);
+      // Base radius; fitRingClearance expands after measure for 25–35px gap.
+      const base =
+        typeof ringOverride === "number"
+          ? ringOverride
+          : count === 5
+            ? BASE_RING_5
+            : BASE_RING_6;
+      placeRing(count, base, -90, pts);
       return pts;
     }
 
@@ -275,7 +303,8 @@
     const dx = x2 - x1;
     const dy = y2 - y1;
     const len = Math.hypot(dx, dy) || 1;
-    const bend = Math.min(len * 0.16, 8);
+    // Keep short CMDB→hub spokes nearly straight so bend does not fill air gap
+    const bend = Math.min(len * 0.1, 4.5);
     const ox = (-dy / len) * bend;
     const oy = (dx / len) * bend;
     const c1x = x1 + dx / 3 + ox;
@@ -298,22 +327,184 @@
     return edgeCurvePath(nodeEdge.x, nodeEdge.y, hubEdge.x, hubEdge.y);
   }
 
-  /** Measure an element’s centre + unscaled half-size in hub-local % (0–100). */
-  function measureHexInView(el, hubRect) {
+  /**
+   * Measure an element’s centre + half-size in hub-local % (0–100).
+   * Uses offsetWidth/Height so hover/active CSS scale does not move endpoints.
+   * visual:true applies --hub-hex-scale; assumeSelected grows nodes by the
+   * active 1.07 scale so clearance accounts for the selected plate.
+   */
+  function measureHexInView(el, hubRect, { visual = false, assumeSelected = false } = {}) {
     if (!el || !hubRect || hubRect.width < 1 || hubRect.height < 1) {
       return { cx: CX, cy: CY, hw: 8, hh: 7 };
     }
     const r = el.getBoundingClientRect();
     const cx = (((r.left + r.right) / 2 - hubRect.left) / hubRect.width) * VIEW;
     const cy = (((r.top + r.bottom) / 2 - hubRect.top) / hubRect.height) * VIEW;
-    // offsetWidth/Height ignore hover scale so endpoints stay stable
-    const hw = ((el.offsetWidth || r.width) / hubRect.width) * (VIEW / 2);
-    const hh = ((el.offsetHeight || r.height) / hubRect.height) * (VIEW / 2);
+    let scale = 1;
+    if (visual) {
+      const hubEl = document.getElementById("loginHubHotspots");
+      const raw = hubEl ? getComputedStyle(hubEl).getPropertyValue("--hub-hex-scale") : "1";
+      scale = parseFloat(raw) || 1;
+      if (assumeSelected || el.classList.contains("is-active")) {
+        scale *= SELECTED_NODE_SCALE;
+      }
+    }
+    const w = (el.offsetWidth || r.width) * scale;
+    const h = (el.offsetHeight || r.height) * scale;
+    const hw = (w / hubRect.width) * (VIEW / 2);
+    const hh = (h / hubRect.height) * (VIEW / 2);
     return { cx, cy, hw, hh };
+  }
+
+  /**
+   * Signed edge-to-edge clearance (px) along hub→node, using hex-boundary clip.
+   * Positive = separated; negative = overlap. No CSS endpoint offsets.
+   */
+  function radialGapPx(hubGeom, nodeGeom, hubRect) {
+    const dx = nodeGeom.cx - hubGeom.cx;
+    const dy = nodeGeom.cy - hubGeom.cy;
+    const hubEdge = hexBoundaryIntersection(hubGeom.cx, hubGeom.cy, hubGeom.hw, hubGeom.hh, dx, dy);
+    const nodeEdge = hexBoundaryIntersection(nodeGeom.cx, nodeGeom.cy, nodeGeom.hw, nodeGeom.hh, -dx, -dy);
+    const ex = ((nodeEdge.x - hubEdge.x) / VIEW) * hubRect.width;
+    const ey = ((nodeEdge.y - hubEdge.y) / VIEW) * hubRect.height;
+    const dirx = (dx / VIEW) * hubRect.width;
+    const diry = (dy / VIEW) * hubRect.height;
+    const len = Math.hypot(dirx, diry) || 1;
+    return (ex * dirx + ey * diry) / len;
+  }
+
+  /** Map hub size → CSS-pixel stroke so desktop lands ~7–9px. */
+  function strokePxForHub(hubRect) {
+    return hubRect.width >= 720 ? STROKE_PX_DESKTOP : STROKE_PX_COMPACT;
+  }
+
+  /**
+   * Edge-to-edge fit target: visible air after the stroke still reads ~25–35px.
+   * required = air + stroke + glow pad (stroke occupies the corridor between edges).
+   */
+  function requiredEdgeGapPx(hubRect) {
+    const air = hubRect.height >= 360 ? TARGET_AIR_GAP_PX : Math.min(TARGET_AIR_GAP_PX, 18);
+    return air + strokePxForHub(hubRect) + GLOW_PAD_PX;
+  }
+
+  /** Keep module centres inside the hub pad so cards aren’t clipped. */
+  function maxRingForInset(nodeGeomApproxHw, nodeGeomApproxHh) {
+    const insetX = VIEW / 2 - nodeGeomApproxHw - 2;
+    const insetY = VIEW / 2 - nodeGeomApproxHh - 2;
+    return Math.max(MIN_RING, Math.min(MAX_RING, Math.min(insetX, insetY)));
+  }
+
+  function measureMinGap(core, nodes, hubRect) {
+    // assumeSelected: clearance must hold when a node is popped to 1.07
+    const hg = measureHexInView(core, hubRect, { visual: true });
+    let minGap = Infinity;
+    nodes.forEach((btn) => {
+      minGap = Math.min(
+        minGap,
+        radialGapPx(hg, measureHexInView(btn, hubRect, { visual: true, assumeSelected: true }), hubRect)
+      );
+    });
+    return minGap;
+  }
+
+  /** Clear air remaining after stroke sits between hex edges. */
+  function airGapAfterStroke(edgeGapPx, hubRect) {
+    return edgeGapPx - strokePxForHub(hubRect);
+  }
+
+  /**
+   * Expand ring (and if needed shrink --hub-hex-scale) so outer-edge air after
+   * the selected stroke is ~TARGET_AIR_GAP_PX. Repositions via computePositions.
+   */
+  function fitRingClearance() {
+    const hub = document.getElementById("loginHubHotspots");
+    const core = hub?.querySelector(".login-hub-core");
+    const mods = enabledModules();
+    if (!hub || !core || mods.length === 0 || mods.length > 6) return fittedRing;
+
+    const hubRect = hub.getBoundingClientRect();
+    if (hubRect.width < 1 || hubRect.height < 1) return fittedRing;
+
+    const nodes = mods.map((m) => hub.querySelector(`.login-hub-node[data-module="${m.id}"]`)).filter(Boolean);
+    if (!nodes.length) return fittedRing;
+
+    const base = mods.length === 5 ? BASE_RING_5 : BASE_RING_6;
+    const targetGap = requiredEdgeGapPx(hubRect);
+    const targetAir = hubRect.height >= 360 ? TARGET_AIR_GAP_PX : Math.min(TARGET_AIR_GAP_PX, 18);
+
+    const applyRing = (r) => {
+      const positions = computePositions(mods.length, r);
+      nodes.forEach((btn, i) => {
+        const pos = positions[i];
+        if (!pos) return;
+        btn.style.setProperty("--hx", `${pos.x}%`);
+        btn.style.setProperty("--hy", `${pos.y}%`);
+      });
+    };
+
+    let scale = 1;
+    hub.style.setProperty("--hub-hex-scale", "1");
+
+    const fitAtScale = () => {
+      const sample = measureHexInView(nodes[0], hubRect, { visual: true, assumeSelected: true });
+      const cap = maxRingForInset(sample.hw, sample.hh);
+      let ring = Math.min(Math.max(base, fittedRing > MIN_RING ? fittedRing : base), cap);
+      applyRing(ring);
+      for (let iter = 0; iter < 14; iter++) {
+        const minGap = measureMinGap(core, nodes, hubRect);
+        if (minGap >= targetGap || ring >= cap - 0.05) return { ring, minGap, cap };
+        const deficit = targetGap - minGap;
+        const pctPerPx = VIEW / Math.min(hubRect.width, hubRect.height);
+        ring = Math.min(cap, ring + Math.max(0.55, deficit * pctPerPx * 0.55));
+        applyRing(ring);
+      }
+      return { ring, minGap: measureMinGap(core, nodes, hubRect), cap };
+    };
+
+    let result = fitAtScale();
+    // Short / tight hubs: shrink hexes so air + stroke still fit.
+    const scaleFloor = hubRect.height < 340 ? 0.6 : 0.68;
+    while (result.minGap < targetGap && scale > scaleFloor) {
+      scale = Math.round((scale - 0.04) * 100) / 100;
+      hub.style.setProperty("--hub-hex-scale", String(scale));
+      void nodes[0].offsetWidth;
+      result = fitAtScale();
+      if (result.minGap >= targetGap) break;
+    }
+
+    // Only trim when air after stroke overshoots the band by a lot.
+    const air = airGapAfterStroke(result.minGap, hubRect);
+    if (hubRect.height >= 400 && air > 52 && result.ring > base) {
+      const pctPerPx = VIEW / Math.min(hubRect.width, hubRect.height);
+      const trim = Math.min(result.ring - base, (air - targetAir) * pctPerPx * 0.3);
+      result.ring = Math.max(base, result.ring - trim);
+      applyRing(result.ring);
+      result.minGap = measureMinGap(core, nodes, hubRect);
+    }
+
+    fittedRing = result.ring;
+    const finalAir = airGapAfterStroke(result.minGap, hubRect);
+    hub.dataset.ring = String(Math.round(result.ring * 100) / 100);
+    hub.dataset.hexScale = String(scale);
+    hub.dataset.minGap = String(Math.round(result.minGap * 10) / 10);
+    hub.dataset.airGap = String(Math.round(finalAir * 10) / 10);
+    return result.ring;
+  }
+
+  /** Map hub size → SVG user-unit stroke so desktop lands ~7–9px. */
+  function strokeWidthForHub(hubRect, { selected = true } = {}) {
+    const mean = (hubRect.width + hubRect.height) / 2 || 1;
+    const targetPx = strokePxForHub(hubRect);
+    const base = (targetPx / mean) * VIEW;
+    return selected ? base : base * 0.72;
   }
 
   function tempConnectionEl() {
     return document.getElementById("loginHubTempConnection");
+  }
+
+  function tempTravelEl() {
+    return document.getElementById("loginHubTempTravel");
   }
 
   function clearConnectionAnimation(path) {
@@ -321,6 +512,36 @@
     path.style.removeProperty("stroke-dasharray");
     path.style.removeProperty("stroke-dashoffset");
     path.classList.remove("is-drawing");
+  }
+
+  function syncTravelPath(path, travel, { reduce = false } = {}) {
+    if (!travel) return;
+    const d = path?.getAttribute("d") || "";
+    travel.setAttribute("d", d);
+    if (!d || !path?.classList.contains("is-visible")) {
+      travel.classList.remove("is-visible", "is-travelling");
+      travel.style.removeProperty("stroke-dasharray");
+      travel.style.removeProperty("stroke-dashoffset");
+      return;
+    }
+    travel.classList.add("is-visible");
+    if (reduce) {
+      travel.classList.remove("is-travelling");
+      return;
+    }
+    let length = 120;
+    try {
+      length = travel.getTotalLength() || length;
+    } catch {
+      /* length unavailable */
+    }
+    const head = Math.max(3.2, length * 0.12);
+    const gap = Math.max(length * 0.88, 24);
+    travel.style.strokeDasharray = `${head} ${gap}`;
+    travel.style.strokeDashoffset = "0";
+    travel.classList.add("is-travelling");
+    travel.style.setProperty("--travel-period", `${Math.max(1.6, length * 0.028)}s`);
+    travel.style.setProperty("--travel-distance", String(-(head + gap)));
   }
 
   /**
@@ -333,10 +554,14 @@
     clearConnectionAnimation(path);
     if (!path.getAttribute("d")) {
       path.classList.remove("is-visible");
+      syncTravelPath(path, tempTravelEl(), { reduce });
       return;
     }
     path.classList.add("is-visible");
-    if (!animate || reduce) return;
+    if (!animate || reduce) {
+      syncTravelPath(path, tempTravelEl(), { reduce });
+      return;
+    }
 
     let length = 120;
     try {
@@ -357,18 +582,21 @@
     window.setTimeout(() => {
       if (token !== connectionAnimToken) return;
       clearConnectionAnimation(path);
+      syncTravelPath(path, tempTravelEl(), { reduce });
     }, 520);
   }
 
   /**
    * Recalculate the single temporary connection from live hub/node geometry.
    * SVG uses the same 0–100 percentage space as node --hx/--hy (preserveAspectRatio none).
+   * Fit ring clearance first so CMDB sits above the hub with a real pixel gap.
    */
-  function updateConnections({ animate = false } = {}) {
+  function updateConnections({ animate = false, fitRing = true } = {}) {
     const hub = document.getElementById("loginHubHotspots");
     const spokes = document.getElementById("loginHubSpokes");
     const core = hub?.querySelector(".login-hub-core");
     const path = tempConnectionEl();
+    const travel = tempTravelEl();
     if (!hub || !spokes || !core || !path) return;
 
     const hubRect = hub.getBoundingClientRect();
@@ -377,6 +605,8 @@
     spokes.setAttribute("viewBox", `0 0 ${VIEW} ${VIEW}`);
     spokes.setAttribute("preserveAspectRatio", "none");
 
+    if (fitRing) fitRingClearance();
+
     const mod = findModule(activeId);
     const node = mod ? hub.querySelector(`.login-hub-node[data-module="${mod.id}"]`) : null;
     if (!mod || !node) {
@@ -384,13 +614,27 @@
       path.removeAttribute("data-module");
       path.classList.remove("is-visible");
       clearConnectionAnimation(path);
+      syncTravelPath(path, travel, { reduce: prefersReducedMotion() });
       return;
     }
 
-    const hubGeom = measureHexInView(core, hubRect);
-    const nodeGeom = measureHexInView(node, hubRect);
+    // Use visual (hex-scale + selected 1.07) extents so the stroke meets the
+    // visible outer edge — unscaled boxes left the line inside the selected plate
+    // and made the CMDB↔hub air gap look packed.
+    const hubGeom = measureHexInView(core, hubRect, { visual: true });
+    const nodeGeom = measureHexInView(node, hubRect, { visual: true });
+    const d = connectionPath(hubGeom, nodeGeom);
+    const sw = strokeWidthForHub(hubRect, { selected: true });
     path.setAttribute("data-module", mod.id);
-    path.setAttribute("d", connectionPath(hubGeom, nodeGeom));
+    path.setAttribute("d", d);
+    path.setAttribute("stroke-width", String(Math.round(sw * 100) / 100));
+    path.setAttribute("stroke-linecap", "round");
+    path.setAttribute("stroke-linejoin", "round");
+    if (travel) {
+      travel.setAttribute("stroke-width", String(Math.round(sw * 0.55 * 100) / 100));
+      travel.setAttribute("stroke-linecap", "round");
+      travel.setAttribute("stroke-linejoin", "round");
+    }
     animateTempConnection(path, { animate });
   }
 
@@ -423,6 +667,8 @@
     spokes.innerHTML = "";
     nodesLayer.innerHTML = "";
 
+    fittedRing = mods.length === 5 ? BASE_RING_5 : mods.length === 6 ? BASE_RING_6 : fittedRing;
+
     // One temporary connection — never five permanent strings
     const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
     path.setAttribute("id", "loginHubTempConnection");
@@ -430,9 +676,22 @@
     path.setAttribute("d", "");
     path.setAttribute("fill", "none");
     path.setAttribute("stroke", "url(#loginHubSpokeActive)");
-    path.setAttribute("stroke-width", "1.35");
+    path.setAttribute("stroke-width", "2.1");
     path.setAttribute("stroke-linecap", "round");
+    path.setAttribute("stroke-linejoin", "round");
     spokes.appendChild(path);
+
+    // Subtle travelling highlight along the selected spoke (module → hub)
+    const travel = document.createElementNS("http://www.w3.org/2000/svg", "path");
+    travel.setAttribute("id", "loginHubTempTravel");
+    travel.setAttribute("class", "login-hub-temp-travel");
+    travel.setAttribute("d", "");
+    travel.setAttribute("fill", "none");
+    travel.setAttribute("stroke", "url(#loginHubSpokeTravel)");
+    travel.setAttribute("stroke-width", "1.15");
+    travel.setAttribute("stroke-linecap", "round");
+    travel.setAttribute("stroke-linejoin", "round");
+    spokes.appendChild(travel);
 
     const nodes = [];
     mods.forEach((mod, i) => {
@@ -692,6 +951,9 @@
     enabledModules,
     renderHub,
     updateConnections,
+    fitRingClearance,
+    radialGapPx,
+    strokeWidthForHub,
     hexBoundaryIntersection,
     connectionPath,
     edgeCurvePath,
@@ -700,6 +962,11 @@
     resetToDefault,
     MODULES,
     DEFAULT_MODULE,
+    TARGET_GAP_PX,
+    TARGET_AIR_GAP_PX,
+    BASE_RING_5,
+    requiredEdgeGapPx,
+    airGapAfterStroke,
   };
 
   if (document.readyState === "loading") {
