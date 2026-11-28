@@ -1,4 +1,4 @@
-"""CMDB C2 — HOSTS + direction filters + Relationship Details (0.99.12)."""
+"""CMDB C2 — HOSTS + direction filters + Relationship Details (0.99.13)."""
 
 from __future__ import annotations
 
@@ -17,13 +17,13 @@ CMDB_CSS = REPO / "frontend" / "static" / "css" / "cmdb.css"
 
 
 def test_c2_version_bump() -> None:
-    assert __version__ == "0.99.12"
+    assert __version__ == "0.99.13"
 
 
 def test_frontend_c2_markers() -> None:
     html = FRONTEND_INDEX.read_text(encoding="utf-8")
-    assert 'content="0.99.12"' in html
-    assert "cmdb/ci-detail.js?v=0.99.12" in html
+    assert 'content="0.99.13"' in html
+    assert "cmdb/ci-detail.js?v=0.99.13" in html
 
     js = CI_DETAIL_JS.read_text(encoding="utf-8")
     assert 'id: "relationships", label: "Relationships", active: true' in js

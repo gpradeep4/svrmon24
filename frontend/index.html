@@ -3,8 +3,8 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <meta name="svrmon24-ui" content="login-enterprise-v21" />
-  <meta name="svrmon24-version" content="0.99.12" />
+  <meta name="svrmon24-ui" content="login-enterprise-v22" />
+  <meta name="svrmon24-version" content="0.99.13" />
   <title>SVRMON24</title>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -13,19 +13,19 @@
   <link rel="apple-touch-icon" href="/static/img/svrmon-apple-touch.png" sizes="180x180" />
   <!-- Critical gate CSS: never paint login + app chrome together (before cmdb.css). -->
   <style>
-    body.is-login { background: #F0EEFF; }
+    body.is-login { background: #F2F3FF; }
     body.is-login .app-shell,
     body:not(.is-app) .app-shell { display: none !important; }
     body.is-app .login-gate { display: none !important; }
     #authPanel, .auth-panel-legacy { display: none !important; }
   </style>
-  <link rel="stylesheet" href="/static/css/cmdb.css?v=0.99.12" />
-  <link rel="stylesheet" href="/static/css/itsm.css?v=0.99.12" />
-  <link rel="stylesheet" href="/static/css/monitor.css?v=0.99.12" />
-  <link rel="stylesheet" href="/static/css/portal.css?v=0.99.12" />
-  <script src="/static/js/config.js?v=0.99.12"></script>
-  <script src="/static/js/brand.js?v=0.99.12"></script>
-  <script src="/static/js/login-showcase.js?v=0.99.12" defer></script>
+  <link rel="stylesheet" href="/static/css/cmdb.css?v=0.99.13" />
+  <link rel="stylesheet" href="/static/css/itsm.css?v=0.99.13" />
+  <link rel="stylesheet" href="/static/css/monitor.css?v=0.99.13" />
+  <link rel="stylesheet" href="/static/css/portal.css?v=0.99.13" />
+  <script src="/static/js/config.js?v=0.99.13"></script>
+  <script src="/static/js/brand.js?v=0.99.13"></script>
+  <script src="/static/js/login-showcase.js?v=0.99.13" defer></script>
 </head>
 <body class="is-login">
   <!-- Enterprise login: showcase (left) + sign-in panel (right); stacks on small viewports -->
@@ -92,37 +92,37 @@
 
         <div class="login-hero-stage login-hero-stage--modules login-hero-stage--best" id="loginShowcaseStage">
           <figure class="login-modules-visual" id="loginModulesVisual" data-active="">
-            <!-- Large hexagonal architecture — solid curved connectors, no plate chrome -->
+            <!-- Premium hub — temporary selected-module connection only (no permanent strings) -->
             <div class="login-hub" id="loginHubHotspots" role="group" aria-label="SVRMON24 platform modules" data-count="0">
               <svg class="login-hub-defs" width="0" height="0" aria-hidden="true" focusable="false">
                 <defs>
                   <linearGradient id="loginHubNodeFill" x1="0" y1="0" x2="0" y2="1">
                     <stop offset="0%" stop-color="#FFFFFF"/>
-                    <stop offset="48%" stop-color="#F8F5FF"/>
-                    <stop offset="100%" stop-color="#EEE7FF"/>
+                    <stop offset="55%" stop-color="#F2F3FF"/>
+                    <stop offset="100%" stop-color="#E8EAFE"/>
                   </linearGradient>
-                  <linearGradient id="loginHubCoreFill" x1="18%" y1="8%" x2="86%" y2="92%">
-                    <stop offset="0%" stop-color="#8B5CF6"/>
-                    <stop offset="42%" stop-color="#6366F1"/>
-                    <stop offset="100%" stop-color="#3B82F6"/>
+                  <linearGradient id="loginHubCoreFill" x1="12%" y1="6%" x2="88%" y2="94%">
+                    <stop offset="0%" stop-color="#315FEA"/>
+                    <stop offset="48%" stop-color="#5B4AE8"/>
+                    <stop offset="100%" stop-color="#7545E8"/>
                   </linearGradient>
                   <linearGradient id="loginHubSpokeGrad" x1="0%" y1="0%" x2="100%" y2="100%">
-                    <stop offset="0%" stop-color="#6366F1"/>
-                    <stop offset="55%" stop-color="#7C3AED"/>
-                    <stop offset="100%" stop-color="#3B82F6"/>
+                    <stop offset="0%" stop-color="#315FEA"/>
+                    <stop offset="55%" stop-color="#7545E8"/>
+                    <stop offset="100%" stop-color="#16B8E8"/>
                   </linearGradient>
                   <linearGradient id="loginHubSpokeActive" x1="0%" y1="0%" x2="100%" y2="0%">
-                    <stop offset="0%" stop-color="#A78BFA"/>
-                    <stop offset="50%" stop-color="#6366F1"/>
-                    <stop offset="100%" stop-color="#60A5FA"/>
+                    <stop offset="0%" stop-color="#16B8E8"/>
+                    <stop offset="42%" stop-color="#315FEA"/>
+                    <stop offset="100%" stop-color="#7545E8"/>
                   </linearGradient>
                   <filter id="loginHubNodeNeo" x="-30%" y="-30%" width="160%" height="160%">
-                    <feDropShadow dx="0" dy="10" stdDeviation="9" flood-color="#4338CA" flood-opacity="0.14"/>
-                    <feDropShadow dx="0" dy="2" stdDeviation="1.4" flood-color="#312E81" flood-opacity="0.08"/>
+                    <feDropShadow dx="0" dy="8" stdDeviation="8" flood-color="#172554" flood-opacity="0.12"/>
+                    <feDropShadow dx="0" dy="2" stdDeviation="1.2" flood-color="#315FEA" flood-opacity="0.1"/>
                   </filter>
-                  <filter id="loginHubCoreGlow" x="-50%" y="-50%" width="200%" height="200%">
-                    <feDropShadow dx="0" dy="0" stdDeviation="10" flood-color="#6366F1" flood-opacity="0.45"/>
-                    <feDropShadow dx="0" dy="8" stdDeviation="8" flood-color="#4F46E5" flood-opacity="0.28"/>
+                  <filter id="loginHubCoreGlow" x="-55%" y="-55%" width="210%" height="210%">
+                    <feDropShadow dx="0" dy="0" stdDeviation="9" flood-color="#315FEA" flood-opacity="0.42"/>
+                    <feDropShadow dx="0" dy="6" stdDeviation="7" flood-color="#7545E8" flood-opacity="0.28"/>
                   </filter>
                   <polygon id="loginHubHex" points="25,0 75,0 100,43.3 75,86.6 25,86.6 0,43.3"/>
                 </defs>
@@ -130,7 +130,7 @@
               <svg class="login-hub-spokes" id="loginHubSpokes" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true"></svg>
               <div class="login-hub-core" aria-hidden="true">
                 <svg class="login-hub-core-plate" viewBox="0 0 100 86.6" preserveAspectRatio="xMidYMid meet" aria-hidden="true">
-                  <use href="#loginHubHex" filter="url(#loginHubCoreGlow)" fill="url(#loginHubCoreFill)" stroke="rgba(255,255,255,0.35)" stroke-width="1.4"/>
+                  <use href="#loginHubHex" filter="url(#loginHubCoreGlow)" fill="url(#loginHubCoreFill)" stroke="rgba(255,255,255,0.4)" stroke-width="1.4"/>
                 </svg>
                 <img class="login-hub-core-mark" src="/static/img/svrmon-logo-mark.png" width="80" height="100" alt="" decoding="async" />
               </div>
@@ -3927,34 +3927,34 @@
     </div>
   </div>
 
-  <script src="/static/js/cmdb/ci-detail.js?v=0.99.12"></script>
-  <script src="/static/js/cmdb.js?v=0.99.12"></script>
-  <script src="/static/js/monitor/dashboard.js?v=0.99.12"></script>
-  <script src="/static/js/monitor/targets.js?v=0.99.12"></script>
-  <script src="/static/js/monitor/logs.js?v=0.99.12"></script>
-  <script src="/static/js/monitor/alerts.js?v=0.99.12"></script>
-  <script src="/static/js/monitor/agents.js?v=0.99.12"></script>
-  <script src="/static/js/monitor/index.js?v=0.99.12"></script>
-  <script src="/static/js/itsm/api.js?v=0.99.12"></script>
-  <script src="/static/js/itsm/routing.js?v=0.99.12"></script>
-  <script src="/static/js/itsm/deeplinks.js?v=0.99.12"></script>
-  <script src="/static/js/itsm/dashboard.js?v=0.99.12"></script>
-  <script src="/static/js/itsm/reports.js?v=0.99.12"></script>
-  <script src="/static/js/itsm/incidents.js?v=0.99.12"></script>
-  <script src="/static/js/itsm/changes.js?v=0.99.12"></script>
-  <script src="/static/js/itsm/problems.js?v=0.99.12"></script>
-  <script src="/static/js/itsm/approvals.js?v=0.99.12"></script>
-  <script src="/static/js/itsm/workflows.js?v=0.99.12"></script>
-  <script src="/static/js/itsm/sla.js?v=0.99.12"></script>
-  <script src="/static/js/itsm/knowledge.js?v=0.99.12"></script>
-  <script src="/static/js/itsm/notifications.js?v=0.99.12"></script>
-  <script src="/static/js/itsm/groups.js?v=0.99.12"></script>
-  <script src="/static/js/itsm/index.js?v=0.99.12"></script>
-  <script src="/static/js/portal/catalog.js?v=0.99.12"></script>
-  <script src="/static/js/portal/requests.js?v=0.99.12"></script>
-  <script src="/static/js/portal/approvals.js?v=0.99.12"></script>
-  <script src="/static/js/portal/executions.js?v=0.99.12"></script>
-  <script src="/static/js/portal/vuln.js?v=0.99.12"></script>
-  <script src="/static/js/portal/index.js?v=0.99.12"></script>
+  <script src="/static/js/cmdb/ci-detail.js?v=0.99.13"></script>
+  <script src="/static/js/cmdb.js?v=0.99.13"></script>
+  <script src="/static/js/monitor/dashboard.js?v=0.99.13"></script>
+  <script src="/static/js/monitor/targets.js?v=0.99.13"></script>
+  <script src="/static/js/monitor/logs.js?v=0.99.13"></script>
+  <script src="/static/js/monitor/alerts.js?v=0.99.13"></script>
+  <script src="/static/js/monitor/agents.js?v=0.99.13"></script>
+  <script src="/static/js/monitor/index.js?v=0.99.13"></script>
+  <script src="/static/js/itsm/api.js?v=0.99.13"></script>
+  <script src="/static/js/itsm/routing.js?v=0.99.13"></script>
+  <script src="/static/js/itsm/deeplinks.js?v=0.99.13"></script>
+  <script src="/static/js/itsm/dashboard.js?v=0.99.13"></script>
+  <script src="/static/js/itsm/reports.js?v=0.99.13"></script>
+  <script src="/static/js/itsm/incidents.js?v=0.99.13"></script>
+  <script src="/static/js/itsm/changes.js?v=0.99.13"></script>
+  <script src="/static/js/itsm/problems.js?v=0.99.13"></script>
+  <script src="/static/js/itsm/approvals.js?v=0.99.13"></script>
+  <script src="/static/js/itsm/workflows.js?v=0.99.13"></script>
+  <script src="/static/js/itsm/sla.js?v=0.99.13"></script>
+  <script src="/static/js/itsm/knowledge.js?v=0.99.13"></script>
+  <script src="/static/js/itsm/notifications.js?v=0.99.13"></script>
+  <script src="/static/js/itsm/groups.js?v=0.99.13"></script>
+  <script src="/static/js/itsm/index.js?v=0.99.13"></script>
+  <script src="/static/js/portal/catalog.js?v=0.99.13"></script>
+  <script src="/static/js/portal/requests.js?v=0.99.13"></script>
+  <script src="/static/js/portal/approvals.js?v=0.99.13"></script>
+  <script src="/static/js/portal/executions.js?v=0.99.13"></script>
+  <script src="/static/js/portal/vuln.js?v=0.99.13"></script>
+  <script src="/static/js/portal/index.js?v=0.99.13"></script>
 </body>
 </html>

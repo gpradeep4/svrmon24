@@ -1,4 +1,4 @@
-"""Login gate — five-module data-driven hex showcase + Option B overview (0.99.12)."""
+"""Login gate — premium interactive central hub + Option B overview (0.99.13)."""
 
 from __future__ import annotations
 
@@ -47,7 +47,7 @@ def test_login_module_showcase_assets() -> None:
     for mod in ("cmdb", "monitoring", "itsm", "portal", "secureops"):
         assert f'id: "{mod}"' in js
     assert 'id: "config"' in js
-    assert 'enabled: false' in js
+    assert "enabled: false" in js
     # Configuration must not be hard-coded into the login hub shell
     assert 'data-module="config"' not in html
     assert ".login-hub-node" in css
@@ -80,8 +80,9 @@ def test_login_showcase_hub_no_card_chrome() -> None:
     hub_css = css.split("Hub graphic", 1)[-1].split(".login-capability-grid", 1)[0]
     assert "background: transparent" in hub_css
     assert ".login-module-detail" in hub_css
+    # Permanent spoke dash chrome is forbidden; draw-in uses inline JS dash metrics
     assert "stroke-dasharray" not in hub_css
-    assert "login-hub-spokes path" in hub_css
+    assert ".login-hub-temp-connection" in hub_css
     assert "Configuration" not in html.split('id="loginHubHotspots"', 1)[1].split("login-module-detail", 1)[0]
 
 
@@ -111,7 +112,7 @@ def test_login_hub_hex_architecture() -> None:
 
 
 def test_login_hub_connection_geometry() -> None:
-    """Edge-clipped SVG connections: direction → hex boundary → cubic (no CSS offsets)."""
+    """Temporary selected-module edge-clipped SVG: direction → hex boundary → cubic."""
     js = (FRONTEND_STATIC / "js" / "login-showcase.js").read_text(encoding="utf-8")
     css = (FRONTEND_STATIC / "css" / "cmdb.css").read_text(encoding="utf-8")
     assert "hexBoundaryIntersection" in js
@@ -123,18 +124,22 @@ def test_login_hub_connection_geometry() -> None:
     assert "ResizeObserver" in js
     assert "hexVertices" in js
     assert "raySegmentIntersection" in js
-    # Must clip to boundaries — not centre-to-centre placeholders
+    # Single temporary connection — never five permanent module paths
+    assert 'id="loginHubTempConnection"' in js or 'loginHubTempConnection' in js
+    assert "One temporary connection" in js or "login-hub-temp-connection" in js
+    assert "permanent" in js.lower()
+    # Must clip to boundaries — module edge → hub edge
     assert "hexBoundaryIntersection(hub.cx, hub.cy, hub.hw, hub.hh, dx, dy)" in js
     assert "hexBoundaryIntersection(node.cx, node.cy, node.hw, node.hh, -dx, -dy)" in js
-    assert "edgeCurvePath(from.x, from.y, to.x, to.y)" in js
+    assert "edgeCurvePath(nodeEdge.x, nodeEdge.y, hubEdge.x, hubEdge.y)" in js
     # No CSS translate/margin offset hacks on spokes
     spokes_css = css.split(".login-hub-spokes", 1)[1].split(".login-hub-core", 1)[0]
     assert "translate(" not in spokes_css
     assert "margin-left" not in spokes_css
     assert "top:" not in spokes_css or "inset: 0" in spokes_css
-    # Hover still highlights one connection
-    assert "curve.classList.toggle(\"is-active\"" in js or 'curve.classList.toggle("is-active"' in js
-    assert ".login-hub-spokes path.is-active" in css
+    # Temporary connection visible only when selected
+    assert ".login-hub-temp-connection" in css
+    assert ".login-hub-temp-connection.is-visible" in css
     # Exported for future modules / diagnostics
     assert "updateConnections," in js
     assert "hexBoundaryIntersection," in js
@@ -146,15 +151,48 @@ def test_login_hub_interactive_behaviour() -> None:
     css = (FRONTEND_STATIC / "css" / "cmdb.css").read_text(encoding="utf-8")
     assert "CMDB — Configuration Management Database" in js
     assert "Unified view of servers, networks and applications" in js
-    assert "mouseenter" in js
+    # Sticky selection via click / focus / touch — hover is CSS-only
+    assert "pointerdown" in js
+    assert "setActiveModule" in js
+    assert "illuminateHub" in js
+    assert "is-illuminated" in js or "is-illuminated" in css
     assert "openModuleIntro" in js
     assert "resetToDefault" in js or 'DEFAULT_MODULE = "cmdb"' in js
     assert "Enter" in js and " " in js
     assert "login-curve-glow" in css
     assert "login-hub-pulse" in css
-    assert "240ms" in css or "260ms" in css
+    assert "login-hub-illuminate" in css
+    assert "240ms" in css or "260ms" in css or "280ms" in css
     assert "prefers-reduced-motion" in css
     assert "has-selection" in css
+    # Palette anchors
+    assert "#315FEA" in html_or_css_or_js(css, js)
+    assert "#7545E8" in css or "#7545E8" in js
+    assert "#172554" in css
+    assert "#F2F3FF" in css or "#F2F3FF" in (
+        FRONTEND_INDEX.read_text(encoding="utf-8")
+    )
+
+
+def html_or_css_or_js(css: str, js: str) -> str:
+    return css + js
+
+
+def test_login_premium_hub_no_permanent_strings() -> None:
+    """Acceptance: no five permanent connecting strings; temp connection only."""
+    js = (FRONTEND_STATIC / "js" / "login-showcase.js").read_text(encoding="utf-8")
+    css = (FRONTEND_STATIC / "css" / "cmdb.css").read_text(encoding="utf-8")
+    html = FRONTEND_INDEX.read_text(encoding="utf-8")
+    assert "loginHubTempConnection" in js
+    assert "login-hub-temp-connection" in css
+    # renderHub must not append a path per module
+    render = js.split("function renderHub", 1)[1].split("function observeHubResize", 1)[0]
+    assert "mods.forEach" in render
+    assert 'createElementNS("http://www.w3.org/2000/svg", "path")' in render
+    assert render.count('createElementNS("http://www.w3.org/2000/svg", "path")') == 1
+    assert "#315FEA" in html
+    assert "#7545E8" in html
+    assert "#F2F3FF" in html
 
 
 def test_login_card_play_opens_overview_without_autoplay() -> None:
@@ -201,11 +239,11 @@ def test_login_five_modules_enabled_only() -> None:
     assert "navConfigurationGroup" in html  # real app Config nav kept
 
 
-def test_version_bump_for_login_hub_connection_align() -> None:
-    assert __version__ == "0.99.12"
+def test_version_bump_for_login_premium_hub() -> None:
+    assert __version__ == "0.99.13"
     html = FRONTEND_INDEX.read_text(encoding="utf-8")
-    assert 'content="0.99.12"' in html
-    assert 'content="login-enterprise-v21"' in html
+    assert 'content="0.99.13"' in html
+    assert 'content="login-enterprise-v22"' in html
 
 
 def test_login_fullbleed_layout_css() -> None:
