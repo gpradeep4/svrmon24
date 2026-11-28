@@ -2009,9 +2009,8 @@ body.is-login {
   stroke-width: 2.1;
   stroke-linecap: round;
   stroke-linejoin: round;
-  filter:
-    drop-shadow(0 0 3px rgba(49, 95, 234, 0.45))
-    drop-shadow(0 0 7px rgba(117, 69, 232, 0.32));
+  /* Restrained glow — bloom must not erase the CMDB↔hub air gap */
+  filter: drop-shadow(0 0 2px rgba(49, 95, 234, 0.35));
   transition: opacity 200ms ease, filter 280ms ease;
 }
 
@@ -2030,11 +2029,11 @@ body.is-login {
   stroke: url(#loginHubSpokeTravel);
   stroke-linecap: round;
   stroke-linejoin: round;
-  filter: drop-shadow(0 0 4px rgba(22, 184, 232, 0.55));
+  filter: drop-shadow(0 0 2px rgba(22, 184, 232, 0.4));
 }
 
 .login-hub-temp-travel.is-visible {
-  opacity: 0.95;
+  opacity: 0.9;
 }
 
 .login-hub-temp-travel.is-travelling {
@@ -2043,14 +2042,10 @@ body.is-login {
 
 @keyframes login-curve-glow {
   0%, 100% {
-    filter:
-      drop-shadow(0 0 3px rgba(49, 95, 234, 0.42))
-      drop-shadow(0 0 8px rgba(117, 69, 232, 0.28));
+    filter: drop-shadow(0 0 2px rgba(49, 95, 234, 0.32));
   }
   50% {
-    filter:
-      drop-shadow(0 0 5px rgba(49, 95, 234, 0.55))
-      drop-shadow(0 0 12px rgba(117, 69, 232, 0.42));
+    filter: drop-shadow(0 0 3.5px rgba(117, 69, 232, 0.4));
   }
 }
 
@@ -2232,7 +2227,7 @@ body.is-login {
 .login-hub-node:hover {
   transform: scale(calc(var(--hub-hex-scale, 1) * 1.05)) translateY(-2px);
   opacity: 1;
-  filter: drop-shadow(0 6px 12px rgba(49, 95, 234, 0.14)) drop-shadow(0 0 6px rgba(117, 69, 232, 0.12));
+  filter: drop-shadow(0 4px 8px rgba(49, 95, 234, 0.12));
   z-index: 3;
 }
 
@@ -2240,7 +2235,8 @@ body.is-login {
 .login-hub-node.is-active {
   transform: scale(calc(var(--hub-hex-scale, 1) * 1.07)) translateY(-3px);
   opacity: 1;
-  filter: drop-shadow(0 8px 16px rgba(49, 95, 234, 0.18)) drop-shadow(0 0 8px rgba(117, 69, 232, 0.18));
+  /* Tight shadow — avoid bloom that fills the CMDB↔hub air gap */
+  filter: drop-shadow(0 4px 8px rgba(49, 95, 234, 0.14));
   z-index: 4;
 }
 
@@ -2252,7 +2248,7 @@ body.is-login {
 .login-hub-node:focus-visible .login-hub-node-plate use,
 .login-hub-node.is-active .login-hub-node-plate use {
   stroke: rgba(117, 69, 232, 0.88);
-  stroke-width: 2.35;
+  stroke-width: 2;
 }
 
 .login-hub-node:focus-visible {

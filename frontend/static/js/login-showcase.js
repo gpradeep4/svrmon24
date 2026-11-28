@@ -135,13 +135,14 @@
    * Stroke + soft glow sit inside the edge-to-edge span, so the fit target is
    * air + stroke (+ glow pad) — not centre distance alone.
    */
-  const TARGET_AIR_GAP_PX = 30;
+  const TARGET_AIR_GAP_PX = 42;
   /** @deprecated alias — tests / exports; equals TARGET_AIR_GAP_PX */
   const TARGET_GAP_PX = TARGET_AIR_GAP_PX;
-  const GLOW_PAD_PX = 4;
-  const BASE_RING_5 = 42;
-  const BASE_RING_6 = 38;
-  const MAX_RING = 48;
+  /** Extra edge clearance for hex border + drop-shadow bloom beyond the box. */
+  const GLOW_PAD_PX = 14;
+  const BASE_RING_5 = 45;
+  const BASE_RING_6 = 41;
+  const MAX_RING = 52;
   const MIN_RING = 34;
   /** Desktop selected stroke target in CSS pixels. */
   const STROKE_PX_DESKTOP = 8.5;
@@ -302,7 +303,8 @@
     const dx = x2 - x1;
     const dy = y2 - y1;
     const len = Math.hypot(dx, dy) || 1;
-    const bend = Math.min(len * 0.16, 8);
+    // Keep short CMDB→hub spokes nearly straight so bend does not fill air gap
+    const bend = Math.min(len * 0.1, 4.5);
     const ox = (-dy / len) * bend;
     const oy = (dx / len) * bend;
     const c1x = x1 + dx / 3 + ox;
@@ -470,11 +472,11 @@
       if (result.minGap >= targetGap) break;
     }
 
-    // Only trim when air after stroke overshoots the 35px band by a lot.
+    // Only trim when air after stroke overshoots the band by a lot.
     const air = airGapAfterStroke(result.minGap, hubRect);
-    if (hubRect.height >= 400 && air > 48 && result.ring > base) {
+    if (hubRect.height >= 400 && air > 52 && result.ring > base) {
       const pctPerPx = VIEW / Math.min(hubRect.width, hubRect.height);
-      const trim = Math.min(result.ring - base, (air - targetAir) * pctPerPx * 0.35);
+      const trim = Math.min(result.ring - base, (air - targetAir) * pctPerPx * 0.3);
       result.ring = Math.max(base, result.ring - trim);
       applyRing(result.ring);
       result.minGap = measureMinGap(core, nodes, hubRect);
@@ -616,8 +618,11 @@
       return;
     }
 
-    const hubGeom = measureHexInView(core, hubRect);
-    const nodeGeom = measureHexInView(node, hubRect);
+    // Use visual (hex-scale + selected 1.07) extents so the stroke meets the
+    // visible outer edge — unscaled boxes left the line inside the selected plate
+    // and made the CMDB↔hub air gap look packed.
+    const hubGeom = measureHexInView(core, hubRect, { visual: true });
+    const nodeGeom = measureHexInView(node, hubRect, { visual: true });
     const d = connectionPath(hubGeom, nodeGeom);
     const sw = strokeWidthForHub(hubRect, { selected: true });
     path.setAttribute("data-module", mod.id);
