@@ -1,6 +1,7 @@
 /**
- * Login gate — data-driven hexagonal module showcase (vanilla).
- * Positions computed from enabled MODULES count. No auth/API changes.
+ * Login gate — premium interactive central intelligence hub (vanilla).
+ * Sticky selected-module state; temporary edge-clipped SVG connection only.
+ * Positions from enabled MODULES. No auth/API changes.
  */
 (function () {
   const ICONS = {
@@ -132,8 +133,10 @@
 
   let activeId = DEFAULT_MODULE;
   let swapTimer = null;
+  let illuminateTimer = null;
   let renderedNodes = [];
   let hubResizeObserver = null;
+  let connectionAnimToken = 0;
 
   function prefersReducedMotion() {
     try {
@@ -282,15 +285,16 @@
   }
 
   /**
-   * Build an edge-clipped connection path from hub centre → module centre.
-   * direction vector → hex boundary intersections → cubic between edges only.
+   * Edge-clipped connection from selected module boundary → hub boundary.
+   * Reuses hex-boundary geometry from 0.99.12 (direction → intersections → cubic).
    */
   function connectionPath(hub, node) {
     const dx = node.cx - hub.cx;
     const dy = node.cy - hub.cy;
-    const from = hexBoundaryIntersection(hub.cx, hub.cy, hub.hw, hub.hh, dx, dy);
-    const to = hexBoundaryIntersection(node.cx, node.cy, node.hw, node.hh, -dx, -dy);
-    return edgeCurvePath(from.x, from.y, to.x, to.y);
+    const hubEdge = hexBoundaryIntersection(hub.cx, hub.cy, hub.hw, hub.hh, dx, dy);
+    const nodeEdge = hexBoundaryIntersection(node.cx, node.cy, node.hw, node.hh, -dx, -dy);
+    // Draw module → hub so stroke animation travels toward the central S
+    return edgeCurvePath(nodeEdge.x, nodeEdge.y, hubEdge.x, hubEdge.y);
   }
 
   /** Measure an element’s centre + unscaled half-size in hub-local % (0–100). */
@@ -307,15 +311,64 @@
     return { cx, cy, hw, hh };
   }
 
+  function tempConnectionEl() {
+    return document.getElementById("loginHubTempConnection");
+  }
+
+  function clearConnectionAnimation(path) {
+    if (!path) return;
+    path.style.removeProperty("stroke-dasharray");
+    path.style.removeProperty("stroke-dashoffset");
+    path.classList.remove("is-drawing");
+  }
+
   /**
-   * Recalculate spoke paths from live hub/node geometry.
+   * Animate the temporary connection draw-in (module → hub).
+   * Uses inline dash metrics so CSS stays free of permanent spoke chrome.
+   */
+  function animateTempConnection(path, { animate = true } = {}) {
+    if (!path) return;
+    const reduce = prefersReducedMotion();
+    clearConnectionAnimation(path);
+    if (!path.getAttribute("d")) {
+      path.classList.remove("is-visible");
+      return;
+    }
+    path.classList.add("is-visible");
+    if (!animate || reduce) return;
+
+    let length = 120;
+    try {
+      length = path.getTotalLength() || length;
+    } catch {
+      /* SVG length unavailable — fall back */
+    }
+    const token = ++connectionAnimToken;
+    path.classList.add("is-drawing");
+    path.style.strokeDasharray = String(length);
+    path.style.strokeDashoffset = String(length);
+    // Force layout so the transition from full offset → 0 runs
+    void path.getBoundingClientRect();
+    requestAnimationFrame(() => {
+      if (token !== connectionAnimToken) return;
+      path.style.strokeDashoffset = "0";
+    });
+    window.setTimeout(() => {
+      if (token !== connectionAnimToken) return;
+      clearConnectionAnimation(path);
+    }, 520);
+  }
+
+  /**
+   * Recalculate the single temporary connection from live hub/node geometry.
    * SVG uses the same 0–100 percentage space as node --hx/--hy (preserveAspectRatio none).
    */
-  function updateConnections() {
+  function updateConnections({ animate = false } = {}) {
     const hub = document.getElementById("loginHubHotspots");
     const spokes = document.getElementById("loginHubSpokes");
     const core = hub?.querySelector(".login-hub-core");
-    if (!hub || !spokes || !core) return;
+    const path = tempConnectionEl();
+    if (!hub || !spokes || !core || !path) return;
 
     const hubRect = hub.getBoundingClientRect();
     if (hubRect.width < 1 || hubRect.height < 1) return;
@@ -323,15 +376,35 @@
     spokes.setAttribute("viewBox", `0 0 ${VIEW} ${VIEW}`);
     spokes.setAttribute("preserveAspectRatio", "none");
 
+    const mod = findModule(activeId);
+    const node = mod ? hub.querySelector(`.login-hub-node[data-module="${mod.id}"]`) : null;
+    if (!mod || !node) {
+      path.setAttribute("d", "");
+      path.removeAttribute("data-module");
+      path.classList.remove("is-visible");
+      clearConnectionAnimation(path);
+      return;
+    }
+
     const hubGeom = measureHexInView(core, hubRect);
-    const paths = spokes.querySelectorAll("path[data-module]");
-    paths.forEach((path) => {
-      const id = path.getAttribute("data-module");
-      const node = hub.querySelector(`.login-hub-node[data-module="${id}"]`);
-      if (!node) return;
-      const nodeGeom = measureHexInView(node, hubRect);
-      path.setAttribute("d", connectionPath(hubGeom, nodeGeom));
-    });
+    const nodeGeom = measureHexInView(node, hubRect);
+    path.setAttribute("data-module", mod.id);
+    path.setAttribute("d", connectionPath(hubGeom, nodeGeom));
+    animateTempConnection(path, { animate });
+  }
+
+  function illuminateHub() {
+    const core = document.querySelector(".login-hub-core");
+    if (!core) return;
+    if (illuminateTimer) clearTimeout(illuminateTimer);
+    core.classList.remove("is-illuminated");
+    // Retrigger CSS animation
+    void core.offsetWidth;
+    core.classList.add("is-illuminated");
+    illuminateTimer = setTimeout(() => {
+      core.classList.remove("is-illuminated");
+      illuminateTimer = null;
+    }, 700);
   }
 
   function renderHub() {
@@ -349,21 +422,22 @@
     spokes.innerHTML = "";
     nodesLayer.innerHTML = "";
 
+    // One temporary connection — never five permanent strings
+    const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
+    path.setAttribute("id", "loginHubTempConnection");
+    path.setAttribute("class", "login-hub-temp-connection");
+    path.setAttribute("d", "");
+    path.setAttribute("fill", "none");
+    path.setAttribute("stroke", "url(#loginHubSpokeActive)");
+    path.setAttribute("stroke-width", "1.35");
+    path.setAttribute("stroke-linecap", "round");
+    spokes.appendChild(path);
+
     const nodes = [];
     mods.forEach((mod, i) => {
       const pos = positions[i] || { x: CX, y: CY };
       const hx = pos.x;
       const hy = pos.y;
-
-      // Placeholder path — replaced by updateConnections after layout
-      const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
-      path.setAttribute("data-module", mod.id);
-      path.setAttribute("d", "");
-      path.setAttribute("fill", "none");
-      path.setAttribute("stroke", "url(#loginHubSpokeGrad)");
-      path.setAttribute("stroke-width", "1.15");
-      path.setAttribute("stroke-linecap", "round");
-      spokes.appendChild(path);
 
       const btn = document.createElement("button");
       btn.type = "button";
@@ -376,7 +450,7 @@
       btn.setAttribute("aria-label", mod.ariaLabel || mod.name);
       btn.innerHTML =
         `<svg class="login-hub-node-plate" viewBox="0 0 100 86.6" aria-hidden="true">` +
-        `<use href="#loginHubHex" filter="url(#loginHubNodeNeo)" fill="url(#loginHubNodeFill)" stroke="rgba(91,33,182,0.28)" stroke-width="1.5"/></svg>` +
+        `<use href="#loginHubHex" filter="url(#loginHubNodeNeo)" fill="url(#loginHubNodeFill)" stroke="rgba(49,95,234,0.32)" stroke-width="1.5"/></svg>` +
         `<span class="login-hub-node-content">` +
         `<span class="login-hub-node-ico" aria-hidden="true">${iconSvg(mod)}</span>` +
         `<span class="login-hub-node-label">${labelHtml(mod.name)}</span>` +
@@ -386,8 +460,8 @@
     });
 
     renderedNodes = nodes;
-    // Layout pass — measure real hex boxes then clip spokes to edges
-    requestAnimationFrame(() => updateConnections());
+    // Layout pass — measure real hex boxes then clip the temporary connection
+    requestAnimationFrame(() => updateConnections({ animate: false }));
     return nodes;
   }
 
@@ -402,9 +476,11 @@
     hubResizeObserver.observe(hub);
   }
 
-  function setActiveModule(moduleId, { focusNode = false, force = false } = {}) {
+  function setActiveModule(moduleId, { focusNode = false, force = false, animateConnection = true } = {}) {
     const mod = findModule(moduleId);
     if (!mod) return;
+    const switching = activeId !== mod.id;
+    if (!switching && !force && !focusNode) return;
     activeId = mod.id;
 
     const visual = document.getElementById("loginModulesVisual");
@@ -414,7 +490,6 @@
     const listEl = document.getElementById("loginModuleDetailBullets");
     const iconEl = document.getElementById("loginModuleDetailIcon");
     const nodes = document.querySelectorAll(".login-hub-node");
-    const spokes = document.querySelectorAll(".login-hub-spokes path");
     if (!titleEl || !bodyEl || !listEl) return;
 
     const reduce = prefersReducedMotion();
@@ -429,9 +504,6 @@
         el.setAttribute("aria-pressed", on ? "true" : "false");
         el.tabIndex = on ? 0 : -1;
       });
-      spokes.forEach((curve) => {
-        curve.classList.toggle("is-active", curve.dataset.module === mod.id);
-      });
       titleEl.textContent = mod.name;
       bodyEl.textContent = mod.short_description;
       listEl.innerHTML = (mod.capabilities || []).map((b) => `<li>${b}</li>`).join("");
@@ -443,28 +515,25 @@
         panel.classList.remove("is-swapping");
       }
       if (visual) visual.classList.remove("is-swapping");
+      if (switching) illuminateHub();
+      updateConnections({ animate: Boolean(animateConnection && switching && !reduce) });
       if (focusNode) {
         document.querySelector(`.login-hub-node[data-module="${mod.id}"]`)?.focus({ preventScroll: true });
       }
     };
 
     if (swapTimer) clearTimeout(swapTimer);
-    if (reduce) {
+    if (reduce || !switching) {
       apply();
       return;
     }
     if (panel) panel.classList.add("is-swapping");
     if (visual) visual.classList.add("is-swapping");
-    swapTimer = setTimeout(apply, 240);
+    swapTimer = setTimeout(apply, 180);
   }
 
   function resetToDefault() {
-    setActiveModule(DEFAULT_MODULE, { force: true });
-  }
-
-  function isInsideShowcase(node) {
-    const showcase = document.getElementById("loginModulesVisual");
-    return !!(showcase && node && showcase.contains(node));
+    setActiveModule(DEFAULT_MODULE, { force: true, animateConnection: false });
   }
 
   function wireHotspots(nodes) {
@@ -475,14 +544,18 @@
       btn.setAttribute("aria-pressed", btn.dataset.module === DEFAULT_MODULE ? "true" : "false");
       btn.tabIndex = btn.dataset.module === DEFAULT_MODULE ? 0 : -1;
 
-      btn.addEventListener("mouseenter", () => setActiveModule(btn.dataset.module));
+      // Hover is CSS-only (scale/glow). Selection is sticky via click / focus / touch.
       btn.addEventListener("focus", () => setActiveModule(btn.dataset.module));
-      btn.addEventListener("pointerdown", () => setActiveModule(btn.dataset.module));
+      btn.addEventListener("pointerdown", (e) => {
+        // Touch + mouse press select immediately so the connection is visible before click
+        if (e.pointerType === "touch" || e.pointerType === "pen" || e.button === 0) {
+          setActiveModule(btn.dataset.module);
+        }
+      });
 
       btn.addEventListener("click", (e) => {
         e.preventDefault();
         setActiveModule(btn.dataset.module, { focusNode: true });
-        openModuleIntro(btn.dataset.module);
       });
 
       btn.addEventListener("keydown", (e) => {
@@ -501,17 +574,6 @@
         e.preventDefault();
         setActiveModule(nodes[next].dataset.module, { focusNode: true });
       });
-    });
-
-    showcase.addEventListener("mouseleave", (e) => {
-      if (isInsideShowcase(e.relatedTarget)) return;
-      resetToDefault();
-    });
-    showcase.addEventListener("focusout", (e) => {
-      if (isInsideShowcase(e.relatedTarget)) return;
-      setTimeout(() => {
-        if (!isInsideShowcase(document.activeElement)) resetToDefault();
-      }, 0);
     });
   }
 
@@ -616,7 +678,7 @@
     wireHotspots(nodes);
     wireModal();
     observeHubResize();
-    setActiveModule(DEFAULT_MODULE, { force: true });
+    setActiveModule(DEFAULT_MODULE, { force: true, animateConnection: false });
   }
 
   window.svrmonLoginShowcase = {
@@ -633,6 +695,8 @@
     connectionPath,
     edgeCurvePath,
     measureHexInView,
+    illuminateHub,
+    resetToDefault,
     MODULES,
     DEFAULT_MODULE,
   };

@@ -489,17 +489,17 @@ body.is-login {
 .login-portal-bg {
   position: absolute;
   inset: 0;
-  background-color: #F3F0FF;
+  background-color: #F2F3FF;
   background-image:
     url("/static/assets/brand/login-waves.png"),
-    radial-gradient(820px 560px at 18% 72%, rgba(167, 139, 250, 0.22), transparent 62%),
-    radial-gradient(900px 640px at 78% 28%, rgba(129, 140, 248, 0.18), transparent 58%),
-    radial-gradient(700px 520px at 8% 96%, rgba(96, 165, 250, 0.16), transparent 60%),
-    linear-gradient(155deg, #F5F3FF 0%, #EEF0FF 38%, #E8EEFE 72%, #E4F0FC 100%);
+    radial-gradient(780px 520px at 16% 74%, rgba(49, 95, 234, 0.12), transparent 64%),
+    radial-gradient(860px 600px at 80% 26%, rgba(117, 69, 232, 0.1), transparent 60%),
+    radial-gradient(640px 480px at 10% 94%, rgba(22, 184, 232, 0.1), transparent 62%),
+    linear-gradient(160deg, #F7F8FF 0%, #F2F3FF 42%, #EEF2FE 78%, #EAF4FC 100%);
   background-repeat: no-repeat, no-repeat, no-repeat, no-repeat, no-repeat;
   /* Cover the left pane only — never stretch UI descendants. */
   background-size: cover, auto, auto, auto, auto;
-  background-position: left bottom, 18% 72%, 78% 28%, 8% 96%, center;
+  background-position: left bottom, 16% 74%, 80% 26%, 10% 94%, center;
   pointer-events: none;
   overflow: hidden;
   z-index: 0;
@@ -512,12 +512,12 @@ body.is-login {
 .login-gate-enterprise .login-portal-bg::before {
   content: "";
   position: absolute;
-  inset: -12% -8% -8% -10%;
+  inset: -10% -6% -6% -8%;
   background:
-    radial-gradient(52% 48% at 4% 88%, rgba(147, 197, 253, 0.36), transparent 72%),
-    radial-gradient(46% 42% at 58% 48%, rgba(167, 139, 250, 0.2), transparent 68%),
-    radial-gradient(38% 36% at 72% 18%, rgba(99, 102, 241, 0.14), transparent 70%);
-  filter: blur(28px);
+    radial-gradient(48% 44% at 6% 86%, rgba(49, 95, 234, 0.16), transparent 74%),
+    radial-gradient(42% 38% at 56% 50%, rgba(117, 69, 232, 0.1), transparent 70%),
+    radial-gradient(34% 32% at 74% 16%, rgba(22, 184, 232, 0.08), transparent 72%);
+  filter: blur(24px);
   pointer-events: none;
   z-index: 0;
 }
@@ -532,11 +532,11 @@ body.is-login {
   inset: 0;
   pointer-events: none;
   z-index: 0;
-  opacity: 0.55;
+  opacity: 0.35;
   background-image:
-    radial-gradient(circle at 1px 1px, rgba(37, 99, 235, 0.07) 1px, transparent 0);
+    radial-gradient(circle at 1px 1px, rgba(23, 37, 84, 0.05) 1px, transparent 0);
   background-size: 28px 28px;
-  mask-image: linear-gradient(105deg, black 0%, black 62%, transparent 92%);
+  mask-image: linear-gradient(180deg, black 0%, black 70%, transparent 96%);
 }
 
 .login-portal-inner {
@@ -768,7 +768,8 @@ body.is-login {
     margin: 0;
     max-width: min(48ch, 100%);
     font-size: clamp(0.88rem, 0.18cqi + 0.78rem, 1.02rem);
-    color: #475569;
+    color: #172554;
+    opacity: 0.78;
   }
 }
 
@@ -1125,18 +1126,18 @@ body.is-login {
   font-weight: 700;
   letter-spacing: -0.035em;
   line-height: 1.12;
-  color: #10264A;
+  color: #172554;
 }
 
 .login-headline-line {
   display: block;
-  color: #10264A;
+  color: #172554;
 }
 
 .login-headline-accent,
 .login-gradient-text {
   display: block;
-  background: linear-gradient(92deg, #1769D2 0%, #2563EB 42%, #38BDF8 88%);
+  background: linear-gradient(92deg, #315FEA 0%, #7545E8 52%, #16B8E8 100%);
   -webkit-background-clip: text;
   background-clip: text;
   color: transparent;
@@ -1150,7 +1151,8 @@ body.is-login {
   margin: 8px 0 0;
   font-size: clamp(0.92rem, 0.35vw + 0.82rem, 1.05rem);
   line-height: 1.5;
-  color: #475569;
+  color: #172554;
+  opacity: 0.8;
   max-width: min(62ch, 100%);
 }
 
@@ -1938,16 +1940,16 @@ body.is-login {
   container-name: login-hub;
 }
 
-/* Soft atmospheric glow only — not a rectangular plate */
+/* Soft atmospheric glow only — not a rectangular plate; keep diagonal wash restrained */
 .login-hub::before {
   content: "";
   position: absolute;
-  inset: 8% 4%;
+  inset: 10% 6%;
   background:
-    radial-gradient(ellipse 55% 50% at 50% 48%, rgba(165, 180, 252, 0.3), transparent 70%),
-    radial-gradient(ellipse 45% 40% at 28% 68%, rgba(196, 181, 253, 0.18), transparent 68%),
-    radial-gradient(ellipse 40% 36% at 74% 30%, rgba(147, 197, 253, 0.16), transparent 65%);
-  filter: blur(26px);
+    radial-gradient(ellipse 52% 48% at 50% 48%, rgba(49, 95, 234, 0.18), transparent 72%),
+    radial-gradient(ellipse 40% 36% at 30% 70%, rgba(117, 69, 232, 0.1), transparent 70%),
+    radial-gradient(ellipse 36% 32% at 72% 28%, rgba(22, 184, 232, 0.1), transparent 68%);
+  filter: blur(22px);
   pointer-events: none;
   z-index: 0;
 }
@@ -1962,27 +1964,27 @@ body.is-login {
   overflow: visible;
 }
 
-.login-hub-spokes path {
-  stroke-opacity: 0.38;
-  transition: stroke-opacity 240ms ease, stroke-width 240ms ease, filter 240ms ease;
+/* Temporary selected-module connection only — no permanent strings */
+.login-hub-temp-connection {
+  opacity: 0;
+  stroke: url(#loginHubSpokeActive);
+  stroke-width: 1.35;
+  filter: drop-shadow(0 0 3px rgba(49, 95, 234, 0.28));
+  transition: opacity 200ms ease, filter 280ms ease;
 }
 
-.login-hub-spokes path.is-active {
-  stroke: url(#loginHubSpokeActive);
-  stroke-opacity: 0.95;
-  stroke-width: 1.85;
-  filter: drop-shadow(0 0 4px rgba(99, 102, 241, 0.35));
-  animation: login-curve-glow 2.4s ease-in-out infinite;
+.login-hub-temp-connection.is-visible {
+  opacity: 0.95;
+  animation: login-curve-glow 2.6s ease-in-out infinite;
+}
+
+.login-hub-temp-connection.is-drawing {
+  transition: stroke-dashoffset 480ms cubic-bezier(0.22, 0.7, 0.28, 1), opacity 200ms ease;
 }
 
 @keyframes login-curve-glow {
-  0%, 100% { stroke-opacity: 0.82; filter: drop-shadow(0 0 3px rgba(99, 102, 241, 0.28)); }
-  50% { stroke-opacity: 1; filter: drop-shadow(0 0 7px rgba(99, 102, 241, 0.45)); }
-}
-
-/* Soft curves stay visible — only selected line strengthens */
-.login-modules-visual.has-selection .login-hub-spokes path:not(.is-active) {
-  stroke-opacity: 0.3;
+  0%, 100% { filter: drop-shadow(0 0 2px rgba(49, 95, 234, 0.22)); }
+  50% { filter: drop-shadow(0 0 6px rgba(117, 69, 232, 0.4)); }
 }
 
 .login-hub-core {
@@ -1999,7 +2001,8 @@ body.is-login {
   pointer-events: none;
   transform: translate(-50%, -50%);
   transform-origin: center;
-  animation: login-hub-pulse 3s ease-in-out infinite;
+  animation: login-hub-pulse 3.2s ease-in-out infinite;
+  transition: filter 280ms ease;
 }
 
 .login-hub-core-plate {
@@ -2019,13 +2022,39 @@ body.is-login {
   max-height: 58%;
   object-fit: contain;
   transform: translate(-50%, -50%);
-  filter: brightness(0) invert(1) drop-shadow(0 1px 2px rgba(15, 23, 42, 0.25));
+  filter: brightness(0) invert(1) drop-shadow(0 1px 2px rgba(23, 37, 84, 0.28));
   pointer-events: none;
 }
 
 @keyframes login-hub-pulse {
-  0%, 100% { transform: translate(-50%, -50%) scale(1); }
-  50% { transform: translate(-50%, -50%) scale(1.04); }
+  0%, 100% {
+    transform: translate(-50%, -50%) scale(1);
+    filter: drop-shadow(0 0 10px rgba(49, 95, 234, 0.22));
+  }
+  50% {
+    transform: translate(-50%, -50%) scale(1.035);
+    filter: drop-shadow(0 0 16px rgba(117, 69, 232, 0.34));
+  }
+}
+
+/* Brief selection flash on the central S hub */
+.login-hub-core.is-illuminated {
+  animation: login-hub-illuminate 0.7s ease-out;
+}
+
+@keyframes login-hub-illuminate {
+  0% {
+    transform: translate(-50%, -50%) scale(1);
+    filter: drop-shadow(0 0 10px rgba(49, 95, 234, 0.22));
+  }
+  35% {
+    transform: translate(-50%, -50%) scale(1.08);
+    filter: drop-shadow(0 0 26px rgba(117, 69, 232, 0.55)) drop-shadow(0 0 12px rgba(22, 184, 232, 0.35));
+  }
+  100% {
+    transform: translate(-50%, -50%) scale(1);
+    filter: drop-shadow(0 0 10px rgba(49, 95, 234, 0.22));
+  }
 }
 
 .login-hub-defs {
@@ -2061,12 +2090,14 @@ body.is-login {
   padding: 0;
   border: 0;
   background: transparent;
-  color: #5B21B6;
+  color: #315FEA;
   cursor: pointer;
   box-shadow: none;
   opacity: 1;
   transform-origin: center;
   transition: transform 240ms ease, filter 240ms ease, opacity 240ms ease;
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
 }
 
 .login-hub-node-plate {
@@ -2098,7 +2129,7 @@ body.is-login {
   width: clamp(24px, 4cqi, 30px);
   height: clamp(24px, 4cqi, 30px);
   flex-shrink: 0;
-  color: #5B21B6;
+  color: #315FEA;
 }
 
 .login-hub-node-ico svg {
@@ -2113,7 +2144,7 @@ body.is-login {
 
 .login-hub-node-label {
   font: 650 clamp(0.72rem, 1.85cqi, 0.92rem)/1.15 "Plus Jakarta Sans", var(--font);
-  color: #4C1D95;
+  color: #172554;
   letter-spacing: 0.01em;
   max-width: 100%;
 }
@@ -2124,24 +2155,34 @@ body.is-login {
   filter: none;
 }
 
-.login-hub-node:hover,
-.login-hub-node:focus-visible,
-.login-hub-node.is-active {
-  transform: scale(1.06);
+.login-hub-node:hover {
+  transform: scale(1.06) translateY(-2px);
   opacity: 1;
-  filter: drop-shadow(0 0 12px rgba(109, 40, 217, 0.28));
+  filter: drop-shadow(0 8px 16px rgba(49, 95, 234, 0.2)) drop-shadow(0 0 10px rgba(117, 69, 232, 0.18));
   z-index: 3;
 }
 
-.login-hub-node:hover .login-hub-node-plate use,
-.login-hub-node:focus-visible .login-hub-node-plate use,
-.login-hub-node.is-active .login-hub-node-plate use {
-  stroke: rgba(91, 33, 182, 0.7);
+.login-hub-node:focus-visible,
+.login-hub-node.is-active {
+  transform: scale(1.08) translateY(-4px);
+  opacity: 1;
+  filter: drop-shadow(0 12px 20px rgba(49, 95, 234, 0.26)) drop-shadow(0 0 14px rgba(117, 69, 232, 0.28));
+  z-index: 4;
+}
+
+.login-hub-node:hover .login-hub-node-plate use {
+  stroke: rgba(49, 95, 234, 0.62);
   stroke-width: 2;
 }
 
+.login-hub-node:focus-visible .login-hub-node-plate use,
+.login-hub-node.is-active .login-hub-node-plate use {
+  stroke: rgba(117, 69, 232, 0.85);
+  stroke-width: 2.25;
+}
+
 .login-hub-node:focus-visible {
-  outline: 2px solid #7C3AED;
+  outline: 2px solid #315FEA;
   outline-offset: 6px;
 }
 
@@ -2231,8 +2272,8 @@ body.is-login {
   height: 44px;
   flex-shrink: 0;
   border-radius: 12px;
-  background: rgba(109, 40, 217, 0.1);
-  color: #5B21B6;
+  background: rgba(49, 95, 234, 0.1);
+  color: #315FEA;
 }
 
 .login-module-detail-ico svg {
@@ -2253,7 +2294,7 @@ body.is-login {
 #loginModuleDetailTitle {
   display: block;
   font: 650 clamp(1.05rem, 0.4cqi + 0.9rem, 1.22rem)/1.25 "Sora", var(--font);
-  color: #312E81;
+  color: #172554;
 }
 
 .login-module-detail #loginModuleDetailBody,
@@ -2261,7 +2302,7 @@ body.is-login {
   display: block;
   margin-top: 4px;
   font: 500 clamp(0.9rem, 0.2cqi + 0.82rem, 1rem)/1.45 "Plus Jakarta Sans", var(--font);
-  color: #475569;
+  color: #1e3a5f;
 }
 
 .login-module-detail-bullets {
@@ -2270,12 +2311,12 @@ body.is-login {
   display: grid;
   gap: 6px;
   list-style: disc;
-  color: #334155;
+  color: #172554;
   font: 500 clamp(0.86rem, 0.15cqi + 0.8rem, 0.95rem)/1.5 "Plus Jakarta Sans", var(--font);
 }
 
 .login-module-detail-bullets li::marker {
-  color: #7C3AED;
+  color: #7545E8;
 }
 
 /* Public module intro dialog */
@@ -2376,13 +2417,15 @@ body.is-login {
   .login-modules-visual,
   .login-hub-node,
   .login-module-detail,
-  .login-hub-spokes path {
+  .login-hub-temp-connection {
     transition: none;
     animation: none !important;
   }
 
-  .login-hub-core {
+  .login-hub-core,
+  .login-hub-core.is-illuminated {
     animation: none;
+    filter: none;
   }
 
   .login-modules-visual.is-swapping .login-module-detail,
@@ -2390,10 +2433,13 @@ body.is-login {
     opacity: 1;
   }
 
-  .login-hub-node:hover,
+  .login-hub-node:hover {
+    transform: scale(1.04);
+  }
+
   .login-hub-node:focus-visible,
   .login-hub-node.is-active {
-    transform: scale(1.04);
+    transform: scale(1.05);
   }
 }
 

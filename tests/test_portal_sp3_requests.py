@@ -1,4 +1,4 @@
-"""Service Portal SP3 — requests lifecycle + ITSM Change on submit (0.99.12)."""
+"""Service Portal SP3 — requests lifecycle + ITSM Change on submit (0.99.13)."""
 
 from __future__ import annotations
 
@@ -14,10 +14,10 @@ from tests.frontend_paths import FRONTEND_INDEX
 
 
 def test_version_bump_for_portal_sp3() -> None:
-    assert __version__ == "0.99.12"
+    assert __version__ == "0.99.13"
     html = FRONTEND_INDEX.read_text(encoding="utf-8")
-    assert 'content="0.99.12"' in html
-    assert "portal/requests.js?v=0.99.12" in html
+    assert 'content="0.99.13"' in html
+    assert "portal/requests.js?v=0.99.13" in html
 
 
 def test_portal_requests_fe_markers() -> None:
