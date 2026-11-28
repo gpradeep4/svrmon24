@@ -17,7 +17,7 @@ def test_enterprise_login_structure() -> None:
     html = html_path.read_text(encoding="utf-8")
     js = js_path.read_text(encoding="utf-8")
 
-    assert 'content="login-enterprise-v23"' in html
+    assert 'content="login-enterprise-v24"' in html
     assert "svrmon-brand-lockup" in html
     assert 'src="/static/img/svrmon-logo.png"' in html
     assert "svrmon-logo-compact.png" in html
@@ -221,7 +221,7 @@ def test_enterprise_login_version_bump() -> None:
 
     html_path, _ = _static_paths()
     html = html_path.read_text(encoding="utf-8")
-    assert __version__ == "0.99.14"
+    assert __version__ == "0.99.15"
     assert f'content="{__version__}"' in html
     assert f"cmdb.css?v={__version__}" in html
     assert f"cmdb.js?v={__version__}" in html

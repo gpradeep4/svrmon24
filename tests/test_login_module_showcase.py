@@ -1,4 +1,4 @@
-"""Login gate — premium interactive central hub + Option B overview (0.99.14)."""
+"""Login gate — premium interactive central hub + Option B overview (0.99.15)."""
 
 from __future__ import annotations
 
@@ -190,14 +190,39 @@ def test_login_premium_hub_no_permanent_strings() -> None:
     html = FRONTEND_INDEX.read_text(encoding="utf-8")
     assert "loginHubTempConnection" in js
     assert "login-hub-temp-connection" in css
-    # renderHub must not append a path per module
+    # renderHub: one temp spoke + optional travel highlight — never a path per module
     render = js.split("function renderHub", 1)[1].split("function observeHubResize", 1)[0]
     assert "mods.forEach" in render
     assert 'createElementNS("http://www.w3.org/2000/svg", "path")' in render
-    assert render.count('createElementNS("http://www.w3.org/2000/svg", "path")') == 1
+    assert render.count('createElementNS("http://www.w3.org/2000/svg", "path")') == 2
+    assert "loginHubTempTravel" in render
+    assert "mods.forEach" in render and "createElementNS" in render
     assert "#315FEA" in html
     assert "#7545E8" in html
     assert "#F2F3FF" in html
+
+
+def test_login_cmdb_gap_and_connection_strokes() -> None:
+    """0.99.15: clearance-aware ring + broader selected stroke + travel glow."""
+    js = (FRONTEND_STATIC / "js" / "login-showcase.js").read_text(encoding="utf-8")
+    css = (FRONTEND_STATIC / "css" / "cmdb.css").read_text(encoding="utf-8")
+    html = FRONTEND_INDEX.read_text(encoding="utf-8")
+    assert "fitRingClearance" in js
+    assert "radialGapPx" in js
+    assert "TARGET_GAP_PX" in js
+    assert "BASE_RING_5" in js
+    assert "strokeWidthForHub" in js
+    assert "STROKE_PX_DESKTOP" in js
+    assert "loginHubTempTravel" in js
+    assert "loginHubSpokeTravel" in html
+    assert ".login-hub-temp-travel" in css
+    assert "login-travel-light" in css
+    assert "--hub-hex-scale" in css
+    assert "stroke-linejoin" in css.split(".login-hub-temp-connection", 1)[1].split(".login-hub-core", 1)[0]
+    # Still temporary selected-only — no permanent multi-spoke loop in renderHub
+    render = js.split("function renderHub", 1)[1].split("function observeHubResize", 1)[0]
+    assert "One temporary connection" in render or "loginHubTempConnection" in render
+    assert render.count("mods.forEach") == 1
 
 
 def test_login_card_play_opens_overview_without_autoplay() -> None:
@@ -244,11 +269,11 @@ def test_login_five_modules_enabled_only() -> None:
     assert "navConfigurationGroup" in html  # real app Config nav kept
 
 
-def test_version_bump_for_login_premium_enterprise_ui() -> None:
-    assert __version__ == "0.99.14"
+def test_version_bump_for_login_cmdb_gap_strokes() -> None:
+    assert __version__ == "0.99.15"
     html = FRONTEND_INDEX.read_text(encoding="utf-8")
-    assert 'content="0.99.14"' in html
-    assert 'content="login-enterprise-v23"' in html
+    assert 'content="0.99.15"' in html
+    assert 'content="login-enterprise-v24"' in html
 
 
 def test_login_premium_enterprise_detail_panel_not_clipped() -> None:
@@ -263,7 +288,8 @@ def test_login_premium_enterprise_detail_panel_not_clipped() -> None:
     # Desktop showcase column must allow hub shrink so the panel is never clipped
     assert "flex: 1 1 auto" in css
     assert "min-height: 0" in css
-    assert "count === 5 ? 36" in js
+    assert "BASE_RING_5" in js
+    assert "fitRingClearance" in js
     assert "Unified view of servers, networks and applications." in js
 
 
